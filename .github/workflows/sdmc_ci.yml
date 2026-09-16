@@ -115,6 +115,9 @@ jobs:
       - name: Scan NKp-v2 late No-Slip sound speed
         run: python3 sdmc/run_v2_noslip_cs2_scan.py
 
+      - name: Compare NKp-v2 fully dynamic and QS No-Slip evolution
+        run: python3 sdmc/run_v2_noslip_qs_scan.py
+
       - name: NKp-v2 branch-complete smooth CMB control
         continue-on-error: true
         run: ./class sdmc/config/nkp_v2_full_smooth_control.ini
@@ -154,6 +157,7 @@ jobs:
             output/sdmc_nkp_v2_full_noslip_*
             output/sdmc_nkp_v2_full_noslip_diag_*
             output/sdmc_nkp_v2_noslip_cs2_scan.csv
+            output/sdmc_nkp_v2_noslip_qs_scan.csv
           if-no-files-found: warn
 
       - name: Preserve SDMC branch-complete backgrounds
