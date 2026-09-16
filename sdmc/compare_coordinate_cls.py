@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Compare two CLASS CMB spectra without external Python dependencies.
 
-This is a coordinate-control diagnostic only.  It does not claim to be the
+This is a coordinate-control diagnostic only. It does not claim to be the
 full SDMC result; it isolates the response to the different frozen physical
 matter densities before the tracker/No-Slip/terminal sectors are switched on.
 """
 from __future__ import annotations
 
 import csv
+import glob
 import math
 import os
 import sys
@@ -22,7 +23,6 @@ def read_class_table(path: str):
             if not s:
                 continue
             if s.startswith("#"):
-                # CLASS header usually contains tokens such as 1:l 2:TT 3:EE ...
                 toks = s.lstrip("#").split()
                 named = []
                 for tok in toks:
@@ -31,13 +31,11 @@ def read_class_table(path: str):
                 if len(named) >= 2:
                     columns = named
                 continue
-            vals = [float(x) for x in s.split()]
-            rows.append(vals)
+            rows.append([float(x) for x in s.split()])
 
     if not rows:
         raise RuntimeError(f"No numerical rows in {path}")
     if columns is None or len(columns) != len(rows[0]):
-        # Conservative fallback for standard scalar CMB CLASS output.
         default = ["l", "TT", "EE", "TE", "BB", "phiphi", "Tphi", "Ephi"]
         columns = default[: len(rows[0])]
     return columns, rows
@@ -48,14 +46,15 @@ def index_map(columns):
 
 
 def find_spectrum(prefix: str):
-    candidates = [
-        prefix + "cl_lensed.dat",
-        prefix + "cl.dat",
-    ]
-    for p in candidates:
+    direct = [prefix + "cl_lensed.dat", prefix + "cl.dat"]
+    numbered = sorted(glob.glob(prefix + "*_cl_lensed.dat")) + sorted(glob.glob(prefix + "*_cl.dat"))
+    for p in direct + numbered:
         if os.path.exists(p):
             return p
-    raise FileNotFoundError("No CLASS C_l file found among: " + ", ".join(candidates))
+    raise FileNotFoundError(
+        "No CLASS C_l file found for prefix " + prefix +
+        "; tried direct and numbered CLASS roots"
+    )
 
 
 def main():
@@ -109,7 +108,7 @@ def main():
         if not subset:
             continue
         parts = []
-        for x in ("TT", "EE"):
+        for x in ("TT", "EE", "phiphi"):
             if x not in common:
                 continue
             vals = []
@@ -119,8 +118,19 @@ def main():
                 if va != 0.0:
                     vals.append(abs((b[iv[x]] - va) / va))
             if vals:
-                parts.append(f"max |d{x}/{x}|={100*max(vals):.3f}%")
-        print(f"  ell {lo:4d}-{hi:4d}: " + ", ".join(parts))
+                rms = math.sqrt(sum(v*v for v in vals)/len(vals))
+                parts.append(f"{x}: max={100*max(vals):.3f}%, rms={100*rms:.3f}%")
+        if all(x in common for x in ("TT", "EE", "TE")):
+            vals = []
+            for ell in subset:
+                a, b = by_l_k[ell], by_l_v[ell]
+                denom = math.sqrt(abs(a[ik["TT"]] * a[ik["EE"]]))
+                if denom > 0.0:
+                    vals.append(abs((b[iv["TE"]] - a[ik["TE"]]) / denom))
+            if vals:
+                rms = math.sqrt(sum(v*v for v in vals)/len(vals))
+                parts.append(f"TE/sqrt(TT EE): max={100*max(vals):.3f}%, rms={100*rms:.3f}%")
+        print(f"  ell {lo:4d}-{hi:4d}: " + "; ".join(parts))
     print(f"Wrote {out}")
 
 
