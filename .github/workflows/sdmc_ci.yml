@@ -35,8 +35,8 @@ jobs:
       - name: Apply NKp-v2 endpoint-clean No-Slip patch
         run: python3 sdmc/apply_sdmc_v2_noslip_patch.py
 
-      - name: Align No-Slip closure with native hi_class stability numerator
-        run: python3 sdmc/apply_sdmc_v2_native_noslip_patch.py
+      - name: Smooth NKp-v2 No-Slip activation
+        run: python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
 
       - name: Build hi_class executable
         run: make -j2 class
@@ -104,7 +104,7 @@ jobs:
       - name: Compare clustered tracker spectra
         run: python3 sdmc/compare_tracker_clustered_cls.py
 
-      - name: NKp-v2 native No-Slip background diagnostic
+      - name: NKp-v2 smooth No-Slip background diagnostic
         run: ./class sdmc/config/nkp_v2_full_noslip_background_diagnostic.ini
 
       # The diagnostic table above is written with stability rejection disabled;
