@@ -41,6 +41,12 @@ jobs:
       - name: Compare coordinate-control spectra
         run: python3 sdmc/compare_coordinate_cls.py
 
+      - name: Kp HyRec-aware tracker background proxy
+        run: ./class sdmc/config/kp_tracker_background_proxy.ini
+
+      - name: NKp-v2 HyRec-aware tracker background proxy
+        run: ./class sdmc/config/nkp_v2_tracker_background_proxy.ini
+
       - name: Preserve SDMC CMB coordinate-control outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -50,6 +56,16 @@ jobs:
             output/sdmc_kp_coordinate_*
             output/sdmc_nkp_v2_coordinate_*
             output/sdmc_coordinate_cl_comparison.csv
+          if-no-files-found: warn
+
+      - name: Preserve SDMC tracker background proxies
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-tracker-background-proxies
+          path: |
+            output/sdmc_kp_tracker_proxy_*
+            output/sdmc_nkp_v2_tracker_proxy_*
           if-no-files-found: warn
 
       - name: Preserve baseline outputs
