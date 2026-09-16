@@ -50,6 +50,12 @@ jobs:
       - name: Scan HyRec-aware tracker proxy strength
         run: python3 sdmc/run_tracker_proxy_scan.py ./class output/sdmc_tracker_proxy_scan.csv
 
+      - name: Kp two-asymptote tracker background proxy
+        run: ./class sdmc/config/kp_tracker_split_proxy.ini
+
+      - name: NKp-v2 two-asymptote tracker background proxy
+        run: ./class sdmc/config/nkp_v2_tracker_split_proxy.ini
+
       - name: Preserve SDMC CMB coordinate-control outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -69,6 +75,8 @@ jobs:
           path: |
             output/sdmc_kp_tracker_proxy_*
             output/sdmc_nkp_v2_tracker_proxy_*
+            output/sdmc_kp_tracker_split_proxy_*
+            output/sdmc_nkp_v2_tracker_split_proxy_*
             output/sdmc_tracker_proxy_scan.csv
           if-no-files-found: warn
 
