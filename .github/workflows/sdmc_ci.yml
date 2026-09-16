@@ -121,6 +121,9 @@ jobs:
       - name: Scan NKp-v2 scalar perturbation initial conditions
         run: python3 sdmc/run_v2_noslip_ic_scan.py
 
+      - name: Scan NKp-v2 general-braiding completion
+        run: python3 sdmc/apply_sdmc_v2_native_noslip_patch.py
+
       - name: NKp-v2 branch-complete smooth CMB control
         continue-on-error: true
         run: ./class sdmc/config/nkp_v2_full_smooth_control.ini
@@ -164,6 +167,8 @@ jobs:
             output/sdmc_nkp_v2_noslip_qs_*.log
             output/sdmc_nkp_v2_noslip_ic_scan.csv
             output/sdmc_nkp_v2_noslip_ic_*.log
+            output/sdmc_nkp_v2_braid_scan.csv
+            output/sdmc_nkp_v2_braid_*.log
           if-no-files-found: warn
 
       - name: Preserve SDMC branch-complete backgrounds
