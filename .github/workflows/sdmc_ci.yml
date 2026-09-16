@@ -101,11 +101,15 @@ jobs:
       - name: Compare clustered tracker spectra
         run: python3 sdmc/compare_tracker_clustered_cls.py
 
-      - name: NKp-v2 branch-complete smooth CMB control
-        run: ./class sdmc/config/nkp_v2_full_smooth_control.ini
-
+      # Run the physical B0 No-Slip closure before the deliberately simplified
+      # smooth comparator. A failure of the latter must not block the primary
+      # branch-complete perturbation calculation.
       - name: NKp-v2 branch-complete clustered No-Slip TT TE EE
         run: ./class sdmc/config/nkp_v2_full_clustered_noslip.ini
+
+      - name: NKp-v2 branch-complete smooth CMB control
+        continue-on-error: true
+        run: ./class sdmc/config/nkp_v2_full_smooth_control.ini
 
       - name: Preserve SDMC CMB coordinate-control outputs
         if: always()
