@@ -20,6 +20,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 python3-pip
 
+      - name: Compile SDMC frozen-profile unit test
+        run: gcc -std=c99 -O2 -Wall -Wextra sdmc/sdmc_profiles.c sdmc/test_sdmc_profiles.c -lm -o sdmc/test_sdmc_profiles
+
+      - name: Run SDMC frozen-profile unit test
+        run: ./sdmc/test_sdmc_profiles
+
       - name: Build hi_class executable
         run: make -j2 class
 
