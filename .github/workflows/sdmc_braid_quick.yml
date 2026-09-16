@@ -1,0 +1,50 @@
+name: SDMC quick braiding scan
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+
+jobs:
+  braid-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+
+      - name: Apply SDMC runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Build NKp-v2 clustered-tracker reference
+        run: ./class sdmc/config/nkp_v2_tracker_clustered_cs0003.ini
+
+      - name: Run selected general-braiding completions
+        run: |
+          python3 - <<'PY'
+          import sdmc.apply_sdmc_v2_native_noslip_patch as scan
+          scan.BETAS = [-4.0,-3.0,-2.5,-2.25,-2.0,-1.75,-1.5,-1.25,-1.0,-0.5,0.0,0.5,1.0,2.0]
+          scan.main()
+          PY
+
+      - name: Preserve quick braiding scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v2-braid-quick
+          path: |
+            output/sdmc_nkp_v2_braid_scan.csv
+            output/sdmc_nkp_v2_braid_*.log
+          if-no-files-found: warn
