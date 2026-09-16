@@ -21,15 +21,21 @@ def find_background(prefix):
 
 
 def parse_header(line):
-    # CLASS normally separates numbered titles with tabs.  Keep a regex
-    # fallback for titles containing spaces such as "kin (D)".
+    """Parse a CLASS numbered header even when it contains no tab separators.
+
+    Typical output is a single line like
+      # 1:z  2:proper time [Gyr] ... 30:c_s^2 31:kin (D)
+    so splitting on whitespace or tabs corrupts multi-word column titles.
+    Instead, locate each numbered marker and slice the title up to the next.
+    """
     s = line.lstrip("#").strip()
-    parts = [p.strip() for p in s.split("\t") if p.strip()]
+    marks = list(re.finditer(r"(\d+)\s*:\s*", s))
     out = {}
-    for p in parts:
-        m = re.match(r"^(\d+)\s*:\s*(.*)$", p)
-        if m:
-            out[m.group(2).strip()] = int(m.group(1)) - 1
+    for j, m in enumerate(marks):
+        end = marks[j + 1].start() if j + 1 < len(marks) else len(s)
+        title = s[m.end():end].strip()
+        if title:
+            out[title] = int(m.group(1)) - 1
     return out
 
 
@@ -43,8 +49,8 @@ def read_background(path):
                 continue
             if s.startswith("#"):
                 h = parse_header(s)
-                if h:
-                    cols.update(h)
+                if len(h) > len(cols):
+                    cols = h
                 continue
             rows.append([float(x) for x in s.split()])
     if not rows:
