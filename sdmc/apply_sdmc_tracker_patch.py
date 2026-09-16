@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Patch hi_class with the frozen SDMC lambda_e tracker expansion model.
+"""Patch hi_class with the frozen SDMC early tracker and designer clustering.
 
 The patch is deliberately kept as a small, auditable layer while the SDMC
-Boltzmann implementation is being validated.  It adds one non-dynamical
-expansion model, `sdmc_tracker`, leaving all existing hi_class models unchanged.
+Boltzmann implementation is being validated.  It adds:
 
-For a matter+radiation background the frozen tracker fraction is
+1. `sdmc_tracker`, a non-dynamical expansion model implementing the frozen
+   lambda_e tracker with the adopted late handoff; and
+2. `sdmc_early_cs`, a designer EFT perturbation closure that keeps
+   alpha_B=alpha_M=alpha_T=alpha_H=0 and chooses alpha_K so that hi_class's
+   scalar propagation speed equals a requested constant c_phi^2.
+
+For the tracker background
 
     f_tr(N) = W(N) * 3(1+w_b)/lambda_e^2,
 
@@ -13,6 +18,19 @@ with W the already adopted late handoff.  The Hubble correction is implemented
 as the equivalent separately conserved tracker density on top of a constant
 late structural density.  The tracker pressure is obtained from d rho_tr/dN,
 so H and H' remain mutually consistent rather than inserting a bare H rescale.
+
+For the designer early clustering closure, with M_*^2=1 and vanishing
+braiding/running/tensor excess, hi_class reduces to
+
+    c_s^2 = [3 (rho_smg+p_smg)/H^2] / alpha_K.
+
+Hence choosing
+
+    alpha_K = 3 (rho_smg+p_smg) / (H^2 c_phi^2)
+
+realizes the requested sound speed directly.  The constant late structural
+piece cancels from rho_smg+p_smg, so the kineticity follows the dynamical
+tracker rather than becoming large at late times.
 """
 from pathlib import Path
 
@@ -37,7 +55,48 @@ replace_once(
     "enum expansion_model {lcdm, wowa, wowa_w, wede, sdmc_tracker};",
 )
 
-# 2) Parse expansion_smg = Omega_X0, lambda_e, z_t, DeltaN.
+# 2) Register the designer early-clustering gravity model.
+replace_once(
+    "include/background.h",
+    "enum gravity_model {propto_omega, propto_omega_bh, propto_scale,\n    constant_alphas,\n",
+    "enum gravity_model {propto_omega, propto_omega_bh, propto_scale,\n    constant_alphas, sdmc_early_cs,\n",
+)
+
+# 3) Parse the designer sound-speed target from parameters_smg.
+anchor = '''  if (strcmp(string1,"constant_alphas") == 0) {
+     pba->gravity_model_smg = constant_alphas;
+     pba->field_evolution_smg = _FALSE_;
+     pba->M2_evolution_smg = _TRUE_;
+     flag2=_TRUE_;
+     pba->parameters_2_size_smg = 5;
+     class_read_list_of_doubles("parameters_smg",pba->parameters_2_smg,pba->parameters_2_size_smg);
+   }
+
+  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+replacement = '''  if (strcmp(string1,"constant_alphas") == 0) {
+     pba->gravity_model_smg = constant_alphas;
+     pba->field_evolution_smg = _FALSE_;
+     pba->M2_evolution_smg = _TRUE_;
+     flag2=_TRUE_;
+     pba->parameters_2_size_smg = 5;
+     class_read_list_of_doubles("parameters_smg",pba->parameters_2_smg,pba->parameters_2_size_smg);
+   }
+
+  if (strcmp(string1,"sdmc_early_cs") == 0) {
+     pba->gravity_model_smg = sdmc_early_cs;
+     pba->field_evolution_smg = _FALSE_;
+     pba->M2_evolution_smg = _FALSE_;
+     flag2=_TRUE_;
+     pba->parameters_2_size_smg = 1;
+     class_read_list_of_doubles("parameters_smg",pba->parameters_2_smg,pba->parameters_2_size_smg);
+     class_test(pba->parameters_2_smg[0] <= 0., errmsg,
+                "sdmc_early_cs requires c_phi^2 > 0");
+   }
+
+  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+replace_once("gravity_smg/gravity_models_smg.c", anchor, replacement)
+
+# 4) Parse expansion_smg = Omega_X0, lambda_e, z_t, DeltaN.
 anchor = '''  if (strcmp(string1,"wede") == 0) {
     //ILSWEDE
     pba->expansion_model_smg = wede;
@@ -80,7 +139,7 @@ replacement = '''  if (strcmp(string1,"wede") == 0) {
              "could not identify expansion_model value, check that it is either lcdm, wowa, wowa_w, wede, sdmc_tracker ...");'''
 replace_once("gravity_smg/gravity_models_smg.c", anchor, replacement)
 
-# 3) Add the homogeneous tracker density and the pressure required by
+# 5) Add the homogeneous tracker density and the pressure required by
 #    background conservation.  rho_tot/p_tot here exclude the smg sector.
 anchor = '''  else if (pba->expansion_model_smg == wede){
 
@@ -196,4 +255,62 @@ replacement = '''  else if (pba->expansion_model_smg == wede){
   return _SUCCESS_;'''
 replace_once("gravity_smg/gravity_models_smg.c", anchor, replacement)
 
-print("SDMC tracker source patch complete.")
+# 6) Add the designer alpha_K closure.  In this no-braiding, constant-M2
+#    limit hi_class has cs2num = 3(rho_smg+p_smg)/H^2 and D=alpha_K.
+anchor = '''  else if (pba->gravity_model_smg == constant_alphas) {
+
+    double c_k = pba->parameters_2_smg[0];
+    double c_b = pba->parameters_2_smg[1];
+    double c_m = pba->parameters_2_smg[2];
+    double c_t = pba->parameters_2_smg[3];
+
+    pvecback[pba->index_bg_kineticity_smg] = c_k;
+    pvecback[pba->index_bg_braiding_smg] = c_b;
+    pvecback[pba->index_bg_tensor_excess_smg] = c_t;
+    pvecback[pba->index_bg_M2_running_smg] = c_m;
+    pvecback[pba->index_bg_delta_M2_smg] = delta_M2; //M2-1
+    pvecback[pba->index_bg_M2_smg] = 1.+delta_M2;
+  }
+
+  else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+replacement = '''  else if (pba->gravity_model_smg == constant_alphas) {
+
+    double c_k = pba->parameters_2_smg[0];
+    double c_b = pba->parameters_2_smg[1];
+    double c_m = pba->parameters_2_smg[2];
+    double c_t = pba->parameters_2_smg[3];
+
+    pvecback[pba->index_bg_kineticity_smg] = c_k;
+    pvecback[pba->index_bg_braiding_smg] = c_b;
+    pvecback[pba->index_bg_tensor_excess_smg] = c_t;
+    pvecback[pba->index_bg_M2_running_smg] = c_m;
+    pvecback[pba->index_bg_delta_M2_smg] = delta_M2; //M2-1
+    pvecback[pba->index_bg_M2_smg] = 1.+delta_M2;
+  }
+
+  else if (pba->gravity_model_smg == sdmc_early_cs) {
+
+    double cs2_target = pba->parameters_2_smg[0];
+    double enthalpy_smg = pvecback[pba->index_bg_rho_smg]
+                        + pvecback[pba->index_bg_p_smg];
+    double H2 = rho_tot;
+
+    /* The frozen tracker has positive enthalpy throughout its finite handoff.
+     * Keep only a numerical floor far below the physical tracker signal.
+     */
+    if (enthalpy_smg < 1.e-30*H2)
+      enthalpy_smg = 1.e-30*H2;
+
+    pvecback[pba->index_bg_kineticity_smg] = 3.*enthalpy_smg/(H2*cs2_target);
+    pvecback[pba->index_bg_braiding_smg] = 0.;
+    pvecback[pba->index_bg_tensor_excess_smg] = 0.;
+    pvecback[pba->index_bg_M2_running_smg] = 0.;
+    pvecback[pba->index_bg_beyond_horndeski_smg] = 0.;
+    pvecback[pba->index_bg_delta_M2_smg] = 0.;
+    pvecback[pba->index_bg_M2_smg] = 1.;
+  }
+
+  else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+replace_once("gravity_smg/gravity_models_smg.c", anchor, replacement)
+
+print("SDMC tracker + designer early-clustering source patch complete.")
