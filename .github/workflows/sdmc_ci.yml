@@ -35,6 +35,9 @@ jobs:
       - name: Apply NKp-v2 endpoint-clean No-Slip patch
         run: python3 sdmc/apply_sdmc_v2_noslip_patch.py
 
+      - name: Align No-Slip closure with native hi_class stability numerator
+        run: python3 sdmc/apply_sdmc_v2_native_noslip_patch.py
+
       - name: Build hi_class executable
         run: make -j2 class
 
