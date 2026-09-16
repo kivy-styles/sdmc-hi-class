@@ -65,6 +65,15 @@ jobs:
       - name: NKp-v2 exact frozen tracker background
         run: ./class sdmc/config/nkp_v2_tracker_exact_background.ini
 
+      - name: Kp exact-tracker smooth CMB control
+        run: ./class sdmc/config/kp_tracker_smooth_control.ini
+
+      - name: NKp-v2 exact-tracker smooth CMB control
+        run: ./class sdmc/config/nkp_v2_tracker_smooth_control.ini
+
+      - name: Compare exact-tracker smooth CMB controls
+        run: python3 sdmc/compare_tracker_smooth_cls.py
+
       - name: Preserve SDMC CMB coordinate-control outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,6 +83,17 @@ jobs:
             output/sdmc_kp_coordinate_*
             output/sdmc_nkp_v2_coordinate_*
             output/sdmc_coordinate_cl_comparison.csv
+          if-no-files-found: warn
+
+      - name: Preserve SDMC tracker CMB controls
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-tracker-smooth-cmb-controls
+          path: |
+            output/sdmc_kp_tracker_smooth_*
+            output/sdmc_nkp_v2_tracker_smooth_*
+            output/sdmc_tracker_smooth_cl_comparison.csv
           if-no-files-found: warn
 
       - name: Preserve SDMC tracker background diagnostics
