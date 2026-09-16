@@ -32,6 +32,26 @@ jobs:
       - name: Baseline LCDM smoke test
         run: ./class explanatory.ini
 
+      - name: Kp coordinate-control TT TE EE
+        run: ./class sdmc/config/kp_coordinate_control.ini
+
+      - name: NKp-v2 coordinate-control TT TE EE
+        run: ./class sdmc/config/nkp_v2_coordinate_control.ini
+
+      - name: Compare coordinate-control spectra
+        run: python3 sdmc/compare_coordinate_cls.py
+
+      - name: Preserve SDMC CMB coordinate-control outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-cmb-coordinate-control
+          path: |
+            output/sdmc_kp_coordinate_*
+            output/sdmc_nkp_v2_coordinate_*
+            output/sdmc_coordinate_cl_comparison.csv
+          if-no-files-found: warn
+
       - name: Preserve baseline outputs
         if: always()
         uses: actions/upload-artifact@v4
