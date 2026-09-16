@@ -32,6 +32,9 @@ jobs:
       - name: Apply branch-complete late plus tracker background patch
         run: python3 sdmc/apply_sdmc_full_background_patch.py
 
+      - name: Apply NKp-v2 endpoint-clean No-Slip patch
+        run: python3 sdmc/apply_sdmc_v2_noslip_patch.py
+
       - name: Build hi_class executable
         run: make -j2 class
 
@@ -74,6 +77,9 @@ jobs:
       - name: NKp-v2 branch-complete late plus tracker background
         run: ./class sdmc/config/nkp_v2_full_background.ini
 
+      - name: Audit fixed SDMC acoustic endpoints
+        run: python3 sdmc/audit_acoustic_endpoints.py
+
       - name: Kp exact-tracker smooth CMB control
         run: ./class sdmc/config/kp_tracker_smooth_control.ini
 
@@ -94,6 +100,12 @@ jobs:
 
       - name: Compare clustered tracker spectra
         run: python3 sdmc/compare_tracker_clustered_cls.py
+
+      - name: NKp-v2 branch-complete smooth CMB control
+        run: ./class sdmc/config/nkp_v2_full_smooth_control.ini
+
+      - name: NKp-v2 branch-complete clustered No-Slip TT TE EE
+        run: ./class sdmc/config/nkp_v2_full_clustered_noslip.ini
 
       - name: Preserve SDMC CMB coordinate-control outputs
         if: always()
@@ -118,6 +130,16 @@ jobs:
             output/sdmc_kp_tracker_clustered_cs0003_*
             output/sdmc_nkp_v2_tracker_clustered_cs0003_*
             output/sdmc_tracker_clustered_cl_comparison.csv
+          if-no-files-found: warn
+
+      - name: Preserve NKp-v2 branch-complete perturbation outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v2-full-perturbations
+          path: |
+            output/sdmc_nkp_v2_full_smooth_*
+            output/sdmc_nkp_v2_full_noslip_*
           if-no-files-found: warn
 
       - name: Preserve SDMC branch-complete backgrounds
