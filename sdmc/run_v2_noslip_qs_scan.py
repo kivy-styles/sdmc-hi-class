@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Compare fully-dynamic and quasi-static NKp-v2 No-Slip perturbations.
 
-The background and EFT functions are identical in all rows.  This is a solver
-regime diagnostic, not a physical likelihood.  If the large late response is
-present only in fully-dynamic evolution but not in the QS solution, the cause
-is a propagating scalar mode / handoff transient rather than the No-Slip
-quasi-static coupling itself.
+The background and EFT functions are identical in all rows. This is a solver
+regime diagnostic, not a physical likelihood. A forced-QS failure is retained
+as a diagnostic rather than silently interpreted as a model rejection.
 """
 from __future__ import annotations
 import csv, glob, math, os, subprocess
@@ -14,7 +12,7 @@ from pathlib import Path
 TEMPLATE=Path("sdmc/config/nkp_v2_full_clustered_noslip.ini")
 REF=Path("output/sdmc_nkp_v2_tracker_clustered_cs0003_00_cl_lensed.dat")
 OUT=Path("output/sdmc_nkp_v2_noslip_qs_scan.csv")
-METHODS=["fully_dynamic","automatic","quasi_static"]
+METHODS=["fully_dynamic","automatic","quasi_static","quasi_static_debug"]
 
 
 def replace_line(text,key,value):
@@ -71,17 +69,22 @@ def main():
         prefix=f"output/sdmc_nkp_v2_noslip_qs_{method}_"
         clean(prefix)
         ini=Path(f"output/sdmc_nkp_v2_noslip_qs_{method}.ini")
+        log=Path(f"output/sdmc_nkp_v2_noslip_qs_{method}.log")
         text=replace_line(base,"method_qs_smg",method)
         text=replace_line(text,"z_pk","0,10")
         text=replace_line(text,"root",prefix)
-        for k in ("input_verbose","background_verbose","thermodynamics_verbose","perturbations_verbose","output_verbose"):
+        for k in ("input_verbose","background_verbose","thermodynamics_verbose","output_verbose"):
             text=replace_line(text,k,"0")
+        text=replace_line(text,"perturbations_verbose","2" if "quasi_static" in method else "0")
         ini.write_text(text,encoding="utf-8")
         row={k:"" for k in fields}; row["method"]=method
         try:
             cp=subprocess.run(["./class",str(ini)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=240)
+            log.write_text(cp.stdout,encoding="utf-8")
             if cp.returncode:
-                row["status"]="FAIL"; row["error"]=" | ".join(cp.stdout.strip().splitlines()[-6:])[:1200]
+                row["status"]="FAIL"
+                tail=[x for x in cp.stdout.strip().splitlines() if x.strip()][-18:]
+                row["error"]=" | ".join(tail)[:3000]
                 print(method,"FAIL",row["error"]); rows.append(row); continue
             cl=table(find1(prefix+"*_cl_lensed.dat")); p0=table(find1(prefix+"*_z1_pk.dat")); p10=table(find1(prefix+"*_z2_pk.dat"))
             s0,s10=sigma8(p0),sigma8(p10)
@@ -90,6 +93,9 @@ def main():
             for e in (200,1000,2000): row[f"TT_ratio_l{e}"]=f"{nearest(cl,e,1)/nearest(ref,e,1):.12g}"
             print(method,"OK","sigma8",s0,"growth",s0/s10,"phi1000/ref",row["phiphi_ratio_l1000"])
             rows.append(row)
+        except subprocess.TimeoutExpired as exc:
+            row["status"]="TIMEOUT"; row["error"]=f"timeout after {exc.timeout} s"
+            print(method,"TIMEOUT"); rows.append(row)
         finally:
             clean(prefix)
             try: ini.unlink()
