@@ -44,6 +44,19 @@ double sdmc_tracker_fraction(double z, sdmc_branch branch);
 /* Tracker-corrected background diagnostic used by the closure tests. */
 double sdmc_E_with_tracker(double z, sdmc_branch branch);
 
+/*
+ * Frozen Kp exact-No-Slip late profile from Part VI.
+ * N = ln(a), with a0=1.  The monotonic saturated release is
+ *   ln M_*^2 = A_M S(N),
+ *   S = [1+tanh((N-Nc)/(2w))]/2,
+ * where A_M=0.02586, zc=4.38, w=0.4467.
+ * This reproduces M_*0^2/M_Pl^2 ~=1.02559 and alpha_M,max~=0.01447.
+ * NKp-v2 is deliberately not assigned this Kp profile.
+ */
+double sdmc_kp_noslip_M2(double N, sdmc_branch branch);
+double sdmc_kp_noslip_alphaM(double N, sdmc_branch branch);
+double sdmc_kp_noslip_alphaB(double N, sdmc_branch branch);
+
 /* Kp terminal reciprocal-acoustic coefficient.  For NKp-v2 this is identically 1. */
 double sdmc_kp_terminal_C(double z, sdmc_branch branch,
                           double C_b, double z_on, double dz);
