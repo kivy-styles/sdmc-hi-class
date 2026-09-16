@@ -5,6 +5,11 @@ static const double SDMC_H0 = 70.8514;
 static const double SDMC_OMEGA_R0 = 8.3268e-5;
 static const double SDMC_OMEGA_B_H2 = 0.02239952;
 
+/* Frozen Kp optimized exact-No-Slip release. */
+static const double SDMC_KP_NOSLIP_AM = 0.02586;
+static const double SDMC_KP_NOSLIP_ZC = 4.38;
+static const double SDMC_KP_NOSLIP_W = 0.4467;
+
 sdmc_background_params sdmc_params(sdmc_branch branch) {
   sdmc_background_params p;
   p.H0_km_s_Mpc = SDMC_H0;
@@ -76,6 +81,34 @@ double sdmc_E_with_tracker(double z, sdmc_branch branch) {
   const double ftrk = sdmc_tracker_fraction(z, branch);
   const double f = W * ftrk;
   return sdmc_E_late(z, branch)/sqrt(1.0 - f);
+}
+
+static double sdmc_kp_release_S(double N) {
+  const double Nc = -log(1.0 + SDMC_KP_NOSLIP_ZC);
+  const double x = (N - Nc)/(2.0*SDMC_KP_NOSLIP_W);
+  return 0.5*(1.0 + tanh(x));
+}
+
+double sdmc_kp_noslip_M2(double N, sdmc_branch branch) {
+  if (branch != SDMC_BRANCH_KP) {
+    return 1.0;
+  }
+  return exp(SDMC_KP_NOSLIP_AM * sdmc_kp_release_S(N));
+}
+
+double sdmc_kp_noslip_alphaM(double N, sdmc_branch branch) {
+  double Nc, x, ch;
+  if (branch != SDMC_BRANCH_KP) {
+    return 0.0;
+  }
+  Nc = -log(1.0 + SDMC_KP_NOSLIP_ZC);
+  x = (N - Nc)/(2.0*SDMC_KP_NOSLIP_W);
+  ch = cosh(x);
+  return SDMC_KP_NOSLIP_AM/(4.0*SDMC_KP_NOSLIP_W*ch*ch);
+}
+
+double sdmc_kp_noslip_alphaB(double N, sdmc_branch branch) {
+  return -2.0 * sdmc_kp_noslip_alphaM(N, branch);
 }
 
 double sdmc_kp_terminal_C(double z, sdmc_branch branch,
