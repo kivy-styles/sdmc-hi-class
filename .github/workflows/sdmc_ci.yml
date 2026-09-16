@@ -26,6 +26,9 @@ jobs:
       - name: Run SDMC frozen-profile unit test
         run: ./sdmc/test_sdmc_profiles
 
+      - name: Apply exact SDMC tracker source patch
+        run: python3 sdmc/apply_sdmc_tracker_patch.py
+
       - name: Build hi_class executable
         run: make -j2 class
 
@@ -56,6 +59,12 @@ jobs:
       - name: NKp-v2 two-asymptote tracker background proxy
         run: ./class sdmc/config/nkp_v2_tracker_split_proxy.ini
 
+      - name: Kp exact frozen tracker background
+        run: ./class sdmc/config/kp_tracker_exact_background.ini
+
+      - name: NKp-v2 exact frozen tracker background
+        run: ./class sdmc/config/nkp_v2_tracker_exact_background.ini
+
       - name: Preserve SDMC CMB coordinate-control outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -67,16 +76,18 @@ jobs:
             output/sdmc_coordinate_cl_comparison.csv
           if-no-files-found: warn
 
-      - name: Preserve SDMC tracker background proxies
+      - name: Preserve SDMC tracker background diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-tracker-background-proxies
+          name: sdmc-tracker-background-diagnostics
           path: |
             output/sdmc_kp_tracker_proxy_*
             output/sdmc_nkp_v2_tracker_proxy_*
             output/sdmc_kp_tracker_split_proxy_*
             output/sdmc_nkp_v2_tracker_split_proxy_*
+            output/sdmc_kp_tracker_exact_*
+            output/sdmc_nkp_v2_tracker_exact_*
             output/sdmc_tracker_proxy_scan.csv
           if-no-files-found: warn
 
