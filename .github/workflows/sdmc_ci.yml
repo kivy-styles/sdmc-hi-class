@@ -29,6 +29,9 @@ jobs:
       - name: Apply exact SDMC tracker and clustering source patch
         run: python3 sdmc/apply_sdmc_tracker_patch.py
 
+      - name: Apply branch-complete late plus tracker background patch
+        run: python3 sdmc/apply_sdmc_full_background_patch.py
+
       - name: Build hi_class executable
         run: make -j2 class
 
@@ -64,6 +67,12 @@ jobs:
 
       - name: NKp-v2 exact frozen tracker background
         run: ./class sdmc/config/nkp_v2_tracker_exact_background.ini
+
+      - name: Kp branch-complete late plus tracker background
+        run: ./class sdmc/config/kp_full_background.ini
+
+      - name: NKp-v2 branch-complete late plus tracker background
+        run: ./class sdmc/config/nkp_v2_full_background.ini
 
       - name: Kp exact-tracker smooth CMB control
         run: ./class sdmc/config/kp_tracker_smooth_control.ini
@@ -109,6 +118,16 @@ jobs:
             output/sdmc_kp_tracker_clustered_cs0003_*
             output/sdmc_nkp_v2_tracker_clustered_cs0003_*
             output/sdmc_tracker_clustered_cl_comparison.csv
+          if-no-files-found: warn
+
+      - name: Preserve SDMC branch-complete backgrounds
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-full-backgrounds
+          path: |
+            output/sdmc_kp_full_background_*
+            output/sdmc_nkp_v2_full_background_*
           if-no-files-found: warn
 
       - name: Preserve SDMC tracker background diagnostics
