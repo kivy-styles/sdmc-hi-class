@@ -47,6 +47,9 @@ jobs:
       - name: NKp-v2 HyRec-aware tracker background proxy
         run: ./class sdmc/config/nkp_v2_tracker_background_proxy.ini
 
+      - name: Scan HyRec-aware tracker proxy strength
+        run: python3 sdmc/run_tracker_proxy_scan.py ./class output/sdmc_tracker_proxy_scan.csv
+
       - name: Preserve SDMC CMB coordinate-control outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -66,6 +69,7 @@ jobs:
           path: |
             output/sdmc_kp_tracker_proxy_*
             output/sdmc_nkp_v2_tracker_proxy_*
+            output/sdmc_tracker_proxy_scan.csv
           if-no-files-found: warn
 
       - name: Preserve baseline outputs
