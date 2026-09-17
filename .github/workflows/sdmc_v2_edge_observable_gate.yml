@@ -129,6 +129,8 @@ jobs:
                   p += f'z_pk = {ZPK}\n'
               if not re.search(r'(?m)^\s*write thermodynamics\s*=',p): p += 'write thermodynamics = yes\n'
               if not re.search(r'(?m)^\s*write background\s*=',p): p += 'write background = yes\n'
+              if skip_smg_stability and not re.search(r'(?m)^\s*skip_stability_tests_smg\s*=',p):
+                  p += 'skip_stability_tests_smg = yes\n'
               return p
 
           Path('output/v2_edge.ini').write_text(v2_ini('output/v2_edge_'))
