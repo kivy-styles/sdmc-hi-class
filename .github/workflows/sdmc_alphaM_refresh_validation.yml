@@ -29,6 +29,12 @@ jobs:
           python3 sdmc/fix_sdmc_split_sector_background.py
           python3 sdmc/fix_parameterized_alphaM_refresh.py
 
+      - name: Expose exact native cs2 diagnostic columns
+        run: |
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          sed -i 's/output_background_smg = 1/output_background_smg = 3/' sdmc/config/kp_split_sector_background_diagnostic.ini
+          sed -i 's/output_background_smg = 1/output_background_smg = 3/' sdmc/config/nkp_v2_split_sector_background_diagnostic.ini
+
       - name: Build hi_class
         run: make -j2 class
 
@@ -50,12 +56,12 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import csv, math, re
+          import csv, re
 
           OUT=Path('output')
           cases=[
-              ('Kp_core', OUT/'sdmc_kp_split_bvp_diag_00_background.dat'),
-              ('NKp_v2', OUT/'sdmc_nkp_v2_split_bvp_diag_00_background.dat'),
+              ('Kp_core', OUT/'sdmc_kp_split_bvp_diag_00_background.dat', 0.1, 1.0e-4),
+              ('NKp_v2', OUT/'sdmc_nkp_v2_split_bvp_diag_00_background.dat', 0.1, 1.0e-4),
           ]
 
           def read_bg(path):
@@ -73,53 +79,78 @@ jobs:
                       rows.append(dict(zip(names,vals)))
               return rows
 
+          def neg_intervals(records, key='cs2num'):
+              seq=sorted(records,key=lambda x:x['z'])
+              out=[]; start=None; last=None
+              for r in seq:
+                  neg=r[key] < 0.0
+                  if neg and start is None: start=r['z']
+                  if not neg and start is not None:
+                      out.append(f'{start:.9g}:{last:.9g}'); start=None
+                  if neg: last=r['z']
+              if start is not None: out.append(f'{start:.9g}:{last:.9g}')
+              return '|'.join(out)
+
           summary=[]
           detailed=[]
-          for name,path in cases:
+          for name,path,target_cs2,Dfloor in cases:
               if not path.exists():
                   summary.append({'case':name,'status':'MISSING_BACKGROUND'})
                   continue
               rows=read_bg(path)
-              max_closure=0.0
-              minrow=None
-              max_noslip=0.0
+              required=['cs2num','braiding_prime_smg','rho_tot_wo_smg_dbg','p_tot_wo_smg_dbg']
+              missing=[c for c in required if c not in rows[0]]
+              if missing:
+                  raise RuntimeError(f'{name}: missing diagnostic columns {missing}')
+              case=[]
               for r in rows:
                   z=r['z']; a=1.0/(1.0+z); H=r['H [1/Mpc]']
                   F=r['M*^2_smg']; b=r['braiding_smg']; am=r['M2_running_smg']
+                  ten=r['tensor_excess_smg']; beh=r['beyond_horndeski_smg']
                   rs=r['(.)rho_smg']; ps=r['(.)p_smg']
-                  rho_wo=r['(.)rho_tot']-rs
-                  p_wo=r['(.)p_tot']-ps
+                  rho_wo=r['rho_tot_wo_smg_dbg']; p_wo=r['p_tot_wo_smg_dbg']
                   bp=r['braiding_prime_smg']
-                  t1=0.5*(2.0-b)*(b+2.0*am)
-                  t2=1.5*(2.0-b)*(rs+ps)/(H*H)
-                  t3=-1.5*(2.0-2.0*F+b*F)/F*(rho_wo+p_wo)/(H*H)
-                  t4=bp/(a*H)
+                  t1=0.5*(2.0-b)*(b+2.0*beh+2.0*am+2.0*beh*am-2.0*ten+b*ten)
+                  t2=1.5*(2.0-b)*(1.0+beh)*(rs+ps)/(H*H)
+                  t3=-1.5*(1.0+beh)*(2.0+2.0*beh-2.0*F+b*F)/F*(rho_wo+p_wo)/(H*H)
+                  t4=(1.0+beh)*bp/(a*H)
                   calc=t1+t2+t3+t4
-                  err=calc-r['cs2num']
-                  max_closure=max(max_closure,abs(err))
-                  max_noslip=max(max_noslip,abs(b+2.0*am))
+                  ns=r['cs2num']; D=r['kin (D)']; cs2=r['c_s^2']
                   rec={
-                      'case':name,'z':z,'a':a,'cs2num':r['cs2num'],'D':r['kin (D)'],
-                      'cs2':r['c_s^2'],'term_mix':t1,'term_smg_rhop':t2,
-                      'term_non_smg':t3,'term_bra_prime':t4,'sum_terms':calc,
-                      'closure_error':err,'F':F,'alphaM':am,'alphaB':b,
+                      'case':name,'z':z,'a':a,'cs2num':ns,'D':D,'cs2':cs2,
+                      'raw_D_for_target_cs2':ns/target_cs2,
+                      'at_D_floor':int(D <= Dfloor*(1.0+1e-8)),
+                      'term_mix':t1,'term_smg_rhop':t2,'term_non_smg':t3,
+                      'term_bra_prime':t4,'sum_terms':calc,
+                      'closure_error':calc-ns,'ratio_error':D*cs2-ns,
+                      'F':F,'alphaM':am,'alphaB':b,
                       'noslip_residual':b+2.0*am,
                   }
-                  detailed.append(rec)
-                  if z <= 100.0 and (minrow is None or r['cs2num'] < minrow['cs2num']):
-                      minrow=rec
+                  case.append(rec); detailed.append(rec)
+              sub=[r for r in case if r['z'] <= 100.0]
+              min_num=min(sub,key=lambda r:r['cs2num'])
+              min_cs=min(sub,key=lambda r:r['cs2'])
               summary.append({
-                  'case':name,'status':'OK','min_cs2num_zlt100':minrow['cs2num'],
-                  'z_at_min':minrow['z'],'cs2_at_min':minrow['cs2'],
-                  'D_at_min':minrow['D'],'max_abs_closure_error':max_closure,
-                  'max_abs_noslip_residual':max_noslip,
+                  'case':name,'status':'OK',
+                  'min_cs2num_zlt100':min_num['cs2num'],
+                  'z_at_min_cs2num':min_num['z'],
+                  'cs2_at_min_cs2num':min_num['cs2'],
+                  'D_at_min_cs2num':min_num['D'],
+                  'raw_D_at_min':min_num['raw_D_for_target_cs2'],
+                  'min_cs2_zlt100':min_cs['cs2'],
+                  'z_at_min_cs2':min_cs['z'],
+                  'negative_intervals_zlt100':neg_intervals(sub),
+                  'floor_hits_zlt100':sum(r['at_D_floor'] for r in sub),
+                  'max_abs_closure_error':max(abs(r['closure_error']) for r in case),
+                  'max_abs_ratio_error':max(abs(r['ratio_error']) for r in case),
+                  'max_abs_noslip_residual':max(abs(r['noslip_residual']) for r in case),
               })
 
-          sfields=['case','status','min_cs2num_zlt100','z_at_min','cs2_at_min','D_at_min','max_abs_closure_error','max_abs_noslip_residual']
+          sfields=['case','status','min_cs2num_zlt100','z_at_min_cs2num','cs2_at_min_cs2num','D_at_min_cs2num','raw_D_at_min','min_cs2_zlt100','z_at_min_cs2','negative_intervals_zlt100','floor_hits_zlt100','max_abs_closure_error','max_abs_ratio_error','max_abs_noslip_residual']
           with (OUT/'sdmc_alphaM_refresh_summary.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=sfields); w.writeheader()
               for row in summary: w.writerow({k:row.get(k,'') for k in sfields})
-          dfields=['case','z','a','cs2num','D','cs2','term_mix','term_smg_rhop','term_non_smg','term_bra_prime','sum_terms','closure_error','F','alphaM','alphaB','noslip_residual']
+          dfields=['case','z','a','cs2num','D','cs2','raw_D_for_target_cs2','at_D_floor','term_mix','term_smg_rhop','term_non_smg','term_bra_prime','sum_terms','closure_error','ratio_error','F','alphaM','alphaB','noslip_residual']
           with (OUT/'sdmc_alphaM_refresh_terms.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=dfields); w.writeheader(); w.writerows(detailed)
 
