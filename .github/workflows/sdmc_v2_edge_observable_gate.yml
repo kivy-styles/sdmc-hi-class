@@ -112,7 +112,7 @@ jobs:
               output_verbose = 0
               ''')
 
-          def expand(path,root,common_primordial=False):
+          def expand(path,root,common_primordial=False,skip_smg_stability=False):
               p=Path(path).read_text()
               p=re.sub(r'(?m)^\s*root\s*=.*$',f'root = {root}',p)
               p=re.sub(r'(?m)^\s*output\s*=.*$', 'output = tCl,pCl,lCl,mPk', p)
@@ -132,8 +132,11 @@ jobs:
               return p
 
           Path('output/v2_edge.ini').write_text(v2_ini('output/v2_edge_'))
-          Path('output/kp_native.ini').write_text(expand('sdmc/config/kp_fullbg_clustered_cs0003.ini','output/kp_native_',False))
-          Path('output/kp_common.ini').write_text(expand('sdmc/config/kp_fullbg_clustered_cs0003.ini','output/kp_common_',True))
+          # Frozen Kp is an observational reference here. Its manuscript branch is preserved,
+          # while the historical proxy/native stability mismatch is bypassed rather than
+          # misreported as a native-stable solution.
+          Path('output/kp_native.ini').write_text(expand('sdmc/config/kp_fullbg_clustered_cs0003.ini','output/kp_native_',False,True))
+          Path('output/kp_common.ini').write_text(expand('sdmc/config/kp_fullbg_clustered_cs0003.ini','output/kp_common_',True,True))
           Path('output/lcdm_profile.ini').write_text(expand('sdmc/config/planck_lcdm_control.ini','output/lcdm_profile_',False))
           Path('output/lcdm_common.ini').write_text(expand('sdmc/config/planck_lcdm_control.ini','output/lcdm_common_',True))
           PY
