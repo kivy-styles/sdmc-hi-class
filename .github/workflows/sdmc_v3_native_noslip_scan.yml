@@ -1,0 +1,152 @@
+name: SDMC NKp-v3 native No-Slip stability scan
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  native-noslip-v3-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply frozen SDMC runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+
+      - name: Expose exact native cs2 diagnostic columns
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Scan NKp-v3 native-exact No-Slip family
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, glob, os, re, subprocess
+
+          OUT=Path('output'); OUT.mkdir(exist_ok=True)
+          CSV=OUT/'sdmc_v3_native_noslip_scan.csv'
+          BEST=OUT/'sdmc_v3_native_noslip_best.csv'
+          AMPS=[0.020,0.025,0.030,0.035,0.040,0.045,0.050,0.060,0.080]
+          ZCS=[1.5,2.0,3.0,4.0,5.0,6.0,8.0,10.0,15.0]
+          WIDTHS=[0.25,0.35,0.45,0.60,0.80,1.00,1.40,2.00]
+          CS2=0.1; DFLOOR=1.0e-4; TARGET_F0=1.02795
+          fields=['A_F','z_c','width','status','min_num_all','z_min_all','min_num_z100','min_num_z1e4','neg_rows_all','F0','alphaM0','Fmin','Fmax','max_abs_noslip','score']
+          with CSV.open('w',newline='') as f: csv.DictWriter(f,fieldnames=fields).writeheader()
+
+          def read_bg(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[x for x in lines if x.startswith('#') and '1:z' in x][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  names.append(hdr[m.end():end].strip())
+              return [dict(zip(names,map(float,l.split()))) for l in lines if l.strip() and not l.startswith('#')]
+
+          def ini_text(A,zc,w,root,skip=True,full=False):
+              extra='A_s = 2.10e-9\nn_s = 0.965\ntau_reio = 0.0544\n' if full else ''
+              skipline='skip_stability_tests_smg = yes\n' if skip else ''
+              outputs='output = tCl,pCl,lCl,mPk\nmodes = s\nlensing = yes\nl_max_scalars = 3000\nP_k_max_h/Mpc = 2.0\nz_pk = 0,0.5,1,2,3,5,10\nwrite thermodynamics = yes\n' if full else 'write thermodynamics = no\n'
+              return f'''H0 = 70.8514
+omega_b = 0.02239952
+omega_cdm = 0.12444227328918850
+N_ncdm = 0
+N_ur = 3.046
+T_cmb = 2.7255
+YHe = 0.2453
+{extra}Omega_Lambda = 0
+Omega_fld = 3.1443554e-8
+fluid_equation_of_state = SDMC_TRACKER
+cs2_fld = 0.003
+use_ppf = no
+Omega_smg = -1
+gravity_model = sdmc_v3_native_noslip
+parameters_smg = {A:.12g}, {zc:.12g}, {w:.12g}, {CS2:.12g}, {DFLOOR:.12g}
+expansion_model = sdmc_full
+expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+pert_initial_conditions_smg = zero
+method_qs_smg = fully_dynamic
+output_background_smg = 3
+{skipline}{outputs}write background = yes
+root = {root}
+format = class
+write parameters = yes
+input_verbose = 0
+background_verbose = 0
+thermodynamics_verbose = 0
+perturbations_verbose = 0
+spectra_verbose = 0
+lensing_verbose = 0
+output_verbose = 0
+'''
+
+          stable=[]; rows_out=[]; n=0
+          for A in AMPS:
+              for zc in ZCS:
+                  for w in WIDTHS:
+                      n+=1; tag=f'v3native_{n:04d}'; root=f'output/{tag}_'; ini=OUT/(tag+'.ini')
+                      ini.write_text(ini_text(A,zc,w,root,skip=True,full=False))
+                      cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=30)
+                      bg=Path(root+'00_background.dat'); rec={'A_F':A,'z_c':zc,'width':w,'status':'RUN_FAIL'}
+                      if cp.returncode==0 and bg.exists():
+                          rr=read_bg(bg)
+                          for r in rr: r['noslip']=r['braiding_smg']+2.*r['M2_running_smg']
+                          sub100=[r for r in rr if r['z']<=100.]; sub1e4=[r for r in rr if r['z']<=1.e4]
+                          mn=min(rr,key=lambda r:r['cs2num']); m100=min(sub100,key=lambda r:r['cs2num']); m1e4=min(sub1e4,key=lambda r:r['cs2num'])
+                          r0=min(rr,key=lambda r:abs(r['z'])); F0=r0['M*^2_smg']; am0=r0['M2_running_smg']
+                          rec.update({'status':'STABLE_ALL' if mn['cs2num']>0. else 'NEGATIVE_NUM','min_num_all':mn['cs2num'],'z_min_all':mn['z'],'min_num_z100':m100['cs2num'],'min_num_z1e4':m1e4['cs2num'],'neg_rows_all':sum(1 for r in rr if r['cs2num']<0.),'F0':F0,'alphaM0':am0,'Fmin':min(r['M*^2_smg'] for r in rr),'Fmax':max(r['M*^2_smg'] for r in rr),'max_abs_noslip':max(abs(r['noslip']) for r in rr),'score':abs(F0-TARGET_F0)+5.*abs(am0)})
+                          if mn['cs2num']>0.: stable.append(dict(rec))
+                      rows_out.append(rec)
+                      with CSV.open('a',newline='') as f: csv.DictWriter(f,fieldnames=fields).writerow({k:rec.get(k,'') for k in fields})
+                      for p in glob.glob(root+'*'):
+                          try: os.remove(p)
+                          except OSError: pass
+                      try: ini.unlink()
+                      except OSError: pass
+                  print('V3_SCAN_PROGRESS',A,'tested',n,'stable',len(stable),flush=True)
+
+          ranked=sorted(stable,key=lambda r:(r['score'],-r['min_num_all']))
+          with BEST.open('w',newline='') as f:
+              wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader()
+              src=ranked[:50] if ranked else sorted([r for r in rows_out if isinstance(r.get('min_num_all'),float)],key=lambda r:r['min_num_all'],reverse=True)[:50]
+              for r in src: wr.writerow({k:r.get(k,'') for k in fields})
+          print('N_TESTED',n); print('N_STABLE_ALL',len(ranked))
+          if ranked:
+              b=ranked[0]; print('BEST_NKP_V3_NATIVE_STABLE',b)
+              full_ini=OUT/'sdmc_v3_native_noslip_best.ini'; root='output/sdmc_v3_native_noslip_best_'
+              full_ini.write_text(ini_text(b['A_F'],b['z_c'],b['width'],root,skip=False,full=True))
+              cp=subprocess.run(['./class',str(full_ini)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=240)
+              (OUT/'sdmc_v3_native_noslip_best.log').write_text(cp.stdout)
+              print('V3_BEST_FULL_RETURNCODE',cp.returncode)
+          PY
+
+      - name: Preserve NKp-v3 native No-Slip scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v3-native-noslip-scan
+          path: |
+            output/sdmc_v3_native_noslip_scan.csv
+            output/sdmc_v3_native_noslip_best.csv
+            output/sdmc_v3_native_noslip_best.ini
+            output/sdmc_v3_native_noslip_best.log
+            output/sdmc_v3_native_noslip_best_*
+          if-no-files-found: warn
