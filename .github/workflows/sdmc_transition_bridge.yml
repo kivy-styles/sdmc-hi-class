@@ -9,7 +9,7 @@ on:
 jobs:
   transition-bridge-scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -18,18 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential python3 python3-pip
-          python3 -m pip install --upgrade pip
-          python3 -m pip install numpy scipy cobaya
-
-      - name: Install native Planck Plik-lite data
-        run: |
-          python3 - <<'PY'
-          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
-          ok = TTTEEE_lite_native.install(path='planck_packages', no_progress_bars=True)
-          if not ok:
-              raise SystemExit('Planck Plik-lite data installation failed')
-          PY
+          sudo apt-get install -y build-essential python3
 
       - name: Apply split-sector and bridge runtime patches
         run: |
@@ -44,69 +33,57 @@ jobs:
       - name: Build hi_class
         run: make -j2 class
 
-      - name: Scan bridge stability then test least-disturbing completions
+      - name: Signed targeted Kp bridge stability scan
         run: |
           python3 - <<'PY'
           from __future__ import annotations
           import csv, glob, math, os, re, subprocess
           from pathlib import Path
-          import numpy as np
-          from scipy.optimize import minimize_scalar
-          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
 
           OUT=Path('output'); OUT.mkdir(exist_ok=True)
-          TCMB=2.7255; CAL=0.0025
-          lik=TTTEEE_lite_native(packages_path='planck_packages')
+          CSV=OUT/'sdmc_kp_signed_bridge_scan.csv'
+          BEST=OUT/'sdmc_kp_signed_bridge_best.csv'
 
-          branches={
-            'Kp': {
-              'omega_cdm':0.12000047526014168,
-              'Omega_fld':3.0549311e-8,
-              'expansion':'0.716246932, 20.0, 21.26, 0.5, 0.021223342, 0.25, 0.0116038358, 1.5',
-              'model':'sdmc_kp_transition_bridge',
-              'base':'sdmc/config/kp_core_split_sector.ini',
-              'ref':'sdmc/config/kp_tracker_clustered_cs0003.ini',
-              'prefix':'kp_bridge',
-            },
-            'NKp_v2': {
-              'omega_cdm':0.12444227328918850,
-              'Omega_fld':3.1443554e-8,
-              'expansion':'0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5',
-              'model':'sdmc_v2_transition_bridge',
-              'base':'sdmc/config/nkp_v2_split_sector.ini',
-              'ref':'sdmc/config/nkp_v2_tracker_clustered_cs0003.ini',
-              'prefix':'v2_bridge',
-            }
-          }
+          omega_cdm=0.12000047526014168
+          Omega_fld=3.0549311e-8
+          expansion='0.716246932, 20.0, 21.26, 0.5, 0.021223342, 0.25, 0.0116038358, 1.5'
 
-          amps=[0.0025,0.005,0.0075,0.01,0.015,0.02,0.03,0.04,0.06,0.08]
-          zons=[45.,40.,35.,30.,27.,25.,22.]
-          zoffs=[15.,12.,10.,8.,6.]
-          widths=[0.12,0.18,0.25,0.35,0.5,0.7]
+          # First determine whether the sign of the localized braiding derivative can
+          # repair the native c_s^2 numerator near the Kp failure at z~28.9.
+          amps=[-0.30,-0.20,-0.12,-0.08,-0.04,-0.02,-0.01,-0.005,-0.0025,
+                 0.0,
+                 0.0025,0.005,0.01,0.02,0.04,0.08,0.12,0.20,0.30]
+          zons=[35.,30.,29.,28.,25.]
+          zoffs=[22.,18.,15.,12.]
+          widths=[0.04,0.08,0.15,0.25,0.40]
 
-          def params(label,A,zon,zoff,w):
-              if label=='Kp':
-                  return f'0.1, 1.0e-4, {A:.12g}, {zon:.12g}, {zoff:.12g}, {w:.12g}'
-              return f'0.001, 0.1, 21.45883112, 0.5, 1.0e-4, {A:.12g}, {zon:.12g}, {zoff:.12g}, {w:.12g}'
+          fields=['A_bridge','z_on','z_off','width_N','status','failure_cs2','failure_a','failure_z',
+                  'min_cs2','z_min_cs2','min_D','max_abs_alphaB','cost']
+          with CSV.open('w',newline='') as f:
+              csv.DictWriter(f,fieldnames=fields).writeheader()
 
-          def minimal_ini(label,cfg,pars,root):
+          def append(row):
+              with CSV.open('a',newline='') as f:
+                  csv.DictWriter(f,fieldnames=fields).writerow({k:row.get(k,'') for k in fields})
+
+          def minimal_ini(pars,root):
               return f'''H0 = 70.8514
           omega_b = 0.02239952
-          omega_cdm = {cfg['omega_cdm']:.17g}
+          omega_cdm = {omega_cdm:.17g}
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
           Omega_Lambda = 0
-          Omega_fld = {cfg['Omega_fld']:.12g}
+          Omega_fld = {Omega_fld:.12g}
           fluid_equation_of_state = SDMC_TRACKER
           cs2_fld = 0.003
           use_ppf = no
           Omega_smg = -1
-          gravity_model = {cfg['model']}
+          gravity_model = sdmc_kp_transition_bridge
           parameters_smg = {pars}
           expansion_model = sdmc_full
-          expansion_smg = {cfg['expansion']}
+          expansion_smg = {expansion}
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           output_background_smg = 1
@@ -123,11 +100,10 @@ jobs:
 
           def table(path):
               rows=[]
-              with open(path,encoding='utf-8') as f:
-                  for line in f:
-                      s=line.strip()
-                      if s and not s.startswith('#'):
-                          rows.append([float(x) for x in s.split()])
+              for line in Path(path).read_text(encoding='utf-8').splitlines():
+                  s=line.strip()
+                  if s and not s.startswith('#'):
+                      rows.append([float(x) for x in s.split()])
               return rows
 
           def clean(prefix):
@@ -135,153 +111,70 @@ jobs:
                   try: os.remove(p)
                   except OSError: pass
 
-          def find1(pattern):
-              x=sorted(glob.glob(pattern))
-              if len(x)!=1: raise RuntimeError(f'{pattern}: found {len(x)}')
-              return x[0]
-
-          def metrics_bg(path):
-              b=table(path)
-              return min(r[29] for r in b), min(r[30] for r in b), max(abs(r[25]) for r in b)
-
-          scan=[]
-          stable={k:[] for k in branches}
-          for label,cfg in branches.items():
-              for A in amps:
-                  for zon in zons:
-                      for zoff in zoffs:
-                          if zoff>=zon: continue
-                          for w in widths:
-                              tag=f"{cfg['prefix']}_{A:.4g}_{zon:g}_{zoff:g}_{w:.3g}".replace('.','p')
-                              root=f'output/{tag}_'
-                              ini=OUT/(tag+'.ini'); log=OUT/(tag+'.log')
-                              clean(root)
-                              ini.write_text(minimal_ini(label,cfg,params(label,A,zon,zoff,w),root),encoding='utf-8')
-                              cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=60)
-                              log.write_text(cp.stdout,encoding='utf-8')
-                              row={'branch':label,'A_bridge':A,'z_on':zon,'z_off':zoff,'width_N':w,'status':'FAIL','min_cs2':'','min_D':'','max_abs_alphaB':'','cost':A*A*abs(math.log((1+zoff)/(1+zon)))}
-                              if cp.returncode==0:
-                                  try:
-                                      bg=find1(root+'*_background.dat')
-                                      c2,D,ab=metrics_bg(bg)
-                                      row.update(status='OK',min_cs2=c2,min_D=D,max_abs_alphaB=ab)
-                                      stable[label].append(dict(row))
-                                  except Exception as e:
-                                      row['status']='PARSE_FAIL'; row['error']=str(e)
+          stable=[]
+          n=0
+          for A in amps:
+              for zon in zons:
+                  for zoff in zoffs:
+                      if zoff>=zon: continue
+                      for w in widths:
+                          n+=1
+                          tag=f'kp_signed_{n:05d}'
+                          root=f'output/{tag}_'
+                          ini=OUT/(tag+'.ini')
+                          pars=f'0.1, 1.0e-4, {A:.12g}, {zon:.12g}, {zoff:.12g}, {w:.12g}'
+                          ini.write_text(minimal_ini(pars,root),encoding='utf-8')
+                          cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,
+                                            stderr=subprocess.STDOUT,timeout=45)
+                          row={'A_bridge':A,'z_on':zon,'z_off':zoff,'width_N':w,'status':'FAIL',
+                               'cost':A*A*abs(math.log((1+zoff)/(1+zon)))}
+                          if cp.returncode==0:
+                              bgs=sorted(glob.glob(root+'*_background.dat'))
+                              if len(bgs)==1:
+                                  b=table(bgs[0])
+                                  if b:
+                                      imin=min(range(len(b)),key=lambda i:b[i][29])
+                                      row.update(status='OK',min_cs2=b[imin][29],z_min_cs2=b[imin][0],
+                                                 min_D=min(r[30] for r in b),
+                                                 max_abs_alphaB=max(abs(r[25]) for r in b))
+                                      stable.append(dict(row))
+                                  else:
+                                      row['status']='EMPTY_BACKGROUND'
                               else:
-                                  m=re.search(r'cs2 = ([^,\n]+)',cp.stdout)
-                                  if m: row['failure_cs2']=m.group(1).strip()
-                              scan.append(row)
-                              clean(root)
-                              try: ini.unlink()
-                              except OSError: pass
-                              try: log.unlink()
-                              except OSError: pass
-              print(label,'stable background points',len(stable[label]),flush=True)
+                                  row['status']='BACKGROUND_MISSING'
+                          else:
+                              m=re.search(r'cs2\s*=\s*([^,\n]+)',cp.stdout)
+                              if m: row['failure_cs2']=m.group(1).strip()
+                              ma=re.search(r'at\s+a\s*=\s*([0-9eE+\-.]+)',cp.stdout)
+                              if not ma: ma=re.search(r'a\s*=\s*([0-9eE+\-.]+)',cp.stdout)
+                              if ma:
+                                  try:
+                                      aa=float(ma.group(1)); row['failure_a']=aa; row['failure_z']=1./aa-1.
+                                  except Exception: pass
+                          append(row)
+                          clean(root)
+                          try: ini.unlink()
+                          except OSError: pass
 
-          fields=sorted({k for r in scan for k in r})
-          with open(OUT/'sdmc_transition_bridge_stability_scan.csv','w',newline='') as f:
-              wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader(); wr.writerows(scan)
+              print('A',A,'tested',n,'stable_so_far',len(stable),flush=True)
 
-          # Run each branch's tracker-clustered reference once for growth/lensing ratios.
-          refs={}
-          for label,cfg in branches.items():
-              txt=Path(cfg['ref']).read_text(encoding='utf-8')
-              root=f"output/{cfg['prefix']}_reference_"
-              txt=re.sub(r'(?m)^\s*root\s*=.*$',f'root = {root}',txt)
-              txt=re.sub(r'(?m)^\s*z_pk\s*=.*$', 'z_pk = 0',txt)
-              ini=OUT/(cfg['prefix']+'_reference.ini'); ini.write_text(txt,encoding='utf-8')
-              subprocess.run(['./class',str(ini)],check=True,stdout=subprocess.DEVNULL,timeout=180)
-              refs[label]={'cl':table(find1(root+'*_cl_lensed.dat')),'pk':table(find1(root+'*_pk.dat'))}
-
-          def sigma8(rows):
-              vals=[]
-              for r in rows:
-                  k,p=r[0],r[1]; x=8*k
-                  win=1.0 if abs(x)<1e-9 else 3*(math.sin(x)-x*math.cos(x))/x**3
-                  vals.append((math.log(k),k**3*p*win*win/(2*math.pi**2)))
-              q=sum(.5*(a[1]+b[1])*(b[0]-a[0]) for a,b in zip(vals[:-1],vals[1:]))
-              return math.sqrt(max(q,0.0))
-
-          def near(rows,ell,col): return min(rows,key=lambda r:abs(r[0]-ell))[col]
-
-          def setline(text,key,value):
-              pat=re.compile(rf'(?m)^\s*{re.escape(key)}\s*=.*$')
-              if not pat.search(text): raise RuntimeError('missing '+key)
-              return pat.sub(f'{key} = {value}',text)
-
-          def planck_chi(cl):
-              arr=np.asarray(cl,float); conv=(TCMB*1e6)**2
-              x=np.column_stack([arr[:,0],arr[:,1]*conv,arr[:,3]*conv,arr[:,2]*conv])
-              def L(A): return float(lik.chi_squared(x,A_planck=float(A)))
-              def T(A): return L(A)+((float(A)-1)/CAL)**2
-              r=minimize_scalar(T,bounds=(0.96,1.04),method='bounded',options={'xatol':1e-10})
-              return float(r.x),float(r.fun)
-
-          tested=[]
-          best_by_branch={}
-          for label,cfg in branches.items():
-              # Stability is the primary selector. Among stable points test the 12 least
-              # integrated bridge-power solutions; Planck is evaluated only after this selection.
-              cand=sorted(stable[label],key=lambda r:(r['cost'],abs(r['A_bridge']),r['width_N']))[:12]
-              refsig=sigma8(refs[label]['pk'])
-              for j,r0 in enumerate(cand):
-                  A,zon,zoff,w=r0['A_bridge'],r0['z_on'],r0['z_off'],r0['width_N']
-                  base=Path(cfg['base']).read_text(encoding='utf-8')
-                  base=setline(base,'gravity_model',cfg['model'])
-                  base=setline(base,'parameters_smg',params(label,A,zon,zoff,w))
-                  base=setline(base,'z_pk','0')
-                  root=f"output/{cfg['prefix']}_candidate_{j}_"
-                  base=setline(base,'root',root)
-                  ini=OUT/(cfg['prefix']+f'_candidate_{j}.ini'); ini.write_text(base,encoding='utf-8')
-                  cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=240)
-                  rr=dict(r0); rr['candidate_index']=j; rr['full_status']='FAIL'; rr['reference_sigma8']=refsig
-                  if cp.returncode==0:
-                      try:
-                          cl=table(find1(root+'*_cl_lensed.dat')); pk=table(find1(root+'*_pk.dat'))
-                          sig=sigma8(pk)
-                          rr['sigma8']=sig
-                          rr['sigma8_ratio']=sig/refsig
-                          for ell in (100,500,1000,1500): rr[f'phiphi_ratio_l{ell}']=near(cl,ell,5)/near(refs[label]['cl'],ell,5)
-                          for ell in (200,1000,2000): rr[f'TT_ratio_l{ell}']=near(cl,ell,1)/near(refs[label]['cl'],ell,1)
-                          Ap,chi=planck_chi(cl); rr['A_planck']=Ap; rr['pliklite_chi2']=chi
-                          rr['full_status']='OK'
-                          # Independent non-Planck ranking: stay near the reference growth/lensing
-                          rr['disturbance_score']=abs(math.log(max(rr['sigma8_ratio'],1e-30)))+abs(math.log(max(rr['phiphi_ratio_l1000'],1e-30)))
-                      except Exception as e:
-                          rr['full_status']='PARSE_FAIL'; rr['error']=str(e)
-                  else:
-                      rr['error']=' | '.join(cp.stdout.strip().splitlines()[-12:])[:2000]
-                  tested.append(rr)
-                  print(label,j,rr['full_status'],'A',A,'zon/off',zon,zoff,'w',w,'sig8',rr.get('sigma8'),'phi1000',rr.get('phiphi_ratio_l1000'),'chi',rr.get('pliklite_chi2'),flush=True)
-
-              ok=[r for r in tested if r['branch']==label and r.get('full_status')=='OK']
-              if ok:
-                  best=min(ok,key=lambda r:r['disturbance_score'])
-                  best_by_branch[label]=best
-                  print('BEST LOW-DISTURBANCE',label,best,flush=True)
-
-          if tested:
-              fields=sorted({k for r in tested for k in r})
-              with open(OUT/'sdmc_transition_bridge_full_tests.csv','w',newline='') as f:
-                  wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader(); wr.writerows(tested)
-          if best_by_branch:
-              fields=sorted({k for r in best_by_branch.values() for k in r})
-              with open(OUT/'sdmc_transition_bridge_best.csv','w',newline='') as f:
-                  wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader(); wr.writerows(best_by_branch.values())
+          if stable:
+              stable=sorted(stable,key=lambda r:(r['cost'],-r['min_cs2']))
+              with BEST.open('w',newline='') as f:
+                  wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader()
+                  for r in stable[:50]: wr.writerow({k:r.get(k,'') for k in fields})
+              print('BEST_STABLE',stable[0],flush=True)
+          else:
+              BEST.write_text('status\nNO_STABLE_POINT\n',encoding='utf-8')
+              print('NO_STABLE_POINT in signed targeted Kp pulse family',flush=True)
           PY
 
-      - name: Preserve bridge diagnostics
+      - name: Preserve signed bridge diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-transition-bridge
+          name: sdmc-kp-signed-transition-bridge
           path: |
-            output/sdmc_transition_bridge_stability_scan.csv
-            output/sdmc_transition_bridge_full_tests.csv
-            output/sdmc_transition_bridge_best.csv
-            output/kp_bridge_candidate_*_cl_lensed.dat
-            output/kp_bridge_candidate_*_background.dat
-            output/v2_bridge_candidate_*_cl_lensed.dat
-            output/v2_bridge_candidate_*_background.dat
+            output/sdmc_kp_signed_bridge_scan.csv
+            output/sdmc_kp_signed_bridge_best.csv
           if-no-files-found: warn
