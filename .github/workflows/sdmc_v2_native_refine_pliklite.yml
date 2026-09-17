@@ -1,0 +1,203 @@
+name: SDMC v2 native refinement and Planck Plik-lite
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  refine-native-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy
+
+      - name: Apply frozen SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+
+      - name: Reuse native-exact No-Slip experimental patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+          lines=Path('.github/workflows/sdmc_v2_native_noslip_scan.yml').read_text().splitlines()
+          marker='- name: Add native-exact No-Slip profile family'
+          i=next(i for i,x in enumerate(lines) if marker in x)
+          h=next(i for i in range(i+1,len(lines)) if "python3 - <<'PY'" in lines[i])
+          j=next(i for i in range(h+1,len(lines)) if lines[i].strip()=='PY')
+          code=textwrap.dedent('\n'.join(lines[h+1:j]))
+          exec(compile(code,'native_patch','exec'),{})
+          PY
+
+      - name: Expose exact native cs2 diagnostics
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Refine stability-only candidate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, glob, os, re, subprocess
+          OUT=Path('output'); OUT.mkdir(exist_ok=True)
+          AMPS=[x/1000 for x in range(68,81)]
+          ZCS=[4.5,5.0,5.5,6.0,6.5,7.0,8.0,9.0,10.0,12.0,15.0]
+          WIDTHS=[1.4,1.6,1.8,2.0,2.2,2.4]
+          CS2=0.1; DFLOOR=1e-4
+          rows=[]
+
+          def ini_text(A,zc,w,root,full=False,skip=True):
+              prim='A_s = 2.10e-9\nn_s = 0.965\ntau_reio = 0.0544\n' if full else ''
+              outputs=('output = tCl,pCl,lCl,mPk\nmodes = s\nlensing = yes\nl_max_scalars = 3000\nP_k_max_h/Mpc = 2.0\nz_pk = 0,0.5,1,2,3,5,10\nwrite thermodynamics = yes\n' if full else 'write thermodynamics = no\n')
+              skipline='skip_stability_tests_smg = yes\n' if skip else ''
+              return f'''H0 = 70.8514
+omega_b = 0.02239952
+omega_cdm = 0.12444227328918850
+N_ncdm = 0
+N_ur = 3.046
+T_cmb = 2.7255
+YHe = 0.2453
+{prim}Omega_Lambda = 0
+Omega_fld = 3.1443554e-8
+fluid_equation_of_state = SDMC_TRACKER
+cs2_fld = 0.003
+use_ppf = no
+Omega_smg = -1
+gravity_model = sdmc_v2_native_noslip
+parameters_smg = {A:.12g}, {zc:.12g}, {w:.12g}, {CS2:.12g}, {DFLOOR:.12g}
+expansion_model = sdmc_full
+expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+pert_initial_conditions_smg = zero
+method_qs_smg = fully_dynamic
+output_background_smg = 3
+{skipline}{outputs}write background = yes
+root = {root}
+format = class
+write parameters = yes
+input_verbose = 0
+background_verbose = 0
+thermodynamics_verbose = 0
+perturbations_verbose = 0
+spectra_verbose = 0
+lensing_verbose = 0
+output_verbose = 0
+'''
+
+          def read_bg(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[x for x in lines if x.startswith('#') and '1:z' in x][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  names.append(hdr[m.end():end].strip())
+              return [dict(zip(names,map(float,l.split()))) for l in lines if l.strip() and not l.startswith('#')]
+
+          n=0
+          for A in AMPS:
+              for zc in ZCS:
+                  for w in WIDTHS:
+                      n+=1; tag=f'nref_{n:04d}'; root=f'output/{tag}_'
+                      ini=OUT/(tag+'.ini'); ini.write_text(ini_text(A,zc,w,root,False,True))
+                      cp=subprocess.run(['./class',str(ini)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=30)
+                      bg=Path(root+'00_background.dat')
+                      if cp.returncode==0 and bg.exists():
+                          rr=read_bg(bg); mn=min(rr,key=lambda r:r['cs2num'])
+                          sub=[r for r in rr if r['z']<=100.0]; mn100=min(sub,key=lambda r:r['cs2num'])
+                          r0=min(rr,key=lambda r:abs(r['z']))
+                          F0=r0['M*^2_smg']; am0=r0['M2_running_smg']
+                          rows.append({'A_F':A,'z_c':zc,'width':w,'min_num_all':mn['cs2num'],'z_min_all':mn['z'],
+                                       'min_num_z100':mn100['cs2num'],'F0':F0,'alphaM0':am0,
+                                       'max_abs_noslip':max(abs(r['braiding_smg']+2*r['M2_running_smg']) for r in rr),
+                                       'stable_all':int(mn['cs2num']>0),'robust100':int(mn100['cs2num']>1e-4)})
+                      for p in glob.glob(root+'*'):
+                          try: os.remove(p)
+                          except OSError: pass
+                      try: ini.unlink()
+                      except OSError: pass
+              print('REFINE_PROGRESS',A,'tested',n,flush=True)
+
+          fields=['A_F','z_c','width','min_num_all','z_min_all','min_num_z100','F0','alphaM0','max_abs_noslip','stable_all','robust100']
+          with (OUT/'sdmc_v2_native_refine.csv').open('w',newline='') as f:
+              wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader(); wr.writerows(rows)
+          stable=[r for r in rows if r['stable_all'] and r['robust100']]
+          # Stability-only selection: choose the smallest late Planck-mass deformation.
+          stable.sort(key=lambda r:(r['F0'],abs(r['alphaM0']),-r['min_num_z100']))
+          print('N_TESTED',n,'N_STABLE_ROBUST',len(stable))
+          if not stable:
+              raise SystemExit('No robust native-stable point in refinement grid')
+          b=stable[0]
+          print('BEST_REFINED_NATIVE',b)
+          with (OUT/'sdmc_v2_native_refined_best.csv').open('w',newline='') as f:
+              wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader(); wr.writerow(b)
+          root='output/sdmc_v2_native_refined_best_'
+          Path('output/sdmc_v2_native_refined_best.ini').write_text(ini_text(b['A_F'],b['z_c'],b['width'],root,True,False))
+          cp=subprocess.run(['./class','output/sdmc_v2_native_refined_best.ini'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=240)
+          Path('output/sdmc_v2_native_refined_best.log').write_text(cp.stdout)
+          print('REFINED_FULL_RETURNCODE',cp.returncode)
+          if cp.returncode: raise SystemExit(cp.returncode)
+          PY
+
+      - name: Generate frozen Kp core reference
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('sdmc/config/kp_core_split_sector.ini').read_text()
+          p=p.replace('output_background_smg = 1','output_background_smg = 3\nskip_stability_tests_smg = yes')
+          p=p.replace('root = output/sdmc_kp_core_split_sector_','root = output/sdmc_kp_core_frozen_reference_')
+          Path('output/kp_core_frozen_reference.ini').write_text(p)
+          PY
+          ./class output/kp_core_frozen_reference.ini
+
+      - name: Generate LCDM reference
+        run: ./class sdmc/config/planck_lcdm_control.ini
+
+      - name: Install native Planck 2018 Plik-lite data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          ok=TTTEEE_lite_native.install(path='planck_packages',no_progress_bars=True)
+          if not ok: raise SystemExit('Planck Plik-lite install failed')
+          PY
+
+      - name: Evaluate Planck high-l TTTEEE reference likelihood
+        run: |
+          python3 sdmc/evaluate_planck_pliklite.py \
+            --packages planck_packages \
+            --output output/sdmc_v2_native_refined_pliklite.csv \
+            LCDM_control=output/sdmc_planck_lcdm_control_00_cl_lensed.dat \
+            Kp_core_frozen_reference=output/sdmc_kp_core_frozen_reference_00_cl_lensed.dat \
+            V2_native_refined=output/sdmc_v2_native_refined_best_00_cl_lensed.dat
+
+      - name: Preserve refinement and CMB outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-v2-native-refined-pliklite
+          path: |
+            output/sdmc_v2_native_refine.csv
+            output/sdmc_v2_native_refined_best.csv
+            output/sdmc_v2_native_refined_best.ini
+            output/sdmc_v2_native_refined_best.log
+            output/sdmc_v2_native_refined_best_*
+            output/sdmc_v2_native_refined_pliklite.csv
+            output/sdmc_kp_core_frozen_reference_00_cl_lensed.dat
+            output/sdmc_kp_core_frozen_reference_00_background.dat
+            output/sdmc_planck_lcdm_control_00_cl_lensed.dat
+          if-no-files-found: warn
