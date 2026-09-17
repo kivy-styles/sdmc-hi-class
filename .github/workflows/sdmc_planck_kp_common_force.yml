@@ -1,0 +1,152 @@
+name: SDMC Planck reciprocal Kp common force
+
+on:
+  push:
+    branches: [sdmc-boltzmann]
+  workflow_dispatch:
+
+jobs:
+  kp-common-force:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: dz05
+            dz: "0.5"
+            zon: "1088.857725563"
+          - label: dz10
+            dz: "1.0"
+            zon: "1089.131628706"
+          - label: dz20
+            dz: "2.0"
+            zon: "1090.318401622"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy numpy
+
+      - name: Install Planck Plik-lite data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          ok=TTTEEE_lite_native.install(path='planck_packages',no_progress_bars=True)
+          if not ok: raise SystemExit('Planck Plik-lite install failed')
+          PY
+
+      - name: Apply frozen tracker patch
+        run: python3 sdmc/apply_sdmc_tracker_patch.py
+
+      - name: Build Kp core
+        run: make -j2 class
+
+      - name: Prepare common Newtonian-gauge Kp input
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,math
+          src=Path('sdmc/config/kp_tracker_clustered_cs0003.ini').read_text()
+          def setv(t,k,v):
+              p=re.compile(rf'(?m)^\s*{re.escape(k)}\s*=.*$')
+              if p.search(t): return p.sub(f'{k} = {v}',t)
+              return t+'\n'+f'{k} = {v}\n'
+          src=setv(src,'A_s',f'{math.exp(3.06365)/1e10:.14e}')
+          src=setv(src,'n_s','0.97711')
+          src=setv(src,'gauge','newtonian')
+          src=setv(src,'root','output/sdmc_kp_common_baseline_')
+          Path('output').mkdir(exist_ok=True)
+          Path('output/kp_common_baseline.ini').write_text(src)
+          PY
+
+      - name: Run Kp core TT TE EE
+        run: ./class output/kp_common_baseline.ini
+
+      - name: Apply reciprocal common-force operator
+        run: |
+          python3 sdmc/apply_sdmc_kp_common_force_patch.py \
+            --dz ${{ matrix.dz }} --zon ${{ matrix.zon }} \
+            --zoff 1059.0 --cmin 0.539812
+
+      - name: Rebuild common-force variant
+        run: make -j2 class
+
+      - name: Prepare operator input
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          txt=Path('output/kp_common_baseline.ini').read_text()
+          txt=re.sub(r'(?m)^\s*root\s*=.*$', 'root = output/sdmc_kp_common_operator_${{ matrix.label }}_', txt)
+          Path('output/kp_common_operator.ini').write_text(txt)
+          PY
+
+      - name: Run reciprocal common-force TT TE EE
+        run: ./class output/kp_common_operator.ini
+
+      - name: Evaluate Planck high-l TTTEEE
+        run: |
+          python3 - <<'PY'
+          import csv
+          import numpy as np
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+
+          T=2.7255; sig=.0025; label='${{ matrix.label }}'
+          lik=TTTEEE_lite_native(packages_path='planck_packages')
+          def load(root):
+              a=np.loadtxt(root+'00_cl_lensed.dat'); conv=(T*1e6)**2
+              # Same validated CLASS->Plik-lite column mapping as prior runs.
+              cl=np.column_stack([a[:,0],a[:,1]*conv,a[:,3]*conv,a[:,2]*conv])
+              return a,cl
+          def prof(cl):
+              def like(A): return float(lik.chi_squared(cl,A_planck=float(A)))
+              def tot(A): return like(A)+((float(A)-1.)/sig)**2
+              r=minimize_scalar(tot,bounds=(.96,1.04),method='bounded',options={'xatol':1e-10})
+              A=float(r.x); return A,like(A),float(r.fun)
+
+          ba,bc=load('output/sdmc_kp_common_baseline_')
+          oa,oc=load(f'output/sdmc_kp_common_operator_{label}_')
+          Ab,lb,cb=prof(bc); Ao,lo,co=prof(oc)
+          rows=[
+            {'case':'Kp_core','label':label,'dz':${{ matrix.dz }},'zon':${{ matrix.zon }},'A_planck':Ab,'chi2_like':lb,'chi2_total':cb,'delta_chi2_vs_core':0.0},
+            {'case':'Kp_reciprocal_common_force','label':label,'dz':${{ matrix.dz }},'zon':${{ matrix.zon }},'A_planck':Ao,'chi2_like':lo,'chi2_total':co,'delta_chi2_vs_core':co-cb},
+          ]
+          with open(f'output/sdmc_kp_common_planck_{label}.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=rows[0].keys()); w.writeheader(); w.writerows(rows)
+
+          # Correct CLASS lensed columns: ell, TT, EE, TE,...; name ratios explicitly.
+          rr=[]
+          ell=ba[:,0]
+          for L in [200,500,1000,1500,2000,2500]:
+              i=int(np.argmin(abs(ell-L)))
+              rr.append({'ell':int(ell[i]),
+                         'TT_ratio':float(oa[i,1]/ba[i,1]),
+                         'EE_ratio':float(oa[i,2]/ba[i,2]),
+                         'TE_ratio':float(oa[i,3]/ba[i,3]) if ba[i,3]!=0 else float('nan')})
+          with open(f'output/sdmc_kp_common_ratios_{label}.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=rr[0].keys()); w.writeheader(); w.writerows(rr)
+          print('Kp core',Ab,cb)
+          print('Kp reciprocal common force',label,Ao,co,'Delta chi2',co-cb)
+          for r in rr: print(r)
+          PY
+
+      - name: Preserve outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-kp-common-force-${{ matrix.label }}
+          path: |
+            output/sdmc_kp_common_planck_${{ matrix.label }}.csv
+            output/sdmc_kp_common_ratios_${{ matrix.label }}.csv
+            output/sdmc_kp_common_baseline_*cl_lensed.dat
+            output/sdmc_kp_common_operator_${{ matrix.label }}_*cl_lensed.dat
+            output/*kp_common*.ini
+          if-no-files-found: warn
