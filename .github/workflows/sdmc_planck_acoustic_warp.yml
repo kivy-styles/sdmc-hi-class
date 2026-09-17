@@ -1,0 +1,111 @@
+name: SDMC Planck acoustic warp diagnostic
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  planck-acoustic-warp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy
+
+      - name: Install native Planck Plik-lite data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          ok = TTTEEE_lite_native.install(path='planck_packages', no_progress_bars=True)
+          if not ok:
+              raise SystemExit('Planck Plik-lite data installation failed')
+          PY
+
+      - name: Apply exact tracker source patch
+        run: python3 sdmc/apply_sdmc_tracker_patch.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Run acoustic-warp diagnostic
+        run: |
+          python3 - <<'PY'
+          import csv, math, re, subprocess
+          from pathlib import Path
+          import numpy as np
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+
+          TCMB=2.7255
+          CAL=0.0025
+          out=Path('output/planck_acoustic_warp'); out.mkdir(parents=True,exist_ok=True)
+          cases={
+            'LCDM_control':('sdmc/config/planck_lcdm_control.ini',3.04365,0.96134),
+            'Kp_tracker_clustered':('sdmc/config/kp_tracker_clustered_cs0003.ini',3.06365,0.97711),
+            'NKp_v2_tracker_clustered':('sdmc/config/nkp_v2_tracker_clustered_cs0003.ini',3.07748,0.97243),
+          }
+          lik=TTTEEE_lite_native(packages_path='planck_packages')
+
+          def setv(text,key,val):
+            p=re.compile(rf'(?m)^\\s*{re.escape(key)}\\s*=.*$')
+            if not p.search(text): raise RuntimeError(f'missing {key}')
+            return p.sub(f'{key} = {val}',text)
+
+          def prof(cl):
+            def like(A): return float(lik.chi_squared(cl,A_planck=float(A)))
+            def tot(A): return like(A)+((float(A)-1)/CAL)**2
+            r=minimize_scalar(tot,bounds=(0.96,1.04),method='bounded',options={'xatol':1e-10})
+            A=float(r.x); return A,like(A)+((A-1)/CAL)**2
+
+          rows=[]; best=[]
+          scales=np.arange(0.985,1.02001,0.0005)
+          for label,(ini_path,lnAs,ns) in cases.items():
+            txt=Path(ini_path).read_text()
+            As=math.exp(lnAs)/1e10
+            root=out/(label+'_')
+            txt=setv(txt,'A_s',f'{As:.12e}')
+            txt=setv(txt,'n_s',f'{ns:.9f}')
+            txt=setv(txt,'root',str(root))
+            if re.search(r'(?m)^\\s*write parameters\\s*=',txt): txt=setv(txt,'write parameters','no')
+            tmp=out/(label+'.ini'); tmp.write_text(txt)
+            subprocess.run(['./class',str(tmp)],check=True,stdout=subprocess.DEVNULL)
+            a=np.loadtxt(str(root)+'00_cl_lensed.dat')
+            ell=a[:,0]; conv=(TCMB*1e6)**2
+            base=np.column_stack([ell,a[:,1]*conv,a[:,3]*conv,a[:,2]*conv])
+            bA,bchi=prof(base)
+            casebest=(1.0,bA,bchi)
+            for s in scales:
+              # Diagnostic horizontal dilation: D_warp(l)=D_base(l/s).
+              w=np.empty_like(base); w[:,0]=ell
+              x=ell/s
+              for j in (1,2,3): w[:,j]=np.interp(x,ell,base[:,j])
+              Acal,chi=prof(w)
+              rows.append({'case':label,'scale':s,'A_planck':Acal,'chi2_total':chi,'delta_chi2_vs_unwarped':chi-bchi})
+              if chi<casebest[2]: casebest=(float(s),Acal,chi)
+            best.append({'case':label,'ln10As':lnAs,'n_s':ns,'unwarped_chi2':bchi,'best_scale':casebest[0],'best_A_planck':casebest[1],'best_chi2':casebest[2],'improvement':bchi-casebest[2]})
+            print(label,'unwarped',bchi,'best',casebest,flush=True)
+
+          with open('output/sdmc_planck_acoustic_warp.csv','w',newline='') as f:
+            w=csv.DictWriter(f,fieldnames=rows[0].keys()); w.writeheader(); w.writerows(rows)
+          with open('output/sdmc_planck_acoustic_warp_best.csv','w',newline='') as f:
+            w=csv.DictWriter(f,fieldnames=best[0].keys()); w.writeheader(); w.writerows(best)
+          PY
+
+      - name: Preserve acoustic-warp outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-planck-acoustic-warp
+          path: |
+            output/sdmc_planck_acoustic_warp.csv
+            output/sdmc_planck_acoustic_warp_best.csv
+          if-no-files-found: warn
