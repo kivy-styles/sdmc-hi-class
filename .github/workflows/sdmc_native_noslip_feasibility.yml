@@ -34,7 +34,10 @@ jobs:
         run: make -j2 class
 
       - name: Generate frozen NKp-v2 diagnostic background
-        run: ./class sdmc/config/nkp_v2_split_sector_background_diagnostic.ini
+        run: |
+          cp sdmc/config/nkp_v2_split_sector_background_diagnostic.ini output/native_noslip_diag.ini
+          sed -i 's/^output_background_smg *=.*/output_background_smg = 3/' output/native_noslip_diag.ini
+          ./class output/native_noslip_diag.ini
 
       - name: Run exact-native B0 feasibility scan
         run: python3 sdmc/run_native_noslip_feasibility.py output/sdmc_nkp_v2_split_bvp_diag_00_background.dat
