@@ -1,0 +1,51 @@
+name: SDMC split-sector braiding scan
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  split-sector-braiding-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply SDMC runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+
+      - name: Build exact-No-Slip split-sector executable
+        run: make -j2 class
+
+      - name: Build clustered-tracker references
+        run: |
+          ./class sdmc/config/kp_tracker_clustered_cs0003.ini
+          ./class sdmc/config/nkp_v2_tracker_clustered_cs0003.ini
+
+      - name: Scan split-sector braiding completion
+        run: python3 sdmc/run_split_sector_braiding_scan.py
+
+      - name: Preserve split-sector braiding scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-split-sector-braiding-scan
+          path: |
+            output/sdmc_split_sector_braiding_scan.csv
+            output/sdmc_splitbraid_*.log
+          if-no-files-found: warn
