@@ -1,0 +1,90 @@
+name: SDMC split-sector Boltzmann validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [sdmc-boltzmann]
+    paths:
+      - 'sdmc/apply_sdmc_split_sector_patch.py'
+      - 'sdmc/README_SPLIT_SECTOR_STATUS.md'
+      - 'sdmc/*.ini'
+      - '.github/workflows/sdmc-split-sector.yml'
+
+jobs:
+  split-sector:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sdmc-boltzmann
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gfortran python3 python3-numpy python3-scipy
+
+      - name: Apply SDMC base patches
+        run: |
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+
+      - name: Compile hi_class
+        run: make -j2
+
+      - name: Generate split-sector input files
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          common = '''output = tCl,pCl,lCl,mPk\nP_k_max_h/Mpc = 1.0\nz_pk = 0,0.5,1,2,3,5,10\nl_max_scalars = 3000\nlensing = yes\nH0 = 70.8514\nomega_b = 0.02239952\nN_ur = 3.046\ntau_reio = 0.0544\nA_s = 2.10e-9\nn_s = 0.965\nOmega_Lambda = 0\nOmega_fld = 0\nOmega_smg = -1\nfluid_equation_of_state = SDMC_TRACKER\ncs2_fld = 0.003\ngravity_model = sdmc_full\nparameters_smg = {bg}\ngravity_model_2 = {g2}\nparameters_smg_2 = {p2}\nwrite background = yes\nwrite thermodynamics = yes\nroot = {root}\n'''
+          # background parameter order is inherited from sdmc_full: Ox, lambda_e, zt, dNt, A, tauA, B, tauB
+          cfgs = {
+            'v2': dict(bg='0.7073985893,20,21.10,0.5,0.01105624999,0.25,0.01951933685,1.5',
+                       g2='sdmc_v2_late_noslip', p2='0.001,0.1,21.1,0.5,1e-5', root='split_v2_'),
+            'kp': dict(bg='0.716246932,20,21.26,0.5,0.021224542,0.25,0.011604236,1.5',
+                       g2='sdmc_kp_late_noslip', p2='0.1,1e-5', root='split_kp_')
+          }
+          for name,d in cfgs.items():
+              Path(f'sdmc_split_{name}.ini').write_text(common.format(**d))
+          PY
+
+      - name: Run NKp-v2 split sector
+        run: ./class sdmc_split_v2.ini > split_v2.log 2>&1
+
+      - name: Run Kp split-sector core
+        run: ./class sdmc_split_kp.ini > split_kp.log 2>&1
+
+      - name: Audit split-sector outputs
+        run: |
+          python3 - <<'PY'
+          import glob, math, numpy as np, csv
+          def sigma8(path):
+              a=np.loadtxt(path); k=a[:,0]; P=a[:,1]; x=8*k
+              W=np.where(np.abs(x)>1e-10,3*(np.sin(x)-x*np.cos(x))/x**3,1.0)
+              return float(np.sqrt(np.trapz(k**3*P*W**2/(2*np.pi**2),x=np.log(k))))
+          rows=[]
+          for branch in ('v2','kp'):
+              pks=sorted(glob.glob(f'split_{branch}_*pk.dat'))
+              sig=[sigma8(p) for p in pks]
+              bg=np.loadtxt(f'split_{branch}_00_background.dat')
+              # CLASS background cols used by hi_class: z is col 0; M2 and stability columns are near the end.
+              rows.append([branch, sig[0] if sig else float('nan'), sig[-1] if sig else float('nan'), len(pks)])
+          with open('split_sector_summary.csv','w',newline='') as f:
+              w=csv.writer(f); w.writerow(['branch','sigma8_z0','sigma8_highest_z','pk_files']); w.writerows(rows)
+          print(open('split_sector_summary.csv').read())
+          PY
+
+      - name: Upload split-sector artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-split-sector
+          path: |
+            split_sector_summary.csv
+            split_v2.log
+            split_kp.log
+            split_v2_*
+            split_kp_*
