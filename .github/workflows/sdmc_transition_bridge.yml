@@ -20,7 +20,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3
 
-      - name: Apply split-sector and asymmetric bridge runtime patches
+      - name: Apply split-sector and one-way bridge runtime patches
         run: |
           python3 sdmc/apply_sdmc_tracker_patch.py
           python3 sdmc/apply_sdmc_full_background_patch.py
@@ -34,7 +34,7 @@ jobs:
       - name: Build hi_class
         run: make -j2 class
 
-      - name: Asymmetric targeted Kp bridge stability scan
+      - name: One-way Kp bridge stability scan
         run: |
           python3 - <<'PY'
           from __future__ import annotations
@@ -42,26 +42,26 @@ jobs:
           from pathlib import Path
 
           OUT=Path('output'); OUT.mkdir(exist_ok=True)
-          CSV=OUT/'sdmc_kp_asym_bridge_scan.csv'
-          BEST=OUT/'sdmc_kp_asym_bridge_best.csv'
+          CSV=OUT/'sdmc_kp_oneway_bridge_scan.csv'
+          BEST=OUT/'sdmc_kp_oneway_bridge_best.csv'
 
           omega_cdm=0.12000047526014168
           Omega_fld=3.0549311e-8
           expansion='0.716246932, 20.0, 21.26, 0.5, 0.021223342, 0.25, 0.0116038358, 1.5'
 
-          # The previous signed symmetric scan found the exact-runtime A=0
-          # failure at z~36.83. Positive pulses repair the turn-on side but
-          # move the failure to the turn-off edge. Therefore start earlier than
-          # z~36.8 and return much later with a broader off-edge derivative.
-          amps=[0.001,0.0025,0.005,0.01,0.02,0.04,0.08,0.12]
-          zons=[60.,50.,45.,42.,40.,38.]
-          zoffs=[10.,8.,6.,4.,3.,2.,1.]
-          wons=[0.025,0.05,0.10,0.18]
-          woffs=[0.40,0.70,1.00,1.50,2.00]
+          # The finite pulse family had no stable point in 6720 native runs.
+          # A positive pulse repeatedly repaired the early edge and failed only
+          # when it was forced back to exact No-Slip.  This scan removes that
+          # return edge and asks for the smallest residual alpha_B offset that
+          # restores native stability.  It is a structural diagnostic, not a fit.
+          amps=[2e-5,3e-5,4e-5,5e-5,7.5e-5,1e-4,1.25e-4,1.5e-4,2e-4,2.5e-4,
+                3e-4,4e-4,5e-4,7.5e-4,1e-3,1.25e-3,1.5e-3,1.75e-3,2e-3]
+          zons=[38.,40.,42.,45.,50.,60.]
+          wons=[0.15,0.20,0.30,0.40,0.50,0.65,0.80]
 
-          fields=['A_bridge','z_on','z_off','width_on','width_off','status',
-                  'failure_a','failure_z','min_cs2','z_min_cs2','min_D',
-                  'max_abs_alphaB','cost']
+          fields=['A_bridge','z_on','width_on','status','failure_a','failure_z',
+                  'min_cs2','z_min_cs2','min_D','max_abs_alphaB','alphaB_z0',
+                  'alphaM_z0','noslip_residual_z0','cost']
           with CSV.open('w',newline='') as f:
               csv.DictWriter(f,fieldnames=fields).writeheader()
 
@@ -117,85 +117,77 @@ jobs:
                   try: os.remove(p)
                   except OSError: pass
 
-          stable=[]
-          n=0
+          stable=[]; n=0
           for A in amps:
               for zon in zons:
-                  for zoff in zoffs:
-                      if zoff>=zon: continue
-                      for won in wons:
-                          for woff in woffs:
-                              n+=1
-                              tag=f'kp_asym_{n:05d}'
-                              root=f'output/{tag}_'
-                              ini=OUT/(tag+'.ini')
-                              pars=f'0.1, 1.0e-4, {A:.12g}, {zon:.12g}, {zoff:.12g}, {won:.12g}, {woff:.12g}'
-                              ini.write_text(minimal_ini(pars,root),encoding='utf-8')
-                              cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,
-                                                stderr=subprocess.STDOUT,timeout=45)
-                              duration=abs(math.log((1.+zoff)/(1.+zon)))
-                              edge_penalty=(1./won+1./woff)
-                              row={'A_bridge':A,'z_on':zon,'z_off':zoff,'width_on':won,
-                                   'width_off':woff,'status':'FAIL',
-                                   'cost':A*A*(duration+0.02*edge_penalty)}
-                              if cp.returncode==0:
-                                  bgs=sorted(glob.glob(root+'*_background.dat'))
-                                  if len(bgs)==1:
-                                      b=table(bgs[0])
-                                      if b:
-                                          imin=min(range(len(b)),key=lambda i:b[i][29])
-                                          row.update(status='OK',min_cs2=b[imin][29],z_min_cs2=b[imin][0],
-                                                     min_D=min(r[30] for r in b),
-                                                     max_abs_alphaB=max(abs(r[25]) for r in b))
-                                          stable.append(dict(row))
-                                      else:
-                                          row['status']='EMPTY_BACKGROUND'
-                                  else:
-                                      row['status']='BACKGROUND_MISSING'
-                              else:
-                                  ma=re.search(r'at\s+a\s*=\s*([0-9eE+\-.]+)',cp.stdout)
-                                  if not ma: ma=re.search(r'a\s*=\s*([0-9eE+\-.]+)',cp.stdout)
-                                  if ma:
-                                      try:
-                                          aa=float(ma.group(1)); row['failure_a']=aa; row['failure_z']=1./aa-1.
-                                      except Exception: pass
-                              append(row)
-                              clean(root)
-                              try: ini.unlink()
-                              except OSError: pass
-
+                  for won in wons:
+                      n+=1
+                      tag=f'kp_oneway_{n:05d}'
+                      root=f'output/{tag}_'
+                      ini=OUT/(tag+'.ini')
+                      # z_off=0 activates one-way mode; width_off is unused.
+                      pars=f'0.1, 1.0e-4, {A:.12g}, {zon:.12g}, 0.0, {won:.12g}, 1.0'
+                      ini.write_text(minimal_ini(pars,root),encoding='utf-8')
+                      cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,
+                                        stderr=subprocess.STDOUT,timeout=45)
+                      row={'A_bridge':A,'z_on':zon,'width_on':won,'status':'FAIL',
+                           'cost':A*A*(1.+0.02/won)}
+                      if cp.returncode==0:
+                          bgs=sorted(glob.glob(root+'*_background.dat'))
+                          if len(bgs)==1:
+                              b=table(bgs[0])
+                              if b:
+                                  imin=min(range(len(b)),key=lambda i:b[i][31])
+                                  today=min(range(len(b)),key=lambda i:abs(b[i][0]))
+                                  ab0=b[today][27]; am0=b[today][29]
+                                  row.update(status='OK',min_cs2=b[imin][31],z_min_cs2=b[imin][0],
+                                             min_D=min(r[32] for r in b),
+                                             max_abs_alphaB=max(abs(r[27]) for r in b),
+                                             alphaB_z0=ab0,alphaM_z0=am0,
+                                             noslip_residual_z0=ab0+2.*am0)
+                                  stable.append(dict(row))
+                              else: row['status']='EMPTY_BACKGROUND'
+                          else: row['status']='BACKGROUND_MISSING'
+                      else:
+                          ma=re.search(r'at\s+a\s*=\s*([0-9eE+\-.]+)',cp.stdout)
+                          if not ma: ma=re.search(r'a\s*=\s*([0-9eE+\-.]+)',cp.stdout)
+                          if ma:
+                              try:
+                                  aa=float(ma.group(1)); row['failure_a']=aa; row['failure_z']=1./aa-1.
+                              except Exception: pass
+                      append(row); clean(root)
+                      try: ini.unlink()
+                      except OSError: pass
               print('A',A,'tested',n,'stable_so_far',len(stable),flush=True)
 
           if stable:
-              stable=sorted(stable,key=lambda r:(r['cost'],-r['min_cs2']))
+              stable=sorted(stable,key=lambda r:(r['cost'],abs(r['noslip_residual_z0']),-r['min_cs2']))
               with BEST.open('w',newline='') as f:
                   wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader()
                   for r in stable[:100]: wr.writerow({k:r.get(k,'') for k in fields})
               b=stable[0]
-              print('BEST_STABLE',b,flush=True)
-
-              # Rerun the least-disturbing stable bridge with full linear spectra.
-              pars=f"0.1, 1.0e-4, {b['A_bridge']:.12g}, {b['z_on']:.12g}, {b['z_off']:.12g}, {b['width_on']:.12g}, {b['width_off']:.12g}"
-              full_ini=OUT/'sdmc_kp_asym_bridge_best.ini'
-              full_ini.write_text(minimal_ini(pars,'output/sdmc_kp_asym_bridge_best_',full=True),encoding='utf-8')
+              print('BEST_STABLE_ONEWAY',b,flush=True)
+              pars=f"0.1, 1.0e-4, {b['A_bridge']:.12g}, {b['z_on']:.12g}, 0.0, {b['width_on']:.12g}, 1.0"
+              full_ini=OUT/'sdmc_kp_oneway_bridge_best.ini'
+              full_ini.write_text(minimal_ini(pars,'output/sdmc_kp_oneway_bridge_best_',full=True),encoding='utf-8')
               cp=subprocess.run(['./class',str(full_ini)],text=True,stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,timeout=180)
-              (OUT/'sdmc_kp_asym_bridge_best.log').write_text(cp.stdout,encoding='utf-8')
+              (OUT/'sdmc_kp_oneway_bridge_best.log').write_text(cp.stdout,encoding='utf-8')
               print('BEST_FULL_RETURNCODE',cp.returncode,flush=True)
           else:
               BEST.write_text('status\nNO_STABLE_POINT\n',encoding='utf-8')
-              print('NO_STABLE_POINT in asymmetric targeted Kp bridge family',flush=True)
+              print('NO_STABLE_POINT in one-way Kp bridge family',flush=True)
           PY
 
-      - name: Preserve asymmetric bridge diagnostics
+      - name: Preserve one-way bridge diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-kp-asymmetric-transition-bridge
+          name: sdmc-kp-oneway-transition-bridge
           path: |
-            output/sdmc_kp_asym_bridge_scan.csv
-            output/sdmc_kp_asym_bridge_best.csv
-            output/sdmc_kp_asym_bridge_best.ini
-            output/sdmc_kp_asym_bridge_best.log
-            output/sdmc_kp_asym_bridge_best_*
+            output/sdmc_kp_oneway_bridge_scan.csv
+            output/sdmc_kp_oneway_bridge_best.csv
+            output/sdmc_kp_oneway_bridge_best.ini
+            output/sdmc_kp_oneway_bridge_best.log
+            output/sdmc_kp_oneway_bridge_best_*
           if-no-files-found: warn
