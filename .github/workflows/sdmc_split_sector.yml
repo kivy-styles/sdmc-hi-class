@@ -1,0 +1,60 @@
+name: SDMC split-sector Boltzmann
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+
+jobs:
+  split-sector:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply SDMC runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Run clustered-tracker references
+        run: |
+          ./class sdmc/config/kp_tracker_clustered_cs0003.ini
+          ./class sdmc/config/nkp_v2_tracker_clustered_cs0003.ini
+
+      - name: Run NKp-v2 split sector
+        continue-on-error: true
+        run: ./class sdmc/config/nkp_v2_split_sector.ini > output/sdmc_nkp_v2_split_sector.log 2>&1
+
+      - name: Run Kp core split sector
+        continue-on-error: true
+        run: ./class sdmc/config/kp_core_split_sector.ini > output/sdmc_kp_core_split_sector.log 2>&1
+
+      - name: Audit split-sector outputs
+        if: always()
+        run: python3 sdmc/audit_split_sector.py
+
+      - name: Preserve split-sector outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-split-sector-boltzmann
+          path: |
+            output/sdmc_split_sector_audit.csv
+            output/sdmc_nkp_v2_split_sector*
+            output/sdmc_kp_core_split_sector*
+            output/sdmc_nkp_v2_tracker_clustered_cs0003_00_cl_lensed.dat
+            output/sdmc_kp_tracker_clustered_cs0003_00_cl_lensed.dat
+          if-no-files-found: warn
