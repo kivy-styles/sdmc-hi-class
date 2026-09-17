@@ -1,0 +1,86 @@
+name: SDMC Planck full-background clustered diagnostic
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  fullbg-clustered:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy
+
+      - name: Install Planck Plik-lite data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          ok=TTTEEE_lite_native.install(path='planck_packages',no_progress_bars=True)
+          if not ok: raise SystemExit('Plik-lite install failed')
+          PY
+
+      - name: Apply SDMC tracker and full-background patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Run Kp full-background clustered control
+        continue-on-error: true
+        run: ./class sdmc/config/kp_fullbg_clustered_cs0003.ini > output/sdmc_kp_fullbg_clustered_cs0003.log 2>&1
+
+      - name: Run NKp-v2 full-background clustered control
+        continue-on-error: true
+        run: ./class sdmc/config/nkp_v2_fullbg_clustered_cs0003.ini > output/sdmc_nkp_v2_fullbg_clustered_cs0003.log 2>&1
+
+      - name: Evaluate successful spectra with Planck high-l TTTEEE
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import csv
+          from pathlib import Path
+          import numpy as np
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          T=2.7255; sig=.0025
+          lik=TTTEEE_lite_native(packages_path='planck_packages')
+          files={
+           'Kp_fullbg_clustered':Path('output/sdmc_kp_fullbg_clustered_cs0003_00_cl_lensed.dat'),
+           'NKp_v2_fullbg_clustered':Path('output/sdmc_nkp_v2_fullbg_clustered_cs0003_00_cl_lensed.dat')}
+          rows=[]
+          for label,p in files.items():
+            if not p.exists():
+              rows.append({'case':label,'status':'FAIL','A_planck':'','chi2_total':''}); continue
+            a=np.loadtxt(p); conv=(T*1e6)**2
+            cl=np.column_stack([a[:,0],a[:,1]*conv,a[:,3]*conv,a[:,2]*conv])
+            def like(A): return float(lik.chi_squared(cl,A_planck=float(A)))
+            def tot(A): return like(A)+((float(A)-1)/sig)**2
+            r=minimize_scalar(tot,bounds=(.96,1.04),method='bounded',options={'xatol':1e-10})
+            rows.append({'case':label,'status':'OK','A_planck':float(r.x),'chi2_total':float(r.fun)})
+            print(label,'A_planck',float(r.x),'chi2',float(r.fun))
+          with open('output/sdmc_planck_fullbg_clustered.csv','w',newline='') as f:
+            w=csv.DictWriter(f,fieldnames=rows[0].keys()); w.writeheader(); w.writerows(rows)
+          PY
+
+      - name: Preserve outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-planck-fullbg-clustered
+          path: |
+            output/sdmc_planck_fullbg_clustered.csv
+            output/sdmc_kp_fullbg_clustered_cs0003*
+            output/sdmc_nkp_v2_fullbg_clustered_cs0003*
+          if-no-files-found: warn
