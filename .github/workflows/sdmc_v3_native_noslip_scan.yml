@@ -40,7 +40,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import csv, glob, os, re, subprocess
+          import csv, glob, os, re, subprocess, textwrap
 
           OUT=Path('output'); OUT.mkdir(exist_ok=True)
           CSV=OUT/'sdmc_v3_native_noslip_scan.csv'
@@ -64,39 +64,40 @@ jobs:
           def ini_text(A,zc,w,root,skip=True,full=False):
               extra='A_s = 2.10e-9\nn_s = 0.965\ntau_reio = 0.0544\n' if full else ''
               skipline='skip_stability_tests_smg = yes\n' if skip else ''
-              outputs='output = tCl,pCl,lCl,mPk\nmodes = s\nlensing = yes\nl_max_scalars = 3000\nP_k_max_h/Mpc = 2.0\nz_pk = 0,0.5,1,2,3,5,10\nwrite thermodynamics = yes\n' if full else 'write thermodynamics = no\n'
-              return f'''H0 = 70.8514
-omega_b = 0.02239952
-omega_cdm = 0.12444227328918850
-N_ncdm = 0
-N_ur = 3.046
-T_cmb = 2.7255
-YHe = 0.2453
-{extra}Omega_Lambda = 0
-Omega_fld = 3.1443554e-8
-fluid_equation_of_state = SDMC_TRACKER
-cs2_fld = 0.003
-use_ppf = no
-Omega_smg = -1
-gravity_model = sdmc_v3_native_noslip
-parameters_smg = {A:.12g}, {zc:.12g}, {w:.12g}, {CS2:.12g}, {DFLOOR:.12g}
-expansion_model = sdmc_full
-expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
-pert_initial_conditions_smg = zero
-method_qs_smg = fully_dynamic
-output_background_smg = 3
-{skipline}{outputs}write background = yes
-root = {root}
-format = class
-write parameters = yes
-input_verbose = 0
-background_verbose = 0
-thermodynamics_verbose = 0
-perturbations_verbose = 0
-spectra_verbose = 0
-lensing_verbose = 0
-output_verbose = 0
-'''
+              outputs=('output = tCl,pCl,lCl,mPk\nmodes = s\nlensing = yes\nl_max_scalars = 3000\nP_k_max_h/Mpc = 2.0\nz_pk = 0,0.5,1,2,3,5,10\nwrite thermodynamics = yes\n' if full else 'write thermodynamics = no\n')
+              return textwrap.dedent(f'''\
+              H0 = 70.8514
+              omega_b = 0.02239952
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              {extra}Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = 0.003
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_v3_native_noslip
+              parameters_smg = {A:.12g}, {zc:.12g}, {w:.12g}, {CS2:.12g}, {DFLOOR:.12g}
+              expansion_model = sdmc_full
+              expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+              output_background_smg = 3
+              {skipline}{outputs}write background = yes
+              root = {root}
+              format = class
+              write parameters = yes
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              lensing_verbose = 0
+              output_verbose = 0
+              ''')
 
           stable=[]; rows_out=[]; n=0
           for A in AMPS:
