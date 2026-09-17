@@ -1,0 +1,278 @@
+name: SDMC native-stable v2 observable gate
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  observable-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy numpy pandas
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+
+      - name: Reuse native-exact No-Slip experimental patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+          lines=Path('.github/workflows/sdmc_v2_native_noslip_scan.yml').read_text().splitlines()
+          marker='- name: Add native-exact No-Slip profile family'
+          i=next(i for i,x in enumerate(lines) if marker in x)
+          h=next(i for i in range(i+1,len(lines)) if "python3 - <<'PY'" in lines[i])
+          j=next(i for i in range(h+1,len(lines)) if lines[i].strip()=='PY')
+          code=textwrap.dedent('\n'.join(lines[h+1:j]))
+          exec(compile(code,'native_patch','exec'),{})
+          PY
+
+      - name: Expose exact native cs2 diagnostics
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Generate candidate and reference configurations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+          out=Path('output'); out.mkdir(exist_ok=True)
+
+          def v2_ini(A,zc,w,root):
+              return textwrap.dedent(f'''\
+              H0 = 70.8514
+              omega_b = 0.02239952
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = 2.10e-9
+              n_s = 0.965
+              tau_reio = 0.0544
+              Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = 0.003
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_v2_native_noslip
+              parameters_smg = {A:.12g}, {zc:.12g}, {w:.12g}, 0.1, 0.0001
+              expansion_model = sdmc_full
+              expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+              output_background_smg = 3
+              output = tCl,pCl,lCl,mPk
+              modes = s
+              lensing = yes
+              l_max_scalars = 3000
+              P_k_max_h/Mpc = 6.0
+              z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
+              write thermodynamics = yes
+              write background = yes
+              root = {root}
+              format = class
+              write parameters = yes
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              lensing_verbose = 0
+              output_verbose = 0
+              ''')
+
+          Path('output/v2_refined.ini').write_text(v2_ini(0.068,10.0,1.6,'output/v2_refined_'))
+          Path('output/v2_highlighted.ini').write_text(v2_ini(0.080,15.0,2.0,'output/v2_highlighted_'))
+
+          def expand(base_path,root):
+              p=Path(base_path).read_text()
+              p=p.replace('output = tCl,pCl,lCl','output = tCl,pCl,lCl,mPk')
+              if 'P_k_max_h/Mpc' not in p:
+                  p=p.replace('l_max_scalars = 3000','l_max_scalars = 3000\nP_k_max_h/Mpc = 6.0\nz_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10')
+              p=re_root(p,root)
+              return p
+
+          def re_root(p,root):
+              lines=[]
+              for line in p.splitlines():
+                  if line.strip().startswith('root ='):
+                      lines.append('root = '+root)
+                  else:
+                      lines.append(line)
+              return '\n'.join(lines)+'\n'
+
+          Path('output/kp_fullbg.ini').write_text(expand('sdmc/config/kp_fullbg_clustered_cs0003.ini','output/kp_fullbg_'))
+          Path('output/kp_tracker.ini').write_text(expand('sdmc/config/kp_tracker_clustered_cs0003.ini','output/kp_tracker_'))
+          Path('output/lcdm.ini').write_text(expand('sdmc/config/planck_lcdm_control.ini','output/lcdm_'))
+          PY
+
+      - name: Run candidates and references
+        run: |
+          ./class output/v2_refined.ini
+          ./class output/v2_highlighted.ini
+          ./class output/kp_fullbg.ini
+          ./class output/kp_tracker.ini
+          ./class output/lcdm.ini
+
+      - name: Install Planck 2018 Plik-lite data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          ok=TTTEEE_lite_native.install(path='planck_packages',no_progress_bars=True)
+          if not ok: raise SystemExit('Planck Plik-lite install failed')
+          PY
+
+      - name: Evaluate Planck high-l TTTEEE Plik-lite
+        run: |
+          python3 sdmc/evaluate_planck_pliklite.py \
+            --packages planck_packages \
+            --output output/observable_gate_pliklite.csv \
+            LCDM=output/lcdm_00_cl_lensed.dat \
+            Kp_fullbg_frozen=output/kp_fullbg_00_cl_lensed.dat \
+            Kp_tracker=output/kp_tracker_00_cl_lensed.dat \
+            V2_refined=output/v2_refined_00_cl_lensed.dat \
+            V2_highlighted=output/v2_highlighted_00_cl_lensed.dat
+
+      - name: Compute CMB, lensing, growth, Pk and BAO diagnostics
+        run: |
+          cat > output/analyze_gate.py <<'PY'
+          from pathlib import Path
+          import numpy as np, pandas as pd, re, math, glob
+
+          ROOT=Path('output')
+          models={'LCDM':'lcdm_','Kp_fullbg_frozen':'kp_fullbg_','Kp_tracker':'kp_tracker_',
+                  'V2_refined':'v2_refined_','V2_highlighted':'v2_highlighted_'}
+          bands=[(2,29),(30,199),(200,799),(800,1499),(1500,2500),(2501,3000)]
+          zpk=[0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10]
+          zbao=[0.295,0.510,0.706,0.934,1.321,1.484,2.330]
+
+          def parse_table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1:',l)][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); cols=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  cols.append(hdr[m.end():end].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=cols)
+
+          def cl(path):
+              a=np.loadtxt(path)
+              return pd.DataFrame(a,columns=['ell','TT','EE','TE','BB','phiphi','Tphi','Ephi'])
+
+          cls={m:cl(ROOT/(p+'00_cl_lensed.dat')) for m,p in models.items()}
+          ref=cls['LCDM']
+          rows=[]
+          for m,c in cls.items():
+              if m=='LCDM': continue
+              for field in ['TT','EE','TE','phiphi']:
+                  for lo,hi in bands:
+                      mask=(ref.ell>=lo)&(ref.ell<=hi)
+                      if field=='TE':
+                          diff=c[field].values-ref[field].values
+                          nrms=np.sqrt(np.mean(diff[mask]**2))/np.sqrt(np.mean(ref[field].values[mask]**2))
+                          rows.append([m,field,lo,hi,np.nan,nrms,np.nan,np.nan])
+                      else:
+                          r=c[field].values/ref[field].values
+                          rr=r[mask]
+                          rows.append([m,field,lo,hi,rr.mean(),np.sqrt(np.mean((rr-1)**2)),rr.min(),rr.max()])
+          pd.DataFrame(rows,columns=['model','field','ell_min','ell_max','mean_ratio_to_LCDM','rms_fractional','min_ratio','max_ratio']).to_csv(ROOT/'observable_gate_cmb_residuals.csv',index=False)
+
+          def sigmaR(path,R=8.0):
+              a=np.loadtxt(path); k=a[:,0]; P=a[:,1]; x=k*R
+              W=np.ones_like(x); q=x!=0
+              W[q]=3*(np.sin(x[q])-x[q]*np.cos(x[q]))/x[q]**3
+              integ=k**3*P*W**2/(2*np.pi**2)
+              return math.sqrt(np.trapz(integ,x=np.log(k)))
+
+          growth=[]; bao=[]; acoustic=[]; pkrows=[]
+          for m,p in models.items():
+              bg=parse_table(ROOT/(p+'00_background.dat'))
+              bgs=bg.sort_values('z')
+              def interp(col,z): return float(np.interp(z,bgs['z'],bgs[col]))
+              th=parse_table(ROOT/(p+'00_thermodynamics.dat')) if (ROOT/(p+'00_thermodynamics.dat')).exists() else None
+              zstar=zdrag=rsstar=rd=lA=np.nan
+              if th is not None:
+                  zstar=float(th.loc[th['g [Mpc^-1]'].idxmax(),'z'])
+                  ts=th.sort_values('z'); zz=ts.z.to_numpy(); kb=ts.kappa_b.to_numpy(); crosses=[]
+                  for i in range(len(zz)-1):
+                      if (kb[i]-1)*(kb[i+1]-1)<=0 and kb[i]!=kb[i+1]:
+                          f=(1-kb[i])/(kb[i+1]-kb[i]); crosses.append(zz[i]+f*(zz[i+1]-zz[i]))
+                  if crosses: zdrag=float(crosses[0])
+                  rsstar=interp('comov.snd.hrz.',zstar)
+                  rd=interp('comov.snd.hrz.',zdrag)
+                  lA=math.pi*interp('comov. dist.',zstar)/rsstar
+              # PK files in the exact z_pk order
+              for i,z in enumerate(zpk,1):
+                  fp=ROOT/(p+f'00_z{i}_pk.dat')
+                  if not fp.exists(): continue
+                  s8=sigmaR(fp); f=interp('gr.fac. f',z) if 'gr.fac. f' in bg.columns else np.nan
+                  D=interp('gr.fac. D',z) if 'gr.fac. D' in bg.columns else np.nan
+                  growth.append([m,z,s8,f,f*s8,D])
+              if np.isfinite(rd):
+                  for z in zbao:
+                      DM=interp('comov. dist.',z); DH=1.0/interp('H [1/Mpc]',z); DV=(z*DM*DM*DH)**(1/3)
+                      bao.append([m,z,rd,DM/rd,DH/rd,DV/rd,DM,DH,DV])
+              F0=interp('M*^2_smg',0) if 'M*^2_smg' in bg.columns else np.nan
+              am0=interp('M2_running_smg',0) if 'M2_running_smg' in bg.columns else np.nan
+              mincs=float(bg['cs2num'].min()) if 'cs2num' in bg.columns else np.nan
+              nsres=float(np.max(np.abs(bg['braiding_smg']+2*bg['M2_running_smg']))) if 'braiding_smg' in bg.columns else np.nan
+              acoustic.append([m,zstar,zdrag,rsstar,rd,lA,F0,am0,mincs,nsres])
+
+              # selected P(k) values at z=0 relative diagnostics filled later
+              fp=ROOT/(p+'00_z1_pk.dat')
+              if fp.exists():
+                  a=np.loadtxt(fp); kk=a[:,0]; pp=a[:,1]
+                  for kval in [0.01,0.05,0.1,0.2,0.5,1.0]:
+                      pkrows.append([m,kval,float(np.interp(kval,kk,pp))])
+
+          pd.DataFrame(growth,columns=['model','z','sigma8','f','fsigma8','growth_D']).to_csv(ROOT/'observable_gate_growth.csv',index=False)
+          pd.DataFrame(bao,columns=['model','z','rd_Mpc','DM_over_rd','DH_over_rd','DV_over_rd','DM_Mpc','DH_Mpc','DV_Mpc']).to_csv(ROOT/'observable_gate_bao_predictions.csv',index=False)
+          pd.DataFrame(acoustic,columns=['model','z_star','z_drag','rs_star_Mpc','rd_Mpc','ell_A','F0','alphaM0','min_cs2num','max_abs_noslip']).to_csv(ROOT/'observable_gate_acoustic.csv',index=False)
+          pk=pd.DataFrame(pkrows,columns=['model','k_hMpc','P_Mpch3'])
+          piv=pk.pivot(index='k_hMpc',columns='model',values='P_Mpch3')
+          for c in piv.columns:
+              if c!='LCDM': piv[c+'_over_LCDM']=piv[c]/piv['LCDM']
+              if c not in ('Kp_fullbg_frozen','LCDM') and 'Kp_fullbg_frozen' in piv: piv[c+'_over_Kp_fullbg']=piv[c]/piv['Kp_fullbg_frozen']
+          piv.reset_index().to_csv(ROOT/'observable_gate_pk_ratios.csv',index=False)
+          print(pd.read_csv(ROOT/'observable_gate_acoustic.csv').to_string(index=False))
+          print(pd.read_csv(ROOT/'observable_gate_growth.csv').query("z in [0,0.5,1,2]").to_string(index=False))
+          PY
+          python3 output/analyze_gate.py
+
+      - name: Preserve observable gate outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-native-v2-observable-gate
+          path: |
+            output/observable_gate_*.csv
+            output/v2_refined.ini
+            output/v2_highlighted.ini
+            output/v2_refined_00_*
+            output/v2_highlighted_00_*
+            output/kp_fullbg_00_*
+            output/kp_tracker_00_*
+            output/lcdm_00_*
+          if-no-files-found: warn
