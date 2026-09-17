@@ -1,0 +1,243 @@
+name: SDMC D-floor invariance sweep
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  sweep-D-floor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply SDMC runtime patches and alphaM refresh fix
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+
+      - name: Expose exact native cs2 diagnostic columns
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Sweep D floors and audit numerator invariance
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, math, re, subprocess
+
+          OUT = Path('output')
+          OUT.mkdir(exist_ok=True)
+          FLOORS = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+          MODELS = {
+              'Kp_core': {
+                  'template': Path('sdmc/config/kp_split_sector_background_diagnostic.ini'),
+                  'root0': 'output/sdmc_kp_split_bvp_diag_',
+                  'param_line': 'parameters_smg = 0.1, {floor}',
+              },
+              'NKp_v2': {
+                  'template': Path('sdmc/config/nkp_v2_split_sector_background_diagnostic.ini'),
+                  'root0': 'output/sdmc_nkp_v2_split_bvp_diag_',
+                  'param_line': 'parameters_smg = 0.001, 0.1, 21.45883112, 0.5, {floor}',
+              },
+          }
+
+          def read_bg(path):
+              lines = path.read_text().splitlines()
+              hdr = [x for x in lines if x.startswith('#') and '1:z' in x][-1].lstrip('#').strip()
+              marks = list(re.finditer(r'(\d+)\s*:\s*', hdr))
+              names = []
+              for i, m in enumerate(marks):
+                  end = marks[i+1].start() if i+1 < len(marks) else len(hdr)
+                  names.append(hdr[m.end():end].strip())
+              rows = []
+              for line in lines:
+                  if line.strip() and not line.startswith('#'):
+                      vals = [float(v) for v in line.split()]
+                      rows.append(dict(zip(names, vals)))
+              return rows
+
+          def zero_crossings(rows):
+              seq = sorted(rows, key=lambda r: r['z'])
+              out = []
+              for a, b in zip(seq[:-1], seq[1:]):
+                  y1, y2 = a['cs2num'], b['cs2num']
+                  if y1 == 0.0:
+                      out.append(a['z'])
+                  elif y1*y2 < 0.0:
+                      z1, z2 = a['z'], b['z']
+                      out.append(z1 - y1*(z2-z1)/(y2-y1))
+              return out
+
+          def neg_intervals(rows):
+              seq = sorted(rows, key=lambda r: r['z'])
+              out=[]; start=None; last=None
+              for r in seq:
+                  neg = r['cs2num'] < 0.0
+                  if neg and start is None:
+                      start = r['z']
+                  if not neg and start is not None:
+                      out.append((start,last)); start=None
+                  if neg:
+                      last = r['z']
+              if start is not None:
+                  out.append((start,last))
+              return '|'.join(f'{a:.10g}:{b:.10g}' for a,b in out)
+
+          details=[]
+          summary=[]
+          by_model={}
+
+          for model, cfg in MODELS.items():
+              by_model[model] = []
+              base = cfg['template'].read_text()
+              for floor in FLOORS:
+                  tag = f'{floor:.0e}'.replace('e-0','e-').replace('e+0','e+')
+                  root = f'output/sdmc_Dfloor_{model}_{tag}_'
+                  text = base
+                  text = re.sub(r'^parameters_smg\s*=.*$', cfg['param_line'].format(floor=f'{floor:.17g}'), text, flags=re.M)
+                  text = re.sub(r'^output_background_smg\s*=.*$', 'output_background_smg = 3', text, flags=re.M)
+                  text = re.sub(r'^root\s*=.*$', f'root = {root}', text, flags=re.M)
+                  ini = OUT / f'sdmc_Dfloor_{model}_{tag}.ini'
+                  ini.write_text(text)
+                  cp = subprocess.run(['./class', str(ini)], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                  (OUT/f'sdmc_Dfloor_{model}_{tag}.log').write_text(cp.stdout)
+                  bg = Path(root + '00_background.dat')
+                  if cp.returncode != 0 or not bg.exists():
+                      summary.append({'model':model,'D_floor':floor,'status':'RUN_FAIL','returncode':cp.returncode})
+                      continue
+
+                  raw = read_bg(bg)
+                  rows=[]
+                  for r in raw:
+                      z=r['z']; a=1.0/(1.0+z); H=r['H [1/Mpc]']
+                      F=r['M*^2_smg']; b=r['braiding_smg']; am=r['M2_running_smg']
+                      ten=r['tensor_excess_smg']; beh=r['beyond_horndeski_smg']
+                      rs=r['(.)rho_smg']; ps=r['(.)p_smg']
+                      rho_wo=r['rho_tot_wo_smg_dbg']; p_wo=r['p_tot_wo_smg_dbg']
+                      bp=r['braiding_prime_smg']
+                      t1=0.5*(2.0-b)*(b+2.0*beh+2.0*am+2.0*beh*am-2.0*ten+b*ten)
+                      t2=1.5*(2.0-b)*(1.0+beh)*(rs+ps)/(H*H)
+                      t3=-1.5*(1.0+beh)*(2.0+2.0*beh-2.0*F+b*F)/F*(rho_wo+p_wo)/(H*H)
+                      t4=(1.0+beh)*bp/(a*H)
+                      ns=r['cs2num']; D=r['kin (D)']; cs2=r['c_s^2']
+                      rec={
+                          'model':model,'D_floor':floor,'z':z,'a':a,
+                          'cs2num':ns,'D':D,'cs2':cs2,
+                          'term_mix':t1,'term_smg_rhop':t2,'term_non_smg':t3,'term_bra_prime':t4,
+                          'sum_terms':t1+t2+t3+t4,
+                          'closure_error':t1+t2+t3+t4-ns,
+                          'ratio_error':D*cs2-ns,
+                          'F':F,'alphaM':am,'alphaB':b,'noslip_residual':b+2.0*am,
+                      }
+                      rows.append(rec); details.append(rec)
+
+                  sub=[r for r in rows if r['z'] <= 100.0]
+                  min_num=min(sub,key=lambda r:r['cs2num'])
+                  min_cs=min(sub,key=lambda r:r['cs2'])
+                  zc=zero_crossings(sub)
+                  s={
+                      'model':model,'D_floor':floor,'status':'OK','returncode':0,
+                      'min_cs2num':min_num['cs2num'],'z_at_min_cs2num':min_num['z'],
+                      'min_cs2':min_cs['cs2'],'z_at_min_cs2':min_cs['z'],
+                      'D_at_min_cs2':min_cs['D'],'scaled_min_cs2':min_cs['cs2']*floor,
+                      'negative_intervals':neg_intervals(sub),
+                      'zero_crossings':'|'.join(f'{x:.12g}' for x in zc),
+                      'floor_hits':sum(1 for r in sub if r['D'] <= floor*(1.0+1e-8)),
+                      'term_mix_at_min_num':min_num['term_mix'],
+                      'term_smg_at_min_num':min_num['term_smg_rhop'],
+                      'term_non_smg_at_min_num':min_num['term_non_smg'],
+                      'term_bra_prime_at_min_num':min_num['term_bra_prime'],
+                      'max_abs_closure_error':max(abs(r['closure_error']) for r in rows),
+                      'max_abs_ratio_error':max(abs(r['ratio_error']) for r in rows),
+                      'max_abs_noslip_residual':max(abs(r['noslip_residual']) for r in rows),
+                  }
+                  summary.append(s)
+                  by_model[model].append((floor, rows, s))
+
+          invariance=[]
+          for model, runs in by_model.items():
+              ok=sorted(runs,key=lambda x:x[0], reverse=True)
+              if not ok:
+                  continue
+              ref_floor, ref_rows, ref_s = ok[0]
+              ref_sub=[r for r in ref_rows if r['z']<=100.0]
+              ref_map={round(r['z'],10):r for r in ref_sub}
+              all_mins=[]; all_zcs=[]; floor_cs=[]
+              for floor, rows, s in ok:
+                  sub=[r for r in rows if r['z']<=100.0]
+                  diffs=[]
+                  for r in sub:
+                      rr=ref_map.get(round(r['z'],10))
+                      if rr is not None:
+                          diffs.append(abs(r['cs2num']-rr['cs2num']))
+                  all_mins.append(s['min_cs2num'])
+                  all_zcs.append([float(x) for x in s['zero_crossings'].split('|') if x])
+                  floor_cs.append((floor,abs(s['min_cs2'])))
+                  s['max_abs_cs2num_delta_vs_1e-2']=max(diffs) if diffs else float('nan')
+
+              xs=[math.log(f) for f,c in floor_cs if c>0]
+              ys=[math.log(c) for f,c in floor_cs if c>0]
+              mx=sum(xs)/len(xs); my=sum(ys)/len(ys)
+              slope=sum((x-mx)*(y-my) for x,y in zip(xs,ys))/sum((x-mx)**2 for x in xs)
+              nzc=min((len(z) for z in all_zcs), default=0)
+              max_z_shift=0.0
+              if nzc:
+                  for j in range(nzc):
+                      vals=[z[j] for z in all_zcs]
+                      max_z_shift=max(max_z_shift,max(vals)-min(vals))
+              invariance.append({
+                  'model':model,
+                  'min_cs2num_range':max(all_mins)-min(all_mins),
+                  'min_cs2num_rel_range':(max(all_mins)-min(all_mins))/max(abs(sum(all_mins)/len(all_mins)),1e-300),
+                  'max_zero_crossing_shift':max_z_shift,
+                  'log_abs_min_cs2_vs_log_Dfloor_slope':slope,
+                  'expected_floor_scaling_slope':-1.0,
+              })
+
+          sfields=['model','D_floor','status','returncode','min_cs2num','z_at_min_cs2num','min_cs2','z_at_min_cs2','D_at_min_cs2','scaled_min_cs2','negative_intervals','zero_crossings','floor_hits','term_mix_at_min_num','term_smg_at_min_num','term_non_smg_at_min_num','term_bra_prime_at_min_num','max_abs_closure_error','max_abs_ratio_error','max_abs_noslip_residual','max_abs_cs2num_delta_vs_1e-2']
+          with (OUT/'sdmc_D_floor_sweep_summary.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=sfields); w.writeheader();
+              for r in summary: w.writerow({k:r.get(k,'') for k in sfields})
+          dfields=['model','D_floor','z','a','cs2num','D','cs2','term_mix','term_smg_rhop','term_non_smg','term_bra_prime','sum_terms','closure_error','ratio_error','F','alphaM','alphaB','noslip_residual']
+          with (OUT/'sdmc_D_floor_sweep_terms.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=dfields); w.writeheader(); w.writerows(details)
+          ifields=['model','min_cs2num_range','min_cs2num_rel_range','max_zero_crossing_shift','log_abs_min_cs2_vs_log_Dfloor_slope','expected_floor_scaling_slope']
+          with (OUT/'sdmc_D_floor_invariance.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=ifields); w.writeheader(); w.writerows(invariance)
+
+          print('D_FLOOR_SWEEP_SUMMARY')
+          for r in summary:
+              print(r)
+          print('D_FLOOR_INVARIANCE')
+          for r in invariance:
+              print(r)
+          PY
+
+      - name: Preserve D-floor sweep
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-D-floor-invariance-sweep
+          path: |
+            output/sdmc_D_floor_sweep_summary.csv
+            output/sdmc_D_floor_sweep_terms.csv
+            output/sdmc_D_floor_invariance.csv
+            output/sdmc_Dfloor_*.log
+            output/sdmc_Dfloor_*_00_background.dat
+          if-no-files-found: warn
