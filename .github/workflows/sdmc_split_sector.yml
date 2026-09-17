@@ -25,6 +25,7 @@ jobs:
           python3 sdmc/apply_sdmc_v2_noslip_patch.py
           python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
           python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
 
       - name: Build hi_class
         run: make -j2 class
