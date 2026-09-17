@@ -20,7 +20,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3
 
-      - name: Apply split-sector and one-way bridge runtime patches
+      - name: Apply split-sector and extended bridge runtime patches
         run: |
           python3 sdmc/apply_sdmc_tracker_patch.py
           python3 sdmc/apply_sdmc_full_background_patch.py
@@ -34,7 +34,7 @@ jobs:
       - name: Build hi_class
         run: make -j2 class
 
-      - name: One-way Kp bridge stability scan
+      - name: Localized Planck-mass bridge stability scan
         run: |
           python3 - <<'PY'
           from __future__ import annotations
@@ -42,26 +42,24 @@ jobs:
           from pathlib import Path
 
           OUT=Path('output'); OUT.mkdir(exist_ok=True)
-          CSV=OUT/'sdmc_kp_oneway_bridge_scan.csv'
-          BEST=OUT/'sdmc_kp_oneway_bridge_best.csv'
+          CSV=OUT/'sdmc_kp_planck_bridge_scan.csv'
+          BEST=OUT/'sdmc_kp_planck_bridge_best.csv'
 
           omega_cdm=0.12000047526014168
           Omega_fld=3.0549311e-8
           expansion='0.716246932, 20.0, 21.26, 0.5, 0.021223342, 0.25, 0.0116038358, 1.5'
 
-          # The finite pulse family had no stable point in 6720 native runs.
-          # A positive pulse repeatedly repaired the early edge and failed only
-          # when it was forced back to exact No-Slip.  This scan removes that
-          # return edge and asks for the smallest residual alpha_B offset that
-          # restores native stability.  It is a structural diagnostic, not a fit.
-          amps=[2e-5,3e-5,4e-5,5e-5,7.5e-5,1e-4,1.25e-4,1.5e-4,2e-4,2.5e-4,
-                3e-4,4e-4,5e-4,7.5e-4,1e-3,1.25e-3,1.5e-3,1.75e-3,2e-3]
-          zons=[38.,40.,42.,45.,50.,60.]
-          wons=[0.15,0.20,0.30,0.40,0.50,0.65,0.80]
+          # Both alpha_B-only completion families failed natively: the finite
+          # asymmetric pulse had 0/6720 stable points and the one-way residual
+          # step had 0/798.  Now preserve alpha_B=-2 alpha_M exactly and deform
+          # ln F only locally with A_F sech^2[(N-N_b)/w].  The bump vanishes on
+          # both sides, so the frozen Kp normalization is recovered.
+          amps=[-0.02,-0.01,-0.005,-0.0025,-0.001,-0.0005,-0.0002,-0.0001,
+                 0.0001,0.0002,0.0005,0.001,0.0025,0.005,0.01,0.02]
+          zbs=[15.,20.,25.,30.,35.,38.,42.,50.]
+          widths=[0.15,0.20,0.30,0.40,0.55,0.75,1.00,1.40]
 
-          fields=['A_bridge','z_on','width_on','status','failure_a','failure_z',
-                  'min_cs2','z_min_cs2','min_D','max_abs_alphaB','alphaB_z0',
-                  'alphaM_z0','noslip_residual_z0','cost']
+          fields=['A_F','z_bridge','width','status','failure_a','failure_z','cost']
           with CSV.open('w',newline='') as f:
               csv.DictWriter(f,fieldnames=fields).writeheader()
 
@@ -104,14 +102,6 @@ jobs:
           output_verbose = 0
           '''
 
-          def table(path):
-              rows=[]
-              for line in Path(path).read_text(encoding='utf-8').splitlines():
-                  s=line.strip()
-                  if s and not s.startswith('#'):
-                      rows.append([float(x) for x in s.split()])
-              return rows
-
           def clean(prefix):
               for p in glob.glob(prefix+'*'):
                   try: os.remove(p)
@@ -119,35 +109,21 @@ jobs:
 
           stable=[]; n=0
           for A in amps:
-              for zon in zons:
-                  for won in wons:
+              for zb in zbs:
+                  for w in widths:
                       n+=1
-                      tag=f'kp_oneway_{n:05d}'
+                      tag=f'kp_planck_bridge_{n:05d}'
                       root=f'output/{tag}_'
                       ini=OUT/(tag+'.ini')
-                      # z_off=0 activates one-way mode; width_off is unused.
-                      pars=f'0.1, 1.0e-4, {A:.12g}, {zon:.12g}, 0.0, {won:.12g}, 1.0'
+                      # z_off=-1 selects the local lnF bridge; width_off unused.
+                      pars=f'0.1, 1.0e-4, {A:.12g}, {zb:.12g}, -1.0, {w:.12g}, 1.0'
                       ini.write_text(minimal_ini(pars,root),encoding='utf-8')
                       cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,
                                         stderr=subprocess.STDOUT,timeout=45)
-                      row={'A_bridge':A,'z_on':zon,'width_on':won,'status':'FAIL',
-                           'cost':A*A*(1.+0.02/won)}
+                      row={'A_F':A,'z_bridge':zb,'width':w,'status':'FAIL',
+                           'cost':A*A*w}
                       if cp.returncode==0:
-                          bgs=sorted(glob.glob(root+'*_background.dat'))
-                          if len(bgs)==1:
-                              b=table(bgs[0])
-                              if b:
-                                  imin=min(range(len(b)),key=lambda i:b[i][31])
-                                  today=min(range(len(b)),key=lambda i:abs(b[i][0]))
-                                  ab0=b[today][27]; am0=b[today][29]
-                                  row.update(status='OK',min_cs2=b[imin][31],z_min_cs2=b[imin][0],
-                                             min_D=min(r[32] for r in b),
-                                             max_abs_alphaB=max(abs(r[27]) for r in b),
-                                             alphaB_z0=ab0,alphaM_z0=am0,
-                                             noslip_residual_z0=ab0+2.*am0)
-                                  stable.append(dict(row))
-                              else: row['status']='EMPTY_BACKGROUND'
-                          else: row['status']='BACKGROUND_MISSING'
+                          row['status']='OK'; stable.append(dict(row))
                       else:
                           ma=re.search(r'at\s+a\s*=\s*([0-9eE+\-.]+)',cp.stdout)
                           if not ma: ma=re.search(r'a\s*=\s*([0-9eE+\-.]+)',cp.stdout)
@@ -158,36 +134,36 @@ jobs:
                       append(row); clean(root)
                       try: ini.unlink()
                       except OSError: pass
-              print('A',A,'tested',n,'stable_so_far',len(stable),flush=True)
+              print('A_F',A,'tested',n,'stable_so_far',len(stable),flush=True)
 
           if stable:
-              stable=sorted(stable,key=lambda r:(r['cost'],abs(r['noslip_residual_z0']),-r['min_cs2']))
+              stable=sorted(stable,key=lambda r:(r['cost'],abs(r['A_F'])))
               with BEST.open('w',newline='') as f:
                   wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader()
                   for r in stable[:100]: wr.writerow({k:r.get(k,'') for k in fields})
               b=stable[0]
-              print('BEST_STABLE_ONEWAY',b,flush=True)
-              pars=f"0.1, 1.0e-4, {b['A_bridge']:.12g}, {b['z_on']:.12g}, 0.0, {b['width_on']:.12g}, 1.0"
-              full_ini=OUT/'sdmc_kp_oneway_bridge_best.ini'
-              full_ini.write_text(minimal_ini(pars,'output/sdmc_kp_oneway_bridge_best_',full=True),encoding='utf-8')
+              print('BEST_STABLE_PLANCK_BRIDGE',b,flush=True)
+              pars=f"0.1, 1.0e-4, {b['A_F']:.12g}, {b['z_bridge']:.12g}, -1.0, {b['width']:.12g}, 1.0"
+              full_ini=OUT/'sdmc_kp_planck_bridge_best.ini'
+              full_ini.write_text(minimal_ini(pars,'output/sdmc_kp_planck_bridge_best_',full=True),encoding='utf-8')
               cp=subprocess.run(['./class',str(full_ini)],text=True,stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,timeout=180)
-              (OUT/'sdmc_kp_oneway_bridge_best.log').write_text(cp.stdout,encoding='utf-8')
+              (OUT/'sdmc_kp_planck_bridge_best.log').write_text(cp.stdout,encoding='utf-8')
               print('BEST_FULL_RETURNCODE',cp.returncode,flush=True)
           else:
               BEST.write_text('status\nNO_STABLE_POINT\n',encoding='utf-8')
-              print('NO_STABLE_POINT in one-way Kp bridge family',flush=True)
+              print('NO_STABLE_POINT in localized Planck-mass bridge family',flush=True)
           PY
 
-      - name: Preserve one-way bridge diagnostics
+      - name: Preserve Planck-mass bridge diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-kp-oneway-transition-bridge
+          name: sdmc-kp-planck-transition-bridge
           path: |
-            output/sdmc_kp_oneway_bridge_scan.csv
-            output/sdmc_kp_oneway_bridge_best.csv
-            output/sdmc_kp_oneway_bridge_best.ini
-            output/sdmc_kp_oneway_bridge_best.log
-            output/sdmc_kp_oneway_bridge_best_*
+            output/sdmc_kp_planck_bridge_scan.csv
+            output/sdmc_kp_planck_bridge_best.csv
+            output/sdmc_kp_planck_bridge_best.ini
+            output/sdmc_kp_planck_bridge_best.log
+            output/sdmc_kp_planck_bridge_best_*
           if-no-files-found: warn
