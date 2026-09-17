@@ -1,0 +1,78 @@
+name: SDMC Planck high-l Plik-lite
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  planck-pliklite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy
+
+      - name: Install native Planck 2018 Plik-lite data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          ok = TTTEEE_lite_native.install(path="planck_packages", no_progress_bars=True)
+          if not ok:
+              raise SystemExit("Planck Plik-lite data installation failed")
+          print("installed:", TTTEEE_lite_native.get_path("planck_packages"))
+          PY
+
+      - name: Apply exact tracker source patch
+        run: python3 sdmc/apply_sdmc_tracker_patch.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Generate LCDM sanity-control spectrum
+        run: ./class sdmc/config/planck_lcdm_control.ini
+
+      - name: Generate Kp coordinate spectrum
+        run: ./class sdmc/config/kp_coordinate_control.ini
+
+      - name: Generate NKp-v2 coordinate spectrum
+        run: ./class sdmc/config/nkp_v2_coordinate_control.ini
+
+      - name: Generate Kp clustered-tracker spectrum
+        run: ./class sdmc/config/kp_tracker_clustered_cs0003.ini
+
+      - name: Generate NKp-v2 clustered-tracker spectrum
+        run: ./class sdmc/config/nkp_v2_tracker_clustered_cs0003.ini
+
+      - name: Evaluate real Planck high-l TTTEEE Plik-lite likelihood
+        run: |
+          python3 sdmc/evaluate_planck_pliklite.py \
+            --packages planck_packages \
+            --output output/sdmc_planck_pliklite.csv \
+            LCDM_control=output/sdmc_planck_lcdm_control_00_cl_lensed.dat \
+            Kp_coordinate=output/sdmc_kp_coordinate_00_cl_lensed.dat \
+            NKp_v2_coordinate=output/sdmc_nkp_v2_coordinate_00_cl_lensed.dat \
+            Kp_tracker_clustered=output/sdmc_kp_tracker_clustered_cs0003_00_cl_lensed.dat \
+            NKp_v2_tracker_clustered=output/sdmc_nkp_v2_tracker_clustered_cs0003_00_cl_lensed.dat
+
+      - name: Preserve Planck likelihood outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-planck-pliklite
+          path: |
+            output/sdmc_planck_pliklite.csv
+            output/sdmc_planck_lcdm_control_00_cl_lensed.dat
+            output/sdmc_kp_coordinate_00_cl_lensed.dat
+            output/sdmc_nkp_v2_coordinate_00_cl_lensed.dat
+            output/sdmc_kp_tracker_clustered_cs0003_00_cl_lensed.dat
+            output/sdmc_nkp_v2_tracker_clustered_cs0003_00_cl_lensed.dat
+          if-no-files-found: warn
