@@ -1,0 +1,123 @@
+name: SDMC Planck Kp H0 geometry scan
+
+on:
+  push:
+    branches: [sdmc-boltzmann]
+  workflow_dispatch:
+
+jobs:
+  kp-h0-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy cobaya
+
+      - name: Install native Planck Plik-lite data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          ok=TTTEEE_lite_native.install(path='planck_packages',no_progress_bars=True)
+          if not ok: raise SystemExit('Planck Plik-lite data installation failed')
+          PY
+
+      - name: Apply exact tracker source patch
+        run: python3 sdmc/apply_sdmc_tracker_patch.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Scan Kp H0 with frozen physical densities and tracker
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, math, re, subprocess, glob, os
+          import numpy as np
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+
+          OUT=Path('output/kp_h0_scan'); OUT.mkdir(parents=True,exist_ok=True)
+          TCMB=2.7255; CAL=0.0025
+          lik=TTTEEE_lite_native(packages_path='planck_packages')
+          template=Path('sdmc/config/kp_tracker_clustered_cs0003.ini').read_text()
+          lnAs=3.064
+          ns=0.978
+          As=math.exp(lnAs)/1e10
+          hvals=np.arange(68.8,71.201,0.2)
+
+          def setv(t,k,v):
+              p=re.compile(rf'(?m)^\s*{re.escape(k)}\s*=.*$')
+              if not p.search(t): raise RuntimeError('missing '+k)
+              return p.sub(f'{k} = {v}',t)
+
+          def load_cl(root):
+              a=np.loadtxt(root+'00_cl_lensed.dat')
+              conv=(TCMB*1e6)**2
+              return a,np.column_stack([a[:,0],a[:,1]*conv,a[:,3]*conv,a[:,2]*conv])
+
+          def profile(cl):
+              def like(A): return float(lik.chi_squared(cl,A_planck=float(A)))
+              def total(A): return like(A)+((float(A)-1.)/CAL)**2
+              r=minimize_scalar(total,bounds=(0.96,1.04),method='bounded',options={'xatol':1e-10})
+              A=float(r.x)
+              return A,like(A),float(r.fun)
+
+          rows=[]
+          for H0 in hvals:
+              tag=f'H0_{H0:.1f}'.replace('.','p')
+              root=f'output/kp_h0_scan/{tag}_'
+              txt=template
+              txt=setv(txt,'H0',f'{H0:.8f}')
+              txt=setv(txt,'A_s',f'{As:.14e}')
+              txt=setv(txt,'n_s',f'{ns:.9f}')
+              txt=setv(txt,'root',root)
+              txt=setv(txt,'write parameters','no')
+              txt=setv(txt,'input_verbose','0')
+              txt=setv(txt,'background_verbose','0')
+              txt=setv(txt,'thermodynamics_verbose','0')
+              txt=setv(txt,'perturbations_verbose','0')
+              txt=setv(txt,'output_verbose','0')
+              ini=OUT/(tag+'.ini'); ini.write_text(txt)
+              cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=180)
+              row={'H0':H0,'ln10As':lnAs,'n_s':ns,'status':'FAIL','A_planck':'','chi2_like':'','chi2_total':'','delta_chi2_vs_frozen':'','error':''}
+              if cp.returncode==0:
+                  try:
+                      a,cl=load_cl(root)
+                      A,L,T=profile(cl)
+                      row.update(status='OK',A_planck=A,chi2_like=L,chi2_total=T)
+                  except Exception as e:
+                      row['status']='PARSE_FAIL'; row['error']=repr(e)
+              else:
+                  row['error']=' | '.join(cp.stdout.strip().splitlines()[-12:])[:2000]
+              rows.append(row)
+              print(row,flush=True)
+
+          ok=[r for r in rows if r['status']=='OK']
+          if ok:
+              frozen=min(ok,key=lambda r:abs(r['H0']-70.8514))['chi2_total']
+              for r in rows:
+                  if r['status']=='OK': r['delta_chi2_vs_frozen']=r['chi2_total']-frozen
+              best=min(ok,key=lambda r:r['chi2_total'])
+              Path('output/sdmc_kp_h0_best.txt').write_text(str(best)+'\n')
+              print('BEST',best,flush=True)
+
+          with open('output/sdmc_kp_h0_scan.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=rows[0].keys()); w.writeheader(); w.writerows(rows)
+          PY
+
+      - name: Preserve H0 scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-kp-h0-scan
+          path: |
+            output/sdmc_kp_h0_scan.csv
+            output/sdmc_kp_h0_best.txt
+          if-no-files-found: warn
