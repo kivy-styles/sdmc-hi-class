@@ -30,6 +30,11 @@ jobs:
       - name: Build hi_class
         run: make -j2 class
 
+      - name: Write split-sector BVP background tables
+        run: |
+          ./class sdmc/config/kp_split_sector_background_diagnostic.ini
+          ./class sdmc/config/nkp_v2_split_sector_background_diagnostic.ini
+
       - name: Run clustered-tracker references
         run: |
           ./class sdmc/config/kp_tracker_clustered_cs0003.ini
@@ -56,6 +61,8 @@ jobs:
             output/sdmc_split_sector_audit.csv
             output/sdmc_nkp_v2_split_sector*
             output/sdmc_kp_core_split_sector*
+            output/sdmc_kp_split_bvp_diag_*
+            output/sdmc_nkp_v2_split_bvp_diag_*
             output/sdmc_nkp_v2_tracker_clustered_cs0003_00_cl_lensed.dat
             output/sdmc_kp_tracker_clustered_cs0003_00_cl_lensed.dat
           if-no-files-found: warn
