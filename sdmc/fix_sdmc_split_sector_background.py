@@ -10,8 +10,8 @@ the target background.  In addition, CLASS's early-radiation consistency test
 only counts components accumulated into rho_de; the custom tracker fluid was
 not included there even though it is part of the SDMC structural sector.
 
-This patch does two bookkeeping corrections without changing the frozen target
-H(a):
+This patch makes three bookkeeping corrections without changing the frozen
+target H(a):
 
 1. For fluid_equation_of_state=SDMC_TRACKER, include rho_fld in rho_de for
    CLASS's background fractions/initial radiation check.
@@ -19,6 +19,11 @@ H(a):
    the base density/pressure first.  The desired tracker factor 1/(1-f) is then
    applied once, and rho_smg is the residual needed after the separately
    conserved tracker fluid has been added.
+3. In split-sector runs evaluate f_tr from the ordinary matter+radiation base,
+   not from rho_tot after the tracker fluid has been added.  This is essential
+   through the handoff because the separately conserved tracker develops a
+   transient equation-of-state contribution proportional to f', which must not
+   feed back into the definition of f itself.
 
 For all non-split configurations the original sdmc_full equations are
 unchanged.
@@ -91,6 +96,39 @@ replace_once(
     '''    double rho_smg = rho_target-rho_tot;
     double rho_smg_N = rho_target_N-rho_all_non_smg_N;
     double p_smg = -rho_smg-rho_smg_N/3.;'''
+)
+
+# The tracker fraction itself must be computed from the ordinary base sector.
+# During the handoff, the explicit tracker fluid has a transient pressure term
+# from f_N; using p_tot/rho_tot here would feed that transient back into f and
+# spoil the exact algebraic cancellation rho_target-rho_tracker=rho_late.
+replace_once(
+    "gravity_smg/gravity_models_smg.c",
+    '''    double wb = p_tot/rho_tot;
+    double x_r = 3.*wb;
+    if (x_r < 0.) x_r = 0.;
+    if (x_r > 1.) x_r = 1.;
+    double f0 = (3.+x_r)/(lambda_e*lambda_e);
+    double f0_N = -x_r*(1.-x_r)/(lambda_e*lambda_e);
+    double f = W*f0;
+    double f_N = W_N*f0 + W*f0_N;
+
+    class_test(f >= 1., pba->error_message,
+               "sdmc_full tracker fraction reached f >= 1");''',
+    '''    double wb = p_tot/rho_tot;
+    if (pba->has_fld == _TRUE_ &&
+        pba->fluid_equation_of_state == SDMC_TRACKER)
+      wb = p_base/rho_base;
+    double x_r = 3.*wb;
+    if (x_r < 0.) x_r = 0.;
+    if (x_r > 1.) x_r = 1.;
+    double f0 = (3.+x_r)/(lambda_e*lambda_e);
+    double f0_N = -x_r*(1.-x_r)/(lambda_e*lambda_e);
+    double f = W*f0;
+    double f_N = W_N*f0 + W*f0_N;
+
+    class_test(f >= 1., pba->error_message,
+               "sdmc_full tracker fraction reached f >= 1");'''
 )
 
 print("SDMC split-sector background bookkeeping fix complete.")
