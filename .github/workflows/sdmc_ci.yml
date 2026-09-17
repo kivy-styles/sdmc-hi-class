@@ -112,6 +112,9 @@ jobs:
       - name: NKp-v2 branch-complete clustered No-Slip TT TE EE
         run: ./class sdmc/config/nkp_v2_full_clustered_noslip.ini
 
+      - name: NKp-v2 split-sector late-growth diagnostic
+        run: python3 sdmc/run_v2_split_sector_growth.py
+
       - name: Scan NKp-v2 late No-Slip sound speed
         run: python3 sdmc/run_v2_noslip_cs2_scan.py
 
@@ -162,6 +165,7 @@ jobs:
             output/sdmc_nkp_v2_full_smooth_*
             output/sdmc_nkp_v2_full_noslip_*
             output/sdmc_nkp_v2_full_noslip_diag_*
+            output/sdmc_nkp_v2_split_sector_growth.csv
             output/sdmc_nkp_v2_noslip_cs2_scan.csv
             output/sdmc_nkp_v2_noslip_qs_scan.csv
             output/sdmc_nkp_v2_noslip_qs_*.log
