@@ -1,0 +1,50 @@
+name: SDMC native No-Slip feasibility
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  native-noslip-feasibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply split-sector runtime and alphaM refresh patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Generate frozen NKp-v2 diagnostic background
+        run: ./class sdmc/config/nkp_v2_split_sector_background_diagnostic.ini
+
+      - name: Run exact-native B0 feasibility scan
+        run: python3 sdmc/run_native_noslip_feasibility.py output/sdmc_nkp_v2_split_bvp_diag_00_background.dat
+
+      - name: Preserve feasibility scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-native-noslip-feasibility
+          path: |
+            output/sdmc_native_noslip_feasibility.csv
+            output/sdmc_native_noslip_endpoint_roots.csv
+          if-no-files-found: warn
