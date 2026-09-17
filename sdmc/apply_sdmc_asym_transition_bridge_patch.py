@@ -6,7 +6,7 @@ Apply this *after* apply_sdmc_transition_bridge_patch.py.
 The signed symmetric-pulse scan showed a characteristic edge migration:
 positive A_bridge repairs the early edge but transfers the native c_s^2
 failure to the turn-off edge, while negative A_bridge fails at the turn-on
-edge.  A compact bridge therefore needs asymmetric derivatives: a relatively
+edge. A compact bridge therefore needs asymmetric derivatives: a relatively
 sharp positive turn-on correction near the high-z instability and a broad,
 late negative return where the unmodified late sector has more stability
 margin.
@@ -50,10 +50,13 @@ replace_once(
     '''    /* parameters_smg = cs2, Dfloor, A_bridge, z_on, z_off, width_on, width_off */\n    const double AM = 0.02586;\n    const double zc = 4.38;\n    const double width = 0.4467;\n    double cs2_target = pba->parameters_2_smg[0];\n    double Dfloor = pba->parameters_2_smg[1];\n    double Abridge = pba->parameters_2_smg[2];\n    double zon = pba->parameters_2_smg[3];\n    double zoff = pba->parameters_2_smg[4];\n    double won = pba->parameters_2_smg[5];\n    double woff = pba->parameters_2_smg[6];\n    double N = log(a);'''
 )
 
+# Anchor the pulse replacement to the Kp-only width_on/width_off declarations.
+# This avoids matching the separate NKp-v2 symmetric bridge, which intentionally
+# retains its single wbri parameter.
 replace_once(
     "gravity_smg/gravity_models_smg.c",
-    '''    double Non = -log(1.+zon);\n    double Noff = -log(1.+zoff);\n    double ton = tanh((N-Non)/wbri);\n    double toff = tanh((N-Noff)/wbri);\n    double pulse = .5*(ton-toff);\n    double pulse_N = .5*((1.-ton*ton)-(1.-toff*toff))/wbri;\n\n    double bra = -2.*am + Abridge*pulse;''',
-    '''    double Non = -log(1.+zon);\n    double Noff = -log(1.+zoff);\n    double ton = tanh((N-Non)/won);\n    double toff = tanh((N-Noff)/woff);\n    double pulse = .5*(ton-toff);\n    double pulse_N = .5*((1.-ton*ton)/won-(1.-toff*toff)/woff);\n\n    double bra = -2.*am + Abridge*pulse;'''
+    '''    double won = pba->parameters_2_smg[5];\n    double woff = pba->parameters_2_smg[6];\n    double N = log(a);\n    double Non = -log(1.+zon);\n    double Noff = -log(1.+zoff);\n    double ton = tanh((N-Non)/wbri);\n    double toff = tanh((N-Noff)/wbri);\n    double pulse = .5*(ton-toff);\n    double pulse_N = .5*((1.-ton*ton)-(1.-toff*toff))/wbri;\n\n    double bra = -2.*am + Abridge*pulse;''',
+    '''    double won = pba->parameters_2_smg[5];\n    double woff = pba->parameters_2_smg[6];\n    double N = log(a);\n    double Non = -log(1.+zon);\n    double Noff = -log(1.+zoff);\n    double ton = tanh((N-Non)/won);\n    double toff = tanh((N-Noff)/woff);\n    double pulse = .5*(ton-toff);\n    double pulse_N = .5*((1.-ton*ton)/won-(1.-toff*toff)/woff);\n\n    double bra = -2.*am + Abridge*pulse;'''
 )
 
 print("SDMC asymmetric Kp transition-bridge runtime patch complete.")
