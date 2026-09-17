@@ -56,7 +56,7 @@ jobs:
           lik=TTTEEE_lite_native(packages_path='planck_packages')
 
           def setv(text,key,val):
-            p=re.compile(rf'(?m)^\\s*{re.escape(key)}\\s*=.*$')
+            p=re.compile(rf'(?m)^\s*{re.escape(key)}\s*=.*$')
             if not p.search(text): raise RuntimeError(f'missing {key}')
             return p.sub(f'{key} = {val}',text)
 
@@ -75,7 +75,7 @@ jobs:
             txt=setv(txt,'A_s',f'{As:.12e}')
             txt=setv(txt,'n_s',f'{ns:.9f}')
             txt=setv(txt,'root',str(root))
-            if re.search(r'(?m)^\\s*write parameters\\s*=',txt): txt=setv(txt,'write parameters','no')
+            if re.search(r'(?m)^\s*write parameters\s*=',txt): txt=setv(txt,'write parameters','no')
             tmp=out/(label+'.ini'); tmp.write_text(txt)
             subprocess.run(['./class',str(tmp)],check=True,stdout=subprocess.DEVNULL)
             a=np.loadtxt(str(root)+'00_cl_lensed.dat')
