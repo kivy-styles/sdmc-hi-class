@@ -34,11 +34,11 @@ jobs:
       - name: Build hi_class
         run: make -j2 class
 
-      - name: Scan Kp H0 with frozen physical densities and tracker
+      - name: Scan Kp H0 with frozen physical densities, flat closure and tracker
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import csv, math, re, subprocess, glob, os
+          import csv, math, re, subprocess
           import numpy as np
           from scipy.optimize import minimize_scalar
           from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
@@ -50,7 +50,11 @@ jobs:
           lnAs=3.064
           ns=0.978
           As=math.exp(lnAs)/1e10
-          hvals=np.arange(68.8,71.201,0.2)
+          omega_b=0.02239952
+          omega_cdm=0.12000047526014168
+          # Frozen branch radiation density inferred from the exactly closed fiducial Kp background.
+          omega_r=4.17998772e-5
+          hvals=list(np.arange(69.0,70.601,0.1))+[70.8514]
 
           def setv(t,k,v):
               p=re.compile(rf'(?m)^\s*{re.escape(k)}\s*=.*$')
@@ -71,10 +75,15 @@ jobs:
 
           rows=[]
           for H0 in hvals:
-              tag=f'H0_{H0:.1f}'.replace('.','p')
+              h=H0/100.
+              Omega_X0=1.-(omega_b+omega_cdm+omega_r)/(h*h)
+              tag=f'H0_{H0:.4f}'.replace('.','p')
               root=f'output/kp_h0_scan/{tag}_'
               txt=template
               txt=setv(txt,'H0',f'{H0:.8f}')
+              # Keep omega_b, omega_cdm, lambda_e, z_t and DeltaN frozen, while
+              # re-closing the constant late structural density at each H0.
+              txt=setv(txt,'expansion_smg',f'{Omega_X0:.12g}, 20.0, 21.26, 0.5')
               txt=setv(txt,'A_s',f'{As:.14e}')
               txt=setv(txt,'n_s',f'{ns:.9f}')
               txt=setv(txt,'root',root)
@@ -86,10 +95,10 @@ jobs:
               txt=setv(txt,'output_verbose','0')
               ini=OUT/(tag+'.ini'); ini.write_text(txt)
               cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=180)
-              row={'H0':H0,'ln10As':lnAs,'n_s':ns,'status':'FAIL','A_planck':'','chi2_like':'','chi2_total':'','delta_chi2_vs_frozen':'','error':''}
+              row={'H0':H0,'Omega_X0':Omega_X0,'ln10As':lnAs,'n_s':ns,'status':'FAIL','A_planck':'','chi2_like':'','chi2_total':'','delta_chi2_vs_frozen':'','error':''}
               if cp.returncode==0:
                   try:
-                      a,cl=load_cl(root)
+                      _,cl=load_cl(root)
                       A,L,T=profile(cl)
                       row.update(status='OK',A_planck=A,chi2_like=L,chi2_total=T)
                   except Exception as e:
@@ -100,10 +109,11 @@ jobs:
               print(row,flush=True)
 
           ok=[r for r in rows if r['status']=='OK']
-          if ok:
-              frozen=min(ok,key=lambda r:abs(r['H0']-70.8514))['chi2_total']
+          frozen=next((r['chi2_total'] for r in ok if abs(r['H0']-70.8514)<1e-6),None)
+          if frozen is not None:
               for r in rows:
                   if r['status']=='OK': r['delta_chi2_vs_frozen']=r['chi2_total']-frozen
+          if ok:
               best=min(ok,key=lambda r:r['chi2_total'])
               Path('output/sdmc_kp_h0_best.txt').write_text(str(best)+'\n')
               print('BEST',best,flush=True)
