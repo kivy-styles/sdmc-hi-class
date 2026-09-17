@@ -1,0 +1,290 @@
+name: SDMC v2 stability-edge observable gate
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  edge-observable-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy numpy pandas
+
+      - name: Apply frozen SDMC and split-sector patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+
+      - name: Reuse native-exact No-Slip profile family
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+          lines=Path('.github/workflows/sdmc_v2_native_noslip_scan.yml').read_text().splitlines()
+          marker='- name: Add native-exact No-Slip profile family'
+          i=next(i for i,x in enumerate(lines) if marker in x)
+          h=next(i for i in range(i+1,len(lines)) if "python3 - <<'PY'" in lines[i])
+          j=next(i for i in range(h+1,len(lines)) if lines[i].strip()=='PY')
+          code=textwrap.dedent('\n'.join(lines[h+1:j]))
+          exec(compile(code,'native_patch','exec'),{})
+          PY
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Install native Planck 2018 Plik-lite data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          ok=TTTEEE_lite_native.install(path='planck_packages',no_progress_bars=True)
+          if not ok:
+              raise SystemExit('Planck Plik-lite install failed')
+          PY
+
+      - name: Generate current v2 edge and frozen reference configurations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, textwrap, math
+          out=Path('output'); out.mkdir(exist_ok=True)
+          AS_EDGE=math.exp(3.076)/1e10
+          NS_EDGE=0.964
+          ZPK='0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10'
+
+          def v2_ini(root):
+              return textwrap.dedent(f'''\
+              H0 = 70.8514
+              omega_b = 0.02239952
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = {AS_EDGE:.14e}
+              n_s = {NS_EDGE:.9f}
+              tau_reio = 0.0544
+              Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = 0.003
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_v2_native_noslip
+              parameters_smg = 0.072, 5.0, 1.45, 0.1, 0.0001
+              expansion_model = sdmc_full
+              expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+              output_background_smg = 1
+              output = tCl,pCl,lCl,mPk
+              modes = s
+              lensing = yes
+              l_max_scalars = 3000
+              P_k_max_h/Mpc = 6.0
+              z_pk = {ZPK}
+              write thermodynamics = yes
+              write background = yes
+              write parameters = yes
+              root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              lensing_verbose = 0
+              output_verbose = 0
+              ''')
+
+          def expand(path,root,common_primordial=False):
+              p=Path(path).read_text()
+              p=re.sub(r'(?m)^\s*root\s*=.*$',f'root = {root}',p)
+              p=re.sub(r'(?m)^\s*output\s*=.*$', 'output = tCl,pCl,lCl,mPk', p)
+              if common_primordial:
+                  p=re.sub(r'(?m)^\s*A_s\s*=.*$',f'A_s = {AS_EDGE:.14e}',p)
+                  p=re.sub(r'(?m)^\s*n_s\s*=.*$',f'n_s = {NS_EDGE:.9f}',p)
+              if 'P_k_max_h/Mpc' in p:
+                  p=re.sub(r'(?m)^\s*P_k_max_h/Mpc\s*=.*$','P_k_max_h/Mpc = 6.0',p)
+              else:
+                  p += '\nP_k_max_h/Mpc = 6.0\n'
+              if re.search(r'(?m)^\s*z_pk\s*=',p):
+                  p=re.sub(r'(?m)^\s*z_pk\s*=.*$',f'z_pk = {ZPK}',p)
+              else:
+                  p += f'z_pk = {ZPK}\n'
+              if not re.search(r'(?m)^\s*write thermodynamics\s*=',p): p += 'write thermodynamics = yes\n'
+              if not re.search(r'(?m)^\s*write background\s*=',p): p += 'write background = yes\n'
+              return p
+
+          Path('output/v2_edge.ini').write_text(v2_ini('output/v2_edge_'))
+          Path('output/kp_native.ini').write_text(expand('sdmc/config/kp_fullbg_clustered_cs0003.ini','output/kp_native_',False))
+          Path('output/kp_common.ini').write_text(expand('sdmc/config/kp_fullbg_clustered_cs0003.ini','output/kp_common_',True))
+          Path('output/lcdm_profile.ini').write_text(expand('sdmc/config/planck_lcdm_control.ini','output/lcdm_profile_',False))
+          Path('output/lcdm_common.ini').write_text(expand('sdmc/config/planck_lcdm_control.ini','output/lcdm_common_',True))
+          PY
+
+      - name: Run full Boltzmann observable set
+        run: |
+          ./class output/v2_edge.ini
+          ./class output/kp_native.ini
+          ./class output/kp_common.ini
+          ./class output/lcdm_profile.ini
+          ./class output/lcdm_common.ini
+
+      - name: Evaluate high-l TTTEEE Plik-lite
+        run: |
+          python3 sdmc/evaluate_planck_pliklite.py \
+            --packages planck_packages \
+            --output output/edge_gate_pliklite.csv \
+            V2_edge_best=output/v2_edge_00_cl_lensed.dat \
+            Kp_core_native_primordial=output/kp_native_00_cl_lensed.dat \
+            Kp_core_common_primordial=output/kp_common_00_cl_lensed.dat \
+            LCDM_profile_reference=output/lcdm_profile_00_cl_lensed.dat \
+            LCDM_common_primordial=output/lcdm_common_00_cl_lensed.dat
+
+      - name: Compute CMB lensing growth Pk BAO and stability diagnostics
+        run: |
+          cat > output/analyze_edge_gate.py <<'PY'
+          from pathlib import Path
+          import numpy as np, pandas as pd, re, math
+          R=Path('output')
+          models={
+              'V2_edge_best':'v2_edge_',
+              'Kp_core_native_primordial':'kp_native_',
+              'Kp_core_common_primordial':'kp_common_',
+              'LCDM_profile_reference':'lcdm_profile_',
+              'LCDM_common_primordial':'lcdm_common_',
+          }
+          zpk=[0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10]
+          zbao=[0.295,0.510,0.706,0.934,1.321,1.484,2.330]
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[x for x in lines if x.startswith('#') and re.search(r'1\s*:',x)][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); cols=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  cols.append(hdr[m.end():end].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=cols)
+
+          def cl(path):
+              a=np.loadtxt(path)
+              names=['ell','TT','EE','TE','BB','phiphi','Tphi','Ephi'][:a.shape[1]]
+              return pd.DataFrame(a,columns=names)
+
+          def sigma8(path):
+              a=np.loadtxt(path); k=a[:,0]; P=a[:,1]; x=8*k
+              W=np.ones_like(x); q=x!=0
+              W[q]=3*(np.sin(x[q])-x[q]*np.cos(x[q]))/x[q]**3
+              return math.sqrt(np.trapezoid(k**3*P*W**2/(2*np.pi**2),x=np.log(k)))
+
+          cls={m:cl(R/(p+'00_cl_lensed.dat')) for m,p in models.items()}
+          cmb=[]
+          probes=[30,100,200,500,800,1000,1500,2000,2500]
+          for refname in ['LCDM_profile_reference','Kp_core_native_primordial','Kp_core_common_primordial']:
+              ref=cls[refname]
+              for m,c in cls.items():
+                  if m==refname: continue
+                  for ell in probes:
+                      i=int(np.argmin(np.abs(ref.ell.to_numpy()-ell)))
+                      row=[m,refname,int(ref.ell.iloc[i])]
+                      for f in ['TT','EE','phiphi']:
+                          row.append(float(c[f].iloc[i]/ref[f].iloc[i]))
+                      den=math.sqrt(abs(float(ref.TT.iloc[i]*ref.EE.iloc[i])))
+                      row.append(float((c.TE.iloc[i]-ref.TE.iloc[i])/den) if den else np.nan)
+                      cmb.append(row)
+          pd.DataFrame(cmb,columns=['model','reference','ell','TT_ratio','EE_ratio','phiphi_ratio','TE_delta_norm']).to_csv(R/'edge_gate_cmb_point_ratios.csv',index=False)
+
+          bands=[]
+          ref=cls['LCDM_profile_reference']; cand=cls['V2_edge_best']
+          for field in ['TT','EE','phiphi']:
+              for lo,hi in [(30,2500),(30,200),(200,800),(800,1500),(1500,2500)]:
+                  mask=(ref.ell>=lo)&(ref.ell<=hi)
+                  rr=cand.loc[mask,field].to_numpy()/ref.loc[mask,field].to_numpy()
+                  bands.append([field,lo,hi,float(np.sqrt(np.mean((rr-1)**2))),float(np.max(np.abs(rr-1)))])
+          pd.DataFrame(bands,columns=['field','ell_min','ell_max','rms_fractional','max_abs_fractional']).to_csv(R/'edge_gate_cmb_bands.csv',index=False)
+
+          growth=[]; bao=[]; acoustic=[]; pkrows=[]
+          for m,p in models.items():
+              bg=table(R/(p+'00_background.dat')).sort_values('z')
+              def iv(col,z): return float(np.interp(z,bg.z,bg[col]))
+              th=table(R/(p+'00_thermodynamics.dat'))
+              zstar=float(th.loc[th['g [Mpc^-1]'].idxmax(),'z'])
+              ts=th.sort_values('z'); zz=ts.z.to_numpy(); kb=ts.kappa_b.to_numpy(); cross=[]
+              for i in range(len(zz)-1):
+                  if (kb[i]-1)*(kb[i+1]-1)<=0 and kb[i]!=kb[i+1]:
+                      f=(1-kb[i])/(kb[i+1]-kb[i]); cross.append(float(zz[i]+f*(zz[i+1]-zz[i])))
+              zdrag=cross[0] if cross else np.nan
+              rsstar=iv('comov.snd.hrz.',zstar)
+              rd=iv('comov.snd.hrz.',zdrag) if np.isfinite(zdrag) else np.nan
+              ellA=math.pi*iv('comov. dist.',zstar)/rsstar
+              F0=iv('M*^2_smg',0) if 'M*^2_smg' in bg else np.nan
+              am0=iv('M2_running_smg',0) if 'M2_running_smg' in bg else np.nan
+              csmin=float(bg['c_s^2'].min()) if 'c_s^2' in bg else np.nan
+              Dmin=float(bg['kin (D)'].min()) if 'kin (D)' in bg else np.nan
+              Nsmin=float((bg['c_s^2']*bg['kin (D)']).min()) if 'c_s^2' in bg and 'kin (D)' in bg else np.nan
+              nsres=float(np.max(np.abs(bg['braiding_smg']+2*bg['M2_running_smg']))) if 'braiding_smg' in bg else np.nan
+              acoustic.append([m,zstar,zdrag,rsstar,rd,ellA,F0,am0,csmin,Dmin,Nsmin,nsres])
+              for i,z in enumerate(zpk,1):
+                  fp=R/(p+f'00_z{i}_pk.dat')
+                  if not fp.exists(): continue
+                  s8=sigma8(fp); ff=iv('gr.fac. f',z) if 'gr.fac. f' in bg else np.nan
+                  DD=iv('gr.fac. D',z) if 'gr.fac. D' in bg else np.nan
+                  growth.append([m,z,s8,ff,ff*s8,DD])
+              if np.isfinite(rd):
+                  for z in zbao:
+                      DM=iv('comov. dist.',z); DH=1/iv('H [1/Mpc]',z); DV=(z*DM*DM*DH)**(1/3)
+                      bao.append([m,z,rd,DM/rd,DH/rd,DV/rd,DM,DH,DV])
+              fp=R/(p+'00_z1_pk.dat')
+              if fp.exists():
+                  a=np.loadtxt(fp); kk=a[:,0]; pp=a[:,1]
+                  for kval in [0.01,0.05,0.1,0.2,0.5,1.0]:
+                      pkrows.append([m,kval,float(np.interp(kval,kk,pp))])
+
+          pd.DataFrame(growth,columns=['model','z','sigma8','f','fsigma8','growth_D']).to_csv(R/'edge_gate_growth.csv',index=False)
+          pd.DataFrame(bao,columns=['model','z','rd_Mpc','DM_over_rd','DH_over_rd','DV_over_rd','DM_Mpc','DH_Mpc','DV_Mpc']).to_csv(R/'edge_gate_bao.csv',index=False)
+          pd.DataFrame(acoustic,columns=['model','z_star','z_drag','rs_star_Mpc','rd_Mpc','ell_A','F0','alphaM0','min_cs2','min_D','min_Ns','max_abs_noslip']).to_csv(R/'edge_gate_acoustic_stability.csv',index=False)
+          pk=pd.DataFrame(pkrows,columns=['model','k_hMpc','P_Mpch3']); piv=pk.pivot(index='k_hMpc',columns='model',values='P_Mpch3')
+          for refname in ['LCDM_profile_reference','Kp_core_native_primordial','Kp_core_common_primordial']:
+              if refname in piv:
+                  for m in piv.columns.copy():
+                      if m!=refname: piv[m+'_over_'+refname]=piv[m]/piv[refname]
+          piv.reset_index().to_csv(R/'edge_gate_pk_ratios.csv',index=False)
+          print(pd.read_csv(R/'edge_gate_acoustic_stability.csv').to_string(index=False))
+          print(pd.read_csv(R/'edge_gate_growth.csv').query("model == 'V2_edge_best' and z in [0,0.5,1,2]").to_string(index=False))
+          PY
+          python3 output/analyze_edge_gate.py
+
+      - name: Preserve edge observable gate outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-v2-edge-observable-gate
+          path: |
+            output/edge_gate_*.csv
+            output/v2_edge.ini
+            output/v2_edge_00_*
+            output/kp_native.ini
+            output/kp_native_00_*
+            output/kp_common.ini
+            output/kp_common_00_*
+            output/lcdm_profile.ini
+            output/lcdm_profile_00_*
+            output/lcdm_common.ini
+            output/lcdm_common_00_*
+          if-no-files-found: warn
