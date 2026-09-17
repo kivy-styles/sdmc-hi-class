@@ -61,7 +61,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import csv, math, os, subprocess, textwrap
+          import csv, math, subprocess, textwrap
           import numpy as np
           from scipy.optimize import minimize_scalar
           from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
@@ -71,7 +71,7 @@ jobs:
           OUT=Path('output/v2_native_primordial')
           OUT.mkdir(parents=True,exist_ok=True)
           LN_AS=[3.052,3.058,3.064,3.070,3.076,3.082,3.088]
-          NS=[0.970,0.974,0.978,0.982,0.986,0.990,0.994]
+          NS=[0.950,0.954,0.958,0.960,0.962,0.964,0.966,0.968,0.970]
           lik=TTTEEE_lite_native(packages_path='planck_packages')
 
           def ini_text(As,ns,root,full=False):
