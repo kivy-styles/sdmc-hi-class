@@ -33,6 +33,7 @@ jobs:
         run: |
           python3 sdmc/apply_sdmc_tracker_patch.py
           python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_early_cs_floor_patch.py
 
       - name: Build hi_class
         run: make -j2 class
