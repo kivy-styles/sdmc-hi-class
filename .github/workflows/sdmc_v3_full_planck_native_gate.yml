@@ -158,8 +158,8 @@ jobs:
               tt[ell]=a[:,1]*conv
               ee[ell]=a[:,2]*conv
               te[ell]=a[:,3]*conv
-              pp[ell]=a[:,5]
-              high_arr=np.column_stack([ell,tt[ell],ee[ell],te[ell]])
+              pp[ell]=((ell*(ell+1.0))**2/(2*np.pi))*a[:,5]
+              high_arr=np.column_stack([ell,tt[ell],te[ell],ee[ell]])
               dls={'tt':tt,'ee':ee,'te':te,'pp':pp}
               return high_arr,dls
 
