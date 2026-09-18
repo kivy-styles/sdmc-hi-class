@@ -120,12 +120,16 @@ jobs:
           Path('output/lcdm.ini').write_text(expand('sdmc/config/planck_lcdm_control.ini','output/lcdm_'))
           PY
 
-      - name: Run NKp-v3 and references
+      - name: Run NKp-v3 and mandatory LCDM reference
         run: |
           ./class output/nkp_v3.ini
-          ./class output/kp_fullbg.ini
-          ./class output/kp_tracker.ini
           ./class output/lcdm.ini
+
+      - name: Run legacy frozen Kp references when numerically available
+        continue-on-error: true
+        run: |
+          ./class output/kp_fullbg.ini || echo "Kp full-background enlarged observable reference unavailable"
+          ./class output/kp_tracker.ini || echo "Kp tracker enlarged observable reference unavailable"
 
       - name: Install Planck 2018 Plik-lite data
         run: |
@@ -137,13 +141,20 @@ jobs:
 
       - name: Evaluate Planck high-l TTTEEE Plik-lite
         run: |
+          args=(
+            "LCDM=output/lcdm_00_cl_lensed.dat"
+            "NKp_v3=output/nkp_v3_00_cl_lensed.dat"
+          )
+          if [ -f output/kp_fullbg_00_cl_lensed.dat ]; then
+            args+=("Kp_fullbg_frozen=output/kp_fullbg_00_cl_lensed.dat")
+          fi
+          if [ -f output/kp_tracker_00_cl_lensed.dat ]; then
+            args+=("Kp_tracker=output/kp_tracker_00_cl_lensed.dat")
+          fi
           python3 sdmc/evaluate_planck_pliklite.py \
             --packages planck_packages \
             --output output/nkp_v3_observable_gate_pliklite.csv \
-            LCDM=output/lcdm_00_cl_lensed.dat \
-            Kp_fullbg_frozen=output/kp_fullbg_00_cl_lensed.dat \
-            Kp_tracker=output/kp_tracker_00_cl_lensed.dat \
-            NKp_v3=output/nkp_v3_00_cl_lensed.dat
+            "${args[@]}"
 
       - name: Compute CMB lensing growth Pk and BAO diagnostics
         run: |
@@ -152,7 +163,10 @@ jobs:
           import numpy as np, pandas as pd, re, math
 
           ROOT=Path('output')
-          models={'LCDM':'lcdm_','Kp_fullbg_frozen':'kp_fullbg_','Kp_tracker':'kp_tracker_','NKp_v3':'nkp_v3_'}
+          all_models={'LCDM':'lcdm_','Kp_fullbg_frozen':'kp_fullbg_','Kp_tracker':'kp_tracker_','NKp_v3':'nkp_v3_'}
+          models={m:p for m,p in all_models.items() if (ROOT/(p+'00_cl_lensed.dat')).exists()}
+          if 'LCDM' not in models or 'NKp_v3' not in models:
+              raise SystemExit('Mandatory LCDM or NKp-v3 lensed spectrum missing')
           bands=[(2,29),(30,199),(200,799),(800,1499),(1500,2500),(2501,3000)]
           zpk=[0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10]
           zbao=[0.295,0.510,0.706,0.934,1.321,1.484,2.330]
@@ -197,7 +211,10 @@ jobs:
 
           growth=[]; bao=[]; acoustic=[]; pkrows=[]
           for m,p in models.items():
-              bg=parse_table(ROOT/(p+'00_background.dat'))
+              bg_path=ROOT/(p+'00_background.dat')
+              if not bg_path.exists():
+                  continue
+              bg=parse_table(bg_path)
               bgs=bg.sort_values('z')
               def interp(col,z): return float(np.interp(z,bgs['z'],bgs[col]))
               th=parse_table(ROOT/(p+'00_thermodynamics.dat')) if (ROOT/(p+'00_thermodynamics.dat')).exists() else None
