@@ -106,7 +106,9 @@ jobs:
               p=Path(base_path).read_text()
               p=p.replace('output = tCl,pCl,lCl','output = tCl,pCl,lCl,mPk')
               if 'P_k_max_h/Mpc' not in p:
-                  p=p.replace('l_max_scalars = 3000','l_max_scalars = 3000\nP_k_max_h/Mpc = 2.0\nz_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10')
+                  p=p.replace('l_max_scalars = 3000','l_max_scalars = 3000\nP_k_max_h/Mpc = 2.0')
+              if 'z_pk' not in p:
+                  p += 'z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10\n'
               p=re_root(p,root)
               if skip_smg_stability and 'skip_stability_tests_smg' not in p:
                   p += 'skip_stability_tests_smg = yes\n'
@@ -256,8 +258,10 @@ jobs:
           pk=pd.DataFrame(pkrows,columns=['model','k_hMpc','P_Mpch3'])
           piv=pk.pivot(index='k_hMpc',columns='model',values='P_Mpch3')
           for c in list(piv.columns):
-              if c!='LCDM': piv[c+'_over_LCDM']=piv[c]/piv['LCDM']
-              if c not in ('Kp_fullbg_frozen','LCDM') and 'Kp_fullbg_frozen' in piv: piv[c+'_over_Kp_fullbg']=piv[c]/piv['Kp_fullbg_frozen']
+              if c!='LCDM' and 'LCDM' in piv:
+                  piv[c+'_over_LCDM']=piv[c]/piv['LCDM']
+              if c not in ('Kp_fullbg_frozen','LCDM') and 'Kp_fullbg_frozen' in piv:
+                  piv[c+'_over_Kp_fullbg']=piv[c]/piv['Kp_fullbg_frozen']
           piv.reset_index().to_csv(ROOT/'nkp_v3_observable_gate_pk_ratios.csv',index=False)
           print(pd.read_csv(ROOT/'nkp_v3_observable_gate_acoustic.csv').to_string(index=False))
           print(pd.read_csv(ROOT/'nkp_v3_observable_gate_growth.csv').query("z in [0,0.5,1,2]").to_string(index=False))
