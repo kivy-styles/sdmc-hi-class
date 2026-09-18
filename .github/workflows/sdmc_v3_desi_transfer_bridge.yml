@@ -1,0 +1,258 @@
+name: SDMC NKp-v3 DESI transfer bridge validation
+
+on:
+  push:
+    branches:
+      - sdmc-desi-bridge
+  workflow_dispatch:
+
+jobs:
+  validate-desi-transfer-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy pandas scipy
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/apply_sdmc_desi_transfer_patch.py
+
+      - name: Expose exact native cs2 diagnostics
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Generate fine-edge DESI transfer configuration
+        run: |
+          mkdir -p output/desi_bridge
+          cat > output/desi_bridge/nkp_v3_desi_bridge.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1671542621973737e-09
+          n_s = 0.962
+          tau_reio = 0.0544
+
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+
+          Omega_smg = -1
+          gravity_model = sdmc_v3_native_noslip
+          parameters_smg = 0.0724, 4.70, 1.43, 0.1, 0.0001
+          expansion_model = sdmc_full
+          expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          output_background_smg = 3
+
+          output = mPk,dTk,vTk
+          modes = s
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.295,0.510,0.706,0.934,1.321,1.484
+          write background = yes
+          write parameters = yes
+          root = output/desi_bridge/nkp_v3_
+          format = class
+
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+
+      - name: Run NKp-v3 density velocity transfer product
+        run: ./class output/desi_bridge/nkp_v3_desi_bridge.ini
+
+      - name: Validate gauge reconstruction and build DESI pair spectra
+        run: |
+          cat > output/desi_bridge/analyze_desi_bridge.py <<'PY'
+          from pathlib import Path
+          import csv, math, re
+          import numpy as np
+          import pandas as pd
+
+          R=Path('output/desi_bridge')
+          Z=[0.0,0.295,0.510,0.706,0.934,1.321,1.484]
+          H0=70.8514
+          h=H0/100.
+          ob=0.02239952
+          oc=0.12444227328918850
+          fb=ob/(ob+oc)
+          fc=oc/(ob+oc)
+
+          def parse_numbered_table(path):
+              lines=Path(path).read_text().splitlines()
+              hdrs=[x for x in lines if x.startswith('#') and re.search(r'1\s*:',x)]
+              if not hdrs:
+                  raise RuntimeError(f'No numbered header in {path}')
+              hdr=hdrs[-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr))
+              cols=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  cols.append(hdr[m.end():end].strip())
+              data=np.loadtxt(path)
+              return pd.DataFrame(data,columns=cols)
+
+          bg=parse_numbered_table(R/'nkp_v3_00_background.dat').sort_values('z')
+          def biv(col,z):
+              return float(np.interp(z,bg['z'],bg[col]))
+
+          transfers={}
+          pks={}
+          rows=[]
+
+          for i,z in enumerate(Z,1):
+              tk=parse_numbered_table(R/f'nkp_v3_z{i}_tk.dat')
+              need=['k (h/Mpc)','d_b','d_cdm','t_b','h_prime','eta_prime']
+              missing=[c for c in need if c not in tk.columns]
+              if missing:
+                  raise RuntimeError(f'Missing transfer columns at z={z}: {missing}; have {list(tk.columns)}')
+
+              kh=tk['k (h/Mpc)'].to_numpy()
+              k=kh*h
+              db=tk['d_b'].to_numpy()
+              dc=tk['d_cdm'].to_numpy()
+              tb=tk['t_b'].to_numpy()
+              hp=tk['h_prime'].to_numpy()
+              ep=tk['eta_prime'].to_numpy()
+
+              alpha=(hp+6.*ep)/(2.*k*k)
+              theta_c=k*k*alpha
+              theta_b=tb+k*k*alpha
+
+              H=biv('H [1/Mpc]',z)
+              acon=1./(1.+z)
+              Hconf=acon*H
+
+              vnc=-theta_c/Hconf
+              vnb=-theta_b/Hconf
+              dcb=fb*db+fc*dc
+              vncb=fb*vnb+fc*vnc
+
+              ftr=vncb/dcb
+              fbg=biv('gr.fac. f',z)
+
+              mask=(kh>=0.02)&(kh<=0.12)&np.isfinite(ftr)&(np.abs(dcb)>0)
+              med=float(np.median(ftr[mask]))
+              scatter=float(np.std(ftr[mask]))
+              rel=float((med-fbg)/fbg)
+
+              pk=np.loadtxt(R/f'nkp_v3_00_z{i}_pk.dat')
+              pks[z]=pk
+              transfers[z]=(kh,dcb,vnc,vnb,ftr)
+
+              rvc=vnc/dcb
+              rvb=vnb/dcb
+              rvc_i=np.interp(pk[:,0],kh,rvc)
+              rvb_i=np.interp(pk[:,0],kh,rvb)
+              pair=pd.DataFrame({
+                  'k_hMpc':pk[:,0],
+                  'P_delta_delta':pk[:,1],
+                  'P_vc_vc':pk[:,1]*rvc_i*rvc_i,
+                  'P_vc_vb':pk[:,1]*rvc_i*rvb_i,
+                  'P_vb_vb':pk[:,1]*rvb_i*rvb_i,
+                  'vnc_over_delta':rvc_i,
+                  'vnb_over_delta':rvb_i,
+              })
+              tag=str(z).replace('.','p')
+              pair.to_csv(R/f'desi_pair_z{tag}.csv',index=False)
+
+              rows.append({
+                  'z':z,
+                  'f_background':fbg,
+                  'f_transfer_median_0p02_0p12':med,
+                  'f_transfer_scatter_0p02_0p12':scatter,
+                  'relative_difference':rel,
+                  'f_transfer_k0p05':float(np.interp(0.05,kh,ftr)),
+                  'f_transfer_k0p10':float(np.interp(0.10,kh,ftr)),
+                  'fb':fb,
+                  'fc':fc,
+              })
+
+          # Redshift-evolution consistency: P(k,z)/P(k,0) must equal
+          # [T_delta(k,z)/T_delta(k,0)]^2 for a fixed primordial spectrum.
+          kh0,d0,_,_,_=transfers[0.0]
+          pk0=pks[0.0]
+          growrows=[]
+          for z in Z[1:]:
+              kh,d,_,_,_=transfers[z]
+              pk=pks[z]
+              ks=np.geomspace(0.01,0.2,40)
+              dz=np.interp(ks,kh,d)
+              dref=np.interp(ks,kh0,d0)
+              pz=np.interp(ks,pk[:,0],pk[:,1])
+              pref=np.interp(ks,pk0[:,0],pk0[:,1])
+              ratio=(pz/pref)/((dz/dref)**2)
+              growrows.append({
+                  'z':z,
+                  'median_Pratio_over_Tratio2':float(np.median(ratio)),
+                  'max_abs_minus_one':float(np.max(np.abs(ratio-1.))),
+                  'rms_minus_one':float(np.sqrt(np.mean((ratio-1.)**2))),
+              })
+
+          summary=pd.DataFrame(rows)
+          growth=pd.DataFrame(growrows)
+          summary.to_csv(R/'desi_transfer_growth_validation.csv',index=False)
+          growth.to_csv(R/'desi_transfer_pk_consistency.csv',index=False)
+
+          print('DESI TRANSFER GROWTH VALIDATION')
+          print(summary.to_string(index=False))
+          print('\nPK/TRANSFER REDSHIFT CONSISTENCY')
+          print(growth.to_string(index=False))
+
+          # Gate: require percent-level agreement with background f on linear scales
+          # and tight transfer/P(k) redshift consistency.
+          desi=summary[summary.z>0]
+          max_f=float(np.max(np.abs(desi.relative_difference)))
+          max_pk=float(np.max(growth.max_abs_minus_one))
+          print(f'\nMAX_F_REL_DIFF={max_f:.8e}')
+          print(f'MAX_PK_TRANSFER_DIFF={max_pk:.8e}')
+          if max_f>0.02:
+              raise SystemExit(f'Newtonian velocity reconstruction disagrees with background growth: {max_f}')
+          if max_pk>5e-3:
+              raise SystemExit(f'Density transfer evolution disagrees with P(k,z): {max_pk}')
+          PY
+          python3 output/desi_bridge/analyze_desi_bridge.py
+
+      - name: Preserve DESI transfer bridge validation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v3-desi-transfer-bridge
+          path: |
+            output/desi_bridge/nkp_v3_desi_bridge.ini
+            output/desi_bridge/nkp_v3_00_background.dat
+            output/desi_bridge/nkp_v3_00_parameters.ini
+            output/desi_bridge/nkp_v3_00_z*_pk.dat
+            output/desi_bridge/nkp_v3_z*_tk.dat
+            output/desi_bridge/desi_transfer_growth_validation.csv
+            output/desi_bridge/desi_transfer_pk_consistency.csv
+            output/desi_bridge/desi_pair_z*.csv
+          if-no-files-found: warn
