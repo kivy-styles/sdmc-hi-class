@@ -1,0 +1,250 @@
+name: SDMC NKp-v3 native full Planck gate
+
+on:
+  push:
+    branches:
+      - sdmc-planck-native-gate
+  workflow_dispatch:
+
+jobs:
+  full-planck-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy numpy pandas
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+
+      - name: Expose exact native cs2 diagnostics
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Install native Planck likelihood data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lensing import native as Lensing
+          classes=[TT,EE,TTTEEE_lite_native,Lensing]
+          for cls in classes:
+              print("INSTALL",cls.__module__,flush=True)
+              ok=cls.install(path='planck_packages',no_progress_bars=True)
+              if ok is False:
+                  raise SystemExit(f"Install failed for {cls.__module__}")
+          PY
+
+      - name: Generate common spectra
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import math,re,textwrap
+          out=Path('output'); out.mkdir(exist_ok=True)
+
+          def v3_ini(A,zc,w,lnAs,ns,root):
+              As=math.exp(lnAs)/1e10
+              return textwrap.dedent(f'''\
+              H0 = 70.8514
+              omega_b = 0.02239952
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = {As:.14e}
+              n_s = {ns:.9f}
+              tau_reio = 0.0544
+              Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = 0.003
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_v3_native_noslip
+              parameters_smg = {A:.12g}, {zc:.12g}, {w:.12g}, 0.1, 0.0001
+              expansion_model = sdmc_full
+              expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+              output_background_smg = 3
+              output = tCl,pCl,lCl
+              modes = s
+              lensing = yes
+              l_max_scalars = 3000
+              write thermodynamics = yes
+              write background = yes
+              write parameters = yes
+              root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              lensing_verbose = 0
+              output_verbose = 0
+              ''')
+
+          # Formal NKp-v3 families:
+          # base native-stable point, confirmed old edge, and newly refined fine edge.
+          Path('output/v3_base.ini').write_text(
+              v3_ini(0.068,10.0,1.6,3.076,0.964,'output/v3_base_'))
+          Path('output/v3_old_edge.ini').write_text(
+              v3_ini(0.072,5.0,1.45,3.076,0.964,'output/v3_old_edge_'))
+          Path('output/v3_fine_edge.ini').write_text(
+              v3_ini(0.0724,4.70,1.43,3.076,0.962,'output/v3_fine_edge_'))
+
+          p=Path('sdmc/config/planck_lcdm_control.ini').read_text()
+          p=re.sub(r'(?m)^\s*A_s\s*=.*$',f'A_s = {math.exp(3.044)/1e10:.14e}',p)
+          p=re.sub(r'(?m)^\s*n_s\s*=.*$','n_s = 0.961',p)
+          p=re.sub(r'(?m)^\s*root\s*=.*$','root = output/lcdm_',p)
+          p=re.sub(r'(?m)^\s*output\s*=.*$','output = tCl,pCl,lCl',p)
+          if not re.search(r'(?m)^\s*lensing\s*=',p): p += '\nlensing = yes\n'
+          if re.search(r'(?m)^\s*l_max_scalars\s*=',p):
+              p=re.sub(r'(?m)^\s*l_max_scalars\s*=.*$','l_max_scalars = 3000',p)
+          else:
+              p += '\nl_max_scalars = 3000\n'
+          Path('output/lcdm.ini').write_text(p)
+          PY
+          ./class output/v3_base.ini
+          ./class output/v3_old_edge.ini
+          ./class output/v3_fine_edge.ini
+          ./class output/lcdm.ini
+
+      - name: Evaluate common native Planck likelihood
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, math
+          import numpy as np
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lensing import native as Lensing
+
+          TCMB=2.7255
+          SIG_CAL=0.0025
+          lowT=TT(packages_path='planck_packages')
+          lowE=EE(packages_path='planck_packages')
+          high=TTTEEE_lite_native(packages_path='planck_packages')
+          lens=Lensing(packages_path='planck_packages')
+
+          def load(root):
+              a=np.loadtxt(root+'00_cl_lensed.dat')
+              ell=a[:,0].astype(int)
+              lmax=int(ell.max())
+              conv=(TCMB*1e6)**2
+              tt=np.zeros(lmax+1); ee=np.zeros(lmax+1); te=np.zeros(lmax+1); pp=np.zeros(lmax+1)
+              tt[ell]=a[:,1]*conv
+              ee[ell]=a[:,2]*conv
+              te[ell]=a[:,3]*conv
+              pp[ell]=a[:,5]
+              high_arr=np.column_stack([ell,tt[ell],ee[ell],te[ell]])
+              dls={'tt':tt,'ee':ee,'te':te,'pp':pp}
+              return high_arr,dls
+
+          def comp(high_arr,dls,A):
+              A=float(A)
+              chi_high=float(high.chi_squared(high_arr,A_planck=A))
+              chi_lowT=float(-2*lowT.log_likelihood(dls['tt'],calib=A))
+              chi_lowE=float(-2*lowE.log_likelihood(dls['ee'],calib=A))
+              chi_lens=float(-2*lens.log_likelihood(dls,A_planck=A))
+              chi_cal=((A-1.0)/SIG_CAL)**2
+              return chi_high,chi_lowT,chi_lowE,chi_lens,chi_cal
+
+          models={
+              'LCDM':'output/lcdm_',
+              'NKp_v3_base':'output/v3_base_',
+              'NKp_v3_old_edge':'output/v3_old_edge_',
+              'NKp_v3_fine_edge':'output/v3_fine_edge_',
+          }
+
+          rows=[]
+          for name,root in models.items():
+              h,d=load(root)
+              def total(A):
+                  vals=comp(h,d,A)
+                  return sum(vals)
+              opt=minimize_scalar(total,bounds=(0.96,1.04),method='bounded',
+                                  options={'xatol':1e-10})
+              A=float(opt.x)
+              ph,pt,pe,pl,pc=comp(h,d,A)
+              vals1=comp(h,d,1.0)
+              row={
+                  'case':name,
+                  'A_planck_profile':A,
+                  'chi2_highl_TTTEEE':ph,
+                  'chi2_lowl_TT':pt,
+                  'chi2_lowl_EE':pe,
+                  'chi2_lensing':pl,
+                  'chi2_cal_prior':pc,
+                  'chi2_primary':ph+pt+pe+pc,
+                  'chi2_primary_plus_lensing':ph+pt+pe+pl+pc,
+                  'chi2_A1_highl':vals1[0],
+                  'chi2_A1_lowl_TT':vals1[1],
+                  'chi2_A1_lowl_EE':vals1[2],
+                  'chi2_A1_lensing':vals1[3],
+                  'chi2_A1_total_no_calprior':sum(vals1[:4]),
+              }
+              rows.append(row)
+              print(name,row,flush=True)
+
+          lcdm=next(r for r in rows if r['case']=='LCDM')
+          for r in rows:
+              r['delta_chi2_primary_vs_LCDM']=r['chi2_primary']-lcdm['chi2_primary']
+              r['delta_chi2_primary_lensing_vs_LCDM']=r['chi2_primary_plus_lensing']-lcdm['chi2_primary_plus_lensing']
+
+          fields=list(rows[0].keys())
+          with open('output/nkp_v3_full_planck_native.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
+
+          print("\nFINAL COMMON PLANCK NATIVE")
+          for r in rows:
+              print(r['case'],
+                    "Aplanck",r['A_planck_profile'],
+                    "primary",r['chi2_primary'],
+                    "primary+lensing",r['chi2_primary_plus_lensing'],
+                    "dPrimary",r['delta_chi2_primary_vs_LCDM'],
+                    "dAll",r['delta_chi2_primary_lensing_vs_LCDM'],
+                    flush=True)
+          PY
+
+      - name: Preserve full Planck gate outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v3-full-planck-native
+          path: |
+            output/nkp_v3_full_planck_native.csv
+            output/v3_base.ini
+            output/v3_old_edge.ini
+            output/v3_fine_edge.ini
+            output/lcdm.ini
+            output/v3_base_00_cl_lensed.dat
+            output/v3_old_edge_00_cl_lensed.dat
+            output/v3_fine_edge_00_cl_lensed.dat
+            output/lcdm_00_cl_lensed.dat
+            output/v3_base_00_background.dat
+            output/v3_old_edge_00_background.dat
+            output/v3_fine_edge_00_background.dat
+          if-no-files-found: warn
