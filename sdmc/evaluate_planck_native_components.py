@@ -37,10 +37,10 @@ def load_class(path: Path):
     tt[ell]=a[:,1]*conv
     ee[ell]=a[:,2]*conv
     te[ell]=a[:,3]*conv
-    # CLASS format writes raw C_L^{phi phi} in column 6. Cobaya's ell_factor=True
-    # PP convention is [L(L+1)]^2 C_L^{phi phi}/(2pi).
-    L=ell.astype(float)
-    pp[ell]=((L*(L+1.0))**2/(2.0*np.pi))*a[:,5]
+    # CLASS format output.c already writes the phiphi column as
+    # [L(L+1)]^2 C_L^{phi phi}/(2pi), exactly matching Cobaya's
+    # provider.get_Cl(ell_factor=True)["pp"] convention.
+    pp[ell]=a[:,5]
     high=np.column_stack([ell,tt[ell],te[ell],ee[ell]])
     return high, {"tt":tt,"te":te,"ee":ee,"pp":pp}
 
