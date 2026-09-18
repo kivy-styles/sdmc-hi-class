@@ -3,12 +3,12 @@ name: SDMC NKp-v3 Planck low-l gate
 on:
   push:
     branches:
-      - sdmc-boltzmann
+      - sdmc-planck-arm-test
   workflow_dispatch:
 
 jobs:
   planck-lowell-gate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 50
     steps:
       - name: Checkout
