@@ -3,12 +3,12 @@ name: SDMC NKp-v3 joint Planck optimization
 on:
   push:
     branches:
-      - sdmc-planck-joint-opt
+      - sdmc-planck-joint-opt-arm
   workflow_dispatch:
 
 jobs:
   joint-planck-opt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
     steps:
       - name: Checkout
