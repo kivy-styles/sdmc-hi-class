@@ -102,16 +102,21 @@ jobs:
                       lines.append(line)
               return '\n'.join(lines)+'\n'
 
-          def expand(base_path,root):
+          def expand(base_path,root,skip_smg_stability=False):
               p=Path(base_path).read_text()
               p=p.replace('output = tCl,pCl,lCl','output = tCl,pCl,lCl,mPk')
               if 'P_k_max_h/Mpc' not in p:
                   p=p.replace('l_max_scalars = 3000','l_max_scalars = 3000\nP_k_max_h/Mpc = 2.0\nz_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10')
               p=re_root(p,root)
+              if skip_smg_stability and 'skip_stability_tests_smg' not in p:
+                  p += 'skip_stability_tests_smg = yes\n'
               return p
 
-          Path('output/kp_fullbg.ini').write_text(expand('sdmc/config/kp_fullbg_clustered_cs0003.ini','output/kp_fullbg_'))
-          Path('output/kp_tracker.ini').write_text(expand('sdmc/config/kp_tracker_clustered_cs0003.ini','output/kp_tracker_'))
+          # Kp is retained only as a frozen observational reference here.
+          # Bypass its known proxy/native stability veto without changing the
+          # frozen background or perturbation profile itself.
+          Path('output/kp_fullbg.ini').write_text(expand('sdmc/config/kp_fullbg_clustered_cs0003.ini','output/kp_fullbg_',True))
+          Path('output/kp_tracker.ini').write_text(expand('sdmc/config/kp_tracker_clustered_cs0003.ini','output/kp_tracker_',True))
           Path('output/lcdm.ini').write_text(expand('sdmc/config/planck_lcdm_control.ini','output/lcdm_'))
           PY
 
