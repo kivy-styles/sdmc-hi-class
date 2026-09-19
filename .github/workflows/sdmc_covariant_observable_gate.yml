@@ -1103,6 +1103,140 @@ jobs:
           Path('output/fullplik_delta.txt').write_text(f'{delta:.12g}\n')
           PY
 
+      - name: Run covariant density velocity transfer audit
+        run: |
+          cat > output/covariant_transfer.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_covariant_replay
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          gauge = synchronous
+          modes = s
+          output = mPk,dTk,vTk
+          extra_metric_transfer_functions = yes
+          matter_source_in_current_gauge = no
+          P_k_max_h/Mpc = 2.0
+          z_pk = 0.295,0.510,0.706,0.919,1.317,1.491
+          output_background_smg = 3
+          write background = yes
+          write parameters = yes
+          root = output/covariant_transfer_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/covariant_transfer.ini
+          echo "COVARIANT_TRANSFER_RETURNCODE=0"
+
+      - name: Reconstruct CAMB-compatible Newtonian velocity transfers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, math
+          import numpy as np
+          import pandas as pd
+
+          OUT=Path('output')
+          H0=70.8514
+          h=H0/100.
+          ob=0.02239952
+          oc=0.12444227328918850
+          fb=ob/(ob+oc)
+          fc=1.-fb
+          zs=[0.295,0.510,0.706,0.919,1.317,1.491]
+
+          def tab(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and '1:' in l][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+
+          bg=tab(OUT/'covariant_transfer_00_background.dat').sort_values('z')
+          def biv(col,z): return float(np.interp(z,bg.z,bg[col]))
+
+          rows=[]
+          curves=[]
+          for iz,z in enumerate(zs,1):
+              tk=tab(OUT/f'covariant_transfer_z{iz}_tk.dat')
+              k_h=tk['k (h/Mpc)'].to_numpy()
+              k=k_h*h
+              db=tk['d_b'].to_numpy()
+              dc=tk['d_cdm'].to_numpy()
+              tb=tk['t_b'].to_numpy()
+              hp=tk['h_prime'].to_numpy()
+              ep=tk['eta_prime'].to_numpy()
+
+              # CLASS synchronous -> Newtonian:
+              # k^2 alpha = (h' + 6 eta')/2.
+              shift=.5*(hp+6.*ep)
+              thetaNc=shift
+              thetaNb=tb+shift
+              a=1./(1.+z)
+              H=biv('H [1/Mpc]',z)
+              Hconf=a*H
+              vNc=-thetaNc/Hconf
+              vNb=-thetaNb/Hconf
+
+              dcb=fb*db+fc*dc
+              vcb=fb*vNb+fc*vNc
+              ratio=vcb/dcb
+              fbg=biv('gr.fac. f',z)
+
+              # DESI pivot is 0.03 h/Mpc in fiducial coordinates; use same
+              # physical k/h location for this normalization audit.
+              piv=float(np.interp(0.03,k_h,ratio))
+              for kval in [0.01,0.03,0.05,0.10,0.20]:
+                  rv=float(np.interp(kval,k_h,ratio))
+                  rows.append({
+                    'z':z,'k_hMpc':kval,'vnewt_cb_over_delta_cb':rv,
+                    'f_background':fbg,'ratio_over_f':rv/fbg
+                  })
+              km=(k_h>=0.01)&(k_h<=0.20)&np.isfinite(ratio)
+              curves.append({
+                'z':z,'f_background':fbg,'pivot_ratio':piv,
+                'pivot_over_f':piv/fbg,
+                'min_ratio_over_f_0p01_0p2':float(np.min(ratio[km]/fbg)),
+                'max_ratio_over_f_0p01_0p2':float(np.max(ratio[km]/fbg)),
+                'max_abs_baryon_cdm_velocity_split_over_cb':float(
+                    np.max(np.abs((vNb[km]-vNc[km])/np.maximum(np.abs(vcb[km]),1e-300))))
+              })
+
+          pd.DataFrame(rows).to_csv(OUT/'covariant_transfer_velocity_samples.csv',index=False)
+          pd.DataFrame(curves).to_csv(OUT/'covariant_transfer_velocity_audit.csv',index=False)
+          print('COVARIANT_TRANSFER_VELOCITY_AUDIT')
+          print(pd.DataFrame(curves).to_string(index=False),flush=True)
+          print('COVARIANT_TRANSFER_VELOCITY_SAMPLES')
+          print(pd.DataFrame(rows).to_string(index=False),flush=True)
+          PY
+
       - name: Preserve covariant observable gate
         if: always()
         uses: actions/upload-artifact@v4
@@ -1121,6 +1255,10 @@ jobs:
             output/independent_reference.ini
             output/independent_reference_00_*
             output/covariant_vs_independent_*.csv
+            output/covariant_transfer.ini
+            output/covariant_transfer_00_*
+            output/covariant_transfer_z*_tk.dat
+            output/covariant_transfer_velocity_*.csv
             output/fullplik_lcdm.ini
             output/fullplik_lcdm_00_cl_lensed.dat
             output/fullplik_profile.csv
