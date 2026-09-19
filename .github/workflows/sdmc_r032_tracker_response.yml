@@ -1,13 +1,13 @@
-name: SDMC r032 lambda-zt boundary fine scan
+name: SDMC r032 lambda-zt micro scan
 
 on:
   push:
     branches:
-      - sdmc-r032-lzt-boundary-fine
+      - sdmc-r032-lzt-micro
   workflow_dispatch:
 
 jobs:
-  lambda-zt-boundary-fine:
+  lambda-zt-micro:
     runs-on: ubuntu-latest
     timeout-minutes: 100
     steps:
@@ -152,8 +152,8 @@ jobs:
           # tracker / handoff parameters. Omega_X0 is index 0 and is the
           # default hi_class shooting parameter, so it is intentionally not
           # treated as an independent scan direction here.
-          LAMBDAS=[17.0,17.25,17.5,17.75,18.0,18.25,18.5]
-          ZTS=[18.6,18.8,19.0,19.2,19.4,19.6,19.8,20.0,20.2,20.4]
+          LAMBDAS=[18.10,18.15,18.20,18.25,18.30,18.35]
+          ZTS=[19.05,19.10,19.15,19.20,19.25,19.30,19.35]
           candidates=[(f'L{lam:g}_Z{zt:g}',lam,zt,0.50) for lam in LAMBDAS for zt in ZTS]
 
           # ---------- shared table helpers ----------
@@ -418,7 +418,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-lzt-boundary-fine
+          name: sdmc-r032-lzt-micro
           path: |
             output/joint_screen/r032_lambda_zt_grid.csv
             output/joint_screen/r032_lambda_zt_grid_shortlist.csv
