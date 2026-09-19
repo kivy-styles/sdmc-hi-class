@@ -295,9 +295,15 @@ jobs:
                       logbias=-.5*(x[1]/5.)**2-.5*(x[2]/5.)**2
                       return float(logl+logprior+logbias)
                   x0=np.array(starts[b['namespace']],float)
-                  opt=minimize(lambda x:-2*block_logp(x),x0,method='L-BFGS-B',
-                               bounds=[(0.,3.),(-20.,20.),(-20.,20.)],
+                  objective=lambda x:-2*block_logp(x)
+                  bounds=[(0.,3.),(-20.,20.),(-20.,20.)]
+                  opt=minimize(objective,x0,method='L-BFGS-B',bounds=bounds,
                                options={'maxiter':500,'ftol':1e-10,'gtol':1e-6})
+                  if not opt.success:
+                      opt2=minimize(objective,opt.x,method='Powell',bounds=bounds,
+                                    options={'maxiter':500,'xtol':1e-7,'ftol':1e-10})
+                      if opt2.fun <= opt.fun + 1e-8:
+                          opt=opt2
                   chi=float(opt.fun); total+=chi
                   info=tables[b['namespace']]
                   row=dict(model=label,tracer=b['tracer'],namespace=b['namespace'],
@@ -322,6 +328,60 @@ jobs:
           PY
 
 
+      - name: Cross-check standalone LCDM likelihood with official DESI Cobaya class
+        run: |
+          rm -rf fs_bao_likelihoods
+          cp -r desi-kp-cosmological-likelihoods/dr1/cobaya fs_bao_likelihoods
+          (cd fs_bao_likelihoods && python3 generate_files_fs_bao.py)
+          cat > output/desi_official_lcdm_check.yaml <<'EOF'
+          theory:
+            camb:
+              extra_args:
+                num_massive_neutrinos: 0
+              speed: 2
+            fs_bao_likelihoods.reptvelocileptors:
+          likelihood:
+            fs_bao_likelihoods.desi_fs_all:
+              data_dir: desi_likelihood
+          params:
+            H0: 67.36
+            ombh2: 0.02237
+            omch2: 0.1200
+            As: 2.10e-9
+            ns: 0.9649
+            mnu: 0.0
+            pre_BGS_z0.b1p: 1.139200844383002
+            pre_BGS_z0.b2p: -1.0375189505999605
+            pre_BGS_z0.bsp: 0.5664852156122524
+            pre_LRG_z0.b1p: 1.1854016459583703
+            pre_LRG_z0.b2p: -1.004598909357526
+            pre_LRG_z0.bsp: 0.7506692441983537
+            pre_LRG_z1.b1p: 1.1427117432889475
+            pre_LRG_z1.b2p: -0.8966698038703796
+            pre_LRG_z1.bsp: 0.4010494978103871
+            pre_LRG_z2.b1p: 1.1372509765794212
+            pre_LRG_z2.b2p: -1.0893067475292193
+            pre_LRG_z2.bsp: 0.592784460859199
+            pre_ELG_z1.b1p: 0.5849795459716197
+            pre_ELG_z1.b2p: 0.09600185510677545
+            pre_ELG_z1.bsp: 0.4218017706136436
+            pre_QSO_z0.b1p: 0.9070552580051316
+            pre_QSO_z0.b2p: -0.6062746962475066
+            pre_QSO_z0.bsp: 0.38578791016696024
+          sampler:
+            evaluate:
+              N: 1
+          stop_at_error: true
+          output: output/desi_official_lcdm_check
+          EOF
+          set +e
+          PYTHONPATH="$PWD" cobaya-run output/desi_official_lcdm_check.yaml -f 2>&1 | tee output/desi_official_lcdm_check.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "DESI_OFFICIAL_COBAYA_CHECK_RETURNCODE=$rc"
+          grep -E "chi2|loglike|log-likelihood|desi_fs_all|posterior" output/desi_official_lcdm_check.log | tail -80 || true
+          test "$rc" -eq 0
+
       - name: Preserve DESI DR1 evaluation-only result
         if: always()
         uses: actions/upload-artifact@v4
@@ -331,4 +391,5 @@ jobs:
             output/desi_zeff.json
             output/desi_dr1_fs_profile.csv
             output/desi_dr1_fs_summary.csv
+            output/desi_official_lcdm_check.log
           if-no-files-found: warn
