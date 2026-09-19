@@ -73,18 +73,17 @@ jobs:
           lowE=EE(packages_path='planck_packages')
           lens=LensingNative(packages_path='planck_packages')
 
-          ZCS=[5.3,5.5,5.7,5.9,6.1]
-          A_OFF=[0.0002,0.0004,0.0006]
-          WIDTHS=[1.430,1.445,1.460]
-          NS_FIXED=[0.963,0.964]
+          ZCS=[4.7,4.9,5.1,5.3]
+          AMPS=[0.0722,0.0725,0.0728,0.0731]
+          WIDTHS=[1.400,1.415,1.430,1.445]
+          NS_FIXED=[0.964]
 
           candidates=[]
           for zc in ZCS:
-              Abase=0.0760-0.0008*zc
-              for da in A_OFF:
+              for A in AMPS:
                   for w in WIDTHS:
                       for ns in NS_FIXED:
-                          candidates.append((Abase+da,zc,w,ns))
+                          candidates.append((A,zc,w,ns))
 
           def ini_text(A,zc,w,As,ns,root,full=False):
               outputs=(
@@ -210,6 +209,7 @@ jobs:
                   except OSError:pass
               try:ini.unlink()
               except OSError:pass
+              rows.append(row)
 
           with (OUT/'sdmc_v3_joint_planck_lensing_scan.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
