@@ -489,68 +489,11 @@ jobs:
           for tag,aini,aqs,amin,zref in cases:
               root=f'output/start_scan_{tag}_'
               ini=base
-              ini=re.sub(r'(?m)^a_ini_over_a_today_default\s*=.*        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdmc-covariant-start-robustness
-          path: |
-            output/covariant_target_00_background.dat
-            output/covariant_replay.ini
-            output/covariant_replay.log
-            output/covariant_replay_00_*
-            output/covariant_replay_comparison.csv
-            output/covariant_start_epoch_robustness.csv
-            output/start_scan_*
-          if-no-files-found: warn
-,f'a_ini_over_a_today_default = {aini}',ini)
-              ini=re.sub(r'(?m)^a_ini_test_qs_smg\s*=.*        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdmc-covariant-noslip-independent-kinetic-replay
-          path: |
-            output/covariant_target_00_background.dat
-            output/covariant_replay.ini
-            output/covariant_replay.log
-            output/covariant_replay_00_*
-            output/covariant_replay_comparison.csv
-          if-no-files-found: warn
-,f'a_ini_test_qs_smg = {aqs}',ini)
-              ini=re.sub(r'(?m)^a_min_stability_test_smg\s*=.*        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdmc-covariant-noslip-independent-kinetic-replay
-          path: |
-            output/covariant_target_00_background.dat
-            output/covariant_replay.ini
-            output/covariant_replay.log
-            output/covariant_replay_00_*
-            output/covariant_replay_comparison.csv
-          if-no-files-found: warn
-,f'a_min_stability_test_smg = {amin}',ini)
-              ini=re.sub(r'(?m)^pert_ic_ini_z_ref_smg\s*=.*        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdmc-covariant-noslip-independent-kinetic-replay
-          path: |
-            output/covariant_target_00_background.dat
-            output/covariant_replay.ini
-            output/covariant_replay.log
-            output/covariant_replay_00_*
-            output/covariant_replay_comparison.csv
-          if-no-files-found: warn
-,f'pert_ic_ini_z_ref_smg = {zref}',ini)
-              ini=re.sub(r'(?m)^root\s*=.*        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdmc-covariant-noslip-independent-kinetic-replay
-          path: |
-            output/covariant_target_00_background.dat
-            output/covariant_replay.ini
-            output/covariant_replay.log
-            output/covariant_replay_00_*
-            output/covariant_replay_comparison.csv
-          if-no-files-found: warn
-,f'root = {root}',ini)
+              ini=re.sub(r'(?m)^a_ini_over_a_today_default\s*=.*$',f'a_ini_over_a_today_default = {aini}',ini)
+              ini=re.sub(r'(?m)^a_ini_test_qs_smg\s*=.*$',f'a_ini_test_qs_smg = {aqs}',ini)
+              ini=re.sub(r'(?m)^a_min_stability_test_smg\s*=.*$',f'a_min_stability_test_smg = {amin}',ini)
+              ini=re.sub(r'(?m)^pert_ic_ini_z_ref_smg\s*=.*$',f'pert_ic_ini_z_ref_smg = {zref}',ini)
+              ini=re.sub(r'(?m)^root\s*=.*$',f'root = {root}',ini)
               ip=Path(f'output/start_scan_{tag}.ini'); ip.write_text(ini)
               cp=subprocess.run(['./class',str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
               Path(f'output/start_scan_{tag}.log').write_text(cp.stdout)
@@ -593,11 +536,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-covariant-noslip-independent-kinetic-replay
+          name: sdmc-covariant-start-robustness
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay.ini
             output/covariant_replay.log
             output/covariant_replay_00_*
             output/covariant_replay_comparison.csv
+            output/covariant_start_epoch_robustness.csv
+            output/start_scan_*
           if-no-files-found: warn
