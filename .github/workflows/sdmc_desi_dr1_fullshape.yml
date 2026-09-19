@@ -1,0 +1,356 @@
+name: SDMC DESI DR1 covariant full-shape gate
+
+on:
+  push:
+    branches:
+      - sdmc-desi-dr1-fullshape
+  workflow_dispatch:
+
+jobs:
+  desi-dr1-fullshape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout SDMC
+        uses: actions/checkout@v4
+
+      - name: Install system and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 cobaya iminuit pyfftw
+          python3 -m pip install git+https://github.com/adematti/lsstypes.git
+          python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
+          python3 -m pip install git+https://github.com/sfschen/velocileptors.git
+
+      - name: Fetch official DESI DR1 likelihood implementation
+        run: |
+          git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git external/desi-kp-cosmological-likelihoods
+
+      - name: Download six official DR1 full-shape likelihood files
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import requests
+          base='https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood/'
+          specs=[
+            ('BGS_BRIGHT-21.5',0.1,0.4),
+            ('LRG',0.4,0.6),('LRG',0.6,0.8),('LRG',0.8,1.1),
+            ('ELG_LOPnotqso',1.1,1.6),('QSO',0.8,2.1),
+          ]
+          out=Path('desi_data'); out.mkdir(exist_ok=True)
+          for tracer,z0,z1 in specs:
+              name=f'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_{tracer}_GCcomb_z{z0:.1f}-{z1:.1f}_thetacut0.05.h5'
+              url=base+name
+              print('DOWNLOADING',url,flush=True)
+              r=requests.get(url,timeout=120); r.raise_for_status()
+              (out/name).write_bytes(r.content)
+              print('DOWNLOADED',name,len(r.content),flush=True)
+          PY
+
+      - name: Download preserved covariant transfer artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p cov_artifact
+          gh api -H "Accept: application/vnd.github+json"             /repos/$GITHUB_REPOSITORY/actions/artifacts/10584845266/zip             > cov_artifact/artifact.zip
+          unzip -q cov_artifact/artifact.zip -d cov_artifact/unpacked
+          find cov_artifact/unpacked -maxdepth 1 -type f | sort | grep covariant_transfer | sed -n '1,100p'
+          test -f cov_artifact/unpacked/covariant_transfer_00_z1_tk.dat
+          test -f cov_artifact/unpacked/covariant_transfer_00_z6_pk.dat
+
+      - name: Build standard CLASS for matched LCDM control
+        run: make -j2 class
+
+      - name: Generate LCDM density and velocity transfers
+        run: |
+          mkdir -p output
+          cat > output/lcdm_desi_transfer.ini <<'EOF'
+          H0 = 67.36
+          omega_b = 0.02237
+          omega_cdm = 0.1200
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.10e-9
+          n_s = 0.9649
+          tau_reio = 0.0544
+
+          gauge = synchronous
+          modes = s
+          output = mPk,dTk,vTk
+          extra_metric_transfer_functions = yes
+          matter_source_in_current_gauge = no
+          P_k_max_h/Mpc = 2.0
+          z_pk = 0.295,0.510,0.706,0.919,1.317,1.491
+
+          write background = yes
+          write thermodynamics = yes
+          write parameters = yes
+          root = output/lcdm_desi_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/lcdm_desi_transfer.ini
+          find output -maxdepth 1 -type f | sort | grep lcdm_desi | sed -n '1,100p'
+
+      - name: Profile official DESI DR1 six-bin full-shape likelihood
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys, re, math, json, csv
+          import numpy as np
+          import pandas as pd
+          from scipy.interpolate import interp1d
+          from iminuit import Minuit
+
+          sys.path.insert(0,str(Path('external/desi-kp-cosmological-likelihoods/dr1/cobaya').resolve()))
+          from desi_fs_bao_all import desi_fs_bao_all
+          from reptvelocileptors import reptvelocileptors
+
+          C_LIGHT=299792.458
+          z_nodes=np.array([0.295,0.510,0.706,0.919,1.317,1.491])
+
+          def tab(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and '1:' in l][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+
+          def find_one(root,pattern):
+              files=sorted(Path(root).glob(pattern))
+              if len(files)!=1:
+                  raise RuntimeError(f'{root} {pattern}: found {files}')
+              return files[0]
+
+          def rdrag_from(root,prefix):
+              bg=tab(find_one(root,f'{prefix}*background.dat')).sort_values('z')
+              th=tab(find_one(root,f'{prefix}*thermodynamics.dat')).sort_values('z')
+              zz=th.z.to_numpy(); kb=th.kappa_b.to_numpy()
+              cross=[]
+              for i in range(len(zz)-1):
+                  if (kb[i]-1)*(kb[i+1]-1)<=0 and kb[i]!=kb[i+1]:
+                      q=(1-kb[i])/(kb[i+1]-kb[i]); cross.append(zz[i]+q*(zz[i+1]-zz[i]))
+              if not cross: raise RuntimeError('no drag crossing')
+              zd=float(cross[0])
+              rd=float(np.interp(zd,bg.z,bg['comov.snd.hrz.']))
+              return rd
+
+          class FixedProvider:
+              def __init__(self, root, stem, H0, omega_b, omega_cdm, ns, rd=None):
+                  self.root=Path(root); self.stem=stem
+                  self.H0=float(H0); self.h=self.H0/100.
+                  self.ob=float(omega_b); self.oc=float(omega_cdm)
+                  self.fb=self.ob/(self.ob+self.oc); self.fc=1-self.fb
+                  self.params={'n_s':float(ns)}
+                  self.bg=tab(find_one(self.root,f'{stem}*background.dat')).sort_values('z')
+                  self.rd=float(rd if rd is not None else rdrag_from(root,stem))
+                  self.Omb=self.ob/self.h**2; self.Omc=self.oc/self.h**2
+                  self._build_power_grids()
+                  self.z_return=z_nodes.copy()
+
+              def _file(self,iz,kind):
+                  # Accept both covariant_transfer_00_z1_tk.dat and lcdm_desi_z1_tk.dat variants.
+                  candidates=sorted(self.root.glob(f'{self.stem}*z{iz}_{kind}.dat'))
+                  if len(candidates)!=1:
+                      raise RuntimeError(f'{self.stem} z{iz} {kind}: {candidates}')
+                  return candidates[0]
+
+              def _build_power_grids(self):
+                  pairs={'dd':[],'cc':[],'cb':[],'bb':[]}
+                  common_k=None
+                  for iz,z in enumerate(z_nodes,1):
+                      tk=tab(self._file(iz,'tk'))
+                      pk=np.loadtxt(self._file(iz,'pk'))
+                      kh=pk[:,0]; P_h=pk[:,1]
+                      if common_k is None: common_k=kh.copy()
+                      elif not np.allclose(common_k,kh,rtol=2e-8,atol=0):
+                          P_h=np.interp(common_k,kh,P_h); kh=common_k
+                      kt=tk['k (h/Mpc)'].to_numpy()
+                      db=tk['d_b'].to_numpy(); dc=tk['d_cdm'].to_numpy()
+                      tb=tk['t_b'].to_numpy(); hp=tk['h_prime'].to_numpy(); ep=tk['eta_prime'].to_numpy()
+                      dcb=self.fb*db+self.fc*dc
+                      shift=.5*(hp+6.*ep)
+                      a=1/(1+z)
+                      H=float(np.interp(z,self.bg.z,self.bg['H [1/Mpc]']))
+                      Hconf=a*H
+                      vc=-shift/Hconf
+                      vb=-(tb+shift)/Hconf
+                      rc=np.interp(kh,kt,vc/dcb)
+                      rb=np.interp(kh,kt,vb/dcb)
+                      Pphys=P_h/self.h**3
+                      pairs['dd'].append(Pphys)
+                      pairs['cc'].append(Pphys*rc**2)
+                      pairs['cb'].append(Pphys*rc*rb)
+                      pairs['bb'].append(Pphys*rb**2)
+                  self.k_phys=common_k*self.h
+                  self.power={k:np.asarray(v) for k,v in pairs.items()}
+
+              def _zinterp(self,matrix,zout):
+                  f=interp1d(z_nodes,matrix,axis=0,kind='linear',bounds_error=False,fill_value='extrapolate')
+                  return np.asarray(f(np.asarray(zout,float)))
+
+              def get_Pk_grid(self,var_pair=None,nonlinear=False,**kwargs):
+                  pair=tuple(var_pair)
+                  key={
+                    ('delta_nonu','delta_nonu'):'dd',
+                    ('v_newtonian_cdm','v_newtonian_cdm'):'cc',
+                    ('v_newtonian_cdm','v_newtonian_baryon'):'cb',
+                    ('v_newtonian_baryon','v_newtonian_baryon'):'bb',
+                  }[pair]
+                  return self.k_phys.copy(), self.z_return.copy(), self._zinterp(self.power[key],self.z_return)
+
+              def get_Hubble(self,z,units='km/s/Mpc'):
+                  z=np.asarray(z,float)
+                  H=np.interp(z,self.bg.z,self.bg['H [1/Mpc]'])
+                  return H*C_LIGHT
+
+              def get_angular_diameter_distance(self,z):
+                  return np.interp(np.asarray(z,float),self.bg.z,self.bg['ang.diam.dist.'])
+
+              def get_param(self,name):
+                  if name=='rdrag': return self.rd
+                  if name in self.params: return self.params[name]
+                  raise KeyError(name)
+
+              def get_Omega_b(self,z=0.): return np.asarray(z)*0+self.Omb
+              def get_Omega_cdm(self,z=0.): return np.asarray(z)*0+self.Omc
+              def get_Omega_nu_massive(self,z=0.): return np.asarray(z)*0
+
+          class LikeProvider:
+              def __init__(self,theory): self.theory=theory
+              def get_pkpoles(self,*args,**kwargs): return self.theory.get_pkpoles(*args,**kwargs)
+
+          # Build official likelihood once. It reads the six packaged DR1 HDF5 files.
+          like=desi_fs_bao_all(info={},initialize=False)
+          like.data_dir='desi_data'
+          like.observable_name='spectrum-poles-rotated'
+          like.tracers=['bgs_z0','lrg_z0','lrg_z1','lrg_z2','elg_z1','qso_z0']
+          like.solve='marg'
+          like.initialize()
+          req=like.get_requirements()['pkpoles']
+          print('DESI_FS_REQUIREMENTS',req,flush=True)
+
+          cov=FixedProvider('cov_artifact/unpacked','covariant_transfer_',70.8514,0.02239952,0.12444227328918850,0.964,
+                            rd=145.26642577011754)
+          lcdm=FixedProvider('output','lcdm_desi_',67.36,0.02237,0.1200,0.9649)
+
+          # Return exactly the redshifts requested by the official likelihood.
+          for pr in [cov,lcdm]:
+              pr.z_return=np.asarray(req['z'],float)
+              print('PROVIDER',pr.stem,'z_return',pr.z_return,'rd',pr.rd,flush=True)
+
+          refs={
+            'pre_BGS_z0.b1p':1.0359877473503687,
+            'pre_LRG_z0.b1p':1.2366643662793164,
+            'pre_LRG_z1.b1p':1.122807096648711,
+            'pre_LRG_z2.b1p':1.0172387543690267,
+            'pre_ELG_z1.b1p':0.5160927533922075,
+            'pre_QSO_z0.b1p':0.8450892519032956,
+          }
+          bins=['BGS_z0','LRG_z0','LRG_z1','LRG_z2','ELG_z1','QSO_z0']
+          names=[]
+          x0=[]
+          bounds=[]
+          for b in bins:
+              for p in ['b1p','b2p','bsp']:
+                  n=f'pre_{b}.{p}'; names.append(n)
+                  x0.append(refs.get(n,0.0))
+                  bounds.append((0.,3.) if p=='b1p' else (-20.,20.))
+
+          def make_theory(provider):
+              th=reptvelocileptors(info={},initialize=True)
+              th.must_provide(pkpoles=req)
+              th.provider=provider
+              state={}
+              th.calculate(state)
+              th._current_state=state
+              return th
+
+          def profile(label,provider,seeds):
+              th=make_theory(provider)
+              like.provider=LikeProvider(th)
+
+              def unpack(x):
+                  pars={}
+                  for n,v in zip(names,x): pars[n]=float(v)
+                  for b in bins: pars[f'pre_{b}.b3p']=0.0
+                  return pars
+
+              def prior_chi2(pars):
+                  # b1 is uniform 0..3; b2 and bs have N(0,5) priors.
+                  return sum((pars[f'pre_{b}.{p}']/5.)**2 for b in bins for p in ['b2p','bsp'])
+
+              def objective(*x):
+                  pars=unpack(x)
+                  lp=float(like.logp(**pars))
+                  if not np.isfinite(lp): return 1e100
+                  return float(-2*lp+prior_chi2(pars))
+
+              best=None
+              for iseed,seed in enumerate(seeds):
+                  m=Minuit(objective,*seed,name=names)
+                  m.errordef=1.; m.strategy=1; m.tol=.05
+                  for n,bnd in zip(names,bounds): m.limits[n]=bnd
+                  for n in names: m.errors[n]=.03 if n.endswith('b1p') else .1
+                  m.migrad(ncall=6000)
+                  if not m.fmin.is_valid:
+                      m.simplex(ncall=3000); m.migrad(ncall=6000)
+                  rec=(float(m.fval),np.array([m.values[n] for n in names]),bool(m.fmin.is_valid),int(m.nfcn))
+                  print('DESI_FS_SEED',label,iseed,*[rec[0],rec[2],rec[3]],flush=True)
+                  if best is None or rec[0]<best[0]: best=rec
+
+              val,x,valid,nfcn=best
+              pars=unpack(x); derived={}
+              lp=float(like.logp(_derived=derived,**pars))
+              row={'model':label,'minus2logpost':val,'minus2loglike':-2*lp,
+                   'bias_prior_chi2':prior_chi2(pars),'valid':valid,'nfcn':nfcn}
+              row.update(pars)
+              for k,v in derived.items(): row[k]=float(v)
+              print('DESI_FS_RESULT',json.dumps(row,sort_keys=True),flush=True)
+              return row,x
+
+          default=np.asarray(x0,float)
+          d2=default.copy()
+          for i,n in enumerate(names):
+              if n.endswith('b1p'): d2[i]=min(2.8,max(.2,d2[i]*1.08))
+              elif n.endswith('b2p'): d2[i]=.3
+              else: d2[i]=-.2
+
+          rc,xc=profile('COVARIANT',cov,[default,d2])
+          rl,xl=profile('LCDM',lcdm,[default,xc])
+          delta=rc['minus2logpost']-rl['minus2logpost']
+          dlike=rc['minus2loglike']-rl['minus2loglike']
+          print('DESI_FS_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
+          print('DESI_FS_DELTA_MINUS2LOGLIKE_COV_MINUS_LCDM',dlike,flush=True)
+
+          keys=sorted(set(rc)|set(rl))
+          with open('output/desi_dr1_fullshape_profile.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=keys); w.writeheader()
+              w.writerow({k:rc.get(k,'') for k in keys}); w.writerow({k:rl.get(k,'') for k in keys})
+          Path('output/desi_dr1_fullshape_delta.txt').write_text(f'{delta:.12g}\n')
+          PY
+
+      - name: Preserve DESI full-shape results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-desi-dr1-fullshape
+          path: |
+            output/desi_dr1_fullshape_*
+            output/lcdm_desi_*
+          if-no-files-found: warn
