@@ -154,6 +154,12 @@ parser=r'''  if (strcmp(string1,"sdmc_v3_covariant_exact") == 0) {
     flag2=_TRUE_;
     pba->parameters_size_smg = 1;
     class_read_list_of_doubles("parameters_smg",pba->parameters_smg,pba->parameters_size_smg);
+    if (has_tuning_index_smg == _FALSE_) {
+      pba->tuning_index_smg = 0;
+    }
+    if (has_dxdy_guess_smg == _FALSE_) {
+      pba->tuning_dxdy_guess_smg = 1.;
+    }
   }
 
   if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
