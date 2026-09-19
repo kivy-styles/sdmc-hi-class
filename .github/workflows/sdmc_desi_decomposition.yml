@@ -1,13 +1,13 @@
-name: SDMC DESI full-shape decomposition
+name: SDMC DESI nuisance robustness
 
 on:
   push:
     branches:
-      - sdmc-desi-decomposition
+      - sdmc-desi-nuisance-robust
   workflow_dispatch:
 
 jobs:
-  decompose:
+  robustness:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -196,13 +196,34 @@ jobs:
                       val+=.5*dx.dot(lh).dot(dx)+postgrad.dot(dx)+.5*dx.dot(prior_hess).dot(dx)
                       val+=-.5*np.linalg.slogdet(-ph)[1]-.5*(x[1]/5)**2-.5*(x[2]/5)**2
                       return float(val)
-                  opt=minimize(lambda x:-2*logp(x),np.array(starts[b['namespace']]),method='L-BFGS-B',
-                               bounds=[(0,3),(-20,20),(-20,20)],options={'maxiter':500,'ftol':1e-10,'gtol':1e-6})
+                  seeds=[
+                      np.array(starts[b['namespace']],float),
+                      np.array([1.0,0.0,0.0]),
+                      np.array([0.55,4.0,-4.0]),
+                      np.array([1.8,-4.0,4.0]),
+                      np.array([2.6,8.0,-8.0]),
+                      np.array([1.4,-10.0,-10.0]),
+                  ]
+                  trials=[]
+                  for iseed,seed in enumerate(seeds):
+                      opt=minimize(lambda x:-2*logp(x),seed,method='L-BFGS-B',
+                                   bounds=[(0,3),(-20,20),(-20,20)],
+                                   options={'maxiter':800,'ftol':1e-11,'gtol':3e-7,'maxls':50})
+                      trials.append(opt)
+                      print('DESI_ROBUST_TRIAL',label,b['namespace'],iseed,float(opt.fun),
+                            bool(opt.success),[float(v) for v in opt.x],flush=True)
+                  finite=[o for o in trials if np.isfinite(o.fun)]
+                  opt=min(finite,key=lambda o:o.fun)
+                  vals=np.array([float(o.fun) for o in finite])
+                  spread=float(vals.max()-vals.min()) if len(vals)>1 else 0.
                   total+=float(opt.fun); rows.append(dict(model=label,namespace=b['namespace'],chi2=float(opt.fun),
-                                    success=bool(opt.success),qpar=tables[b['namespace']]['qpar'],
+                                    success=bool(opt.success),start_spread_chi2=spread,
+                                    n_success=sum(bool(o.success) for o in trials),
+                                    b1p=float(opt.x[0]),b2p=float(opt.x[1]),bsp=float(opt.x[2]),
+                                    qpar=tables[b['namespace']]['qpar'],
                                     qper=tables[b['namespace']]['qper']))
-              print('DESI_DECOMP_TOTAL',label,total,flush=True)
-              for r in rows: print('DESI_DECOMP_BLOCK',r,flush=True)
+              print('DESI_ROBUST_TOTAL',label,total,flush=True)
+              for r in rows: print('DESI_ROBUST_BLOCK',r,flush=True)
               return rows,total
 
           cases=[('COV_SPEC_COV_GEOM',cov,cov),('LCDM_SPEC_LCDM_GEOM',lcd,lcd),
@@ -210,14 +231,14 @@ jobs:
           allrows=[]; summary=[]
           for label,spec,geom in cases:
               rows,total=profile(label,prepare(spec,geom)); allrows+=rows; summary.append(dict(model=label,total=total))
-          pd.DataFrame(allrows).to_csv('output/desi_decomp_blocks.csv',index=False)
-          pd.DataFrame(summary).to_csv('output/desi_decomp_summary.csv',index=False)
+          pd.DataFrame(allrows).to_csv('output/desi_robust_blocks.csv',index=False)
+          pd.DataFrame(summary).to_csv('output/desi_robust_summary.csv',index=False)
           PY
 
       - name: Preserve decomposition
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-decomposition
+          name: sdmc-desi-nuisance-robust
           path: output/*
           if-no-files-found: warn
