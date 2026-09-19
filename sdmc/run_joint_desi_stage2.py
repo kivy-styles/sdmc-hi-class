@@ -148,7 +148,7 @@ def main():
         for i,m in enumerate(ms):
             e=ms[i+1].start() if i+1<len(ms) else len(hdr)
             names.append(hdr[m.end():e].strip())
-        return pd.DataFrame(np.loadtxt(path),columns=names).sort_values("z")
+        df=pd.DataFrame(np.loadtxt(path),columns=names)\n        return df.sort_values("z") if "z" in df.columns else df
 
     def rd_from(prefix,bg):
         th=tab(out/f"{prefix}_00_thermodynamics.dat").sort_values("z")
