@@ -1,9 +1,9 @@
-name: SDMC r032 background A raw DESI
+name: SDMC r032 final zt raw DESI
 
 on:
   push:
     branches:
-      - sdmc-r032-zt18-desi
+      - sdmc-r032-zt-final-desi
   workflow_dispatch:
 
 jobs:
@@ -164,8 +164,10 @@ jobs:
           zpk=(out/'desi_zpk.txt').read_text().strip()
           As=math.exp(3.076)/1e10
           candidates=[
-              ('zt18',18.0),
-              ('base',21.10),
+              ('zt185',18.5),
+              ('zt190',19.0),
+              ('zt195',19.5),
+              ('zt200',20.0),
           ]
           for cid,z_t in candidates:
               root=f'output/desi_{cid}_'
@@ -335,14 +337,22 @@ jobs:
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
           candidate_meta={
-            'zt18':dict(AF=0.0715,zc=5.00,width=1.426,z_t=18.0,
-                        delta_planck=53.629830598087665,
-                        delta_pp=4.667245076037943,delta_union3=4.192425503948471,
-                        delta_desy5=9.770827561616898),
-            'base':dict(AF=0.0715,zc=5.00,width=1.426,z_t=21.10,
-                        delta_planck=60.759132627606505,
-                        delta_pp=4.667266171891242,delta_union3=4.1924457710265415,
-                        delta_desy5=9.770868048071861),
+            'zt185':dict(AF=0.0715,zc=5.00,width=1.426,z_t=18.5,
+                        delta_planck=51.56582627266448,
+                        delta_pp=4.667249666061252,delta_union3=4.192429912334774,
+                        delta_desy5=9.770836360752583),
+            'zt190':dict(AF=0.0715,zc=5.00,width=1.426,z_t=19.0,
+                        delta_planck=50.37184994537961,
+                        delta_pp=4.667253700550646,delta_union3=4.192433789765346,
+                        delta_desy5=9.770844101905823),
+            'zt195':dict(AF=0.0715,zc=5.00,width=1.426,z_t=19.5,
+                        delta_planck=50.32282605827663,
+                        delta_pp=4.6672572628594935,delta_union3=4.192437212026562,
+                        delta_desy5=9.770850948989391),
+            'zt200':dict(AF=0.0715,zc=5.00,width=1.426,z_t=20.0,
+                        delta_planck=51.62783974568811,
+                        delta_pp=4.667260416317731,delta_union3=4.192440241386066,
+                        delta_desy5=9.770857013761997),
           }
           models={cid:model_data(f'desi_{cid}',70.8514,0.02239952,0.12444227328918850,0.964)
                   for cid in candidate_meta}
@@ -532,24 +542,24 @@ jobs:
               rec['joint_union3']=rec['joint_planck_desi']+rec['delta_union3']
               rec['joint_desy5']=rec['joint_planck_desi']+rec['delta_desy5']
               summary.append(rec)
-              print('ZT18_DESI_CANDIDATE',rec,flush=True)
+              print('ZT_FINAL_DESI_CANDIDATE',rec,flush=True)
           sdf=pd.DataFrame(summary)
-          sdf.to_csv(OUT/'r032_zt18_desi_summary.csv',index=False)
-          pd.DataFrame(allrows).to_csv(OUT/'r032_zt18_desi_blocks.csv',index=False)
-          print('ZT18_DESI_BEST_PLANCK_DESI',sdf.nsmallest(4,'joint_planck_desi').to_dict('records'),flush=True)
-          print('ZT18_DESI_BEST_PP',sdf.nsmallest(4,'joint_pp').to_dict('records'),flush=True)
-          print('ZT18_DESI_BEST_UNION3',sdf.nsmallest(4,'joint_union3').to_dict('records'),flush=True)
-          print('ZT18_DESI_BEST_DESY5',sdf.nsmallest(4,'joint_desy5').to_dict('records'),flush=True)
+          sdf.to_csv(OUT/'r032_zt_final_desi_summary.csv',index=False)
+          pd.DataFrame(allrows).to_csv(OUT/'r032_zt_final_desi_blocks.csv',index=False)
+          print('ZT_FINAL_DESI_BEST_PLANCK_DESI',sdf.nsmallest(4,'joint_planck_desi').to_dict('records'),flush=True)
+          print('ZT_FINAL_DESI_BEST_PP',sdf.nsmallest(4,'joint_pp').to_dict('records'),flush=True)
+          print('ZT_FINAL_DESI_BEST_UNION3',sdf.nsmallest(4,'joint_union3').to_dict('records'),flush=True)
+          print('ZT_FINAL_DESI_BEST_DESY5',sdf.nsmallest(4,'joint_desy5').to_dict('records'),flush=True)
           PY
 
       - name: Preserve r032 background A DESI
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-zt18-desi
+          name: sdmc-r032-zt-final-desi
           path: |
-            output/r032_zt18_desi_summary.csv
-            output/r032_zt18_desi_blocks.csv
+            output/r032_zt_final_desi_summary.csv
+            output/r032_zt_final_desi_blocks.csv
             output/desi_zeff.json
             output/desi_zpk.txt
           if-no-files-found: warn
