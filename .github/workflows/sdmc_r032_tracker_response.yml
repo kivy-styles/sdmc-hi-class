@@ -1,9 +1,9 @@
-name: SDMC r032 global subluminality kinetic scan
+name: SDMC r032 fine kinetic-floor scan
 
 on:
   push:
     branches:
-      - sdmc-r032-global-subluminal-floor
+      - sdmc-r032-global-floor-fine
   workflow_dispatch:
 
 jobs:
@@ -152,7 +152,7 @@ jobs:
           DN_BG=0.50
           S0=0.7784218611214628
           D_TODAY=0.31146874444858513
-          FLOORS=[0.015,0.018,0.0195,0.0200,0.02013,0.0205,0.021,0.022,0.025]
+          FLOORS=[0.02150,0.02175,0.02200,0.02225,0.02250,0.02275,0.02300,0.02325,0.02350,0.02375,0.02400,0.02425,0.02450]
           candidates=[]
           for floor in FLOORS:
               d0=(D_TODAY-floor)/S0
@@ -395,14 +395,14 @@ jobs:
                   stable=(rec['min_D_all']>0 and rec['min_cs2_all']>0 and rec['max_cs2_all']<=1.0)
                   rec['stable_subluminal']=bool(stable)
                   rec['global_subluminal']=bool(stable)
-                  print('GLOBAL_D_SCAN_OK',rec,flush=True)
+                  print('FINE_D_SCAN_OK',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('GLOBAL_D_SCAN_FAIL',rec,flush=True)
+                  print('FINE_D_SCAN_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
-          df.to_csv(OUT/'r032_lambda_zt_grid.csv',index=False)
+          df.to_csv(OUT/'r032_Dfloor_fine.csv',index=False)
           ok=df[(df.status=='OK') & (df.stable_subluminal==True)].copy()
           if ok.empty:
               raise SystemExit('No globally stable subluminal kinetic candidates')
@@ -415,11 +415,11 @@ jobs:
           current=ok[(np.isclose(ok.lambda_e,20.0))&(np.isclose(ok.z_t,20.5))]
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
-          shortlist.to_csv(OUT/'r032_lambda_zt_grid_shortlist.csv',index=False)
-          print('GLOBAL_D_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
-          print('GLOBAL_D_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
-          print('GLOBAL_D_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
-          print('GLOBAL_D_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','DeltaN_bg','delta_planck',
+          shortlist.to_csv(OUT/'r032_Dfloor_fine_shortlist.csv',index=False)
+          print('FINE_D_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
+          print('FINE_D_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
+          print('FINE_D_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
+          print('FINE_D_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','DeltaN_bg','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
@@ -428,8 +428,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-lzt-boundary-fine
+          name: sdmc-r032-Dfloor-fine
           path: |
-            output/joint_screen/r032_lambda_zt_grid.csv
-            output/joint_screen/r032_lambda_zt_grid_shortlist.csv
+            output/joint_screen/r032_Dfloor_fine.csv
+            output/joint_screen/r032_Dfloor_fine_shortlist.csv
           if-no-files-found: warn
