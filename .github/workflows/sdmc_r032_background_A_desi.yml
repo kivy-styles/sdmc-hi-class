@@ -1,9 +1,9 @@
-name: SDMC r032 lower-background threshold-floor raw DESI
+name: SDMC r032 L17.50 Z18.0 floor micro raw DESI
 
 on:
   push:
     branches:
-      - sdmc-r032-lower-floor-threshold-desi
+      - sdmc-r032-l1750-floor-micro-desi
   workflow_dispatch:
 
 jobs:
@@ -181,10 +181,9 @@ jobs:
           zpk=(out/'desi_zpk.txt').read_text().strip()
           As=math.exp(3.076)/1e10
           candidates=[
-              ('CUR',0.37186615498124764,0.02200,18.25,19.20),
-              ('L1775Z188_F0252',0.36775527351732040,0.02520,17.75,18.80),
+              ('L1750Z180_F0304',0.36107509113843855,0.03040,17.50,18.00),
               ('L1750Z180_F0305',0.36094662609269085,0.03050,17.50,18.00),
-              ('L1725Z180_F0320',0.35901965040647493,0.03200,17.25,18.00),
+              ('L1750Z180_F0310',0.36030430086395220,0.03100,17.50,18.00),
           ]
           for cid,D0,Dfloor,lambda_e,z_t in candidates:
               root=f'output/desi_{cid}_'
@@ -354,14 +353,12 @@ jobs:
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
           candidate_meta={
-            'CUR':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,D0=0.37186615498124764,Dfloor=0.02200,
-                       delta_planck=math.nan,delta_pp=4.667247864883393,delta_union3=4.192428181268042,delta_desy5=9.770832888782024),
-            'L1775Z188_F0252':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.75,z_t=18.80,D0=0.36775527351732040,Dfloor=0.02520,
-                       delta_planck=math.nan,delta_pp=4.667241517454386,delta_union3=4.192422084466671,delta_desy5=9.770820699632168),
+            'L1750Z180_F0304':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.50,z_t=18.00,D0=0.36107509113843855,Dfloor=0.03040,
+                       delta_planck=math.nan,delta_pp=4.6672308426350355,delta_union3=4.192411827243632,delta_desy5=9.770800173282623),
             'L1750Z180_F0305':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.50,z_t=18.00,D0=0.36094662609269085,Dfloor=0.03050,
-                       delta_planck=math.nan,delta_pp=4.6672308426350355,delta_union3=4.192411827316391,delta_desy5=9.770800188183784),
-            'L1725Z180_F0320':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.25,z_t=18.00,D0=0.35901965040647493,Dfloor=0.03200,
-                       delta_planck=math.nan,delta_pp=4.667229068931192,delta_union3=4.1924101235490525,delta_desy5=9.770796798169613),
+                       delta_planck=math.nan,delta_pp=4.6672308426350355,delta_union3=4.192411827243632,delta_desy5=9.770800173282623),
+            'L1750Z180_F0310':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.50,z_t=18.00,D0=0.36030430086395220,Dfloor=0.03100,
+                       delta_planck=math.nan,delta_pp=4.6672308426350355,delta_union3=4.192411827243632,delta_desy5=9.770800173282623),
           }
           models={cid:model_data(f'desi_{cid}',70.8514,0.02239952,0.12444227328918850,0.964)
                   for cid in candidate_meta}
