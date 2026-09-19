@@ -690,6 +690,234 @@ jobs:
           pd.DataFrame(pkrows).to_csv(ROOT/'covariant_observable_pk_z0_samples.csv',index=False)
           PY
 
+      - name: Add parameterized independent-kinetic reference model
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          def rep(path,old,new):
+              p=Path(path); s=p.read_text()
+              if new in s: return
+              if s.count(old)!=1: raise RuntimeError(f'{path}: anchor count {s.count(old)}')
+              p.write_text(s.replace(old,new,1))
+
+          rep('include/background.h',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_covariant_replay,\n',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_covariant_replay, sdmc_v3_independent_kinetic,\n')
+
+          anchor='''  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          parser='''  if (strcmp(string1,"sdmc_v3_independent_kinetic") == 0) {
+             pba->gravity_model_smg = sdmc_v3_independent_kinetic;
+             pba->field_evolution_smg = _FALSE_;
+             pba->M2_evolution_smg = _FALSE_;
+             flag2=_TRUE_;
+             pba->parameters_2_size_smg = 6;
+             class_read_list_of_doubles("parameters_smg",pba->parameters_2_smg,pba->parameters_2_size_smg);
+             class_test(pba->parameters_2_smg[0] <= 0. || pba->parameters_2_smg[1] <= 0. ||
+                        pba->parameters_2_smg[2] <= 0. || pba->parameters_2_smg[3] <= 0. ||
+                        pba->parameters_2_smg[4] < 0. || pba->parameters_2_smg[5] <= 0., errmsg,
+                        "sdmc_v3_independent_kinetic requires positive AF,zc,width,D0,Dfloor and non-negative p");
+           }
+
+          if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,parser)
+
+          canchor='''  else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          closure=r'''  else if (pba->gravity_model_smg == sdmc_v3_independent_kinetic) {
+            double AF=pba->parameters_2_smg[0];
+            double zc=pba->parameters_2_smg[1];
+            double width=pba->parameters_2_smg[2];
+            double D0=pba->parameters_2_smg[3];
+            double power=pba->parameters_2_smg[4];
+            double Dfloor=pba->parameters_2_smg[5];
+            double N=log(a);
+            double Nc=-log(1.+zc);
+            double x=(N-Nc)/(2.*width);
+            double th=tanh(x);
+            double ch=cosh(x);
+            double sech2=1./(ch*ch);
+            double S=.5*(1.+th);
+            double F=exp(AF*S);
+            double am=AF/(4.*width)*sech2;
+            double bra=-2.*am;
+            double D=Dfloor + D0*pow(S,power);
+            double ak=D-1.5*bra*bra;
+            pvecback[pba->index_bg_kineticity_smg]=ak;
+            pvecback[pba->index_bg_braiding_smg]=bra;
+            pvecback[pba->index_bg_tensor_excess_smg]=0.;
+            pvecback[pba->index_bg_M2_running_smg]=am;
+            pvecback[pba->index_bg_beyond_horndeski_smg]=0.;
+            pvecback[pba->index_bg_delta_M2_smg]=F-1.;
+            pvecback[pba->index_bg_M2_smg]=F;
+          }
+
+          else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          rep('gravity_smg/gravity_models_smg.c',canchor,closure)
+          print('paired independent-kinetic reference installed')
+          PY
+
+      - name: Rebuild with paired reference model
+        run: make clean && make -j2 class
+
+      - name: Run parameterized independent reference
+        run: |
+          cat > output/independent_reference.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.073128, 4.84, 1.426, 0.40, 1.0, 0.0001
+          expansion_model = sdmc_full
+          expansion_smg = 0.7073985893,20.0,21.10,0.5,0.01105624999,0.25,0.01951933685,1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.5,1,2,3,5,10
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = yes
+          write parameters = yes
+          root = output/independent_reference_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/independent_reference.ini
+          echo "INDEPENDENT_REFERENCE_RETURNCODE=0"
+
+      - name: Direct covariant versus independent observable comparison
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import math,re,csv
+          import numpy as np
+          import pandas as pd
+
+          OUT=Path('output')
+          cov=np.loadtxt(OUT/'covariant_observable_00_cl_lensed.dat')
+          ref=np.loadtxt(OUT/'independent_reference_00_cl_lensed.dat')
+          ell=ref[:,0].astype(int)
+          if not np.array_equal(ell,cov[:,0].astype(int)):
+              raise RuntimeError('C_ell grids differ')
+          mask=(ell>=2)&(ell<=2500)
+
+          def rel_stats(c,r,m):
+              scale=np.maximum(np.abs(r),1e-8*np.nanmax(np.abs(r[m])))
+              x=(c-r)/scale
+              return float(np.nanmax(np.abs(x[m]))),float(np.sqrt(np.nanmean(x[m]**2)))
+
+          rows=[]
+          # CLASS columns: ell, TT, EE, TE, BB, PP, TP, EP
+          for name,j in [('TT',1),('EE',2),('BB',4),('PP',5)]:
+              mx,rms=rel_stats(cov[:,j],ref[:,j],mask)
+              rows.append({'observable':name,'max_norm_residual':mx,'rms_norm_residual':rms})
+          # TE is sign-changing: normalize to sqrt(TT*EE)
+          den=np.sqrt(np.maximum(np.abs(ref[:,1]*ref[:,2]),1e-300))
+          te=(cov[:,3]-ref[:,3])/den
+          rows.append({'observable':'TE','max_norm_residual':float(np.max(np.abs(te[mask]))),
+                       'rms_norm_residual':float(np.sqrt(np.mean(te[mask]**2)))})
+          pd.DataFrame(rows).to_csv(OUT/'covariant_vs_independent_cls.csv',index=False)
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+          bc=table(OUT/'covariant_observable_00_background.dat').sort_values('z')
+          br=table(OUT/'independent_reference_00_background.dat').sort_values('z')
+          z=bc.z.to_numpy()
+          def ir(col): return np.interp(z,br.z,br[col])
+          m100=z<=100
+          bcomp={
+            'max_dH_H_z100':float(np.max(np.abs(bc['H [1/Mpc]'].to_numpy()[m100]/ir('H [1/Mpc]')[m100]-1))),
+            'max_dF_F_z100':float(np.max(np.abs(bc['M*^2_smg'].to_numpy()[m100]/ir('M*^2_smg')[m100]-1))),
+            'max_dalphaM_z100':float(np.max(np.abs(bc['M2_running_smg'].to_numpy()[m100]-ir('M2_running_smg')[m100]))),
+            'max_dalphaB_z100':float(np.max(np.abs(bc['braiding_smg'].to_numpy()[m100]-ir('braiding_smg')[m100]))),
+            'max_dD_z100':float(np.max(np.abs(bc['kin (D)'].to_numpy()[m100]-ir('kin (D)')[m100]))),
+            'max_dcs2_z100':float(np.max(np.abs(bc['c_s^2'].to_numpy()[m100]-ir('c_s^2')[m100]))),
+          }
+          pd.DataFrame([bcomp]).to_csv(OUT/'covariant_vs_independent_background.csv',index=False)
+
+          def sigmaR(path,R=8.0):
+              a=np.loadtxt(path); k=a[:,0]; P=a[:,1]; x=k*R
+              W=np.ones_like(x); q=x!=0
+              W[q]=3*(np.sin(x[q])-x[q]*np.cos(x[q]))/x[q]**3
+              y=k**3*P*W**2/(2*np.pi**2)
+              return math.sqrt(np.trapezoid(y,x=np.log(k)))
+
+          pkrows=[]
+          zpk=[0,0.5,1,2,3,5,10]
+          for i,zz in enumerate(zpk,1):
+              pc=np.loadtxt(OUT/f'covariant_observable_00_z{i}_pk.dat')
+              pr=np.loadtxt(OUT/f'independent_reference_00_z{i}_pk.dat')
+              k=pr[:,0]
+              Pc=np.interp(k,pc[:,0],pc[:,1]); Pr=pr[:,1]
+              km=(k>=1e-3)&(k<=6.0)
+              rr=(Pc-Pr)/np.maximum(np.abs(Pr),1e-300)
+              sc=sigmaR(OUT/f'covariant_observable_00_z{i}_pk.dat')
+              sr=sigmaR(OUT/f'independent_reference_00_z{i}_pk.dat')
+              pkrows.append({'z':zz,
+                  'max_abs_dP_P':float(np.max(np.abs(rr[km]))),
+                  'rms_dP_P':float(np.sqrt(np.mean(rr[km]**2))),
+                  'sigma8_cov':sc,'sigma8_ref':sr,'delta_sigma8':sc-sr})
+          pd.DataFrame(pkrows).to_csv(OUT/'covariant_vs_independent_pk.csv',index=False)
+
+          # Thermodynamic/acoustic comparison on each model's own tables.
+          def acoustic(prefix):
+              b=table(OUT/f'{prefix}_00_background.dat').sort_values('z')
+              t=table(OUT/f'{prefix}_00_thermodynamics.dat').sort_values('z')
+              zs=float(t.loc[t['g [Mpc^-1]'].idxmax(),'z'])
+              zz=t.z.to_numpy(); kb=t.kappa_b.to_numpy(); cross=[]
+              for i in range(len(zz)-1):
+                  if (kb[i]-1)*(kb[i+1]-1)<=0 and kb[i]!=kb[i+1]:
+                      q=(1-kb[i])/(kb[i+1]-kb[i]); cross.append(zz[i]+q*(zz[i+1]-zz[i]))
+              zd=float(cross[0])
+              def iv(c,zv): return float(np.interp(zv,b.z,b[c]))
+              rs=iv('comov.snd.hrz.',zs); rd=iv('comov.snd.hrz.',zd)
+              la=math.pi*iv('comov. dist.',zs)/rs
+              return dict(zstar=zs,zdrag=zd,rsstar=rs,rd=rd,ellA=la)
+          ac=acoustic('covariant_observable'); ar=acoustic('independent_reference')
+          acomp={f'{k}_cov':ac[k] for k in ac}
+          acomp.update({f'{k}_ref':ar[k] for k in ar})
+          acomp.update({f'delta_{k}':ac[k]-ar[k] for k in ac})
+          pd.DataFrame([acomp]).to_csv(OUT/'covariant_vs_independent_acoustic.csv',index=False)
+
+          print('COVARIANT_VS_INDEPENDENT_CLS')
+          print(pd.DataFrame(rows).to_string(index=False),flush=True)
+          print('COVARIANT_VS_INDEPENDENT_BACKGROUND',bcomp,flush=True)
+          print('COVARIANT_VS_INDEPENDENT_PK')
+          print(pd.DataFrame(pkrows).to_string(index=False),flush=True)
+          print('COVARIANT_VS_INDEPENDENT_ACOUSTIC',acomp,flush=True)
+          PY
+
       - name: Preserve covariant observable gate
         if: always()
         uses: actions/upload-artifact@v4
@@ -705,4 +933,7 @@ jobs:
             output/covariant_observable.log
             output/covariant_observable_00_*
             output/covariant_observable_*.csv
+            output/independent_reference.ini
+            output/independent_reference_00_*
+            output/covariant_vs_independent_*.csv
           if-no-files-found: warn
