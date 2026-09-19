@@ -18,9 +18,9 @@ jobs:
         with:
           name: sdmc-desi-dr1-fullshape-gate
           path: previous
-          github-token: \${{ github.token }}
+          github-token: ${{ github.token }}
           run-id: 35444073670
-          repository: \${{ github.repository }}
+          repository: ${{ github.repository }}
 
       - name: Install official DESI stack
         run: |
