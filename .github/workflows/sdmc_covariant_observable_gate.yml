@@ -529,7 +529,7 @@ jobs:
             'P_k_max_h/Mpc':1.5,
             'z_pk':'0,0.295,0.510,0.706,0.934,1.321,1.484',
             'modes':'s',
-            'gauge':'newtonian',
+            'extra_metric_transfer_functions':'yes',
           }
           cosmo=HiClass()
           cosmo.set(pars)
@@ -541,25 +541,31 @@ jobs:
           bf=np.asarray(bg['gr.fac. f'])
           oo=np.argsort(bz); bz=bz[oo]; bf=bf[oo]
           rows=[]
-          # Standard CLASS names are d_b, d_cdm, t_b, t_cdm.
-          db=tk.get('d_b',tk.get('d_baryon'))
-          dc=tk.get('d_cdm',tk.get('d_c'))
-          tb=tk.get('t_b',tk.get('t_baryon'))
-          tc=tk.get('t_cdm',tk.get('t_c'))
-          if any(x is None for x in [db,dc,tb,tc]):
-              raise SystemExit('required baryon/CDM transfer keys not found')
+          # The SMG solver evolves in synchronous gauge. Reconstruct the
+          # Newtonian velocities with alpha=(h'+6 eta')/(2 k^2):
+          # theta_c^N = k^2 alpha, theta_b^N = theta_b^S + k^2 alpha.
+          db=tk.get('d_b')
+          dc=tk.get('d_cdm')
+          dm=tk.get('d_m')
+          tb=tk.get('t_b')
+          hp=tk.get('h_prime')
+          etap=tk.get('eta_prime')
+          if any(x is None for x in [db,dc,dm,tb,hp,etap]):
+              raise SystemExit('required synchronous density/velocity/metric transfers not found')
+          shear=(hp+6.*etap)/2.0
+          theta_c_N=shear
+          theta_b_N=tb+shear
           fb=0.02239952/(0.02239952+0.12444227328918850)
-          dcb=fb*db+(1.-fb)*dc
+          dcb_sync=fb*db+(1.-fb)*dc
           for iz,z in enumerate(zs):
               if z>1.6: continue
               fbg=float(np.interp(z,bz,bf))
-              # Hubble() is physical H/c in 1/Mpc; conformal H is aH.
               a=1./(1.+z); HH=float(cosmo.Hubble(float(z))); aH=a*HH
-              q=(k>=0.005)&(k<=0.05)&(np.abs(dcb[:,iz])>0)
+              q=(k>=0.005)&(k<=0.05)&(np.abs(dm[:,iz])>0)
               candidates={
-                'minus_t_over_aH':-tc[:,iz]/(aH*dcb[:,iz]),
-                'minus_k_t_over_aH':-k*tc[:,iz]/(aH*dcb[:,iz]),
-                'minus_t_over_k_aH':-tc[:,iz]/(k*aH*dcb[:,iz]),
+                'cdm_minus_thetaN_over_aH_dm':-theta_c_N[:,iz]/(aH*dm[:,iz]),
+                'baryon_minus_thetaN_over_aH_dm':-theta_b_N[:,iz]/(aH*dm[:,iz]),
+                'cdm_minus_thetaN_over_aH_dcbSync':-theta_c_N[:,iz]/(aH*dcb_sync[:,iz]),
               }
               for name,val in candidates.items():
                   vv=val[q]
