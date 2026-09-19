@@ -6,6 +6,10 @@ on:
       - sdmc-desi-dr1-eval-only
   workflow_dispatch:
 
+concurrency:
+  group: sdmc-desi-dr1-eval-only
+  cancel-in-progress: true
+
 permissions:
   contents: read
   actions: read
