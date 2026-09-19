@@ -1,13 +1,13 @@
-name: SDMC r032 wide kinetic-floor lite Planck scan
+name: SDMC r032 lambda-z_t Planck SN refinement
 
 on:
   push:
     branches:
-      - sdmc-r032-floor-wide-lite
+      - sdmc-r032-lambda-zt-sn-lite
   workflow_dispatch:
 
 jobs:
-  floor-wide-lite:
+  lambda-zt-lite:
     runs-on: ubuntu-latest
     timeout-minutes: 100
     steps:
@@ -143,12 +143,13 @@ jobs:
           lowE=EE(packages_path='planck_packages')
           lens=LensingNative(packages_path='planck_packages')
 
-          # Hold present-day kinetic normalization fixed while varying the early-time floor.
+          # Refine the background transition at the covariantly validated kinetic floor.
           POWER=1.0
-          S0=0.7784218611214628
-          D_TODAY=0.31146874444858513
-          FLOORS=[0.022,0.025,0.03,0.04,0.05,0.06,0.08,0.10,0.12,0.15,0.20]
-          candidates=[(f,(D_TODAY-f)/S0) for f in FLOORS]
+          DFLOOR=0.022
+          D0=0.37186615498124764
+          LAMBDAS=[17.75,18.00,18.25,18.50,18.75]
+          ZTS=[18.80,19.00,19.20,19.40,19.60]
+          candidates=[(lam,zt) for lam in LAMBDAS for zt in ZTS]
 
           # ---------- shared table helpers ----------
           def table(path):
@@ -252,7 +253,7 @@ jobs:
               )
 
           # ---------- INI generators ----------
-          def sdmc_ini(Dfloor,D0,root):
+          def sdmc_ini(lambda_e,z_t,root):
               As=math.exp(3.076)/1e10
               return textwrap.dedent(f'''\
               H0 = 70.8514
@@ -272,9 +273,9 @@ jobs:
               use_ppf = no
               Omega_smg = -1
               gravity_model = sdmc_v3_independent_kinetic
-              parameters_smg = 0.0715, 5.00, 1.426, {D0:.16g}, {POWER}, {Dfloor:.16g}
+              parameters_smg = 0.0715, 5.00, 1.426, {D0:.16g}, {POWER}, {DFLOOR:.16g}
               expansion_model = sdmc_full
-              expansion_smg = 0.7073985893,18.25,19.2,0.5,0.01105624999,0.25,0.01951933685,1.5
+              expansion_smg = 0.7073985893,{lambda_e:.12g},{z_t:.12g},0.5,0.01105624999,0.25,0.01951933685,1.5
               pert_initial_conditions_smg = zero
               method_qs_smg = fully_dynamic
               output_background_smg = 3
@@ -341,13 +342,13 @@ jobs:
 
           # ---------- candidate screen ----------
           rows=[]
-          for ic,(Dfloor,D0) in enumerate(candidates,1):
+          for ic,(lambda_e,z_t) in enumerate(candidates,1):
               tag=f'c{ic:03d}'
               root=str(OUT/(tag+'_'))
-              ip=OUT/(tag+'.ini'); ip.write_text(sdmc_ini(Dfloor,D0,root))
+              ip=OUT/(tag+'.ini'); ip.write_text(sdmc_ini(lambda_e,z_t,root))
               cp=subprocess.run(['./class',str(ip)],stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,text=True,timeout=240)
-              rec={'id':tag,'AF':0.0715,'zc':5.00,'width':1.426,'Dfloor':Dfloor,'D0':D0,'returncode':cp.returncode,'status':'FAIL'}
+              rec={'id':tag,'AF':0.0715,'zc':5.00,'width':1.426,'lambda_e':lambda_e,'z_t':z_t,'Dfloor':DFLOOR,'D0':D0,'returncode':cp.returncode,'status':'FAIL'}
               bgp=Path(root+'00_background.dat'); clp=Path(root+'00_cl_lensed.dat')
               if bgp.exists():
                   bg=table(bgp)
@@ -379,14 +380,14 @@ jobs:
                   rec['joint_desy5']=rec['delta_planck']+rec['delta_desy5']
                   stable=(rec['min_D_z100']>0 and rec['min_cs2_z100']>0 and rec['max_cs2_z100']<=1.0)
                   rec['stable_subluminal']=bool(stable)
-                  print('FLOOR_WIDE_LITE_CANDIDATE',rec,flush=True)
+                  print('LAMBDA_ZT_LITE_CANDIDATE',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('FLOOR_WIDE_LITE_FAIL',rec,flush=True)
+                  print('LAMBDA_ZT_LITE_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
-          df.to_csv(OUT/'r032_floor_wide_lite.csv',index=False)
+          df.to_csv(OUT/'r032_lambda_zt_sn_lite.csv',index=False)
           ok=df[(df.status=='OK') & (df.stable_subluminal==True)].copy()
           if ok.empty:
               raise SystemExit('No stable subluminal candidates in joint screen')
@@ -396,14 +397,14 @@ jobs:
           keep=set()
           for col in ['joint_pp','joint_union3','joint_desy5','delta_planck']:
               for x in ok.nsmallest(4,col)['id']: keep.add(x)
-          current=ok[np.isclose(ok.Dfloor,0.022)]
+          current=ok[(np.isclose(ok.lambda_e,18.25))&(np.isclose(ok.z_t,19.20))]
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
-          shortlist.to_csv(OUT/'r032_floor_wide_lite_shortlist.csv',index=False)
-          print('FLOOR_WIDE_LITE_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
-          print('FLOOR_WIDE_LITE_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
-          print('FLOOR_WIDE_LITE_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
-          print('FLOOR_WIDE_LITE_SHORTLIST',shortlist[['id','AF','zc','width','Dfloor','D0','delta_planck',
+          shortlist.to_csv(OUT/'r032_lambda_zt_sn_lite_shortlist.csv',index=False)
+          print('LAMBDA_ZT_LITE_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
+          print('LAMBDA_ZT_LITE_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
+          print('LAMBDA_ZT_LITE_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
+          print('LAMBDA_ZT_LITE_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
@@ -412,8 +413,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-floor-wide-lite
+          name: sdmc-r032-lambda-zt-sn-lite
           path: |
-            output/joint_screen/r032_floor_wide_lite.csv
-            output/joint_screen/r032_floor_wide_lite_shortlist.csv
+            output/joint_screen/r032_lambda_zt_sn_lite.csv
+            output/joint_screen/r032_lambda_zt_sn_lite_shortlist.csv
           if-no-files-found: warn
