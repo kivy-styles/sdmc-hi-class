@@ -51,25 +51,25 @@ jobs:
       - name: Download only six official DESI DR1 full-shape likelihood files
         run: |
           mkdir -p desi_likelihood
-          python3 - <<'PY'
-          from pathlib import Path
-          import requests
-          base="https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood/"
-          names=[
-            "likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5",
-            "likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5",
-            "likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5",
-            "likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5",
-            "likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5",
-            "likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5",
-          ]
-          out=Path("desi_likelihood")
-          for name in names:
-              r=requests.get(base+name,timeout=180)
-              r.raise_for_status()
-              (out/name).write_bytes(r.content)
-              print("DESI_FILE",name,len(r.content),flush=True)
-          PY
+          BASE="https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood/"
+          cat > /tmp/desi_files.txt <<'EOF'
+          likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5
+          likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5
+          likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5
+          likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5
+          likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5
+          likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
+          EOF
+          export BASE
+          cat /tmp/desi_files.txt | xargs -P 6 -I{} bash -c '
+            set -e
+            name="$1"
+            curl --fail --location --retry 5 --retry-all-errors --retry-delay 1 \
+              --connect-timeout 10 --max-time 60 \
+              "$BASE$name" -o "desi_likelihood/$name"
+            test "$(stat -c%s "desi_likelihood/$name")" -gt 100000
+            echo "DESI_FILE $name $(stat -c%s "desi_likelihood/$name")"
+          ' _ {}
 
       - name: Evaluate official DESI DR1 P0 P2 P4 full-shape likelihood
         run: |
