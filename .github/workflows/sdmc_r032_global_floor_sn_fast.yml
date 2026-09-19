@@ -1,0 +1,302 @@
+name: SDMC r032 global-floor fast SN sweep
+
+on:
+  push:
+    branches:
+      - sdmc-r032-global-floor-sn-fast
+  workflow_dispatch:
+
+jobs:
+  sn-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Add corrected independent kinetic model
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          def rep(path,old,new):
+              p=Path(path); s=p.read_text()
+              if new in s:
+                  return
+              if s.count(old)!=1:
+                  raise RuntimeError(f'{path}: anchor count {s.count(old)}')
+              p.write_text(s.replace(old,new,1))
+
+          rep('include/background.h',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip,\n',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_v3_independent_kinetic,\n')
+
+          anchor='''  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          parser='''  if (strcmp(string1,"sdmc_v3_independent_kinetic") == 0) {
+             pba->gravity_model_smg = sdmc_v3_independent_kinetic;
+             pba->field_evolution_smg = _FALSE_;
+             pba->M2_evolution_smg = _FALSE_;
+             flag2=_TRUE_;
+             pba->parameters_2_size_smg = 6;
+             class_read_list_of_doubles("parameters_smg",pba->parameters_2_smg,pba->parameters_2_size_smg);
+             class_test(pba->parameters_2_smg[0] <= 0. || pba->parameters_2_smg[1] <= 0. ||
+                        pba->parameters_2_smg[2] <= 0. || pba->parameters_2_smg[3] <= 0. ||
+                        pba->parameters_2_smg[4] < 0. || pba->parameters_2_smg[5] <= 0., errmsg,
+                        "sdmc_v3_independent_kinetic requires positive AF,zc,width,D0,Dfloor and non-negative p");
+           }
+
+          if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,parser)
+
+          canchor='''  else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          closure=r'''  else if (pba->gravity_model_smg == sdmc_v3_independent_kinetic) {
+            double AF=pba->parameters_2_smg[0];
+            double zc=pba->parameters_2_smg[1];
+            double width=pba->parameters_2_smg[2];
+            double D0=pba->parameters_2_smg[3];
+            double power=pba->parameters_2_smg[4];
+            double Dfloor=pba->parameters_2_smg[5];
+            double N=log(a);
+            double Nc=-log(1.+zc);
+            double x=(N-Nc)/(2.*width);
+            double th=tanh(x);
+            double ch=cosh(x);
+            double sech2=1./(ch*ch);
+            double S=.5*(1.+th);
+            double F=exp(AF*S);
+            double am=AF/(4.*width)*sech2;
+            double bra=-2.*am;
+            double D=Dfloor + D0*pow(S,power);
+            double ak=D-1.5*bra*bra;
+            pvecback[pba->index_bg_kineticity_smg]=ak;
+            pvecback[pba->index_bg_braiding_smg]=bra;
+            pvecback[pba->index_bg_tensor_excess_smg]=0.;
+            pvecback[pba->index_bg_M2_running_smg]=am;
+            pvecback[pba->index_bg_beyond_horndeski_smg]=0.;
+            pvecback[pba->index_bg_delta_M2_smg]=F-1.;
+            pvecback[pba->index_bg_M2_smg]=F;
+          }
+
+          else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          rep('gravity_smg/gravity_models_smg.c',canchor,closure)
+          print('INDEPENDENT_D_MODEL_INSTALLED')
+          PY
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Install SN data
+        run: |
+          rm -rf sn_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+
+      - name: Sweep low-z background against all three SN samples
+        run: |
+          mkdir -p output/sn_fast
+          python3 - <<'PY'
+          from pathlib import Path
+          import math,re,subprocess,textwrap
+          import numpy as np
+          import pandas as pd
+          from scipy.linalg import cho_factor,cho_solve
+
+          OUT=Path('output/sn_fast')
+          DATA=Path('sn_data')
+          AF=0.0715
+          ZC=5.0
+          WIDTH=1.426
+          D0=0.37186615498124764
+          POWER=1.0
+          DFLOOR=0.022
+          LAMBDA_E=18.25
+          ZT=19.20
+
+          A_VALUES=[0.0,0.0025,0.005,0.0075,0.01105624999,0.015,0.0175,0.020,0.025,0.030,0.035,0.040]
+          TAU_VALUES=[0.10,0.12,0.15,0.18,0.22,0.25,0.30,0.35,0.40]
+          candidates=[(A,t) for A in A_VALUES for t in TAU_VALUES]
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values('z')
+
+          def read_cov(path,n):
+              a=np.asarray(np.loadtxt(path),float).reshape(-1)
+              if len(a)==n*n+1 and int(round(a[0]))==n: a=a[1:]
+              if len(a)!=n*n: raise RuntimeError(f'covariance size mismatch {path}: {len(a)} vs {n*n}')
+              return a.reshape(n,n)
+
+          def project_setup(C):
+              cf=cho_factor(C,lower=True,check_finite=False)
+              one=np.ones(C.shape[0]); u=cho_solve(cf,one,check_finite=False)
+              return cf,one,float(one.dot(u))
+
+          def projected_chi2(pack,resid):
+              cf,one,denom=pack
+              y=cho_solve(cf,resid,check_finite=False)
+              return float(resid.dot(y)-(one.dot(y))**2/denom)
+
+          pp=pd.read_csv(DATA/'PantheonPlus/Pantheon+SH0ES.dat',sep=r'\s+',header=0,engine='python')
+          pp_mag=pp['m_b_corr'].to_numpy(float); pp_z=pp['zHD'].to_numpy(float); pp_zh=pp['zHEL'].to_numpy(float)
+          pp_C=read_cov(DATA/'PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov',len(pp_mag))
+          mask=pp_z>0.01
+          pp_mag,pp_z,pp_zh=pp_mag[mask],pp_z[mask],pp_zh[mask]
+          pp_C=pp_C[np.ix_(mask,mask)]; pp_pack=project_setup(pp_C)
+
+          p=DATA/'Union3/lcparam_full.txt'
+          lines=p.read_text().splitlines(); cols=lines[0].removeprefix('#').split()
+          un=pd.read_csv(p,sep=r'\s+',comment='#',names=cols,engine='python')
+          cmap={c.lower():c for c in un.columns}
+          un_mag=un[cmap['mb']].to_numpy(float); un_z=un[cmap['zcmb']].to_numpy(float); un_zh=un_z.copy()
+          un_C=read_cov(DATA/'Union3/mag_covmat.txt',len(un_mag)); un_pack=project_setup(un_C)
+
+          de=pd.read_csv(DATA/'DESY5/DES-SN5YR_HD.csv')
+          cmap={c.lower():c for c in de.columns}
+          de_mag=de[cmap['mu']].to_numpy(float); de_z=de[cmap['zhd']].to_numpy(float); de_zh=de[cmap['zhel']].to_numpy(float)
+          de_err=de[cmap['muerr_final']].to_numpy(float)
+          de_C=read_cov(DATA/'DESY5/covsys_000.txt',len(de_mag))+np.diag(de_err*de_err); de_pack=project_setup(de_C)
+
+          def sn_mu(bg,z,zh):
+              DM=np.interp(z,bg.z,bg['comov. dist.'])
+              DA=DM/(1.+z)
+              return 5.*np.log10((1.+zh)*(1.+z)*DA)
+
+          def scores(bg):
+              return (
+                projected_chi2(pp_pack,pp_mag-sn_mu(bg,pp_z,pp_zh)),
+                projected_chi2(un_pack,un_mag-sn_mu(bg,un_z,un_zh)),
+                projected_chi2(de_pack,de_mag-sn_mu(bg,de_z,de_zh))
+              )
+
+          def ini_sdmc(A,tau,root):
+              As=math.exp(3.076)/1e10
+              return textwrap.dedent(f'''\
+              H0 = 70.8514
+              omega_b = 0.02239952
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = {As:.16e}
+              n_s = 0.964
+              tau_reio = 0.0544
+              Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = 0.003
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_v3_independent_kinetic
+              parameters_smg = {AF}, {ZC}, {WIDTH}, {D0}, {POWER}, {DFLOOR}
+              expansion_model = sdmc_full
+              expansion_smg = 0.7073985893,{LAMBDA_E},{ZT},0.5,{A:.12g},{tau:.12g},0.01951933685,1.5
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+              output_background_smg = 3
+              write background = yes
+              root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              output_verbose = 0
+              ''')
+
+          def ini_lcdm(root):
+              return textwrap.dedent(f'''\
+              H0 = 67.36
+              omega_b = 0.02237
+              omega_cdm = 0.1200
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = 2.10e-9
+              n_s = 0.9649
+              tau_reio = 0.0544
+              write background = yes
+              root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              output_verbose = 0
+              ''')
+
+          lroot=str(OUT/'lcdm_'); lip=OUT/'lcdm.ini'; lip.write_text(ini_lcdm(lroot))
+          cp=subprocess.run(['./class',str(lip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=120)
+          if cp.returncode!=0: raise RuntimeError(cp.stdout[-3000:])
+          lbg=table(lroot+'00_background.dat'); lcdm=scores(lbg)
+          print('SN_FAST_LCDM',lcdm,flush=True)
+
+          rows=[]
+          for i,(A,tau) in enumerate(candidates,1):
+              tag=f'c{i:03d}'
+              root=str(OUT/(tag+'_')); ip=OUT/(tag+'.ini'); ip.write_text(ini_sdmc(A,tau,root))
+              cp=subprocess.run(['./class',str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=120)
+              rec={'id':tag,'A_late':A,'tau_A':tau,'status':'FAIL','returncode':cp.returncode}
+              bgp=Path(root+'00_background.dat')
+              if cp.returncode==0 and bgp.exists():
+                  bg=table(bgp); sn=scores(bg)
+                  m=bg.z<=100
+                  rec.update({
+                    'status':'OK',
+                    'min_D_z100':float(bg.loc[m,'kin (D)'].min()),
+                    'min_cs2_all':float(bg['c_s^2'].min()),
+                    'max_cs2_all':float(bg['c_s^2'].max()),
+                    'delta_pantheonplus':sn[0]-lcdm[0],
+                    'delta_union3':sn[1]-lcdm[1],
+                    'delta_desy5':sn[2]-lcdm[2],
+                  })
+                  rec['global_subluminal']=bool(rec['min_D_z100']>0 and rec['min_cs2_all']>0 and rec['max_cs2_all']<=1.0)
+                  print('SN_FAST_CANDIDATE',rec,flush=True)
+              else:
+                  rec['error']=cp.stdout[-800:]
+                  print('SN_FAST_FAIL',rec,flush=True)
+              rows.append(rec)
+
+          df=pd.DataFrame(rows)
+          df.to_csv(OUT/'global_floor_sn_fast.csv',index=False)
+          ok=df[(df.status=='OK') & (df.global_subluminal==True)].copy()
+          if ok.empty: raise SystemExit('No globally subluminal candidates')
+          current=ok[(np.isclose(ok.A_late,0.01105624999)) & (np.isclose(ok.tau_A,0.25))]
+          print('SN_FAST_CURRENT',current.to_dict('records'),flush=True)
+          print('SN_FAST_BEST_PP',ok.nsmallest(10,'delta_pantheonplus').to_dict('records'),flush=True)
+          print('SN_FAST_BEST_UNION3',ok.nsmallest(10,'delta_union3').to_dict('records'),flush=True)
+          print('SN_FAST_BEST_DESY5',ok.nsmallest(10,'delta_desy5').to_dict('records'),flush=True)
+          PY
+
+      - name: Preserve fast SN sweep
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-global-floor-sn-fast
+          path: output/sn_fast/global_floor_sn_fast.csv
+          if-no-files-found: warn
