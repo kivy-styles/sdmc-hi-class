@@ -1,9 +1,9 @@
-name: SDMC r032 covariant observable gate
+name: SDMC r033 covariant observable gate
 
 on:
   push:
     branches:
-      - sdmc-r032-covariant-gate
+      - sdmc-r033-covariant-gate
   workflow_dispatch:
 
 jobs:
@@ -54,7 +54,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_native_noslip
-          parameters_smg = 0.0715, 5.0, 1.426, 0.1, 0.0001
+          parameters_smg = 0.0715, 4.94, 1.426, 0.1, 0.0001
           expansion_model = sdmc_full
           expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
@@ -110,7 +110,7 @@ jobs:
           Hpa=H*H*h
           X=0.5*H*H
 
-          AF=0.0715; zc=5.0; width=1.426
+          AF=0.0715; zc=4.94; width=1.426
           Nc=-np.log1p(zc)
           xx=(ph-Nc)/(2.*width)
           S=.5*(1.+np.tanh(xx))
@@ -184,7 +184,7 @@ jobs:
               f.write('#ifndef SDMC_COVARIANT_REPLAY_TABLE_H\n#define SDMC_COVARIANT_REPLAY_TABLE_H\n')
               f.write(f'#define SDMC_COV_N {len(ph)}\n')
               f.write('#define SDMC_COV_AF 0.0715\n')
-              f.write('#define SDMC_COV_ZC 5.0\n')
+              f.write('#define SDMC_COV_ZC 4.94\n')
               f.write('#define SDMC_COV_WIDTH 1.426\n')
               f.write('static const double sdmc_cov_x[SDMC_COV_N] = {'+carr(ph)+'};\n')
               for name,sp in splines.items():
@@ -594,7 +594,7 @@ jobs:
           A=float(opt.x)
           ch,ct,ce,cl,cp=pieces(A)
           chi=ch+ct+ce+cl+cp
-          ref=1102.7997273672956
+          ref=1102.6139187512288
           like={
               'A_planck':A,
               'chi2_high':ch,
@@ -782,7 +782,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.0715, 5.0, 1.426, 0.40, 1.0, 0.0001
+          parameters_smg = 0.0715, 4.94, 1.426, 0.40, 1.0, 0.0001
           expansion_model = sdmc_full
           expansion_smg = 0.7073985893,20.0,21.10,0.5,0.01105624999,0.25,0.01951933685,1.5
           pert_initial_conditions_smg = zero
@@ -1103,11 +1103,11 @@ jobs:
           Path('output/fullplik_delta.txt').write_text(f'{delta:.12g}\n')
           PY
 
-      - name: Preserve r032 covariant gate
+      - name: Preserve r033 covariant gate
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-covariant-gate
+          name: sdmc-r033-covariant-gate
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay.ini
