@@ -3,7 +3,7 @@ name: SDMC r032 background A raw DESI
 on:
   push:
     branches:
-      - sdmc-r032-background-A-desi
+      - sdmc-r032-zt18-desi
   workflow_dispatch:
 
 jobs:
@@ -164,13 +164,10 @@ jobs:
           zpk=(out/'desi_zpk.txt').read_text().strip()
           As=math.exp(3.076)/1e10
           candidates=[
-              ('a000',0.0,0.25),
-              ('a005_018',0.005,0.18),
-              ('a005_012',0.005,0.12),
-              ('acur_018',0.01105624999,0.18),
-              ('acurrent',0.01105624999,0.25),
+              ('zt18',18.0),
+              ('base',21.10),
           ]
-          for cid,A_late,tau_A in candidates:
+          for cid,z_t in candidates:
               root=f'output/desi_{cid}_'
               ini=textwrap.dedent(f'''\
               H0 = 70.8514
@@ -192,7 +189,7 @@ jobs:
               gravity_model = sdmc_v3_independent_kinetic
               parameters_smg = 0.0715, 5.00, 1.426, 0.40, 1.0, 0.0001
               expansion_model = sdmc_full
-              expansion_smg = 0.7073985893,20.0,21.10,0.5,{A_late},{tau_A},0.01951933685,1.5
+              expansion_smg = 0.7073985893,20.0,{z_t},0.5,0.01105624999,0.25,0.01951933685,1.5
               pert_initial_conditions_smg = zero
               method_qs_smg = fully_dynamic
               gauge = synchronous
@@ -338,26 +335,14 @@ jobs:
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
           candidate_meta={
-            'a000':dict(AF=0.0715,zc=5.00,width=1.426,A_late=0.0,tau_A=0.25,
-                        delta_planck=59.97299823678554,
-                        delta_pp=5.127249151002616,delta_union3=4.509335324866697,
-                        delta_desy5=10.603233560919762),
-            'a005_018':dict(AF=0.0715,zc=5.00,width=1.426,A_late=0.005,tau_A=0.18,
-                        delta_planck=60.07804352275889,
-                        delta_pp=5.006004123482853,delta_union3=4.43681742073386,
-                        delta_desy5=10.377242855727673),
-            'a005_012':dict(AF=0.0715,zc=5.00,width=1.426,A_late=0.005,tau_A=0.12,
-                        delta_planck=60.01721557137557,
-                        delta_pp=5.082158910110593,delta_union3=4.501496454671724,
-                        delta_desy5=10.517482243478298),
-            'acur_018':dict(AF=0.0715,zc=5.00,width=1.426,A_late=0.01105624999,tau_A=0.18,
-                        delta_planck=60.31055925261535,
-                        delta_pp=4.862451034132391,delta_union3=4.3498524534225,
-                        delta_desy5=10.106108404695988),
-            'acurrent':dict(AF=0.0715,zc=5.00,width=1.426,A_late=0.01105624999,tau_A=0.25,
-                        delta_planck=60.759132627605595,
-                        delta_pp=4.667266171891242,delta_union3=4.192445770910126,
-                        delta_desy5=9.7708680331707),
+            'zt18':dict(AF=0.0715,zc=5.00,width=1.426,z_t=18.0,
+                        delta_planck=53.629830598087665,
+                        delta_pp=4.667245076037943,delta_union3=4.192425503948471,
+                        delta_desy5=9.770827561616898),
+            'base':dict(AF=0.0715,zc=5.00,width=1.426,z_t=21.10,
+                        delta_planck=60.759132627606505,
+                        delta_pp=4.667266171891242,delta_union3=4.1924457710265415,
+                        delta_desy5=9.770868048071861),
           }
           models={cid:model_data(f'desi_{cid}',70.8514,0.02239952,0.12444227328918850,0.964)
                   for cid in candidate_meta}
@@ -536,7 +521,7 @@ jobs:
               meta=candidate_meta[cid]
               ddesi=chi-lcdmchi
               rec=dict(id=cid,AF=meta['AF'],zc=meta['zc'],width=meta['width'],
-                       A_late=meta['A_late'],tau_A=meta['tau_A'],
+                       z_t=meta['z_t'],
                        desi_chi2=chi,lcdm_desi_chi2=lcdmchi,delta_desi=ddesi,
                        delta_planck=meta['delta_planck'],
                        delta_pantheonplus=meta['delta_pp'],
@@ -547,24 +532,24 @@ jobs:
               rec['joint_union3']=rec['joint_planck_desi']+rec['delta_union3']
               rec['joint_desy5']=rec['joint_planck_desi']+rec['delta_desy5']
               summary.append(rec)
-              print('BACKGROUND_A_DESI_CANDIDATE',rec,flush=True)
+              print('ZT18_DESI_CANDIDATE',rec,flush=True)
           sdf=pd.DataFrame(summary)
-          sdf.to_csv(OUT/'r032_background_A_desi_summary.csv',index=False)
-          pd.DataFrame(allrows).to_csv(OUT/'r032_background_A_desi_blocks.csv',index=False)
-          print('BACKGROUND_A_DESI_BEST_PLANCK_DESI',sdf.nsmallest(4,'joint_planck_desi').to_dict('records'),flush=True)
-          print('BACKGROUND_A_DESI_BEST_PP',sdf.nsmallest(4,'joint_pp').to_dict('records'),flush=True)
-          print('BACKGROUND_A_DESI_BEST_UNION3',sdf.nsmallest(4,'joint_union3').to_dict('records'),flush=True)
-          print('BACKGROUND_A_DESI_BEST_DESY5',sdf.nsmallest(4,'joint_desy5').to_dict('records'),flush=True)
+          sdf.to_csv(OUT/'r032_zt18_desi_summary.csv',index=False)
+          pd.DataFrame(allrows).to_csv(OUT/'r032_zt18_desi_blocks.csv',index=False)
+          print('ZT18_DESI_BEST_PLANCK_DESI',sdf.nsmallest(4,'joint_planck_desi').to_dict('records'),flush=True)
+          print('ZT18_DESI_BEST_PP',sdf.nsmallest(4,'joint_pp').to_dict('records'),flush=True)
+          print('ZT18_DESI_BEST_UNION3',sdf.nsmallest(4,'joint_union3').to_dict('records'),flush=True)
+          print('ZT18_DESI_BEST_DESY5',sdf.nsmallest(4,'joint_desy5').to_dict('records'),flush=True)
           PY
 
       - name: Preserve r032 background A DESI
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-background-A-desi
+          name: sdmc-r032-zt18-desi
           path: |
-            output/r032_background_A_desi_summary.csv
-            output/r032_background_A_desi_blocks.csv
+            output/r032_zt18_desi_summary.csv
+            output/r032_zt18_desi_blocks.csv
             output/desi_zeff.json
             output/desi_zpk.txt
           if-no-files-found: warn
