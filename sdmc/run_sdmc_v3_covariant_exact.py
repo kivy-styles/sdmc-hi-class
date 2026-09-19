@@ -78,12 +78,17 @@ for arr,name in [(K,"K"),(Y,"Y"),(U,"U"),(q,"q")]:
     if not np.all(np.isfinite(arr)):
         raise RuntimeError(f"nonfinite {name}")
 
-nk=min(1200,len(N))
-grid=np.linspace(N[0],N[-1],nk)
+# Preserve the complete native target grid.  The earlier 1200-node
+# uniform compression introduced percent-level errors in second derivatives
+# near the low-z end even though the underlying all-node reconstruction closed
+# the covariant equations to ~1e-5 or better.  Since the free field evolution
+# is sensitive to those derivatives, use the original monotonic N nodes
+# directly rather than resampling the reconstructed action.
+nk=len(N)
+grid=N.copy()
 spl={}
 for name,val in [("K",K),("Y",Y),("U",U),("QX",q)]:
-    s=CubicSpline(N,val,bc_type="natural")
-    spl[name]=CubicSpline(grid,s(grid),bc_type="natural")
+    spl[name]=CubicSpline(grid,val,bc_type="natural")
 
 def carr(x):
     return ",".join(f"{v:.17e}" for v in np.asarray(x).ravel())
