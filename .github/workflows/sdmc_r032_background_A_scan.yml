@@ -1,9 +1,9 @@
-name: SDMC r032 low-z A background scan
+name: SDMC r032 globally-subluminal SN background rescan
 
 on:
   push:
     branches:
-      - sdmc-r032-background-A-scan
+      - sdmc-r032-global-floor-sn-rescan
   workflow_dispatch:
 
 jobs:
@@ -144,17 +144,17 @@ jobs:
           lens=LensingNative(packages_path='planck_packages')
 
           # Corrected independent kinetic closure held fixed.
-          D0=0.40
+          D0=0.37186615498124764
           POWER=1.0
-          DFLOOR=1e-4
+          DFLOOR=0.022
 
           # First local cube around the validated covariant point.
           # r032 gravity and the validated negative late term are fixed.
           # Scan the short-lived positive +A z exp(-z/tau_A) profile.
-          A_LATE_VALUES=[0.005,0.01105624999,0.0175,0.025]
-          TAUA_VALUES=[0.12,0.18,0.25,0.35,0.50]
+          A_LATE_VALUES=[0.0,0.0025,0.005,0.0075,0.01105624999,0.015,0.0175,0.020,0.025]
+          TAUA_VALUES=[0.10,0.12,0.15,0.18,0.22,0.25,0.30]
           candidates=[(A,tA) for A in A_LATE_VALUES for tA in TAUA_VALUES]
-          candidates.append((0.0,0.25))
+          # current validated low-z term is already included above
 
           # ---------- shared table helpers ----------
           def table(path):
@@ -280,7 +280,7 @@ jobs:
               gravity_model = sdmc_v3_independent_kinetic
               parameters_smg = 0.0715, 5.00, 1.426, {D0}, {POWER}, {DFLOOR}
               expansion_model = sdmc_full
-              expansion_smg = 0.7073985893,20.0,21.10,0.5,{A_late:.12g},{tau_A:.12g},0.01951933685,1.5
+              expansion_smg = 0.7073985893,18.25,19.20,0.5,{A_late:.12g},{tau_A:.12g},0.01951933685,1.5
               pert_initial_conditions_smg = zero
               method_qs_smg = fully_dynamic
               output_background_smg = 3
@@ -364,6 +364,7 @@ jobs:
                     'max_cs2_z100':float(bg.loc[m,'c_s^2'].max()),
                     'min_D_all':float(bg['kin (D)'].min()),
                     'min_cs2_all':float(bg['c_s^2'].min()),
+                    'max_cs2_all':float(bg['c_s^2'].max()),
                     'max_abs_noslip_z100':float(np.max(np.abs(
                         bg.loc[m,'braiding_smg']+2*bg.loc[m,'M2_running_smg']))),
                   })
@@ -383,16 +384,16 @@ jobs:
                   rec['joint_pp']=rec['delta_planck']+rec['delta_pantheonplus']
                   rec['joint_union3']=rec['delta_planck']+rec['delta_union3']
                   rec['joint_desy5']=rec['delta_planck']+rec['delta_desy5']
-                  stable=(rec['min_D_z100']>0 and rec['min_cs2_z100']>0 and rec['max_cs2_z100']<=1.0)
+                  stable=(rec['min_D_z100']>0 and rec['min_cs2_all']>0 and rec['max_cs2_all']<=1.0)
                   rec['stable_subluminal']=bool(stable)
-                  print('BACKGROUND_A_CANDIDATE',rec,flush=True)
+                  print('GLOBAL_SN_RESCAN_CANDIDATE',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('BACKGROUND_A_CANDIDATE_FAIL',rec,flush=True)
+                  print('GLOBAL_SN_RESCAN_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
-          df.to_csv(OUT/'r032_background_A_scan.csv',index=False)
+          df.to_csv(OUT/'r032_global_floor_sn_rescan.csv',index=False)
           ok=df[(df.status=='OK') & (df.stable_subluminal==True)].copy()
           if ok.empty:
               raise SystemExit('No stable subluminal candidates in joint screen')
@@ -405,11 +406,11 @@ jobs:
           current=ok[(np.isclose(ok.A_late,0.01105624999))&(np.isclose(ok.tau_A,0.25))]
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
-          shortlist.to_csv(OUT/'r032_background_A_shortlist.csv',index=False)
-          print('BACKGROUND_A_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
-          print('BACKGROUND_A_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
-          print('BACKGROUND_A_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
-          print('BACKGROUND_A_SHORTLIST',shortlist[['id','AF','zc','width','A_late','tau_A','delta_planck',
+          shortlist.to_csv(OUT/'r032_global_floor_sn_shortlist.csv',index=False)
+          print('GLOBAL_SN_RESCAN_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
+          print('GLOBAL_SN_RESCAN_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
+          print('GLOBAL_SN_RESCAN_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
+          print('GLOBAL_SN_RESCAN_SHORTLIST',shortlist[['id','AF','zc','width','A_late','tau_A','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
@@ -418,8 +419,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-background-A-scan
+          name: sdmc-r032-global-floor-sn-rescan
           path: |
-            output/joint_screen/r032_background_A_scan.csv
-            output/joint_screen/r032_background_A_shortlist.csv
+            output/joint_screen/r032_global_floor_sn_rescan.csv
+            output/joint_screen/r032_global_floor_sn_shortlist.csv
           if-no-files-found: warn
