@@ -1,9 +1,9 @@
-name: SDMC r032 globally subluminal floor full Plik
+name: SDMC r032 core kinetic-floor full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-global-floor-full-plik
+      - sdmc-r032-global-floor-core-full-plik
   workflow_dispatch:
 
 jobs:
@@ -153,10 +153,9 @@ jobs:
           # (lambda_e,z_t,DeltaN_bg)=(18.25,19.2,0.5).  D0 is adjusted
           # with Dfloor so that the present-day D is held fixed.
           cases={
-            'F02013':(0.3742684513367302,0.02013),
-            'F02050':(0.37379313066746356,0.02050),
-            'F02100':(0.3731508054387249,0.02100),
-            'F02200':(0.37186615498124764,0.02200),
+            'F02225':(0.3715449923668783,0.02225),
+            'F02250':(0.371223829752509,0.02250),
+            'F02275':(0.3709026671381397,0.02275),
           }
           for name,(d0,dfloor) in cases.items():
               root=f'input_artifact/unpacked/{name}_'
@@ -166,7 +165,7 @@ jobs:
                   f'root = {root}\n')
               Path(f'input_artifact/unpacked/{name}.ini').write_text(txt)
           PY
-          for C in F02013 F02050 F02100 F02200; do
+          for C in F02225 F02250 F02275; do
             ./class input_artifact/unpacked/$C.ini
             test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
           done
@@ -337,23 +336,23 @@ jobs:
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,displaced])
           lcdm['delta_vs_lcdm']=0.0
           rows=[lcdm]
-          for label in ['F02013','F02050','F02100','F02200']:
+          for label in ['F02225','F02250','F02275']:
               row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
               row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
               rows.append(row)
-              print('GLOBAL_FLOOR_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
+              print('CORE_FLOOR_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
           fields=list(rows[0].keys())
-          with (OUT/'global_floor_fullplik_profile.csv').open('w',newline='') as f:
+          with (OUT/'core_floor_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
           best=min(rows[1:],key=lambda r:r['chi2_profile_total'])
-          (OUT/'global_floor_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
-          print('GLOBAL_FLOOR_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
+          (OUT/'core_floor_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
+          print('CORE_FLOOR_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
           PY
 
       - name: Preserve fast profile
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-global-floor-full-plik-profile
+          name: sdmc-r032-core-floor-full-plik-profile
           path: output/*
           if-no-files-found: warn
