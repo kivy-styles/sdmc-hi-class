@@ -1,9 +1,9 @@
-name: SDMC r032 lower-background threshold-floor full Plik
+name: SDMC r032 L17.50 Z18.0 safe-floor wide full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-lower-floor-threshold-full-plik
+      - sdmc-r032-l1750-floor-wide-full-plik
   workflow_dispatch:
 
 jobs:
@@ -153,10 +153,11 @@ jobs:
           # (lambda_e,z_t,DeltaN_bg)=(18.25,19.2,0.5).  D0 is adjusted
           # with Dfloor so that the present-day D is held fixed.
           cases={
-            'CUR':(0.37186615498124764,0.02200,18.25,19.20),
-            'L1775Z188_F0252':(0.36775527351732040,0.02520,17.75,18.80),
-            'L1750Z180_F0305':(0.36094662609269085,0.03050,17.50,18.00),
-            'L1725Z180_F0320':(0.35901965040647493,0.03200,17.25,18.00),
+            'L1750Z180_F0304':(0.36107509113843855,0.03040,17.50,18.00),
+            'L1750Z180_F0325':(0.35837732517773624,0.03250,17.50,18.00),
+            'L1750Z180_F0350':(0.35516569903404310,0.03500,17.50,18.00),
+            'L1750Z180_F0450':(0.34231919445927034,0.04500,17.50,18.00),
+            'L1750Z180_F0500':(0.33589594217188395,0.05000,17.50,18.00),
           }
           for name,(d0,dfloor,lambda_e,z_t) in cases.items():
               root=f'input_artifact/unpacked/{name}_'
@@ -166,7 +167,7 @@ jobs:
                   f'root = {root}\n')
               Path(f'input_artifact/unpacked/{name}.ini').write_text(txt)
           PY
-          for C in CUR L1775Z188_F0252 L1750Z180_F0305 L1725Z180_F0320; do
+          for C in L1750Z180_F0304 L1750Z180_F0325 L1750Z180_F0350 L1750Z180_F0450 L1750Z180_F0500; do
             ./class input_artifact/unpacked/$C.ini
             test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
           done
@@ -337,17 +338,17 @@ jobs:
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,displaced])
           lcdm['delta_vs_lcdm']=0.0
           rows=[lcdm]
-          for label in ['CUR','L1775Z188_F0252','L1750Z180_F0305','L1725Z180_F0320']:
+          for label in ['L1750Z180_F0304','L1750Z180_F0325','L1750Z180_F0350','L1750Z180_F0450','L1750Z180_F0500']:
               row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
               row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
               rows.append(row)
-              print('GLOBAL_FLOOR_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
+              print('L1750_FLOOR_WIDE_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
           fields=list(rows[0].keys())
           with (OUT/'global_floor_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
           best=min(rows[1:],key=lambda r:r['chi2_profile_total'])
           (OUT/'global_floor_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
-          print('GLOBAL_FLOOR_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
+          print('L1750_FLOOR_WIDE_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
           PY
 
       - name: Preserve fast profile
