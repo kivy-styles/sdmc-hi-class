@@ -1,9 +1,9 @@
-name: SDMC r032 fast full Plik nuisance profile
+name: SDMC r032 low-A full Plik profile
 
 on:
   push:
     branches:
-      - sdmc-r032-fast-full-plik
+      - sdmc-r032-lowA-full-plik
   workflow_dispatch:
 
 jobs:
@@ -108,52 +108,64 @@ jobs:
           PY
           make clean && make -j2 class
           mkdir -p input_artifact/unpacked
-          cat > input_artifact/unpacked/r032.ini <<'EOF'
-          H0 = 70.8514
-          omega_b = 0.02239952
-          omega_cdm = 0.12444227328918850
-          N_ncdm = 0
-          N_ur = 3.046
-          T_cmb = 2.7255
-          YHe = 0.2453
-          A_s = 2.16715426219737e-9
-          n_s = 0.964
-          tau_reio = 0.0544
-          Omega_Lambda = 0
-          Omega_fld = 3.1443554e-8
-          fluid_equation_of_state = SDMC_TRACKER
-          cs2_fld = 0.003
-          use_ppf = no
-          Omega_smg = -1
-          gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.0715, 5.0, 1.426, 0.40, 1.0, 0.0001
-          expansion_model = sdmc_full
-          expansion_smg = 0.7073985893,20.0,21.10,0.5,0.01105624999,0.25,0.01951933685,1.5
-          pert_initial_conditions_smg = zero
-          method_qs_smg = fully_dynamic
-          a_ini_over_a_today_default = 1.e-8
-          a_ini_test_qs_smg = 1.e-8
-          pert_ic_ini_z_ref_smg = 1.e7
-          a_min_stability_test_smg = 1.e-8
-          modes = s
-          output = tCl,pCl,lCl
-          lensing = yes
-          l_max_scalars = 3000
-          root = input_artifact/unpacked/covariant_observable_
-          format = class
-          input_verbose = 0
-          background_verbose = 0
-          thermodynamics_verbose = 0
-          perturbations_verbose = 0
-          spectra_verbose = 0
-          lensing_verbose = 0
-          output_verbose = 0
-          EOF
-          ./class input_artifact/unpacked/r032.ini
+          python3 - <<'PY'
+          from pathlib import Path
+          base='''H0 = 70.8514
+omega_b = 0.02239952
+omega_cdm = 0.12444227328918850
+N_ncdm = 0
+N_ur = 3.046
+T_cmb = 2.7255
+YHe = 0.2453
+A_s = 2.16715426219737e-9
+n_s = 0.964
+tau_reio = 0.0544
+Omega_Lambda = 0
+Omega_fld = 3.1443554e-8
+fluid_equation_of_state = SDMC_TRACKER
+cs2_fld = 0.003
+use_ppf = no
+Omega_smg = -1
+gravity_model = sdmc_v3_independent_kinetic
+parameters_smg = 0.0715, 5.0, 1.426, 0.40, 1.0, 0.0001
+expansion_model = sdmc_full
+pert_initial_conditions_smg = zero
+method_qs_smg = fully_dynamic
+a_ini_over_a_today_default = 1.e-8
+a_ini_test_qs_smg = 1.e-8
+pert_ic_ini_z_ref_smg = 1.e7
+a_min_stability_test_smg = 1.e-8
+modes = s
+output = tCl,pCl,lCl
+lensing = yes
+l_max_scalars = 3000
+format = class
+input_verbose = 0
+background_verbose = 0
+thermodynamics_verbose = 0
+perturbations_verbose = 0
+spectra_verbose = 0
+lensing_verbose = 0
+output_verbose = 0
+'''
+          cases={
+            'current':(0.01105624999,0.25),
+            'a000_t025':(0.0,0.25),
+            'a005_t012':(0.005,0.12),
+            'a005_t018':(0.005,0.18),
+          }
+          for name,(A,tA) in cases.items():
+              root=f'input_artifact/unpacked/{name}_'
+              txt=base+f'expansion_smg = 0.7073985893,20.0,21.10,0.5,{A},{tA},0.01951933685,1.5\nroot = {root}\n'
+              Path(f'input_artifact/unpacked/{name}.ini').write_text(txt)
+          PY
+          for C in current a000_t025 a005_t012 a005_t018; do
+            ./class input_artifact/unpacked/$C.ini
+            test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
+          done
           sed 's#root = output/sdmc_planck_lcdm_control_#root = input_artifact/unpacked/fullplik_lcdm_#' \
             sdmc/config/planck_lcdm_control.ini > input_artifact/unpacked/lcdm.ini
           ./class input_artifact/unpacked/lcdm.ini
-          test -f input_artifact/unpacked/covariant_observable_00_cl_lensed.dat
           test -f input_artifact/unpacked/fullplik_lcdm_00_cl_lensed.dat
 
       - name: Profile full Plik with Minuit
@@ -315,20 +327,26 @@ jobs:
 
           default=np.asarray(x0,float)
           displaced=default.copy(); displaced[3]=80.; displaced[5]=5.; displaced[6]=2.
-          cov,cx=run_one('COVARIANT',ROOT/'covariant_observable_00_cl_lensed.dat',[default,displaced])
-          lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,cx])
-          delta=cov['chi2_profile_total']-lcdm['chi2_profile_total']
-          print('FAST_FULL_PLIK_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
-          fields=list(cov.keys())
-          with (OUT/'fast_fullplik_profile.csv').open('w',newline='') as f:
-              w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows([cov,lcdm])
-          (OUT/'fast_fullplik_delta.txt').write_text(f'{delta:.12g}\n')
+          lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,displaced])
+          lcdm['delta_vs_lcdm']=0.0
+          rows=[lcdm]
+          for label in ['current','a000_t025','a005_t012','a005_t018']:
+              row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
+              row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
+              rows.append(row)
+              print('LOWA_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
+          fields=list(rows[0].keys())
+          with (OUT/'lowA_fullplik_profile.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
+          best=min(rows[1:],key=lambda r:r['chi2_profile_total'])
+          (OUT/'lowA_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
+          print('LOWA_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
           PY
 
       - name: Preserve fast profile
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-fast-full-plik-profile
+          name: sdmc-r032-lowA-full-plik-profile
           path: output/*
           if-no-files-found: warn
