@@ -3,7 +3,7 @@ name: SDMC r032 direct covariant DESI full-shape gate
 on:
   push:
     branches:
-      - sdmc-r032-l18-z195-covariant-desi
+      - sdmc-r032-l18p25-z19p2-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
           gravity_model = sdmc_v3_native_noslip
           parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893, 18.0, 19.5, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.7073985893, 18.25, 19.2, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
           skip_stability_tests_smg = yes
           write background = yes
@@ -231,8 +231,8 @@ jobs:
             double B = pba->parameters_smg[6];
             double tauB = pba->parameters_smg[7];'''
           new='''  double Ox = 0.7073985893;
-            double lambda_e = 18.0;
-            double zt = 19.5;
+            double lambda_e = 18.25;
+            double zt = 19.2;
             double dNt = 0.5;
             double A = 0.01105624999;
             double tauA = 0.25;
