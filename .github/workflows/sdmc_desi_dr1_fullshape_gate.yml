@@ -1,9 +1,9 @@
-name: SDMC r032 L17.50 Z18.0 floor045 covariant DESI full-shape gate
+name: SDMC r032 L17.50 Z17.8 floor045 covariant DESI full-shape gate
 
 on:
   push:
     branches:
-      - sdmc-r032-l1750-z180-floor045-covariant-desi
+      - sdmc-r032-l1750-z178-floor045-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
           gravity_model = sdmc_v3_native_noslip
           parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893, 17.50, 18.0, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.7073985893, 17.50, 17.8, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
           skip_stability_tests_smg = yes
           write background = yes
@@ -232,7 +232,7 @@ jobs:
             double tauB = pba->parameters_smg[7];'''
           new='''  double Ox = 0.7073985893;
             double lambda_e = 17.50;
-            double zt = 18.0;
+            double zt = 17.8;
             double dNt = 0.5;
             double A = 0.01105624999;
             double tauA = 0.25;
@@ -454,7 +454,7 @@ jobs:
             'F0':float(c['M*^2_smg'][np.argmin(np.abs(zc))]),
             'alphaM0':float(c['M2_running_smg'][np.argmin(np.abs(zc))]),
           }
-          print('L1750_Z180_FLOOR045_COVARIANT_DESI_REPLAY_COMPARISON',out)
+          print('L1750_Z178_FLOOR045_COVARIANT_DESI_REPLAY_COMPARISON',out)
           with open('output/covariant_replay_comparison.csv','w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=out.keys()); w.writeheader(); w.writerow(out)
           PY
@@ -864,7 +864,7 @@ jobs:
           covrows,covchi=profile_model('COVARIANT',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('L1750_Z180_FLOOR045_COVARIANT_DESI_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
+          print('L1750_Z178_FLOOR045_COVARIANT_DESI_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
