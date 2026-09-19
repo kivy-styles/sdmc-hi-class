@@ -359,6 +359,8 @@ jobs:
                     'max_cs2_z100':float(bg.loc[m,'c_s^2'].max()),
                     'min_D_all':float(bg['kin (D)'].min()),
                     'min_cs2_all':float(bg['c_s^2'].min()),
+                    'max_cs2_all':float(bg['c_s^2'].max()),
+                    'z_at_max_cs2_all':float(bg.loc[bg['c_s^2'].idxmax(),'z']),
                     'max_abs_noslip_z100':float(np.max(np.abs(
                         bg.loc[m,'braiding_smg']+2*bg.loc[m,'M2_running_smg']))),
                   })
@@ -378,12 +380,12 @@ jobs:
                   rec['joint_pp']=rec['delta_planck']+rec['delta_pantheonplus']
                   rec['joint_union3']=rec['delta_planck']+rec['delta_union3']
                   rec['joint_desy5']=rec['delta_planck']+rec['delta_desy5']
-                  stable=(rec['min_D_z100']>0 and rec['min_cs2_z100']>0 and rec['max_cs2_z100']<=1.0)
+                  stable=(rec['min_D_all']>0 and rec['min_cs2_all']>0 and rec['max_cs2_all']<=1.0)
                   rec['stable_subluminal']=bool(stable)
-                  print('LOWER_LZT_F0225_CANDIDATE',rec,flush=True)
+                  print('LOWER_LZT_F0225_GLOBAL_CANDIDATE',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('LOWER_LZT_F0225_FAIL',rec,flush=True)
+                  print('LOWER_LZT_F0225_GLOBAL_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
@@ -401,10 +403,10 @@ jobs:
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
           shortlist.to_csv(OUT/'r032_lambda_zt_sn_lite_shortlist.csv',index=False)
-          print('LOWER_LZT_F0225_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
-          print('LOWER_LZT_F0225_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
-          print('LOWER_LZT_F0225_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
-          print('LOWER_LZT_F0225_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
+          print('LOWER_LZT_F0225_GLOBAL_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
+          print('LOWER_LZT_F0225_GLOBAL_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
+          print('LOWER_LZT_F0225_GLOBAL_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
+          print('LOWER_LZT_F0225_GLOBAL_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
