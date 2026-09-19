@@ -1,0 +1,223 @@
+name: SDMC DESI full-shape decomposition
+
+on:
+  push:
+    branches:
+      - sdmc-desi-decomposition
+  workflow_dispatch:
+
+jobs:
+  decompose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install DESI theory stack
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw cobaya
+          python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
+          python3 -m pip install git+https://github.com/adematti/lsstypes.git
+          python3 -m pip install git+https://github.com/sfschen/velocileptors.git
+          git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
+
+      - name: Download six official DESI likelihood blocks
+        run: |
+          mkdir -p desi_likelihood
+          BASE=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          for FN in \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
+          do
+            curl -L --fail --retry 3 -o "desi_likelihood/$FN" "$BASE/$FN"
+          done
+
+      - name: Download successful covariant and LCDM transfer artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p input_artifact
+          gh api -H "Accept: application/vnd.github+json" \
+            /repos/$GITHUB_REPOSITORY/actions/artifacts/10585330670/zip \
+            > input_artifact/artifact.zip
+          unzip -q input_artifact/artifact.zip -d input_artifact/unpacked
+          find input_artifact/unpacked -type f | sort | sed -n '1,160p'
+
+      - name: Decompose geometry versus clustering sector
+        run: |
+          mkdir -p output
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys,re,json
+          import numpy as np
+          import pandas as pd
+          from scipy.interpolate import interp1d
+          from scipy.optimize import minimize
+          sys.path.insert(0,'desi-kp-cosmological-likelihoods/dr1/cobaya')
+          import lsstypes as types
+          from cosmoprimo import PowerSpectrumInterpolator1D,PowerSpectrumBAOFilter,Cosmology
+          from cosmoprimo.fiducial import DESI
+          from velocileptors.EPT.ept_fullresum_varyDz_nu_fftw import REPT
+          from desi_fs_bao_all import list_zrange,dataset_fn,get_tracer_label,get_physical_stochastic_settings
+
+          ROOT=Path('input_artifact/unpacked')
+          def one(name):
+              q=list(ROOT.rglob(name))
+              if len(q)!=1: raise RuntimeError((name,q))
+              return q[0]
+          records=json.loads(one('desi_zeff.json').read_text())
+          zvals=[0.0]+sorted({float(r['zeff']) for r in records})
+          z_to_i={round(z,8):i+1 for i,z in enumerate(zvals)}
+
+          def tab(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+
+          def rd_from(prefix,bg):
+              th=tab(one(f'{prefix}_00_thermodynamics.dat')).sort_values('z')
+              zz=th.z.to_numpy(); kb=th.kappa_b.to_numpy(); cross=[]
+              for i in range(len(zz)-1):
+                  if (kb[i]-1)*(kb[i+1]-1)<=0 and kb[i]!=kb[i+1]:
+                      q=(1-kb[i])/(kb[i+1]-kb[i]); cross.append(zz[i]+q*(zz[i+1]-zz[i]))
+              if not cross: raise RuntimeError('drag crossing')
+              zd=float(cross[0]); rd=float(np.interp(zd,bg.z,bg['comov.snd.hrz.']))
+              return rd
+
+          def model(prefix,H0,ob,oc,ns):
+              h=H0/100.; fb=ob/(ob+oc); fc=1-fb
+              bg=tab(one(f'{prefix}_00_background.dat')).sort_values('z')
+              rd=rd_from(prefix,bg); series={}
+              for z in zvals:
+                  i=z_to_i[round(z,8)]
+                  pk=np.loadtxt(one(f'{prefix}_00_z{i}_pk.dat'))
+                  tk=tab(one(f'{prefix}_00_z{i}_tk.dat'))
+                  kh=tk['k (h/Mpc)'].to_numpy(); dm=tk['d_m'].to_numpy()
+                  tb=tk['t_b'].to_numpy(); hp=tk['h_prime'].to_numpy(); ep=tk['eta_prime'].to_numpy()
+                  shift=.5*(hp+6*ep); a=1/(1+z)
+                  H=float(np.interp(z,bg.z,bg['H [1/Mpc]'])); Hc=a*H
+                  vb=-(tb+shift)/Hc; vc=-shift/Hc; vcb=fb*vb+fc*vc
+                  ratio=np.divide(vcb,dm,out=np.zeros_like(vcb),where=np.abs(dm)>1e-300)
+                  kpk=pk[:,0]; Pdd=pk[:,1]; rv=np.interp(kpk,kh,ratio); Ptt=Pdd*rv**2
+                  series[z]=(kpk,Pdd,Ptt)
+              return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,ns=ns,bg=bg,rd=rd,series=series)
+
+          cov=model('desi_cov',70.8514,0.02239952,0.12444227328918850,0.964)
+          lcd=model('desi_lcdm',67.36,0.02237,0.1200,0.9649)
+
+          blocks=[]
+          for tracer,iz,zrange in list_zrange:
+              if 'lya' in tracer.lower(): continue
+              fn=dataset_fn('desi_likelihood',tracer,zrange,observable_name='spectrum-poles-rotated')
+              d=types.read(fn); sp=d.observable.get('spectrum')
+              th=d.window.theory.get('spectrum'); kin=np.asarray(th.get(0).coords('k'),float)
+              win=d.window.at.observable.get('spectrum').at.theory.get('spectrum').value()
+              blocks.append(dict(tracer=tracer,namespace=f'{get_tracer_label(tracer)}_z{iz}',
+                                 zeff=float(sp.attrs['zeff']),data=sp.value(),
+                                 precision=np.linalg.inv(d.covariance.value()),
+                                 window=win,kin=kin,
+                                 shotnoise=float(np.mean(sp.get(0).values('shotnoise')))))
+          kobs=blocks[0]['kin']; fid=DESI(engine='camb')
+          starts={'BGS_z0':(1.11348,0.660148,-0.223088),'LRG_z0':(1.1351,-0.139101,-0.910397),
+                  'LRG_z1':(1.22446,-0.671727,-0.22624),'LRG_z2':(1.04564,-0.493139,-0.24021),
+                  'ELG_z1':(0.127936,-0.578801,-1.45356),'QSO_z0':(0.780983,0.353843,0.135725)}
+          all_marg=['alpha0p','alpha2p','alpha4p','alpha6p','sn0p','sn2p','sn4p']
+          scales=np.array([12.5]*4+[2.]+[5.]*2); marg=['alpha0p','alpha2p','sn0p','sn2p']
+          gi=np.array([all_marg.index(x) for x in marg]); prior_hess=-np.diag(scales[gi]**-2)
+
+          def prepare(spec,geom):
+              kin=np.geomspace(min(5e-4,kobs[0]/2),max(1.0,kobs[-1]*2),500)
+              zs=np.array(zvals)
+              Pdd=np.stack([np.interp(kin,*spec['series'][z][:2]) for z in zs],axis=-1)
+              Ptt=np.stack([np.interp(kin,spec['series'][z][0],spec['series'][z][2]) for z in zs],axis=-1)
+              pki=PowerSpectrumInterpolator1D(kin,Pdd)
+              cos=Cosmology(n_s=spec['ns'],Omega_b=spec['ob']/spec['h']**2,
+                            Omega_cdm=spec['oc']/spec['h']**2,Omega_ncdm=0.,H0=spec['H0'])
+              cos.rs_drag=spec['rd']*spec['h']
+              filt=PowerSpectrumBAOFilter(pki,engine='peakaverage',cosmo=cos,cosmo_fid=fid)
+              filt(pki,cosmo=cos); Pnw=filt.smooth_pk_interpolator()(kin)
+              sig8=np.asarray(pki.sigma8()); fs8=np.asarray(PowerSpectrumInterpolator1D(kin,Ptt).sigma8())
+              pt=REPT(kin,Pdd[:,0],pnw=Pnw[:,0],kmin=kobs[0],kmax=kobs[-1],nk=200,rbao=110,sbao=None,
+                      beyond_gauss=True,one_loop=True,shear=True,cutoff=20,jn=5,N=4000,threads=2,
+                      extrap_min=-4,extrap_max=3,import_wisdom=False)
+              extk=np.append(pt.kv,1.)
+              def rg(arr):
+                  return 10**interp1d(np.log10(kin),np.log10(np.maximum(arr,1e-300)),kind='cubic',
+                                      fill_value='extrapolate',axis=0,assume_sorted=True)(np.log10(extk))
+              pcb,pnw,ptt=rg(Pdd),rg(Pnw),rg(Ptt); out={}
+              for b in blocks:
+                  z=b['zeff']; iz=zvals.index(z)
+                  Hkms=float(np.interp(z,geom['bg'].z,geom['bg']['H [1/Mpc]']))*299792.458
+                  DA=float(np.interp(z,geom['bg'].z,geom['bg']['comov. dist.']))/(1+z)
+                  qpar=float(fid.efunc(z)/(Hkms/(100*geom['h'])))
+                  qper=float(DA*geom['h']/fid.angular_diameter_distance(z))
+                  Dz=float(np.sqrt(pcb[-1,iz]/pcb[-1,0]))
+                  fk=np.sqrt(np.maximum(ptt[:-1,iz]/pcb[:-1,iz],0))
+                  pks=pt.compute_redshift_space_power_multipoles_tables(fk,apar=qpar,aperp=qper,ngauss=4,
+                              pcb=pcb[:-1,iz],pcb_nw=pnw[:-1,iz],Dz=Dz)[1:]
+                  basis=np.stack([interp1d(pt.kv,pks[j],kind='cubic',fill_value='extrapolate',
+                                          axis=0,assume_sorted=True)(kobs) for j in range(3)],axis=0)
+                  out[b['namespace']]=dict(basis=basis,sigma8=float(sig8[iz]),fsigma8=float(fs8[iz]),
+                                           qpar=qpar,qper=qper)
+              return out
+
+          def get_poles(info,x,settings,sn):
+              pkt=info['basis']; sigma8=info['sigma8']; f=info['fsigma8']/sigma8
+              b1p,b2p,bsp=x; b1L=b1p/sigma8-1; b2L=b2p/sigma8**2; bsL=bsp/sigma8**2
+              b1=1+b1L; b2=8/21*b1L+b2L; bs=bsL-2/7*b1L; b3=b1L
+              G=np.zeros((7,7)); G[0,0]=b1*b1; G[1,0]=G[1,1]=f*b1; G[2,1]=f*f
+              G[2,2]=f*b1; G[3,2]=f*f
+              for jj,ell in enumerate([0,2,4]): G[jj-3,jj-3]=sn*(settings['fsat'] if ell>0 else 1)*settings['sigv']**ell
+              base=[1,b1,b1*b1,b2,b1*b2,b2*b2,bs,b1*bs,b2*bs,bs*bs,b3,b1*b3]
+              pp=np.sum(pkt*np.concatenate([np.asarray(base),G.dot(np.zeros(7))]),axis=-1)
+              return pp,pkt[...,-7:].dot(G)
+
+          def profile(label,tables):
+              total=0.; rows=[]
+              for b in blocks:
+                  settings=get_physical_stochastic_settings(tracer=b['tracer'].upper()[:3])
+                  def logp(x):
+                      pp,g=get_poles(tables[b['namespace']],x,settings,b['shotnoise'])
+                      theory=b['window'].dot(pp.ravel()); g=b['window'].dot(g[...,gi].reshape(-1,len(gi)))
+                      diff=theory-b['data']; pg=b['precision'].dot(g)
+                      postgrad=-pg.T.dot(diff); lh=-g.T.dot(pg); ph=prior_hess+lh
+                      dx=-np.linalg.solve(ph,postgrad)
+                      val=-.5*diff.T.dot(b['precision']).dot(diff)
+                      val+=.5*dx.dot(lh).dot(dx)+postgrad.dot(dx)+.5*dx.dot(prior_hess).dot(dx)
+                      val+=-.5*np.linalg.slogdet(-ph)[1]-.5*(x[1]/5)**2-.5*(x[2]/5)**2
+                      return float(val)
+                  opt=minimize(lambda x:-2*logp(x),np.array(starts[b['namespace']]),method='L-BFGS-B',
+                               bounds=[(0,3),(-20,20),(-20,20)],options={'maxiter':500,'ftol':1e-10,'gtol':1e-6})
+                  total+=float(opt.fun); rows.append(dict(model=label,namespace=b['namespace'],chi2=float(opt.fun),
+                                    success=bool(opt.success),qpar=tables[b['namespace']]['qpar'],
+                                    qper=tables[b['namespace']]['qper']))
+              print('DESI_DECOMP_TOTAL',label,total,flush=True)
+              for r in rows: print('DESI_DECOMP_BLOCK',r,flush=True)
+              return rows,total
+
+          cases=[('COV_SPEC_COV_GEOM',cov,cov),('LCDM_SPEC_LCDM_GEOM',lcd,lcd),
+                 ('COV_SPEC_LCDM_GEOM',cov,lcd),('LCDM_SPEC_COV_GEOM',lcd,cov)]
+          allrows=[]; summary=[]
+          for label,spec,geom in cases:
+              rows,total=profile(label,prepare(spec,geom)); allrows+=rows; summary.append(dict(model=label,total=total))
+          pd.DataFrame(allrows).to_csv('output/desi_decomp_blocks.csv',index=False)
+          pd.DataFrame(summary).to_csv('output/desi_decomp_summary.csv',index=False)
+          PY
+
+      - name: Preserve decomposition
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-desi-decomposition
+          path: output/*
+          if-no-files-found: warn
