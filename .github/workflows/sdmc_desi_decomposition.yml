@@ -1,9 +1,9 @@
-name: SDMC DESI shape-amplitude decomposition
+name: SDMC DESI GR-shadow decomposition
 
 on:
   push:
     branches:
-      - sdmc-desi-shape-amplitude-decomp
+      - sdmc-desi-gr-shadow
   workflow_dispatch:
 
 jobs:
@@ -60,6 +60,7 @@ jobs:
           import pandas as pd
           from scipy.interpolate import interp1d
           from scipy.optimize import minimize
+          import camb
           sys.path.insert(0,'desi-kp-cosmological-likelihoods/dr1/cobaya')
           import lsstypes as types
           from cosmoprimo import PowerSpectrumInterpolator1D,PowerSpectrumBAOFilter,Cosmology
@@ -115,6 +116,35 @@ jobs:
 
           cov=model('desi_cov',70.8514,0.02239952,0.12444227328918850,0.964)
           lcd=model('desi_lcdm',67.36,0.02237,0.1200,0.9649)
+
+          # GR shadow: same ordinary/primordial parameters as the covariant SDMC point,
+          # but evolved in standard flat GR/LambdaCDM. This isolates whether the
+          # DESI-favoured density shape needs modified gravity or mostly follows
+          # from (H0, omega_b, omega_cdm, A_s, n_s).
+          sh_H0=70.8514; sh_h=sh_H0/100.; sh_ob=0.02239952
+          sh_oc=0.12444227328918850; sh_ns=0.964; sh_As=2.16715426219737e-9
+          cp=camb.CAMBparams()
+          cp.set_cosmology(H0=sh_H0,ombh2=sh_ob,omch2=sh_oc,mnu=0.,nnu=3.046,
+                           TCMB=2.7255,YHe=0.2453,tau=0.0544)
+          cp.InitPower.set_params(As=sh_As,ns=sh_ns)
+          cp.set_matter_power(redshifts=sorted(zvals,reverse=True),kmax=2.5)
+          cp.NonLinear=camb.model.NonLinear_none
+          cr=camb.get_results(cp)
+          kh,zout,pp=cr.get_linear_matter_power_spectrum(
+              var1='delta_nonu',var2='delta_nonu',
+              hubble_units=True,k_hunit=True,nonlinear=False)
+          pp=np.asarray(pp)
+          if pp.shape==(len(zout),len(kh)): pp=pp.T
+          elif pp.shape!=(len(kh),len(zout)): raise RuntimeError(('shadow pk shape',pp.shape))
+          shseries={}
+          for z in zvals:
+              iz=int(np.argmin(np.abs(np.asarray(zout)-z)))
+              if abs(float(zout[iz])-z)>1e-6: raise RuntimeError(('shadow z mismatch',z,zout))
+              pz=pp[:,iz]
+              shseries[z]=(np.asarray(kh),pz,pz)
+          shadow=dict(prefix='gr_shadow',H0=sh_H0,h=sh_h,ob=sh_ob,oc=sh_oc,ns=sh_ns,
+                      bg=lcd['bg'],rd=float(cr.get_derived_params()['rdrag']),series=shseries)
+          print('GR_SHADOW_RD',shadow['rd'],flush=True)
 
           blocks=[]
           for tracer,iz,zrange in list_zrange:
@@ -224,11 +254,12 @@ jobs:
               return rows,total
 
           cases=[
-              # label, density shape source, geometry, velocity source, amplitude target
+              # All cases below use LCDM geometry and LCDM velocity.
+              # Amplitude-matched cases force sigma8(z) back to the LCDM value.
               ('LCDM_SHAPE_LCDM_AMP',lcd,lcd,lcd,None),
-              ('COV_SHAPE_COV_AMP',cov,lcd,lcd,None),
               ('COV_SHAPE_LCDM_AMP',cov,lcd,lcd,lcd),
-              ('LCDM_SHAPE_COV_AMP',lcd,lcd,lcd,cov),
+              ('GR_SHADOW_SHAPE_LCDM_AMP',shadow,lcd,lcd,lcd),
+              ('GR_SHADOW_SHAPE_OWN_AMP',shadow,lcd,lcd,None),
           ]
           allrows=[]; summary=[]
           for label,spec,geom,vel,amp in cases:
@@ -241,6 +272,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-shape-amplitude-decomposition
+          name: sdmc-desi-gr-shadow-decomposition
           path: output/*
           if-no-files-found: warn
