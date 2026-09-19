@@ -479,9 +479,18 @@ jobs:
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
           do
-            curl -4 -L --fail --connect-timeout 15 --max-time 180 \
-              --retry 10 --retry-delay 4 --retry-all-errors \
-              -o "desi_likelihood/$FN" "$BASE/$FN"
+            ok=0
+            for BASE in "$BASE_MIRROR" "$BASE_PRIMARY"
+            do
+              echo "Trying $BASE/$FN"
+              if curl -4 -L --fail --connect-timeout 20 --max-time 240 \
+                   --retry 5 --retry-delay 4 --retry-all-errors -C - \
+                   -o "desi_likelihood/$FN" "$BASE/$FN"; then
+                ok=1
+                break
+              fi
+            done
+            test "$ok" -eq 1
           done
           ls -lh desi_likelihood
 
