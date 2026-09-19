@@ -1,9 +1,9 @@
-name: SDMC independent-D fine stability-boundary refinement
+name: SDMC independent-D ultrafine stability-boundary refinement
 
 on:
   push:
     branches:
-      - sdmc-joint-pds-boundary-fine
+      - sdmc-joint-pds-boundary-ultrafine
   workflow_dispatch:
 
 jobs:
@@ -136,12 +136,13 @@ jobs:
           D0=0.40; POWER=1.0; DFLOOR=1e-4
           WIDTH=1.426
           grid={
-            0.07180:[4.80,4.82,4.84,4.86,4.88],
-            0.07190:[4.76,4.78,4.80,4.82,4.84],
-            0.07200:[4.73,4.74,4.75,4.76,4.77],
-            0.07210:[4.69,4.71,4.73,4.75,4.77],
-            0.07220:[4.67,4.69,4.71,4.73,4.75],
-            0.07230:[4.65,4.67,4.69,4.71,4.73],
+            0.07194:[4.758,4.762,4.766,4.770],
+            0.07196:[4.752,4.756,4.760,4.764],
+            0.07198:[4.746,4.750,4.754,4.758],
+            0.07200:[4.740,4.743,4.746,4.749,4.752],
+            0.07202:[4.735,4.739,4.743,4.747],
+            0.07204:[4.730,4.734,4.738,4.742],
+            0.07206:[4.725,4.729,4.733,4.737],
           }
           candidates=[(A,z,WIDTH) for A,zs in grid.items() for z in zs]
 
@@ -248,28 +249,28 @@ jobs:
                   rec.update({'status':'OK','A_planck':A,'chi2_high':ch,'chi2_lowT':ct,
                               'chi2_lowE':ce,'chi2_lensing':cl,'chi2_cal':cpr,'chi2_planck':total})
                   rec['stable_subluminal']=bool(rec['min_D_z100']>0 and rec['min_cs2_z100']>0 and rec['max_cs2_z100']<=1.0)
-                  print('BOUNDARY_FINE_OK',rec,flush=True)
+                  print('BOUNDARY_ULTRA_OK',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-800:]
-                  print('BOUNDARY_FINE_FAIL',rec,flush=True)
+                  print('BOUNDARY_ULTRA_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
-          df.to_csv(OUT/'boundary_fine_scan.csv',index=False)
+          df.to_csv(OUT/'boundary_ultra_scan.csv',index=False)
           ok=df[(df.status=='OK') & (df.stable_subluminal==True)].copy()
           if ok.empty:
               raise SystemExit('No stable subluminal points in refine scan')
           best=ok.nsmallest(12,'chi2_planck').copy()
-          best.to_csv(OUT/'boundary_fine_best.csv',index=False)
-          print('BOUNDARY_FINE_BEST',best.to_dict('records'),flush=True)
+          best.to_csv(OUT/'boundary_ultra_best.csv',index=False)
+          print('BOUNDARY_ULTRA_BEST',best.to_dict('records'),flush=True)
           PY
 
       - name: Preserve refinement
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-independent-d-boundary-fine
+          name: sdmc-independent-d-boundary-ultrafine
           path: |
-            output/refine/boundary_fine_scan.csv
-            output/refine/boundary_fine_best.csv
+            output/refine/boundary_ultra_scan.csv
+            output/refine/boundary_ultra_best.csv
           if-no-files-found: warn
