@@ -1,0 +1,206 @@
+name: SDMC NKp-v3 exact covariant free evolution
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  exact-covariant-free-evolution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build target hi_class
+        run: make -j2 class
+
+      - name: Generate exact-reconstruction target
+        run: |
+          mkdir -p output
+          cat > output/cov_exact_target.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_native_noslip
+          parameters_smg = 0.073128, 4.84, 1.426, 0.1, 0.0001
+          expansion_model = sdmc_full
+          expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          output_background_smg = 3
+          write background = yes
+          root = output/cov_exact_target_
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/cov_exact_target.ini
+
+      - name: Reconstruct and install exact covariant action
+        run: python3 sdmc/run_sdmc_v3_covariant_exact.py
+
+      - name: Rebuild covariant hi_class
+        run: |
+          make clean
+          make -j2 class
+
+      - name: Free-evolve covariant background
+        run: |
+          cat > output/cov_exact_free.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_exact
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          skip_stability_tests_smg = yes
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          write parameters = yes
+          root = output/cov_exact_free_
+          input_verbose = 1
+          background_verbose = 1
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          set +e
+          ./class output/cov_exact_free.ini > output/cov_exact_free.log 2>&1
+          rc=$?
+          set -e
+          echo $rc > output/cov_exact_free.returncode
+          tail -120 output/cov_exact_free.log || true
+
+      - name: Compare free trajectory to target
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np, pandas as pd, re
+
+          def read(path):
+              p=Path(path)
+              if not p.exists():
+                  return None
+              lines=p.read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(p),columns=names)
+
+          out=Path('output')
+          rc=int((out/'cov_exact_free.returncode').read_text().strip())
+          summary={'returncode':rc}
+          cov=read(out/'cov_exact_free_00_background.dat')
+          tar=read(out/'cov_exact_target_00_background.dat')
+          if cov is not None and tar is not None:
+              tar=tar.sort_values('z'); cov=cov.sort_values('z')
+              z=cov.z.to_numpy()
+              m=(z>=tar.z.min())&(z<=tar.z.max())
+              z=z[m]
+              def iv(col):
+                  return np.interp(z,tar.z,tar[col])
+              Hc=cov.loc[m,'H [1/Mpc]'].to_numpy()
+              Fc=cov.loc[m,'M*^2_smg'].to_numpy()
+              am=cov.loc[m,'M2_running_smg'].to_numpy()
+              ab=cov.loc[m,'braiding_smg'].to_numpy()
+              Ht=iv('H [1/Mpc]'); Ft=iv('M*^2_smg')
+              N=-np.log1p(z)
+              phi_col=[c for c in cov.columns if c.lower().startswith('phi') and 'prime' not in c.lower()]
+              phierr=np.nan
+              if phi_col:
+                  phierr=float(np.max(np.abs(cov.loc[m,phi_col[0]].to_numpy()-N)))
+              sub=cov[cov.z<=100]
+              summary.update({
+                'rows':int(len(cov)),
+                'max_abs_dH_H_z100':float(np.max(np.abs(Hc[z<=100]/Ht[z<=100]-1))),
+                'rms_dH_H_z100':float(np.sqrt(np.mean((Hc[z<=100]/Ht[z<=100]-1)**2))),
+                'max_abs_dF_F_z100':float(np.max(np.abs(Fc[z<=100]/Ft[z<=100]-1))),
+                'max_abs_noslip_z100':float(np.max(np.abs(ab[z<=100]+2*am[z<=100]))),
+                'max_abs_phi_minus_lna':phierr,
+                'min_D_all':float(cov['kin (D)'].min()),
+                'min_cs2_all':float(cov['c_s^2'].min()),
+                'min_D_z100':float(sub['kin (D)'].min()),
+                'min_cs2_z100':float(sub['c_s^2'].min()),
+                'max_cs2_z100':float(sub['c_s^2'].max()),
+                'min_M2':float(cov['M*^2_smg'].min()),
+              })
+          pd.DataFrame([summary]).to_csv(out/'cov_exact_free_comparison.csv',index=False)
+          print('COV_EXACT_FREE_COMPARISON',summary)
+          PY
+
+      - name: Preserve exact covariant reconstruction
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v3-exact-covariant-free-evolution
+          path: |
+            output/cov_exact_reconstruction_summary.txt
+            output/cov_exact_target_00_background.dat
+            output/cov_exact_free.ini
+            output/cov_exact_free.log
+            output/cov_exact_free.returncode
+            output/cov_exact_free_00_*
+            output/cov_exact_free_comparison.csv
+          if-no-files-found: warn
