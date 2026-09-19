@@ -313,101 +313,101 @@ jobs:
 
           anchor='''  if (strcmp(string1,"nkgb") == 0 || strcmp(string1,"n-kgb") == 0 || strcmp(string1,"N-KGB") == 0 || strcmp(string1,"nKGB") == 0) {'''
           parser='''  if (strcmp(string1,"sdmc_reconstructed_covariant") == 0) {
-     pba->gravity_model_smg = sdmc_reconstructed_covariant;
-     pba->field_evolution_smg = _TRUE_;
-     pba->M2_evolution_smg = _FALSE_;
-     flag2=_TRUE_;
-     pba->parameters_size_smg = 1;
-     class_read_list_of_doubles("parameters_smg",pba->parameters_smg,pba->parameters_size_smg);
-     pba->tuning_index_smg = 0;
-   }
+               pba->gravity_model_smg = sdmc_reconstructed_covariant;
+               pba->field_evolution_smg = _TRUE_;
+               pba->M2_evolution_smg = _FALSE_;
+               flag2=_TRUE_;
+               pba->parameters_size_smg = 1;
+               class_read_list_of_doubles("parameters_smg",pba->parameters_smg,pba->parameters_size_smg);
+               pba->tuning_index_smg = 0;
+             }
 
-  if (strcmp(string1,"nkgb") == 0 || strcmp(string1,"n-kgb") == 0 || strcmp(string1,"N-KGB") == 0 || strcmp(string1,"nKGB") == 0) {'''
+            if (strcmp(string1,"nkgb") == 0 || strcmp(string1,"n-kgb") == 0 || strcmp(string1,"N-KGB") == 0 || strcmp(string1,"nKGB") == 0) {'''
           rep('gravity_smg/gravity_models_smg.c',anchor,parser)
 
           anchor='''  else if(pba->gravity_model_smg == nkgb){'''
           model=r'''  else if(pba->gravity_model_smg == sdmc_reconstructed_covariant){
-    const double AF=0.073128, zc=4.84, width=1.426;
-    const double Nc=-log(1.+zc);
-    double kval,k1,k2,lval,l1,l2,vval,v1,v2;
-    sdmc_recon_K(phi,&kval,&k1,&k2);
-    sdmc_recon_L(phi,&lval,&l1,&l2);
-    sdmc_recon_V(phi,&vval,&v1,&v2);
+              const double AF=0.073128, zc=4.84, width=1.426;
+              const double Nc=-log(1.+zc);
+              double kval,k1,k2,lval,l1,l2,vval,v1,v2;
+              sdmc_recon_K(phi,&kval,&k1,&k2);
+              sdmc_recon_L(phi,&lval,&l1,&l2);
+              sdmc_recon_V(phi,&vval,&v1,&v2);
 
-    class_test(X <= 0.,pba->error_message,
+              class_test(X <= 0.,pba->error_message,
                "sdmc_reconstructed_covariant reached X <= 0 at phi=%g",phi);
 
-    double xx=(phi-Nc)/(2.*width);
-    double th=tanh(xx);
-    double ch=cosh(xx);
-    double q=1./(ch*ch);
-    double S=.5*(1.+th);
-    double Sp=q/(4.*width);
-    double Spp=-q*th/(4.*width*width);
-    double Sppp=q*(3.*th*th-1.)/(8.*pow(width,3));
-    double Spppp=q*th*(2.-3.*th*th)/(4.*pow(width,4));
-    double F=exp(AF*S);
-    double g1=AF*Sp, g2=AF*Spp, g3=AF*Sppp, g4=AF*Spppp;
-    double F1=F*g1;
-    double F2=F*(g1*g1+g2);
-    double F3=F*(g1*g1*g1+3.*g1*g2+g3);
-    double F4d=F*(pow(g1,4)+6.*g1*g1*g2+3.*g2*g2+4.*g1*g3+g4);
-    double G4p=.5*F1, G4pp=.5*F2, G4ppp=.5*F3, G4pppp=.5*F4d;
-    double lx=log(X/SDMC_XSTAR);
+              double xx=(phi-Nc)/(2.*width);
+              double th=tanh(xx);
+              double ch=cosh(xx);
+              double q=1./(ch*ch);
+              double S=.5*(1.+th);
+              double Sp=q/(4.*width);
+              double Spp=-q*th/(4.*width*width);
+              double Sppp=q*(3.*th*th-1.)/(8.*pow(width,3));
+              double Spppp=q*th*(2.-3.*th*th)/(4.*pow(width,4));
+              double F=exp(AF*S);
+              double g1=AF*Sp, g2=AF*Spp, g3=AF*Sppp, g4=AF*Spppp;
+              double F1=F*g1;
+              double F2=F*(g1*g1+g2);
+              double F3=F*(g1*g1*g1+3.*g1*g2+g3);
+              double F4d=F*(pow(g1,4)+6.*g1*g1*g2+3.*g2*g2+4.*g1*g3+g4);
+              double G4p=.5*F1, G4pp=.5*F2, G4ppp=.5*F3, G4pppp=.5*F4d;
+              double lx=log(X/SDMC_XSTAR);
 
-    pgf->G2 = kval*X + lval*X*X - vval;
-    pgf->G2_X = kval + 2.*lval*X;
-    pgf->G2_XX = 2.*lval;
-    pgf->G2_XXX = 0.;
-    pgf->G2_phi = k1*X + l1*X*X - v1;
-    pgf->G2_Xphi = k1 + 2.*l1*X;
-    pgf->G2_XXphi = 2.*l1;
-    pgf->G2_phiphi = k2*X + l2*X*X - v2;
-    pgf->G2_Xphiphi = k2 + 2.*l2*X;
+              pgf->G2 = kval*X + lval*X*X - vval;
+              pgf->G2_X = kval + 2.*lval*X;
+              pgf->G2_XX = 2.*lval;
+              pgf->G2_XXX = 0.;
+              pgf->G2_phi = k1*X + l1*X*X - v1;
+              pgf->G2_Xphi = k1 + 2.*l1*X;
+              pgf->G2_XXphi = 2.*l1;
+              pgf->G2_phiphi = k2*X + l2*X*X - v2;
+              pgf->G2_Xphiphi = k2 + 2.*l2*X;
 
-    pgf->G3_X = -G4p/X;
-    pgf->G3_XX = G4p/(X*X);
-    pgf->G3_XXX = -2.*G4p/(X*X*X);
-    pgf->G3_phi = -G4pp*lx;
-    pgf->G3_Xphi = -G4pp/X;
-    pgf->G3_XXphi = G4pp/(X*X);
-    pgf->G3_phiphi = -G4ppp*lx;
-    pgf->G3_Xphiphi = -G4ppp/X;
-    pgf->G3_phiphiphi = -G4pppp*lx;
+              pgf->G3_X = -G4p/X;
+              pgf->G3_XX = G4p/(X*X);
+              pgf->G3_XXX = -2.*G4p/(X*X*X);
+              pgf->G3_phi = -G4pp*lx;
+              pgf->G3_Xphi = -G4pp/X;
+              pgf->G3_XXphi = G4pp/(X*X);
+              pgf->G3_phiphi = -G4ppp*lx;
+              pgf->G3_Xphiphi = -G4ppp/X;
+              pgf->G3_phiphiphi = -G4pppp*lx;
 
-    pgf->DG4 = .5*(F-1.);
-    pgf->G4 = .5*F;
-    pgf->G4_phi = G4p;
-    pgf->G4_phiphi = G4pp;
-    pgf->G4_phiphiphi = G4ppp;
-  }
+              pgf->DG4 = .5*(F-1.);
+              pgf->G4 = .5*F;
+              pgf->G4_phi = G4p;
+              pgf->G4_phiphi = G4pp;
+              pgf->G4_phiphiphi = G4ppp;
+            }
 
-  else if(pba->gravity_model_smg == nkgb){'''
+            else if(pba->gravity_model_smg == nkgb){'''
           rep('gravity_smg/gravity_models_smg.c',anchor,model)
 
           anchor='''	  case nkgb:
-		  {'''
+          		  {'''
           ic='''    case sdmc_reconstructed_covariant:
-      {
-        double phi_ini=log(a);
-        double H_ini=sdmc_recon_H(phi_ini);
-        pvecback_integration[pba->index_bi_phi_smg]=phi_ini;
-        pvecback_integration[pba->index_bi_phi_prime_smg]=a*H_ini;
-      }
-      break;
+                {
+                  double phi_ini=log(a);
+                  double H_ini=sdmc_recon_H(phi_ini);
+                  pvecback_integration[pba->index_bi_phi_smg]=phi_ini;
+                  pvecback_integration[pba->index_bi_phi_prime_smg]=a*H_ini;
+                }
+                break;
 
-	  case nkgb:
-		  {'''
+          	  case nkgb:
+          		  {'''
           rep('gravity_smg/gravity_models_smg.c',anchor,ic)
 
           anchor='''    case nkgb:
-     printf("Modified gravity: Kinetic Gravity Braiding'''
+               printf("Modified gravity: Kinetic Gravity Braiding'''
           label='''    case sdmc_reconstructed_covariant:
-      printf("Modified gravity: SDMC reconstructed covariant No-Slip action (fixed spline reconstruction).\\n");
-    break;
+                printf("Modified gravity: SDMC reconstructed covariant No-Slip action (fixed spline reconstruction).\\n");
+              break;
 
-    case nkgb:
-     printf("Modified gravity: Kinetic Gravity Braiding'''
+              case nkgb:
+               printf("Modified gravity: Kinetic Gravity Braiding'''
           rep('gravity_smg/gravity_models_smg.c',anchor,label)
           PY
 
