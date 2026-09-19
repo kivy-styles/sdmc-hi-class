@@ -539,7 +539,7 @@ jobs:
                        lambda_e=meta['lambda_e'],z_t=meta['z_t'],D0=meta['D0'],Dfloor=meta['Dfloor'],
                        desi_chi2=chi,lcdm_desi_chi2=lcdmchi,delta_desi=ddesi,
                        delta_planck=meta['delta_planck'],
-                       delta_pp=meta['delta_pantheonplus'],
+                       delta_pantheonplus=meta['delta_pp'],
                        delta_union3=meta['delta_union3'],
                        delta_desy5=meta['delta_desy5'])
               rec['joint_planck_desi']=rec['delta_planck']+ddesi
