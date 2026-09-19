@@ -1,9 +1,9 @@
-name: SDMC covariant No-Slip observable gate
+name: SDMC covariant fast perturbation-IC gate
 
 on:
   push:
     branches:
-      - sdmc-covariant-observable-gate
+      - sdmc-covariant-ic-fast
   workflow_dispatch:
 
 jobs:
@@ -690,11 +690,95 @@ jobs:
           pd.DataFrame(pkrows).to_csv(ROOT/'covariant_observable_pk_z0_samples.csv',index=False)
           PY
 
+      - name: Scan alternate scalar perturbation ICs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess,re,csv,math
+          import numpy as np
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+
+          ROOT=Path('output'); base=(ROOT/'covariant_observable.ini').read_text()
+          cases=['ext_field_attr','single_clock','gravitating_attr','kin_only']
+          TCMB=2.7255; CAL_SIGMA=0.0025
+          high=TTTEEE_lite_native(packages_path='planck_packages')
+          lowT=TT(packages_path='planck_packages')
+          lowE=EE(packages_path='planck_packages')
+          lens=LensingNative(packages_path='planck_packages')
+
+          def load(path):
+              a=np.loadtxt(path); ell=a[:,0].astype(int); n=int(ell.max())+1
+              conv=(TCMB*1e6)**2
+              tt=np.zeros(n); ee=np.zeros(n); te=np.zeros(n); bb=np.zeros(n)
+              pp=np.zeros(n); tp=np.zeros(n); ep=np.zeros(n)
+              tt[ell]=a[:,1]*conv; ee[ell]=a[:,2]*conv; te[ell]=a[:,3]*conv; bb[ell]=a[:,4]*conv
+              ll=ell*(ell+1.0); pp[ell]=a[:,5]*ll
+              tp[ell]=a[:,6]*np.sqrt(ll)*(TCMB*1e6); ep[ell]=a[:,7]*np.sqrt(ll)*(TCMB*1e6)
+              return ell,np.column_stack([ell,tt[ell],te[ell],ee[ell]]),{'tt':tt,'ee':ee,'te':te,'bb':bb,'pp':pp,'tp':tp,'ep':ep}
+
+          def score(path):
+              ell,ha,d=load(path)
+              def q(A):
+                  A=float(A)
+                  vals=(float(high.chi_squared(ha,A_planck=A)),
+                        float(-2*lowT.log_likelihood(d['tt'],calib=A)),
+                        float(-2*lowE.log_likelihood(d['ee'],calib=A)),
+                        float(-2*lens.log_likelihood(d,A_planck=A)),
+                        ((A-1.)/CAL_SIGMA)**2)
+                  return vals
+              def total(A):
+                  v=q(A); return sum(v) if all(np.isfinite(v)) else np.inf
+              o=minimize_scalar(total,bounds=(.97,1.03),method='bounded',options={'xatol':1e-10})
+              A=float(o.x); v=q(A); return A,v,sum(v)
+
+          def sigma8(path,R=8.):
+              a=np.loadtxt(path); k=a[:,0]; P=a[:,1]; x=k*R
+              W=np.ones_like(x); m=x!=0
+              W[m]=3*(np.sin(x[m])-x[m]*np.cos(x[m]))/x[m]**3
+              return math.sqrt(np.trapezoid(k**3*P*W**2/(2*np.pi**2),x=np.log(k)))
+
+          ell0,h0,d0=load(ROOT/'covariant_observable_00_cl_lensed.dat')
+          rows=[]
+          for ic in cases:
+              root=f'output/icfast_{ic}_'
+              ini=re.sub(r'(?m)^pert_initial_conditions_smg\s*=.*$',f'pert_initial_conditions_smg = {ic}',base)
+              ini=re.sub(r'(?m)^root\s*=.*$',f'root = {root}',ini)
+              ip=ROOT/f'icfast_{ic}.ini'; ip.write_text(ini)
+              cp=subprocess.run(['./class',str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+              (ROOT/f'icfast_{ic}.log').write_text(cp.stdout)
+              rec={'ic':ic,'returncode':cp.returncode,'status':'FAIL'}
+              cl=Path(root+'00_cl_lensed.dat')
+              if cp.returncode==0 and cl.exists():
+                  rec['status']='OK'; A,v,t=score(cl)
+                  rec.update({'A_planck':A,'chi2_high':v[0],'chi2_lowT':v[1],'chi2_lowE':v[2],
+                              'chi2_lensing':v[3],'chi2_cal':v[4],'chi2_total':t})
+                  ell,ha,d=load(cl); n=min(len(ell0),len(ell)); mask=ell0[:n]>=2
+                  for name,ref,alt in [('TT',d0['tt'][:n],d['tt'][:n]),('EE',d0['ee'][:n],d['ee'][:n]),
+                                       ('phiphi',d0['pp'][:n],d['pp'][:n])]:
+                      good=mask & (np.abs(ref)>0); frac=alt[good]/ref[good]-1
+                      rec[f'{name}_rms_frac_vs_zero']=float(np.sqrt(np.mean(frac**2)))
+                      rec[f'{name}_max_abs_frac_vs_zero']=float(np.max(np.abs(frac)))
+                  ref=d0['te'][:n]; alt=d['te'][:n]
+                  rec['TE_norm_rms_vs_zero']=float(np.sqrt(np.mean((alt[mask]-ref[mask])**2))/np.sqrt(np.mean(ref[mask]**2)))
+                  pk=Path(root+'00_z1_pk.dat')
+                  if pk.exists(): rec['sigma8_z0']=sigma8(pk)
+              else:
+                  rec['failure_tail']=' | '.join(cp.stdout.splitlines()[-15:])[:3000]
+              rows.append(rec); print('ICFAST_CASE',rec,flush=True)
+          keys=sorted(set().union(*(r.keys() for r in rows)))
+          with (ROOT/'covariant_icfast_results.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=keys); w.writeheader(); w.writerows(rows)
+          PY
+
       - name: Preserve covariant observable gate
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-covariant-observable-gate
+          name: sdmc-covariant-ic-fast
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay.ini
@@ -705,4 +789,6 @@ jobs:
             output/covariant_observable.log
             output/covariant_observable_00_*
             output/covariant_observable_*.csv
+            output/covariant_icfast_results.csv
+            output/icfast_*
           if-no-files-found: warn
