@@ -463,7 +463,9 @@ jobs:
       - name: Install official DESI DR1 full-shape dependencies
         run: |
           python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
-          python3 -m pip install cosmoprimo lsstypes velocileptors
+          python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
+          python3 -m pip install git+https://github.com/adematti/lsstypes.git
+          python3 -m pip install git+https://github.com/sfschen/velocileptors.git
           rm -rf desi-kp-cosmological-likelihoods
           git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
           python3 desi-kp-cosmological-likelihoods/dr1/cobaya/download.py --data-dir desi_likelihood
