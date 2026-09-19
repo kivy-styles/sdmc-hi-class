@@ -1,9 +1,9 @@
-name: SDMC r032 globally subluminal floor raw DESI
+name: SDMC r032 fine kinetic-floor raw DESI
 
 on:
   push:
     branches:
-      - sdmc-r032-global-floor-desi
+      - sdmc-r032-global-floor-fine-desi
   workflow_dispatch:
 
 jobs:
@@ -181,10 +181,11 @@ jobs:
           zpk=(out/'desi_zpk.txt').read_text().strip()
           As=math.exp(3.076)/1e10
           candidates=[
-              ('F02013',0.3742684513367302,0.02013),
-              ('F02050',0.37379313066746356,0.02050),
-              ('F02100',0.3731508054387249,0.02100),
               ('F02200',0.37186615498124764,0.02200),
+              ('F02225',0.3715449923668783,0.02225),
+              ('F02250',0.371223829752509,0.02250),
+              ('F02275',0.3709026671381397,0.02275),
+              ('F02300',0.37058150452377037,0.02300),
           ]
           for cid,D0,Dfloor in candidates:
               root=f'output/desi_{cid}_'
@@ -354,24 +355,29 @@ jobs:
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
           candidate_meta={
-            'F02013':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
-                          D0=0.3742684513367302,Dfloor=0.02013,
-                          delta_planck=41.47105288335365,
-                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
-                          delta_desy5=9.770832888782024),
-            'F02050':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
-                          D0=0.37379313066746356,Dfloor=0.02050,
-                          delta_planck=41.449403036454896,
-                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
-                          delta_desy5=9.770832888782024),
-            'F02100':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
-                          D0=0.3731508054387249,Dfloor=0.02100,
-                          delta_planck=41.420536492076735,
-                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
-                          delta_desy5=9.770832888782024),
             'F02200':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
                           D0=0.37186615498124764,Dfloor=0.02200,
                           delta_planck=41.30644048251179,
+                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
+                          delta_desy5=9.770832888782024),
+            'F02225':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
+                          D0=0.3715449923668783,Dfloor=0.02225,
+                          delta_planck=41.29524236935208,
+                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
+                          delta_desy5=9.770832888782024),
+            'F02250':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
+                          D0=0.371223829752509,Dfloor=0.02250,
+                          delta_planck=41.286384447726505,
+                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
+                          delta_desy5=9.770832888782024),
+            'F02275':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
+                          D0=0.3709026671381397,Dfloor=0.02275,
+                          delta_planck=41.298859143525306,
+                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
+                          delta_desy5=9.770832888782024),
+            'F02300':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
+                          D0=0.37058150452377037,Dfloor=0.02300,
+                          delta_planck=41.317685520884424,
                           delta_pp=4.667247864883393,delta_union3=4.192428181268042,
                           delta_desy5=9.770832888782024),
           }
@@ -563,24 +569,24 @@ jobs:
               rec['joint_union3']=rec['joint_planck_desi']+rec['delta_union3']
               rec['joint_desy5']=rec['joint_planck_desi']+rec['delta_desy5']
               summary.append(rec)
-              print('GLOBAL_FLOOR_DESI_CANDIDATE',rec,flush=True)
+              print('FINE_FLOOR_DESI_CANDIDATE',rec,flush=True)
           sdf=pd.DataFrame(summary)
-          sdf.to_csv(OUT/'r032_global_floor_desi_summary.csv',index=False)
-          pd.DataFrame(allrows).to_csv(OUT/'r032_global_floor_desi_blocks.csv',index=False)
-          print('GLOBAL_FLOOR_DESI_BEST_PLANCK_DESI',sdf.nsmallest(4,'joint_planck_desi').to_dict('records'),flush=True)
-          print('GLOBAL_FLOOR_DESI_BEST_PP',sdf.nsmallest(4,'joint_pp').to_dict('records'),flush=True)
-          print('GLOBAL_FLOOR_DESI_BEST_UNION3',sdf.nsmallest(4,'joint_union3').to_dict('records'),flush=True)
-          print('GLOBAL_FLOOR_DESI_BEST_DESY5',sdf.nsmallest(4,'joint_desy5').to_dict('records'),flush=True)
+          sdf.to_csv(OUT/'r032_fine_floor_desi_summary.csv',index=False)
+          pd.DataFrame(allrows).to_csv(OUT/'r032_fine_floor_desi_blocks.csv',index=False)
+          print('FINE_FLOOR_DESI_BEST_PLANCK_DESI',sdf.nsmallest(4,'joint_planck_desi').to_dict('records'),flush=True)
+          print('FINE_FLOOR_DESI_BEST_PP',sdf.nsmallest(4,'joint_pp').to_dict('records'),flush=True)
+          print('FINE_FLOOR_DESI_BEST_UNION3',sdf.nsmallest(4,'joint_union3').to_dict('records'),flush=True)
+          print('FINE_FLOOR_DESI_BEST_DESY5',sdf.nsmallest(4,'joint_desy5').to_dict('records'),flush=True)
           PY
 
       - name: Preserve r032 global-floor DESI
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-global-floor-desi
+          name: sdmc-r032-fine-floor-desi
           path: |
-            output/r032_global_floor_desi_summary.csv
-            output/r032_global_floor_desi_blocks.csv
+            output/r032_fine_floor_desi_summary.csv
+            output/r032_fine_floor_desi_blocks.csv
             output/desi_zeff.json
             output/desi_zpk.txt
           if-no-files-found: warn
