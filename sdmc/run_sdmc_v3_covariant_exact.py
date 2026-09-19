@@ -39,7 +39,7 @@ pres=d["p_tot_wo_smg_dbg"][order]
 keep=np.r_[True,np.diff(N)>1e-12]
 N,H,rho,pres=N[keep],H[keep],rho[keep],pres[keep]
 
-lnH=CubicSpline(N,np.log(H),bc_type="natural")
+lnH=CubicSpline(N,np.log(H))
 h=lnH(N,1)
 
 Nc=-np.log1p(ZC)
@@ -88,7 +88,7 @@ nk=len(N)
 grid=N.copy()
 spl={}
 for name,val in [("K",K),("Y",Y),("U",U),("QX",q)]:
-    spl[name]=CubicSpline(grid,val,bc_type="natural")
+    spl[name]=CubicSpline(grid,val)
 
 def carr(x):
     return ",".join(f"{v:.17e}" for v in np.asarray(x).ravel())
