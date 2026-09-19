@@ -1,0 +1,503 @@
+name: SDMC NKp-v3 covariant reconstruction free evolution
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  covariant-reconstruction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya
+
+      - name: Apply SDMC parameterized patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build target hi_class
+        run: make -j2 class
+
+      - name: Generate fixed target trajectory
+        run: |
+          mkdir -p output
+          cat > output/cov_target.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_native_noslip
+          parameters_smg = 0.073128, 4.84, 1.426, 0.1, 0.0001
+          expansion_model = sdmc_full
+          expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          output_background_smg = 3
+          write background = yes
+          root = output/cov_target_
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/cov_target.ini
+
+      - name: Reconstruct covariant K L V functions and emit C spline data
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np, re
+          from scipy.interpolate import CubicSpline
+
+          AF=0.073128
+          ZC=4.84
+          WIDTH=1.426
+          D0=0.4
+          POWER=1.0
+          DFLOOR=1e-4
+          H0=70.8514/299792.458
+          XSTAR=H0*H0
+
+          path=Path('output/cov_target_00_background.dat')
+          lines=path.read_text().splitlines()
+          hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+          marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+          for i,m in enumerate(marks):
+              end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+              names.append(hdr[m.end():end].strip())
+          a=np.loadtxt(path)
+          d={n:a[:,i] for i,n in enumerate(names)}
+
+          order=np.argsort(-np.log1p(d['z']))
+          N=-np.log1p(d['z'][order])
+          H=d['H [1/Mpc]'][order]
+          rho=d['rho_tot_wo_smg_dbg'][order]
+          pres=d['p_tot_wo_smg_dbg'][order]
+
+          # remove any accidental duplicate N rows
+          keep=np.r_[True,np.diff(N)>1e-12]
+          N,H,rho,pres=N[keep],H[keep],rho[keep],pres[keep]
+
+          lnH=CubicSpline(N,np.log(H),bc_type='natural')
+          h=lnH(N,1)
+
+          Nc=-np.log1p(ZC)
+          x=(N-Nc)/(2*WIDTH)
+          t=np.tanh(x); u=1-t*t
+          S=.5*(1+t)
+          Sp=u/(4*WIDTH)
+          Spp=-t*u/(4*WIDTH*WIDTH)
+          F=np.exp(AF*S)
+          Fp=F*AF*Sp
+          Fpp=F*((AF*Sp)**2+AF*Spp)
+          g=Fp/2
+          gp=Fpp/2
+
+          D=DFLOOR+D0*S**POWER
+          alphaM=Fp/F
+          alphaB=-2*alphaM
+          alphaK=D-1.5*alphaB*alphaB
+
+          X=.5*H*H
+          lnx=np.log(X/XSTAR)
+          R=-4*g*(h-2)-2*F*h-3*(rho+pres)/(H*H)
+          Q=F*alphaK
+          Y=(Q-R)/4.0              # Y = L X_target
+          K=1.5*R-.5*Q-2*gp*(1+lnx)
+          L=Y/X
+          V=3*F*H*H+12*g*H*H-3*rho-K*X-3*L*X*X-2*X*gp*lnx
+          U=V/(H*H)                # bounded potential combination
+          q=np.log(X)
+
+          assert np.all(np.isfinite(K))
+          assert np.all(np.isfinite(Y))
+          assert np.all(np.isfinite(U))
+          assert np.all(np.isfinite(q))
+
+          # Uniform phi=N grid improves generated table conditioning.
+          nk=min(1400,len(N))
+          grid=np.linspace(N[0],N[-1],nk)
+          vals={}
+          for name,val in [('K',K),('Y',Y),('U',U),('QX',q)]:
+              s=CubicSpline(N,val,bc_type='natural')
+              vg=s(grid)
+              vals[name]=CubicSpline(grid,vg,bc_type='natural')
+
+          def carr(x):
+              return ','.join(f'{v:.17e}' for v in np.asarray(x).ravel())
+
+          head=Path('gravity_smg/sdmc_covariant_recon_data.h')
+          txt=[]
+          txt.append('#ifndef __SDMC_COVARIANT_RECON_DATA__')
+          txt.append('#define __SDMC_COVARIANT_RECON_DATA__')
+          txt.append(f'#define SDMC_COV_N {nk}')
+          txt.append(f'#define SDMC_COV_AF {AF:.17e}')
+          txt.append(f'#define SDMC_COV_ZC {ZC:.17e}')
+          txt.append(f'#define SDMC_COV_WIDTH {WIDTH:.17e}')
+          txt.append(f'#define SDMC_COV_XSTAR {XSTAR:.17e}')
+          txt.append('static const double sdmc_cov_x[SDMC_COV_N] = {'+carr(grid)+'};')
+          for name,spl in vals.items():
+              # scipy coefficients: c[0] dx^3+c[1] dx^2+c[2] dx+c[3]
+              coeff=np.asarray(spl.c.T).reshape(-1)
+              txt.append(f'static const double sdmc_cov_{name}[4*(SDMC_COV_N-1)] = '+'{'+carr(coeff)+'};')
+          txt.append(r'''
+          static void sdmc_cov_eval(const double *coef,double x,double *f,double *fp,double *fpp){
+            int lo=0,hi=SDMC_COV_N-1;
+            if(x<=sdmc_cov_x[0]) lo=0;
+            else if(x>=sdmc_cov_x[SDMC_COV_N-1]) lo=SDMC_COV_N-2;
+            else {
+              while(hi-lo>1){int mid=(lo+hi)/2; if(sdmc_cov_x[mid]<=x) lo=mid; else hi=mid;}
+            }
+            double dx=x-sdmc_cov_x[lo];
+            const double *c=coef+4*lo;
+            *f=((c[0]*dx+c[1])*dx+c[2])*dx+c[3];
+            *fp=(3*c[0]*dx+2*c[1])*dx+c[2];
+            *fpp=6*c[0]*dx+2*c[1];
+          }
+          #endif
+          ''')
+          head.write_text('\n'.join(txt))
+
+          summary=Path('output/covariant_reconstruction_target_summary.txt')
+          summary.write_text(
+              f'N=[{N[0]:.9g},{N[-1]:.9g}]\n'
+              f'K=[{K.min():.9g},{K.max():.9g}]\n'
+              f'LX=[{Y.min():.9g},{Y.max():.9g}]\n'
+              f'V_H2=[{U.min():.9g},{U.max():.9g}]\n'
+              f'D_z100_independent_target=0.0001+0.4*S\n'
+              f'XSTAR={XSTAR:.12e}\n')
+          print(summary.read_text())
+          PY
+
+      - name: Add freely evolved covariant Horndeski reconstruction
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def rep(path,old,new):
+              p=Path(path); s=p.read_text()
+              if new in s:
+                  return
+              if s.count(old)!=1:
+                  raise RuntimeError(f'{path}: anchor count {s.count(old)} for {old[:80]!r}')
+              p.write_text(s.replace(old,new,1))
+
+          # Register model.
+          rep('include/background.h',
+              'sdmc_v3_native_noslip,',
+              'sdmc_v3_native_noslip, sdmc_v3_covariant_recon,')
+
+          # Include generated spline data.
+          rep('gravity_smg/gravity_models_smg.c',
+              '#include "gravity_models_smg.h"\n',
+              '#include "gravity_models_smg.h"\n#include "sdmc_covariant_recon_data.h"\n')
+
+          # Parser: one dummy parameter only so the generic tuning-index bounds remain valid.
+          anchor='''  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          parser='''  if (strcmp(string1,"sdmc_v3_covariant_recon") == 0) {
+             pba->gravity_model_smg = sdmc_v3_covariant_recon;
+             pba->field_evolution_smg = _TRUE_;
+             pba->M2_evolution_smg = _FALSE_;
+             flag2=_TRUE_;
+             pba->parameters_size_smg = 1;
+             class_read_list_of_doubles("parameters_smg",pba->parameters_smg,pba->parameters_size_smg);
+           }
+
+          if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,parser)
+
+          # Covariant G_i implementation.
+          anchor='''  else if(pba->gravity_model_smg == nkgb){'''
+          model=r'''  else if(pba->gravity_model_smg == sdmc_v3_covariant_recon){
+    double K,Kp,Kpp,Y,Yp,Ypp,U,Up,Upp,q,qp,qpp;
+    sdmc_cov_eval(sdmc_cov_K,phi,&K,&Kp,&Kpp);
+    sdmc_cov_eval(sdmc_cov_Y,phi,&Y,&Yp,&Ypp);
+    sdmc_cov_eval(sdmc_cov_U,phi,&U,&Up,&Upp);
+    sdmc_cov_eval(sdmc_cov_QX,phi,&q,&qp,&qpp);
+
+    double Xt=exp(q);
+    double L=Y/Xt;
+    double Lp=(Yp-Y*qp)/Xt;
+    double Lpp=(Ypp-2.*Yp*qp+Y*(qp*qp-qpp))/Xt;
+    double V=2.*Xt*U;
+    double Vp=2.*Xt*(Up+U*qp);
+    double Vpp=2.*Xt*(Upp+2.*Up*qp+U*(qpp+qp*qp));
+
+    double Nc=-log(1.+SDMC_COV_ZC);
+    double xx=(phi-Nc)/(2.*SDMC_COV_WIDTH);
+    double tt=tanh(xx);
+    double uu=1.-tt*tt;
+    double w=SDMC_COV_WIDTH;
+    double S=.5*(1.+tt);
+    double S1=uu/(4.*w);
+    double S2=-tt*uu/(4.*w*w);
+    double S3=-uu*(1.-3.*tt*tt)/(8.*w*w*w);
+    double S4=tt*uu*(2.-3.*tt*tt)/(4.*w*w*w*w);
+    double A=SDMC_COV_AF;
+    double F=exp(A*S);
+    double F1=F*(A*S1);
+    double F2=F*(A*A*S1*S1+A*S2);
+    double F3=F*(A*A*A*S1*S1*S1+3.*A*A*S1*S2+A*S3);
+    double F4d=F*(pow(A*S1,4)+6.*A*A*A*S1*S1*S2
+                  +3.*A*A*S2*S2+4.*A*A*S1*S3+A*S4);
+
+    double g=.5*F1, gp=.5*F2, gpp=.5*F3, gppp=.5*F4d;
+    double logx=log(fmax(X,1e-300)/SDMC_COV_XSTAR);
+
+    pgf->G2 = K*X + L*X*X - V;
+    pgf->G2_X = K + 2.*L*X;
+    pgf->G2_XX = 2.*L;
+    pgf->G2_phi = Kp*X + Lp*X*X - Vp;
+    pgf->G2_Xphi = Kp + 2.*Lp*X;
+    pgf->G2_XXphi = 2.*Lp;
+    pgf->G2_phiphi = Kpp*X + Lpp*X*X - Vpp;
+    pgf->G2_Xphiphi = Kpp + 2.*Lpp*X;
+
+    pgf->G3_X = -g/X;
+    pgf->G3_XX = g/(X*X);
+    pgf->G3_XXX = -2.*g/(X*X*X);
+    pgf->G3_phi = -gp*logx;
+    pgf->G3_Xphi = -gp/X;
+    pgf->G3_XXphi = gp/(X*X);
+    pgf->G3_phiphi = -gpp*logx;
+    pgf->G3_Xphiphi = -gpp/X;
+    pgf->G3_phiphiphi = -gppp*logx;
+
+    pgf->G4 = .5*F;
+    pgf->DG4 = .5*(F-1.);
+    pgf->G4_phi = .5*F1;
+    pgf->G4_phiphi = .5*F2;
+    pgf->G4_phiphiphi = .5*F3;
+  }
+
+  else if(pba->gravity_model_smg == nkgb){'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,model)
+
+          # Initial conditions: phi=N, dot(phi)=H_target(phi).
+          anchor='''	  case nkgb:
+		  {'''
+          ic=r'''    case sdmc_v3_covariant_recon:
+      {
+        double kval,kp,kpp,y,yp,ypp,u,up,upp,q,qp,qpp;
+        double phi_ini=log(a);
+        sdmc_cov_eval(sdmc_cov_QX,phi_ini,&q,&qp,&qpp);
+        double Ht=sqrt(2.*exp(q));
+        pvecback_integration[pba->index_bi_phi_smg]=phi_ini;
+        pvecback_integration[pba->index_bi_phi_prime_smg]=a*Ht;
+      }
+      break;
+
+	  case nkgb:
+		  {'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,ic)
+          print('covariant reconstruction model patched')
+          PY
+
+      - name: Rebuild covariant hi_class
+        run: |
+          make clean
+          make -j2 class
+
+      - name: Free covariant background evolution
+        run: |
+          cat > output/covariant_free.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg_debug = -1
+          gravity_model = sdmc_v3_covariant_recon
+          parameters_smg = 0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          skip_stability_tests_smg = yes
+          output_background_smg = 3
+          write background = yes
+          write parameters = yes
+          root = output/covariant_free_
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          set +e
+          ./class output/covariant_free.ini > output/covariant_free.log 2>&1
+          echo $? > output/covariant_free.returncode
+          set -e
+          tail -80 output/covariant_free.log || true
+
+      - name: Compare free covariant evolution to target
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np, pandas as pd, re
+
+          def tab(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  names.append(hdr[m.end():end].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+
+          out=Path('output')
+          rc=int((out/'covariant_free.returncode').read_text().strip())
+          summary={'returncode':rc}
+          covp=out/'covariant_free_00_background.dat'
+          if rc==0 and covp.exists():
+              tar=tab(out/'cov_target_00_background.dat').sort_values('z')
+              cov=tab(covp).sort_values('z')
+              # compare on covariant rows within target support
+              z=cov['z'].to_numpy()
+              mask=(z>=tar.z.min())&(z<=tar.z.max())
+              z=z[mask]
+              def iv(frame,col): return np.interp(z,frame.z,frame[col])
+              Hc=cov.loc[mask,'H [1/Mpc]'].to_numpy(); Ht=iv(tar,'H [1/Mpc]')
+              Fc=cov.loc[mask,'M*^2_smg'].to_numpy(); Ft=iv(tar,'M*^2_smg')
+              amc=cov.loc[mask,'M2_running_smg'].to_numpy(); amt=iv(tar,'M2_running_smg')
+              abc=cov.loc[mask,'braiding_smg'].to_numpy(); abt=iv(tar,'braiding_smg')
+              N=-np.log1p(z)
+              phi=cov.loc[mask,'phi_smg'].to_numpy()
+              phip=cov.loc[mask,"phi'"].to_numpy()
+              a=1/(1+z)
+              summary.update({
+                'max_abs_dH_over_H':float(np.max(np.abs(Hc/Ht-1))),
+                'rms_dH_over_H':float(np.sqrt(np.mean((Hc/Ht-1)**2))),
+                'max_abs_dF_over_F':float(np.max(np.abs(Fc/Ft-1))),
+                'max_abs_alphaM_diff':float(np.max(np.abs(amc-amt))),
+                'max_abs_alphaB_diff':float(np.max(np.abs(abc-abt))),
+                'max_abs_phi_minus_N':float(np.max(np.abs(phi-N))),
+                'max_abs_phidot_over_H_minus1':float(np.max(np.abs(phip/(a*Hc)-1))),
+                'min_D':float(cov['kin (D)'].min()),
+                'min_cs2':float(cov['c_s^2'].min()),
+                'min_M2':float(cov['M*^2_smg'].min()),
+                'max_noslip_resid':float(np.max(np.abs(cov['braiding_smg']+2*cov['M2_running_smg']))),
+              })
+              sub=cov[cov.z<=100]
+              summary.update({
+                'min_D_z100':float(sub['kin (D)'].min()),
+                'min_cs2_z100':float(sub['c_s^2'].min()),
+                'max_cs2_z100':float(sub['c_s^2'].max()),
+              })
+              # conservative gate for attempting perturbations
+              if (summary['max_abs_dH_over_H']<0.02 and
+                  summary['max_abs_dF_over_F']<0.02 and
+                  summary['min_D']>0 and summary['min_cs2']>0 and summary['min_M2']>0):
+                  (out/'covariant_background_pass.flag').write_text('pass\n')
+          pd.DataFrame([summary]).to_csv(out/'covariant_free_comparison.csv',index=False)
+          print(summary)
+          PY
+
+      - name: Install Planck data if covariant background passes
+        if: always()
+        run: |
+          if [ ! -f output/covariant_background_pass.flag ]; then
+            echo "Covariant background did not pass trajectory/stability gate; skipping perturbation likelihood."
+            exit 0
+          fi
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              ok=cls.install(path='planck_packages',no_progress_bars=True)
+              if not ok: raise SystemExit(f'install failed {cls}')
+          PY
+
+      - name: Full covariant Boltzmann run
+        if: always()
+        run: |
+          if [ ! -f output/covariant_background_pass.flag ]; then exit 0; fi
+          cp output/covariant_free.ini output/covariant_full.ini
+          cat >> output/covariant_full.ini <<'EOF'
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.5,1,2,3,5,10
+          write thermodynamics = yes
+          root = output/covariant_full_
+          EOF
+          set +e
+          ./class output/covariant_full.ini > output/covariant_full.log 2>&1
+          rc=$?
+          set -e
+          echo $rc > output/covariant_full.returncode
+          tail -80 output/covariant_full.log || true
+          if [ $rc -eq 0 ] && [ -f output/covariant_full_00_cl_lensed.dat ]; then
+            python3 sdmc/evaluate_planck_native_components.py \
+              --packages planck_packages \
+              --output output/covariant_planck_components.csv \
+              NKp_v3_covariant=output/covariant_full_00_cl_lensed.dat
+          fi
+
+      - name: Preserve covariant reconstruction outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v3-covariant-reconstruction
+          path: |
+            output/covariant_reconstruction_target_summary.txt
+            output/cov_target_00_background.dat
+            output/covariant_free.ini
+            output/covariant_free.log
+            output/covariant_free.returncode
+            output/covariant_free_00_background.dat
+            output/covariant_free_comparison.csv
+            output/covariant_background_pass.flag
+            output/covariant_full.ini
+            output/covariant_full.log
+            output/covariant_full.returncode
+            output/covariant_full_00_*
+            output/covariant_planck_components.csv
+          if-no-files-found: warn
