@@ -1,0 +1,115 @@
+name: SDMC DESI DR1 official LCDM cross-check
+
+on:
+  push:
+    branches:
+      - sdmc-desi-dr1-fullshape-crosscheck
+  workflow_dispatch:
+
+jobs:
+  official-desi-crosscheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install official DESI likelihood stack
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw cobaya
+          python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
+          python3 -m pip install git+https://github.com/adematti/lsstypes.git
+          python3 -m pip install git+https://github.com/sfschen/velocileptors.git
+          git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
+          mkdir -p desi_likelihood
+          python3 - <<'PY'
+          import requests
+          from pathlib import Path
+          base='https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood/'
+          names=[
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5',
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5',
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5',
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5',
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5',
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5',
+          ]
+          out=Path('desi_likelihood')
+          for name in names:
+              r=requests.get(base+name,timeout=120); r.raise_for_status()
+              (out/name).write_bytes(r.content)
+          PY
+
+      - name: Evaluate official Cobaya CAMB LCDM point
+        run: |
+          python3 - <<'PY'
+          import sys,json
+          import numpy as np
+          sys.path.insert(0,'desi-kp-cosmological-likelihoods/dr1/cobaya')
+          from cobaya.model import get_model
+          from desi_fs_bao_all import desi_fs_bao_all
+          from reptvelocileptors import reptvelocileptors
+
+          nuis={
+            'BGS_z0':(1.1391991627651337,-1.0375137816242972,0.5664601940240396),
+            'LRG_z0':(1.1854017427185422,-1.0046023974479104,0.7506702300766371),
+            'LRG_z1':(1.1427117669329465,-0.8966726551244878,0.4010485293229430),
+            'LRG_z2':(1.1372509707323200,-1.0893039630716754,0.5927839550893486),
+            'ELG_z1':(0.5849794943404073,0.09600282434071451,0.4218014947958064),
+            'QSO_z0':(0.9070552696439698,-0.6062741722850694,0.38578878468166794),
+          }
+
+          params={
+            'H0':67.36,'ombh2':0.02237,'omch2':0.1200,
+            'As':2.10e-9,'ns':0.9649,'tau':0.0544,'mnu':0.0,
+          }
+          for ns,(b1,b2,bs) in nuis.items():
+              params[f'pre_{ns}.b1p']=b1
+              params[f'pre_{ns}.b2p']=b2
+              params[f'pre_{ns}.bsp']=bs
+              params[f'pre_{ns}.b3p']=0.0
+              params[f'{ns}.loglikelihood']={'derived':True}
+
+          info={
+            'theory':{
+              'camb':{'extra_args':{
+                'num_massive_neutrinos':0,
+                'nnu':3.046,
+                'YHe':0.2453,
+                'dark_energy_model':'ppf',
+              }},
+              'rept':{'external':reptvelocileptors},
+            },
+            'likelihood':{
+              'desi':{
+                'external':desi_fs_bao_all,
+                'data_dir':'desi_likelihood',
+                'observable_name':'spectrum-poles-rotated',
+                'tracers':['bgs_z0','lrg_z0','lrg_z1','lrg_z2','elg_z1','qso_z0'],
+                'solve':'marg',
+              }
+            },
+            'params':params,
+          }
+          model=get_model(info)
+          lp=model.logposterior({})
+          likes=np.asarray(lp.loglikes,dtype=float)
+          loglike=float(np.sum(likes))
+          bias_prior=sum((b2/5.)**2+(bs/5.)**2 for _,b2,bs in nuis.values())
+          objective=-2.*loglike+bias_prior
+          standalone=341.06917553323024
+          out=dict(loglike=loglike,bias_prior_chi2=bias_prior,
+                   official_objective=objective,
+                   standalone_objective=standalone,
+                   difference=objective-standalone,
+                   loglikes=likes.tolist())
+          print('DESI_OFFICIAL_LCDM_CROSSCHECK',out,flush=True)
+          open('desi_official_lcdm_crosscheck.json','w').write(json.dumps(out,indent=2))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desi-official-lcdm-crosscheck
+          path: desi_official_lcdm_crosscheck.json
+          if-no-files-found: warn
