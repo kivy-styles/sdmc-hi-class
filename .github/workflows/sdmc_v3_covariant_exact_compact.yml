@@ -3,7 +3,7 @@ name: SDMC NKp-v3 exact covariant free evolution
 on:
   push:
     branches:
-      - sdmc-boltzmann
+      - sdmc-covariant-test
   workflow_dispatch:
 
 jobs:
