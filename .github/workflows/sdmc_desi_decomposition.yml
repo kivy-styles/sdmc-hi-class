@@ -1,9 +1,9 @@
-name: SDMC DESI growth-shape decomposition
+name: SDMC DESI shape-amplitude decomposition
 
 on:
   push:
     branches:
-      - sdmc-desi-growth-shape-decomp
+      - sdmc-desi-shape-amplitude-decomp
   workflow_dispatch:
 
 jobs:
@@ -135,11 +135,18 @@ jobs:
           scales=np.array([12.5]*4+[2.]+[5.]*2); marg=['alpha0p','alpha2p','sn0p','sn2p']
           gi=np.array([all_marg.index(x) for x in marg]); prior_hess=-np.diag(scales[gi]**-2)
 
-          def prepare(spec,geom,vel=None):
+          def prepare(spec,geom,vel=None,amp_target=None):
               if vel is None: vel=spec
               kin=np.geomspace(min(5e-4,kobs[0]/2),max(1.0,kobs[-1]*2),500)
               zs=np.array(zvals)
               Pdd=np.stack([np.interp(kin,*spec['series'][z][:2]) for z in zs],axis=-1)
+              # Optional amplitude transplant: preserve this model's k-shape,
+              # but rescale each redshift slice to the target model's sigma8(z).
+              if amp_target is not None:
+                  Ptar=np.stack([np.interp(kin,*amp_target['series'][z][:2]) for z in zs],axis=-1)
+                  ssrc=np.asarray(PowerSpectrumInterpolator1D(kin,Pdd).sigma8())
+                  star=np.asarray(PowerSpectrumInterpolator1D(kin,Ptar).sigma8())
+                  Pdd=Pdd*(star/ssrc)[None,:]**2
               ptt_cols=[]
               for z in zs:
                   kd,pd,_=spec['series'][z]
@@ -216,14 +223,15 @@ jobs:
               return rows,total
 
           cases=[
-              ('LCDM_DENS_LCDM_VEL_LCDM_GEOM',lcd,lcd,lcd),
-              ('COV_DENS_LCDM_VEL_LCDM_GEOM',cov,lcd,lcd),
-              ('LCDM_DENS_COV_VEL_LCDM_GEOM',lcd,lcd,cov),
-              ('COV_DENS_COV_VEL_LCDM_GEOM',cov,lcd,cov),
+              # label, density shape source, geometry, velocity source, amplitude target
+              ('LCDM_SHAPE_LCDM_AMP',lcd,lcd,lcd,None),
+              ('COV_SHAPE_COV_AMP',cov,lcd,lcd,None),
+              ('COV_SHAPE_LCDM_AMP',cov,lcd,lcd,lcd),
+              ('LCDM_SHAPE_COV_AMP',lcd,lcd,lcd,cov),
           ]
           allrows=[]; summary=[]
-          for label,spec,geom,vel in cases:
-              rows,total=profile(label,prepare(spec,geom,vel)); allrows+=rows; summary.append(dict(model=label,total=total))
+          for label,spec,geom,vel,amp in cases:
+              rows,total=profile(label,prepare(spec,geom,vel,amp)); allrows+=rows; summary.append(dict(model=label,total=total))
           pd.DataFrame(allrows).to_csv('output/desi_decomp_blocks.csv',index=False)
           pd.DataFrame(summary).to_csv('output/desi_decomp_summary.csv',index=False)
           PY
@@ -232,6 +240,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-growth-shape-decomposition
+          name: sdmc-desi-shape-amplitude-decomposition
           path: output/*
           if-no-files-found: warn
