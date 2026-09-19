@@ -1,9 +1,9 @@
-name: SDMC three-supernova distance gate
+name: SDMC r032 final three-supernova gate
 
 on:
   push:
     branches:
-      - sdmc-sn-three-gate
+      - sdmc-r032-sn-final
   workflow_dispatch:
 
 jobs:
@@ -25,18 +25,23 @@ jobs:
           git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
           find sn_data/PantheonPlus sn_data/Union3 sn_data/DESY5 -maxdepth 2 -type f | sort
 
-      - name: Download validated covariant and LCDM background artifact
+      - name: Download r032 covariant and matched LCDM backgrounds
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p input_artifact
+          mkdir -p input_artifact/r032 input_artifact/lcdm
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/$GITHUB_REPOSITORY/actions/artifacts/10585841457/zip \
+            > input_artifact/r032.zip
+          unzip -q input_artifact/r032.zip -d input_artifact/r032
           gh api \
             -H "Accept: application/vnd.github+json" \
             /repos/$GITHUB_REPOSITORY/actions/artifacts/10585330670/zip \
-            > input_artifact/artifact.zip
-          unzip -q input_artifact/artifact.zip -d input_artifact/unpacked
-          test -f input_artifact/unpacked/desi_cov_00_background.dat
-          test -f input_artifact/unpacked/desi_lcdm_00_background.dat
+            > input_artifact/lcdm.zip
+          unzip -q input_artifact/lcdm.zip -d input_artifact/lcdm
+          test -f input_artifact/r032/covariant_replay_00_background.dat
+          test -f input_artifact/lcdm/desi_lcdm_00_background.dat
 
       - name: Evaluate PantheonPlus Union3 and DESY5
         run: |
@@ -48,7 +53,8 @@ jobs:
           import pandas as pd
           from scipy.linalg import cho_factor,cho_solve
 
-          ROOT=Path('input_artifact/unpacked')
+          ROOTC=Path('input_artifact/r032')
+          ROOTL=Path('input_artifact/lcdm')
           DATA=Path('sn_data')
           OUT=Path('output')
 
@@ -62,8 +68,8 @@ jobs:
               return pd.DataFrame(np.loadtxt(path),columns=names).sort_values('z')
 
           bg={
-              'COVARIANT':class_table(ROOT/'desi_cov_00_background.dat'),
-              'LCDM':class_table(ROOT/'desi_lcdm_00_background.dat')
+              'COVARIANT':class_table(ROOTC/'covariant_replay_00_background.dat'),
+              'LCDM':class_table(ROOTL/'desi_lcdm_00_background.dat')
           }
 
           def read_cov(path,n):
@@ -146,6 +152,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-sn-three-gate
+          name: sdmc-r032-sn-final
           path: output/*
           if-no-files-found: warn
