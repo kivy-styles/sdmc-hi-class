@@ -704,7 +704,9 @@ jobs:
               '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_covariant_replay,\n',
               '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_covariant_replay, sdmc_v3_independent_kinetic,\n')
 
-          anchor='''  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          p=Path('gravity_smg/gravity_models_smg.c'); s=p.read_text()
+          needle='if (strcmp(string1,"eft_alphas_power_law") == 0) {'
+          if s.count(needle)!=1: raise RuntimeError('parser token count '+str(s.count(needle)))
           parser='''  if (strcmp(string1,"sdmc_v3_independent_kinetic") == 0) {
              pba->gravity_model_smg = sdmc_v3_independent_kinetic;
              pba->field_evolution_smg = _FALSE_;
@@ -718,10 +720,11 @@ jobs:
                         "sdmc_v3_independent_kinetic requires positive AF,zc,width,D0,Dfloor and non-negative p");
            }
 
-          if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
-          rep('gravity_smg/gravity_models_smg.c',anchor,parser)
+          '''
+          s=s.replace(needle,parser+needle,1)
 
-          canchor='''  else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          ctoken='else if (pba->gravity_model_smg == eft_alphas_power_law) {'
+          if s.count(ctoken)!=1: raise RuntimeError('closure token count '+str(s.count(ctoken)))
           closure=r'''  else if (pba->gravity_model_smg == sdmc_v3_independent_kinetic) {
             double AF=pba->parameters_2_smg[0];
             double zc=pba->parameters_2_smg[1];
@@ -750,8 +753,9 @@ jobs:
             pvecback[pba->index_bg_M2_smg]=F;
           }
 
-          else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
-          rep('gravity_smg/gravity_models_smg.c',canchor,closure)
+          '''
+          s=s.replace(ctoken,closure+ctoken,1)
+          p.write_text(s)
           print('paired independent-kinetic reference installed')
           PY
 
