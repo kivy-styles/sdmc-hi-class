@@ -70,6 +70,12 @@ jobs:
               params[f'pre_{ns}.b3p']=0.0
               params[f'{ns}.loglikelihood']={'derived':True}
 
+          class DESIFS(desi_fs_bao_all):
+              data_dir='desi_likelihood'
+              observable_name='spectrum-poles-rotated'
+              tracers=['bgs_z0','lrg_z0','lrg_z1','lrg_z2','elg_z1','qso_z0']
+              solve='marg'
+
           info={
             'theory':{
               'camb':{'extra_args':{
@@ -81,13 +87,7 @@ jobs:
               'rept':{'external':reptvelocileptors},
             },
             'likelihood':{
-              'desi':{
-                'external':desi_fs_bao_all,
-                'data_dir':'desi_likelihood',
-                'observable_name':'spectrum-poles-rotated',
-                'tracers':['bgs_z0','lrg_z0','lrg_z1','lrg_z2','elg_z1','qso_z0'],
-                'solve':'marg',
-              }
+              'desi':{'external':DESIFS}
             },
             'params':params,
           }
