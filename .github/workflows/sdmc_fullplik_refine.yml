@@ -22,14 +22,16 @@ jobs:
           python3 -m pip install numpy scipy pandas iminuit cobaya
 
       - name: Download validated spectra artifact
-        env:
-          GH_TOKEN: \${{ github.token }}
+        uses: actions/download-artifact@v4
+        with:
+          name: sdmc-covariant-observable-gate
+          path: previous
+          github-token: ${{ github.token }}
+          run-id: 35442100439
+          repository: ${{ github.repository }}
+
+      - name: Verify downloaded spectra artifact
         run: |
-          mkdir -p previous
-          gh run download 35442100439 \
-            --repo "$GITHUB_REPOSITORY" \
-            --name sdmc-covariant-observable-gate \
-            --dir previous
           find previous -maxdepth 3 -type f | sort | head -100
 
       - name: Install Planck likelihoods
