@@ -48,8 +48,8 @@ jobs:
             > input_artifact/artifact.zip
           unzip -q input_artifact/artifact.zip -d input_artifact/unpacked
           find input_artifact/unpacked -maxdepth 3 -type f | sort | sed -n '1,120p'
-          test -f input_artifact/unpacked/output/covariant_observable_00_cl_lensed.dat
-          test -f input_artifact/unpacked/output/fullplik_lcdm_00_cl_lensed.dat
+          test -f input_artifact/unpacked/covariant_observable_00_cl_lensed.dat
+          test -f input_artifact/unpacked/fullplik_lcdm_00_cl_lensed.dat
 
       - name: Profile full Plik with Minuit
         run: |
@@ -63,7 +63,7 @@ jobs:
           from cobaya.likelihoods.planck_2018_lowl.EE import EE
           from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-          ROOT=Path('input_artifact/unpacked/output')
+          ROOT=Path('input_artifact/unpacked')
           OUT=Path('output'); OUT.mkdir(exist_ok=True)
           TCMB=2.7255
 
