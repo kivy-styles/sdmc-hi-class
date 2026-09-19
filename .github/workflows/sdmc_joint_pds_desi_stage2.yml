@@ -1,9 +1,6 @@
 name: SDMC independent-D raw DESI joint stage 2
 
 on:
-  push:
-    branches:
-      - sdmc-joint-pds-independent
   workflow_dispatch:
 
 jobs:
