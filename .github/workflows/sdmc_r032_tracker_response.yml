@@ -1,9 +1,9 @@
-name: SDMC r032 global subluminality kinetic scan
+name: SDMC r032 lower-background floor-threshold scan
 
 on:
   push:
     branches:
-      - sdmc-r032-global-subluminal-floor
+      - sdmc-r032-lowerbg-floor-threshold
   workflow_dispatch:
 
 jobs:
@@ -147,16 +147,23 @@ jobs:
           # Raise the early-time D floor while reducing D0 so D(z=0) stays
           # fixed at the baseline value 1e-4 + 0.40*S0.
           POWER=1.0
-          LAMBDA_E=18.25
-          Z_T=19.2
           DN_BG=0.50
           S0=0.7784218611214628
           D_TODAY=0.31146874444858513
-          FLOORS=[0.015,0.018,0.0195,0.0200,0.02013,0.0205,0.021,0.022,0.025]
+          raw=[
+              ('L1725Z180_F0315',17.25,18.00,0.0315),
+              ('L1725Z180_F0319',17.25,18.00,0.0319),
+              ('L1725Z180_F0320',17.25,18.00,0.0320),
+              ('L1725Z180_F0325',17.25,18.00,0.0325),
+              ('L1750Z180_F0300',17.50,18.00,0.0300),
+              ('L1750Z180_F0304',17.50,18.00,0.0304),
+              ('L1750Z180_F0305',17.50,18.00,0.0305),
+              ('L1750Z180_F0310',17.50,18.00,0.0310),
+          ]
           candidates=[]
-          for floor in FLOORS:
+          for label,lambda_e,z_t,floor in raw:
               d0=(D_TODAY-floor)/S0
-              candidates.append((f'F{floor:.5f}',d0,floor))
+              candidates.append((label,d0,floor,lambda_e,z_t))
 
           # ---------- shared table helpers ----------
           def table(path):
@@ -349,9 +356,9 @@ jobs:
 
           # ---------- candidate screen ----------
           rows=[]
-          for ic,(label,D0v,DFLOORv) in enumerate(candidates,1):
+          for ic,(label,D0v,DFLOORv,lambda_e,z_t) in enumerate(candidates,1):
               tag=label
-              lambda_e=LAMBDA_E; z_t=Z_T; dN_bg=DN_BG
+              dN_bg=DN_BG
               D0=D0v; DFLOOR=DFLOORv
               root=str(OUT/(tag+'_'))
               ip=OUT/(tag+'.ini'); ip.write_text(sdmc_ini(lambda_e,z_t,dN_bg,root))
@@ -395,10 +402,10 @@ jobs:
                   stable=(rec['min_D_all']>0 and rec['min_cs2_all']>0 and rec['max_cs2_all']<=1.0)
                   rec['stable_subluminal']=bool(stable)
                   rec['global_subluminal']=bool(stable)
-                  print('GLOBAL_D_SCAN_OK',rec,flush=True)
+                  print('LOWERBG_THRESHOLD_SCAN_OK',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('GLOBAL_D_SCAN_FAIL',rec,flush=True)
+                  print('LOWERBG_THRESHOLD_SCAN_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
@@ -412,14 +419,14 @@ jobs:
           keep=set()
           for col in ['joint_pp','joint_union3','joint_desy5','delta_planck']:
               for x in ok.nsmallest(4,col)['id']: keep.add(x)
-          current=ok[(np.isclose(ok.lambda_e,20.0))&(np.isclose(ok.z_t,20.5))]
+          current=ok.iloc[0:0]
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
           shortlist.to_csv(OUT/'r032_lambda_zt_grid_shortlist.csv',index=False)
-          print('GLOBAL_D_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
-          print('GLOBAL_D_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
-          print('GLOBAL_D_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
-          print('GLOBAL_D_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','DeltaN_bg','delta_planck',
+          print('LOWERBG_THRESHOLD_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
+          print('LOWERBG_THRESHOLD_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
+          print('LOWERBG_THRESHOLD_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
+          print('LOWERBG_THRESHOLD_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','DeltaN_bg','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
