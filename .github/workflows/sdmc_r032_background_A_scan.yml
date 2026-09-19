@@ -3,7 +3,7 @@ name: SDMC r032 low-z A background scan
 on:
   push:
     branches:
-      - sdmc-r032-background-A-scan
+      - sdmc-r033-background-A-scan
   workflow_dispatch:
 
 jobs:
@@ -392,7 +392,7 @@ jobs:
               rows.append(rec)
 
           df=pd.DataFrame(rows)
-          df.to_csv(OUT/'r032_background_A_scan.csv',index=False)
+          df.to_csv(OUT/'r033_background_A_scan.csv',index=False)
           ok=df[(df.status=='OK') & (df.stable_subluminal==True)].copy()
           if ok.empty:
               raise SystemExit('No stable subluminal candidates in joint screen')
@@ -405,7 +405,7 @@ jobs:
           current=ok[(np.isclose(ok.A_late,0.01105624999))&(np.isclose(ok.tau_A,0.25))]
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
-          shortlist.to_csv(OUT/'r032_background_A_shortlist.csv',index=False)
+          shortlist.to_csv(OUT/'r033_background_A_shortlist.csv',index=False)
           print('BACKGROUND_A_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
           print('BACKGROUND_A_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
           print('BACKGROUND_A_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
@@ -418,8 +418,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-background-A-scan
+          name: sdmc-r033-background-A-scan
           path: |
-            output/joint_screen/r032_background_A_scan.csv
-            output/joint_screen/r032_background_A_shortlist.csv
+            output/joint_screen/r033_background_A_scan.csv
+            output/joint_screen/r033_background_A_shortlist.csv
           if-no-files-found: warn
