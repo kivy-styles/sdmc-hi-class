@@ -1,9 +1,9 @@
-name: SDMC r032 L18 Z19.5 covariant gate
+name: SDMC r032 L18.5 Z19 covariant gate
 
 on:
   push:
     branches:
-      - sdmc-r032-l18-z195-covariant-minuit
+      - sdmc-r032-l185-z19-covariant-minuit
   workflow_dispatch:
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
           gravity_model = sdmc_v3_native_noslip
           parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893, 18.0, 19.5, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.7073985893, 18.5, 19.0, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
           skip_stability_tests_smg = yes
           write background = yes
@@ -231,8 +231,8 @@ jobs:
             double B = pba->parameters_smg[6];
             double tauB = pba->parameters_smg[7];'''
           new='''  double Ox = 0.7073985893;
-            double lambda_e = 18.0;
-            double zt = 19.5;
+            double lambda_e = 18.5;
+            double zt = 19.0;
             double dNt = 0.5;
             double A = 0.01105624999;
             double tauA = 0.25;
@@ -784,7 +784,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.0715, 5.00, 1.426, 0.40, 1.0, 0.0001
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893,18.0,19.5,0.5,0.01105624999,0.25,0.01951933685,1.5
+          expansion_smg = 0.7073985893,18.5,19.0,0.5,0.01105624999,0.25,0.01951933685,1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -989,16 +989,16 @@ jobs:
             257.,47.,40.,104.,
             .130,.130,.46,.207,.69,1.938
           ],float)
-          # Best nuisance point from the independently parameterized L18_Z19.5
-          # full-Plik profile. Since the covariant replay spectra agree at
-          # ~1e-5 or better, this is a physically justified deterministic seed.
+          # Best nuisance point from the independently parameterized L18.5_Z19
+          # full-Plik profile. Since the neighboring optimized covariant replay
+          # spectra agree at ~1e-5 or better, this is a deterministic close seed.
           param_best=np.array([
-            1.0045213554451686,0.9998424064177515,0.9982224709218035,
-            45.72423851559507,0.7248916197434251,6.976523105384968,5.500029149071257e-06,
-            8.535071574604354,10.780908169898211,20.060917984547913,96.15277043474971,
-            254.14725387485439,53.74852187444169,57.054180993875775,125.69753555422906,
-            0.11540298701803288,0.13448306014088762,0.48055099721034644,
-            0.2266942865821831,0.66858903191407,2.1183252356550293
+            1.0049729206269322,0.9998404278179155,0.998222979292052,
+            45.70790202145403,0.7401543679312326,6.942313435322051,0.00048337511666978936,
+            8.530788217139728,10.764164990393494,20.063181728292967,96.21389281690756,
+            254.24049660433138,54.24370983664309,57.6237328996358,126.09908597603751,
+            0.11536806646768037,0.13448901269396568,0.48034777942180357,
+            0.22656415497997964,0.6683653610746924,2.117157311326957
           ],float)
           bounds=[
             (.97,1.03),
@@ -1240,7 +1240,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-l18-z195-covariant
+          name: sdmc-r032-l185-z19-covariant
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay.ini
