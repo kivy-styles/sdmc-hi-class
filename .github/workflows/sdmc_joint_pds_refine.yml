@@ -1,0 +1,269 @@
+name: SDMC independent-D stability corridor refinement
+
+on:
+  push:
+    branches:
+      - sdmc-joint-pds-refine
+  workflow_dispatch:
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy numpy pandas
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Add corrected independent kinetic model
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          def rep(path,old,new):
+              p=Path(path); s=p.read_text()
+              if new in s:
+                  return
+              if s.count(old)!=1:
+                  raise RuntimeError(f'{path}: anchor count {s.count(old)}')
+              p.write_text(s.replace(old,new,1))
+
+          rep('include/background.h',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip,\n',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_v3_independent_kinetic,\n')
+
+          anchor='''  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          parser='''  if (strcmp(string1,"sdmc_v3_independent_kinetic") == 0) {
+             pba->gravity_model_smg = sdmc_v3_independent_kinetic;
+             pba->field_evolution_smg = _FALSE_;
+             pba->M2_evolution_smg = _FALSE_;
+             flag2=_TRUE_;
+             pba->parameters_2_size_smg = 6;
+             class_read_list_of_doubles("parameters_smg",pba->parameters_2_smg,pba->parameters_2_size_smg);
+             class_test(pba->parameters_2_smg[0] <= 0. || pba->parameters_2_smg[1] <= 0. ||
+                        pba->parameters_2_smg[2] <= 0. || pba->parameters_2_smg[3] <= 0. ||
+                        pba->parameters_2_smg[4] < 0. || pba->parameters_2_smg[5] <= 0., errmsg,
+                        "sdmc_v3_independent_kinetic requires positive AF,zc,width,D0,Dfloor and non-negative p");
+           }
+
+          if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,parser)
+
+          canchor='''  else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          closure=r'''  else if (pba->gravity_model_smg == sdmc_v3_independent_kinetic) {
+            double AF=pba->parameters_2_smg[0];
+            double zc=pba->parameters_2_smg[1];
+            double width=pba->parameters_2_smg[2];
+            double D0=pba->parameters_2_smg[3];
+            double power=pba->parameters_2_smg[4];
+            double Dfloor=pba->parameters_2_smg[5];
+            double N=log(a);
+            double Nc=-log(1.+zc);
+            double x=(N-Nc)/(2.*width);
+            double th=tanh(x);
+            double ch=cosh(x);
+            double sech2=1./(ch*ch);
+            double S=.5*(1.+th);
+            double F=exp(AF*S);
+            double am=AF/(4.*width)*sech2;
+            double bra=-2.*am;
+            /* Independently prescribed closure:
+             * D = 1e-4 + 0.40 S for this joint scan.
+             * No target c_s^2 or cs2num enters the definition. */
+            double D=Dfloor + D0*pow(S,power);
+            double ak=D-1.5*bra*bra;
+            pvecback[pba->index_bg_kineticity_smg]=ak;
+            pvecback[pba->index_bg_braiding_smg]=bra;
+            pvecback[pba->index_bg_tensor_excess_smg]=0.;
+            pvecback[pba->index_bg_M2_running_smg]=am;
+            pvecback[pba->index_bg_beyond_horndeski_smg]=0.;
+            pvecback[pba->index_bg_delta_M2_smg]=F-1.;
+            pvecback[pba->index_bg_M2_smg]=F;
+          }
+
+          else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          rep('gravity_smg/gravity_models_smg.c',canchor,closure)
+          print('INDEPENDENT_D_MODEL_INSTALLED')
+          PY
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Install Planck likelihood data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              ok=cls.install(path='planck_packages',no_progress_bars=True)
+              if not ok: raise SystemExit(f'Planck install failed: {cls}')
+          PY
+      - name: Refine stable independent-D corridor
+        run: |
+          mkdir -p output/refine
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv,math,re,subprocess,textwrap
+          import numpy as np
+          import pandas as pd
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+
+          OUT=Path('output/refine')
+          TCMB=2.7255; CAL_SIGMA=0.0025
+          D0=0.40; POWER=1.0; DFLOOR=1e-4
+          AFS=[0.0695,0.0705,0.0715,0.0725,0.073128]
+          ZCS=[5.00,5.20,5.40,5.60,5.80]
+          WIDTHS=[1.40,1.426,1.45]
+          candidates=[(A,z,w) for A in AFS for z in ZCS for w in WIDTHS]
+
+          high=TTTEEE_lite_native(packages_path='planck_packages')
+          lowT=TT(packages_path='planck_packages')
+          lowE=EE(packages_path='planck_packages')
+          lens=LensingNative(packages_path='planck_packages')
+
+          def parse_bg(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[x for x in lines if x.startswith('#') and re.search(r'1\s*:',x)][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(marks):
+                  e=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values('z')
+
+          def load(path):
+              a=np.loadtxt(path); ell=a[:,0].astype(int); n=int(ell.max())+1
+              conv=(TCMB*1e6)**2
+              tt=np.zeros(n); ee=np.zeros(n); te=np.zeros(n); pp=np.zeros(n)
+              tt[ell]=a[:,1]*conv; ee[ell]=a[:,2]*conv; te[ell]=a[:,3]*conv
+              L=ell.astype(float); pp[ell]=a[:,5]*L*(L+1.)
+              return np.column_stack([ell,tt[ell],te[ell],ee[ell]]),{'tt':tt,'te':te,'ee':ee,'pp':pp}
+
+          def score(path):
+              harr,dls=load(path)
+              def comp(A):
+                  A=float(A)
+                  ch=float(high.chi_squared(harr,A_planck=A))
+                  ct=float(-2*lowT.log_likelihood(dls['tt'],calib=A))
+                  ce=float(-2*lowE.log_likelihood(dls['ee'],calib=A))
+                  lp={lens.calibration_param:A} if getattr(lens,'calibration_param',None) else {}
+                  cl=float(-2*lens.log_likelihood(dls,**lp))
+                  cp=((A-1.)/CAL_SIGMA)**2
+                  return ch,ct,ce,cl,cp,ch+ct+ce+cl+cp
+              opt=minimize_scalar(lambda A:comp(A)[-1],bounds=(0.97,1.03),method='bounded',
+                                  options={'xatol':1e-10})
+              A=float(opt.x); return A,*comp(A)
+
+          def ini(AF,zc,width,root):
+              As=math.exp(3.076)/1e10
+              return textwrap.dedent(f'''\
+              H0 = 70.8514
+              omega_b = 0.02239952
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = {As:.16e}
+              n_s = 0.964
+              tau_reio = 0.0544
+              Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = 0.003
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_v3_independent_kinetic
+              parameters_smg = {AF:.12g}, {zc:.12g}, {width:.12g}, {D0}, {POWER}, {DFLOOR}
+              expansion_model = sdmc_full
+              expansion_smg = 0.7073985893,20.0,21.10,0.5,0.01105624999,0.25,0.01951933685,1.5
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+              output_background_smg = 3
+              modes = s
+              output = tCl,pCl,lCl
+              lensing = yes
+              l_max_scalars = 3000
+              write background = yes
+              root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              lensing_verbose = 0
+              output_verbose = 0
+              ''')
+
+          rows=[]
+          for i,(AF,zc,width) in enumerate(candidates,1):
+              tag=f'r{i:03d}'
+              root=str(OUT/(tag+'_')); ip=OUT/(tag+'.ini')
+              ip.write_text(ini(AF,zc,width,root))
+              cp=subprocess.run(['./class',str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
+                                text=True,timeout=240)
+              rec={'id':tag,'AF':AF,'zc':zc,'width':width,'returncode':cp.returncode,'status':'FAIL'}
+              bgp=Path(root+'00_background.dat'); clp=Path(root+'00_cl_lensed.dat')
+              if bgp.exists():
+                  bg=parse_bg(bgp); m=bg.z<=100
+                  rec.update({
+                    'min_D_z100':float(bg.loc[m,'kin (D)'].min()),
+                    'min_cs2_z100':float(bg.loc[m,'c_s^2'].min()),
+                    'max_cs2_z100':float(bg.loc[m,'c_s^2'].max()),
+                    'min_D_all':float(bg['kin (D)'].min()),
+                    'min_cs2_all':float(bg['c_s^2'].min()),
+                    'max_abs_noslip_z100':float(np.max(np.abs(bg.loc[m,'braiding_smg']+2*bg.loc[m,'M2_running_smg']))),
+                  })
+              if cp.returncode==0 and bgp.exists() and clp.exists():
+                  A,ch,ct,ce,cl,cpr,total=score(clp)
+                  rec.update({'status':'OK','A_planck':A,'chi2_high':ch,'chi2_lowT':ct,
+                              'chi2_lowE':ce,'chi2_lensing':cl,'chi2_cal':cpr,'chi2_planck':total})
+                  rec['stable_subluminal']=bool(rec['min_D_z100']>0 and rec['min_cs2_z100']>0 and rec['max_cs2_z100']<=1.0)
+                  print('REFINE_OK',rec,flush=True)
+              else:
+                  rec['error']=cp.stdout[-800:]
+                  print('REFINE_FAIL',rec,flush=True)
+              rows.append(rec)
+
+          df=pd.DataFrame(rows)
+          df.to_csv(OUT/'refine_scan.csv',index=False)
+          ok=df[(df.status=='OK') & (df.stable_subluminal==True)].copy()
+          if ok.empty:
+              raise SystemExit('No stable subluminal points in refine scan')
+          best=ok.nsmallest(12,'chi2_planck').copy()
+          best.to_csv(OUT/'refine_best.csv',index=False)
+          print('REFINE_BEST',best.to_dict('records'),flush=True)
+          PY
+
+      - name: Preserve refinement
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-independent-d-refine
+          path: |
+            output/refine/refine_scan.csv
+            output/refine/refine_best.csv
+          if-no-files-found: warn
