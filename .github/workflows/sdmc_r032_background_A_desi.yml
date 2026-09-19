@@ -3,7 +3,7 @@ name: SDMC r032 background A raw DESI
 on:
   push:
     branches:
-      - sdmc-r032-lzt-fine-desi
+      - sdmc-r032-lzt-micro-desi
   workflow_dispatch:
 
 jobs:
@@ -181,10 +181,9 @@ jobs:
           zpk=(out/'desi_zpk.txt').read_text().strip()
           As=math.exp(3.076)/1e10
           candidates=[
-              ('L18_Z19.4',18.0,19.4),
-              ('L18.25_Z19.2',18.25,19.2),
-              ('L18.25_Z19.4',18.25,19.4),
-              ('L18.5_Z18.8',18.5,18.8),
+              ('L18.15_Z19.15',18.15,19.15),
+              ('L18.10_Z19.20',18.10,19.20),
+              ('L18.20_Z19.10',18.20,19.10),
           ]
           for cid,lambda_e,z_t in candidates:
               root=f'output/desi_{cid}_'
@@ -354,22 +353,18 @@ jobs:
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
           candidate_meta={
-            'L18_Z19.4':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.0,z_t=19.4,
-                             delta_planck=42.10540196270608,
-                             delta_pp=4.667248378042132,delta_union3=4.192428674577968,
-                             delta_desy5=9.770833872258663),
-            'L18.25_Z19.2':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.2,
-                                delta_planck=42.10581496295799,
-                                delta_pp=4.667247864883393,delta_union3=4.192428181195282,
-                                delta_desy5=9.770832858979702),
-            'L18.25_Z19.4':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.4,
-                                delta_planck=42.613345696059014,
-                                delta_pp=4.6672495529055595,delta_union3=4.1924298043886665,
-                                delta_desy5=9.770836114883423),
-            'L18.5_Z18.8':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.5,z_t=18.8,
-                               delta_planck=42.64647034307541,
-                               delta_pp=4.667245495598763,delta_union3=4.192425904839183,
-                               delta_desy5=9.77082835137844),
+            'L18.15_Z19.15':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.15,z_t=19.15,
+                                  delta_planck=41.73508756482829,
+                                  delta_pp=4.667246940545738,delta_union3=4.192427294314257,
+                                  delta_desy5=9.770831115543842),
+            'L18.10_Z19.20':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.10,z_t=19.20,
+                                  delta_planck=41.741461486323715,
+                                  delta_pp=4.667247135657817,delta_union3=4.192427482557832,
+                                  delta_desy5=9.770831495523453),
+            'L18.20_Z19.10':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.20,z_t=19.10,
+                                  delta_planck=41.77982843229802,
+                                  delta_pp=4.667246742639691,delta_union3=4.192427104106173,
+                                  delta_desy5=9.77083071321249),
           }
           models={cid:model_data(f'desi_{cid}',70.8514,0.02239952,0.12444227328918850,0.964)
                   for cid in candidate_meta}
@@ -573,7 +568,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-lzt-fine-desi
+          name: sdmc-r032-lzt-micro-desi
           path: |
             output/r032_lambda_zt_desi_summary.csv
             output/r032_lambda_zt_desi_blocks.csv
