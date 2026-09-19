@@ -468,7 +468,25 @@ jobs:
           python3 -m pip install git+https://github.com/sfschen/velocileptors.git
           rm -rf desi-kp-cosmological-likelihoods
           git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
-          python3 desi-kp-cosmological-likelihoods/dr1/cobaya/download.py --data-dir desi_likelihood
+          mkdir -p desi_likelihood
+          python3 - <<'PY'
+          import requests
+          from pathlib import Path
+          base='https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood/'
+          names=[
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5',
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5',
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5',
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5',
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5',
+          'likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5',
+          ]
+          out=Path('desi_likelihood')
+          for name in names:
+              r=requests.get(base+name,timeout=120); r.raise_for_status()
+              (out/name).write_bytes(r.content)
+              print('DESI_FILE',name,len(r.content),flush=True)
+          PY
 
       - name: Read official DESI effective redshifts
         run: |
@@ -706,21 +724,28 @@ jobs:
 
           def prepare_basis(m):
               kin=np.geomspace(min(5e-4,kobs[0]/2),max(1.0,kobs[-1]*2),500)
-              zs=np.array(zvals)
-              Pdd=np.stack([np.interp(kin,*m['series'][z][:2]) for z in zs],axis=-1)
+              zs=np.array([b['zeff'] for b in blocks],float)
+              Pdd=np.stack([np.interp(kin,m['series'][z][0],m['series'][z][1]) for z in zs],axis=-1)
               Ptt=np.stack([np.interp(kin,m['series'][z][0],m['series'][z][2]) for z in zs],axis=-1)
               pki=PowerSpectrumInterpolator1D(kin,Pdd)
               cosmo=Cosmology(n_s=m['ns'],Omega_b=m['ob']/m['h']**2,
                               Omega_cdm=m['oc']/m['h']**2,Omega_ncdm=0.,H0=m['H0'])
               cosmo.rs_drag=m['rd']*m['h']
-              filt=PowerSpectrumBAOFilter(pki,engine='peakaverage',cosmo=cosmo,cosmo_fid=fid)
+
+              # Match DESI reptvelocileptors.py: initialize the BAO filter
+              # from the DESI fiducial delta_cb spectrum, then apply it to
+              # the tested cosmology.
+              pkfid=fid.get_fourier().pk_interpolator(of='delta_cb').to_1d(z=zs)
+              filt=PowerSpectrumBAOFilter(pkfid,engine='peakaverage',
+                                          cosmo=fid,cosmo_fid=fid)
               filt(pki,cosmo=cosmo)
               Pnw=filt.smooth_pk_interpolator()(kin)
               sig8=np.asarray(pki.sigma8())
               ptti=PowerSpectrumInterpolator1D(kin,Ptt)
               fs8=np.asarray(ptti.sigma8())
 
-              extk=None; pcb=None; pnw=None; ptt=None; pt=None
+              # Match DESI normalization: REPT base is the first fitted
+              # DESI redshift, with Dz defined relative to that same bin.
               pt=REPT(kin,Pdd[:,0],pnw=Pnw[:,0],kmin=kobs[0],kmax=kobs[-1],
                       nk=200,rbao=110,sbao=None,beyond_gauss=True,one_loop=True,
                       shear=True,cutoff=20,jn=5,N=4000,threads=2,
@@ -732,8 +757,8 @@ jobs:
                                      assume_sorted=True)(np.log10(extk))
               pcb=loginterp(Pdd); pnw=loginterp(Pnw); ptt=loginterp(Ptt)
               tables={}
-              for b in blocks:
-                  z=b['zeff']; iz=zvals.index(z)
+              for iz,b in enumerate(blocks):
+                  z=b['zeff']
                   Hkms=float(np.interp(z,m['bg'].z,m['bg']['H [1/Mpc]']))*C
                   DA=float(np.interp(z,m['bg'].z,m['bg']['comov. dist.']))/(1.+z)
                   qpar=float(fid.efunc(z)/(Hkms/(100.*m['h'])))
