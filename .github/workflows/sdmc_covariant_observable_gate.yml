@@ -555,26 +555,53 @@ jobs:
           shear=(hp+6.*etap)/2.0
           theta_c_N=shear
           theta_b_N=tb+shear
+          h=70.8514/100.0
+          kphys=k*h
+          # Gauge transform species densities to Newtonian gauge.
+          avec=1./(1.+zs)
+          Hvec=np.array([float(cosmo.Hubble(float(z))) for z in zs])
+          aHvec=avec*Hvec
+          alpha=shear/(kphys[:,None]**2)
+          dc_N=dc-3.*aHvec[None,:]*alpha
+          db_N=db-3.*aHvec[None,:]*alpha
           fb=0.02239952/(0.02239952+0.12444227328918850)
-          dcb_sync=fb*db+(1.-fb)*dc
-          for iz,z in enumerate(zs):
-              if z>1.6: continue
-              fbg=float(np.interp(z,bz,bf))
-              a=1./(1.+z); HH=float(cosmo.Hubble(float(z))); aH=a*HH
-              q=(k>=0.005)&(k<=0.05)&(np.abs(dm[:,iz])>0)
-              candidates={
-                'cdm_minus_thetaN_over_aH_dm':-theta_c_N[:,iz]/(aH*dm[:,iz]),
-                'baryon_minus_thetaN_over_aH_dm':-theta_b_N[:,iz]/(aH*dm[:,iz]),
-                'cdm_minus_thetaN_over_aH_dcbSync':-theta_c_N[:,iz]/(aH*dcb_sync[:,iz]),
-              }
-              for name,val in candidates.items():
-                  vv=val[q]
-                  rows.append({
-                    'z':float(z),'candidate':name,'f_background':fbg,
-                    'median':float(np.median(vv)),
-                    'rms_fractional_to_f':float(np.sqrt(np.mean((vv/fbg-1.)**2))),
-                    'min':float(np.min(vv)),'max':float(np.max(vv))
-                  })
+          dcb_N=fb*db_N+(1.-fb)*dc_N
+
+          # Direct transfer-grid growth rates d ln(delta^N)/d ln a.
+          Ngrid=-np.log1p(zs)
+          ooN=np.argsort(Ngrid)
+          Ns=Ngrid[ooN]
+          def growth_from_delta(delta):
+              ds=delta[:,ooN]
+              return np.gradient(np.log(np.maximum(np.abs(ds),1e-300)),Ns,axis=1)[:,np.argsort(ooN)]
+          fc_growth=growth_from_delta(dc_N)
+          fb_growth=growth_from_delta(db_N)
+          fcb_growth=growth_from_delta(dcb_N)
+
+          targets=[0.0,0.295,0.510,0.706,0.934,1.321,1.484]
+          for zt in targets:
+              iz=int(np.argmin(np.abs(zs-zt)))
+              z=float(zs[iz]); aH=float(aHvec[iz])
+              for kmin,kmax,band in [(0.005,0.05,'large'),(0.02,0.20,'desi')]:
+                  q=(k>=kmin)&(k<=kmax)&(np.abs(dcb_N[:,iz])>0)
+                  tests=[
+                    ('cdm',-theta_c_N[:,iz]/(aH*dc_N[:,iz]),fc_growth[:,iz]),
+                    ('baryon',-theta_b_N[:,iz]/(aH*db_N[:,iz]),fb_growth[:,iz]),
+                    ('cdm_over_cb',-theta_c_N[:,iz]/(aH*dcb_N[:,iz]),fcb_growth[:,iz]),
+                    ('baryon_over_cb',-theta_b_N[:,iz]/(aH*dcb_N[:,iz]),fcb_growth[:,iz]),
+                  ]
+                  fbg=float(np.interp(z,bz,bf))
+                  for name,vel,grow in tests:
+                      v=vel[q]; g=grow[q]
+                      rows.append({
+                        'z_target':zt,'z_grid':z,'band':band,'candidate':name,
+                        'f_background':fbg,
+                        'velocity_median':float(np.median(v)),
+                        'growth_median':float(np.median(g)),
+                        'rms_velocity_vs_growth':float(np.sqrt(np.mean((v/g-1.)**2))),
+                        'max_abs_velocity_vs_growth':float(np.max(np.abs(v/g-1.))),
+                        'velocity_min':float(np.min(v)),'velocity_max':float(np.max(v))
+                      })
           df=pd.DataFrame(rows)
           df.to_csv('output/covariant_desi_transfer_convention_probe.csv',index=False)
           print('DESI_TRANSFER_CONVENTION_PROBE')
