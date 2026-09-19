@@ -278,7 +278,7 @@ jobs:
               use_ppf = no
               Omega_smg = -1
               gravity_model = sdmc_v3_independent_kinetic
-              parameters_smg = 0.0715, 5.00, 1.426, {D0}, {POWER}, {DFLOOR}
+              parameters_smg = 0.0715, 4.94, 1.426, {D0}, {POWER}, {DFLOOR}
               expansion_model = sdmc_full
               expansion_smg = 0.7073985893,20.0,21.10,0.5,{A_late:.12g},{tau_A:.12g},0.01951933685,1.5
               pert_initial_conditions_smg = zero
@@ -353,7 +353,7 @@ jobs:
               ip=OUT/(tag+'.ini'); ip.write_text(sdmc_ini(A_late,tau_A,root))
               cp=subprocess.run(['./class',str(ip)],stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,text=True,timeout=240)
-              rec={'id':tag,'AF':0.0715,'zc':5.00,'width':1.426,'A_late':A_late,'tau_A':tau_A,'returncode':cp.returncode,'status':'FAIL'}
+              rec={'id':tag,'AF':0.0715,'zc':4.94,'width':1.426,'A_late':A_late,'tau_A':tau_A,'returncode':cp.returncode,'status':'FAIL'}
               bgp=Path(root+'00_background.dat'); clp=Path(root+'00_cl_lensed.dat')
               if bgp.exists():
                   bg=table(bgp)
