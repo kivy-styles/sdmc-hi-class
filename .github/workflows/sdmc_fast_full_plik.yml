@@ -3,7 +3,7 @@ name: SDMC r032 lambda-zt full Plik profile
 on:
   push:
     branches:
-      - sdmc-r032-lzt-fine-full-plik
+      - sdmc-r032-lzt-top2-full-plik
   workflow_dispatch:
 
 jobs:
@@ -153,15 +153,13 @@ jobs:
           cases={
             'L18_Z19p4':(18.0,19.4),
             'L18p25_Z19p2':(18.25,19.2),
-            'L18p25_Z19p4':(18.25,19.4),
-            'L18p5_Z18p8':(18.5,18.8),
           }
           for name,(lam,zt) in cases.items():
               root=f'input_artifact/unpacked/{name}_'
               txt=base+f'expansion_smg = 0.7073985893,{lam},{zt},0.5,0.01105624999,0.25,0.01951933685,1.5\nroot = {root}\n'
               Path(f'input_artifact/unpacked/{name}.ini').write_text(txt)
           PY
-          for C in L18_Z19p4 L18p25_Z19p2 L18p25_Z19p4 L18p5_Z18p8; do
+          for C in L18_Z19p4 L18p25_Z19p2; do
             ./class input_artifact/unpacked/$C.ini
             test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
           done
@@ -332,7 +330,7 @@ jobs:
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,displaced])
           lcdm['delta_vs_lcdm']=0.0
           rows=[lcdm]
-          for label in ['L18_Z19p4','L18p25_Z19p2','L18p25_Z19p4','L18p5_Z18p8']:
+          for label in ['L18_Z19p4','L18p25_Z19p2']:
               row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
               row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
               rows.append(row)
@@ -349,6 +347,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-lzt-fine-full-plik-profile
+          name: sdmc-r032-lzt-top2-full-plik-profile
           path: output/*
           if-no-files-found: warn
