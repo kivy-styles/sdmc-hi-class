@@ -1,15 +1,29 @@
-name: SDMC r032 extended kinetic-floor full Plik
+name: SDMC r032 parallel kinetic-floor full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-floor-extended-full-plik
+      - sdmc-r032-floor-parallel-full-plik
   workflow_dispatch:
 
 jobs:
   fast-full-plik:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: F022, d0: 0.37186615498124764, floor: 0.022 }
+          - { id: F024, d0: 0.3692968540662931, floor: 0.024 }
+          - { id: F030, d0: 0.3615889513214295, floor: 0.030 }
+          - { id: F040, d0: 0.3487424467466567, floor: 0.040 }
+          - { id: F060, d0: 0.32304943759711113, floor: 0.060 }
+          - { id: F100, d0: 0.2716634192980201, floor: 0.100 }
+    env:
+      CASE_ID: ${{ matrix.id }}
+      CASE_D0: ${{ matrix.d0 }}
+      CASE_FLOOR: ${{ matrix.floor }}
     permissions:
       actions: read
       contents: read
@@ -110,7 +124,7 @@ jobs:
           mkdir -p input_artifact/unpacked
           python3 - <<'PY'
           from pathlib import Path
-          import textwrap
+          import textwrap,os
           base=textwrap.dedent('''\
           H0 = 70.8514
           omega_b = 0.02239952
@@ -152,16 +166,7 @@ jobs:
           # Global-subluminality shortlist at the refined background
           # (lambda_e,z_t,DeltaN_bg)=(18.25,19.2,0.5).  D0 is adjusted
           # with Dfloor so that the present-day D is held fixed.
-          cases={
-            # Hold D(a=1)=0.31146874444858513 fixed while increasing the
-            # early-time floor beyond the previous scan endpoint.
-            'F022':(0.37186615498124764,0.022),
-            'F024':(0.3692968540662931,0.024),
-            'F030':(0.3615889513214295,0.030),
-            'F040':(0.3487424467466567,0.040),
-            'F060':(0.32304943759711113,0.060),
-            'F100':(0.2716634192980201,0.100),
-          }
+          cases={os.environ['CASE_ID']:(float(os.environ['CASE_D0']),float(os.environ['CASE_FLOOR']))}
           for name,(d0,dfloor) in cases.items():
               root=f'input_artifact/unpacked/{name}_'
               txt=base+(
@@ -170,10 +175,9 @@ jobs:
                   f'root = {root}\n')
               Path(f'input_artifact/unpacked/{name}.ini').write_text(txt)
           PY
-          for C in F022 F024 F030 F040 F060 F100; do
-            ./class input_artifact/unpacked/$C.ini
-            test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
-          done
+          C="$CASE_ID"
+          ./class input_artifact/unpacked/$C.ini
+          test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
           sed 's#root = output/sdmc_planck_lcdm_control_#root = input_artifact/unpacked/fullplik_lcdm_#' \
             sdmc/config/planck_lcdm_control.ini > input_artifact/unpacked/lcdm.ini
           ./class input_artifact/unpacked/lcdm.ini
@@ -183,7 +187,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import csv, json
+          import csv, json, os
           import numpy as np
           from iminuit import Minuit
           from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
@@ -341,11 +345,11 @@ jobs:
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,displaced])
           lcdm['delta_vs_lcdm']=0.0
           rows=[lcdm]
-          for label in ['F022','F024','F030','F040','F060','F100']:
-              row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
-              row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
-              rows.append(row)
-              print('GLOBAL_FLOOR_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
+          label=os.environ['CASE_ID']
+          row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
+          row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
+          rows.append(row)
+          print('GLOBAL_FLOOR_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
           fields=list(rows[0].keys())
           with (OUT/'global_floor_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
