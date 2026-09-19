@@ -1,9 +1,9 @@
-name: SDMC DESI full-shape decomposition
+name: SDMC DESI growth-shape decomposition
 
 on:
   push:
     branches:
-      - sdmc-desi-decomposition
+      - sdmc-desi-growth-shape-decomp
   workflow_dispatch:
 
 jobs:
@@ -135,11 +135,21 @@ jobs:
           scales=np.array([12.5]*4+[2.]+[5.]*2); marg=['alpha0p','alpha2p','sn0p','sn2p']
           gi=np.array([all_marg.index(x) for x in marg]); prior_hess=-np.diag(scales[gi]**-2)
 
-          def prepare(spec,geom):
+          def prepare(spec,geom,vel=None):
+              if vel is None: vel=spec
               kin=np.geomspace(min(5e-4,kobs[0]/2),max(1.0,kobs[-1]*2),500)
               zs=np.array(zvals)
               Pdd=np.stack([np.interp(kin,*spec['series'][z][:2]) for z in zs],axis=-1)
-              Ptt=np.stack([np.interp(kin,spec['series'][z][0],spec['series'][z][2]) for z in zs],axis=-1)
+              ptt_cols=[]
+              for z in zs:
+                  kd,pd,_=spec['series'][z]
+                  kv,pdv,ptv=vel['series'][z]
+                  fv=np.sqrt(np.maximum(ptv/np.maximum(pdv,1e-300),0.))
+                  # Compare growth at the same physical k: k_phys=k_h*h.
+                  kvel_eval=kin*spec['h']/vel['h']
+                  fhy=np.interp(kvel_eval,kv,fv)
+                  ptt_cols.append(Pdd[:,len(ptt_cols)]*fhy*fhy)
+              Ptt=np.stack(ptt_cols,axis=-1)
               pki=PowerSpectrumInterpolator1D(kin,Pdd)
               cos=Cosmology(n_s=spec['ns'],Omega_b=spec['ob']/spec['h']**2,
                             Omega_cdm=spec['oc']/spec['h']**2,Omega_ncdm=0.,H0=spec['H0'])
@@ -205,11 +215,15 @@ jobs:
               for r in rows: print('DESI_DECOMP_BLOCK',r,flush=True)
               return rows,total
 
-          cases=[('COV_SPEC_COV_GEOM',cov,cov),('LCDM_SPEC_LCDM_GEOM',lcd,lcd),
-                 ('COV_SPEC_LCDM_GEOM',cov,lcd),('LCDM_SPEC_COV_GEOM',lcd,cov)]
+          cases=[
+              ('LCDM_DENS_LCDM_VEL_LCDM_GEOM',lcd,lcd,lcd),
+              ('COV_DENS_LCDM_VEL_LCDM_GEOM',cov,lcd,lcd),
+              ('LCDM_DENS_COV_VEL_LCDM_GEOM',lcd,lcd,cov),
+              ('COV_DENS_COV_VEL_LCDM_GEOM',cov,lcd,cov),
+          ]
           allrows=[]; summary=[]
-          for label,spec,geom in cases:
-              rows,total=profile(label,prepare(spec,geom)); allrows+=rows; summary.append(dict(model=label,total=total))
+          for label,spec,geom,vel in cases:
+              rows,total=profile(label,prepare(spec,geom,vel)); allrows+=rows; summary.append(dict(model=label,total=total))
           pd.DataFrame(allrows).to_csv('output/desi_decomp_blocks.csv',index=False)
           pd.DataFrame(summary).to_csv('output/desi_decomp_summary.csv',index=False)
           PY
@@ -218,6 +232,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-decomposition
+          name: sdmc-desi-growth-shape-decomposition
           path: output/*
           if-no-files-found: warn
