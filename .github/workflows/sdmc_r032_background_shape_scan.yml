@@ -3,7 +3,7 @@ name: SDMC r032 late-background shape scan
 on:
   push:
     branches:
-      - sdmc-joint-pds-independent
+      - sdmc-r032-background-shape-scan
   workflow_dispatch:
 
 jobs:
