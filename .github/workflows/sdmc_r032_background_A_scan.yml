@@ -1,9 +1,9 @@
-name: SDMC r032 lambda-z_t Planck SN refinement
+name: SDMC r032 lower lambda-z_t floor0225 refinement
 
 on:
   push:
     branches:
-      - sdmc-r032-lambda-zt-sn-lite
+      - sdmc-r032-lambda-zt-lower-floor0225
   workflow_dispatch:
 
 jobs:
@@ -145,10 +145,10 @@ jobs:
 
           # Refine the background transition at the covariantly validated kinetic floor.
           POWER=1.0
-          DFLOOR=0.022
-          D0=0.37186615498124764
-          LAMBDAS=[17.75,18.00,18.25,18.50,18.75]
-          ZTS=[18.80,19.00,19.20,19.40,19.60]
+          DFLOOR=0.0225
+          D0=0.371223829752509
+          LAMBDAS=[16.50,16.75,17.00,17.25,17.50,17.75]
+          ZTS=[17.80,18.00,18.20,18.40,18.60,18.80]
           candidates=[(lam,zt) for lam in LAMBDAS for zt in ZTS]
 
           # ---------- shared table helpers ----------
@@ -380,10 +380,10 @@ jobs:
                   rec['joint_desy5']=rec['delta_planck']+rec['delta_desy5']
                   stable=(rec['min_D_z100']>0 and rec['min_cs2_z100']>0 and rec['max_cs2_z100']<=1.0)
                   rec['stable_subluminal']=bool(stable)
-                  print('LAMBDA_ZT_LITE_CANDIDATE',rec,flush=True)
+                  print('LOWER_LZT_F0225_CANDIDATE',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('LAMBDA_ZT_LITE_FAIL',rec,flush=True)
+                  print('LOWER_LZT_F0225_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
@@ -401,10 +401,10 @@ jobs:
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
           shortlist.to_csv(OUT/'r032_lambda_zt_sn_lite_shortlist.csv',index=False)
-          print('LAMBDA_ZT_LITE_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
-          print('LAMBDA_ZT_LITE_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
-          print('LAMBDA_ZT_LITE_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
-          print('LAMBDA_ZT_LITE_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
+          print('LOWER_LZT_F0225_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
+          print('LOWER_LZT_F0225_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
+          print('LOWER_LZT_F0225_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
+          print('LOWER_LZT_F0225_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
@@ -413,7 +413,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-lambda-zt-sn-lite
+          name: sdmc-r032-lambda-zt-lower-floor0225
           path: |
             output/joint_screen/r032_lambda_zt_sn_lite.csv
             output/joint_screen/r032_lambda_zt_sn_lite_shortlist.csv
