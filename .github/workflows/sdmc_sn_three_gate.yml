@@ -93,7 +93,6 @@ jobs:
 
           def pantheonplus():
               p=DATA/'PantheonPlus/Pantheon+SH0ES.dat'
-              h=pd.read_csv(p,delim_whitespace=True,comment=None)
               # pandas keeps the leading '#' first-column name as '#'; read manually for exact columns.
               lines=p.read_text().splitlines()
               cols=lines[0].removeprefix('#').split()
