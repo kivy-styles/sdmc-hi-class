@@ -68,7 +68,6 @@ jobs:
               params[f'pre_{ns}.b2p']=b2
               params[f'pre_{ns}.bsp']=bs
               params[f'pre_{ns}.b3p']=0.0
-              params[f'{ns}.loglikelihood']={'derived':True}
 
           class DESIFS(desi_fs_bao_all):
               data_dir='desi_likelihood'
