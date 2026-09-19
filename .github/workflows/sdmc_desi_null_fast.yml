@@ -1,9 +1,9 @@
-name: SDMC DESI LCDM bridge null fast
+name: SDMC DESI GR shadow full-shape
 
 on:
   push:
     branches:
-      - sdmc-desi-null-fast
+      - sdmc-desi-gr-shadow-full
   workflow_dispatch:
 
 jobs:
@@ -93,7 +93,7 @@ jobs:
           gi=np.array([all_marg.index(x) for x in marg])
           prior_hess=-np.diag(scales[gi]**-2)
 
-          H0=67.36; h=H0/100.; ob=0.02237; oc=0.1200; ns=0.9649; As=2.10e-9
+          H0=70.8514; h=H0/100.; ob=0.02239952; oc=0.12444227328918850; ns=0.964; As=2.16715426219737e-9
           fb=ob/(ob+oc); fc=1.-fb
           pars=camb.CAMBparams()
           pars.set_cosmology(H0=H0,ombh2=ob,omch2=oc,mnu=0.,nnu=3.046,TCMB=2.7255,YHe=0.2453,tau=0.0544)
@@ -194,19 +194,22 @@ jobs:
           if len(candidates)!=1: raise RuntimeError(('bridge summary candidates',candidates))
           bridge=pd.read_csv(candidates[0]).iloc[0]
           bridge_lcdm=float(bridge['lcdm_chi2'])
-          delta=total-bridge_lcdm
-          print('DESI_CAMB_NULL_TOTAL',total,flush=True)
-          print('DESI_CLASS_BRIDGE_LCDM_TOTAL',bridge_lcdm,flush=True)
-          print('DESI_CAMB_MINUS_CLASS_BRIDGE',delta,flush=True)
-          pd.DataFrame(rows).to_csv('output/desi_camb_null_blocks.csv',index=False)
-          pd.DataFrame([{'camb_lcdm':total,'class_bridge_lcdm':bridge_lcdm,
-                         'delta_camb_minus_class':delta}]).to_csv('output/desi_camb_null_summary.csv',index=False)
+          bridge_cov=float(bridge['covariant_chi2'])
+          print('DESI_GR_SHADOW_TOTAL',total,flush=True)
+          print('DESI_GR_SHADOW_MINUS_LCDM',total-bridge_lcdm,flush=True)
+          print('DESI_GR_SHADOW_MINUS_COVARIANT',total-bridge_cov,flush=True)
+          pd.DataFrame(rows).to_csv('output/desi_gr_shadow_blocks.csv',index=False)
+          pd.DataFrame([{'gr_shadow':total,'class_bridge_lcdm':bridge_lcdm,
+                         'covariant':bridge_cov,
+                         'delta_shadow_minus_lcdm':total-bridge_lcdm,
+                         'delta_shadow_minus_covariant':total-bridge_cov}]).to_csv(
+                         'output/desi_gr_shadow_summary.csv',index=False)
           PY
 
       - name: Preserve null test
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-camb-null-fast
+          name: sdmc-desi-gr-shadow-full
           path: output/*
           if-no-files-found: warn
