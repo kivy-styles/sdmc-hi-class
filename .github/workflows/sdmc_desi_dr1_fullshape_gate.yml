@@ -634,34 +634,31 @@ jobs:
               series={}
               for z in zvals:
                   ii=z_to_i[round(z,8)]
-                  pk=np.loadtxt(OUT/f'{prefix}_z{ii}_pk.dat')
-                  tk=tab(OUT/f'{prefix}_z{ii}_tk.dat')
+                  pk=np.loadtxt(OUT/f'{prefix}_00_z{ii}_pk.dat')
+                  tk=tab(OUT/f'{prefix}_00_z{ii}_tk.dat')
                   kh=tk['k (h/Mpc)'].to_numpy()
                   k=kh*h
-                  db=tk['d_b'].to_numpy(); dc=tk['d_cdm'].to_numpy()
+                  dm=tk['d_m'].to_numpy()
                   tb=tk['t_b'].to_numpy()
                   hp=tk['h_prime'].to_numpy(); ep=tk['eta_prime'].to_numpy()
-                  shift=.5*(hp+6.*ep)              # k^2 alpha
-                  alpha=np.divide(shift,k*k,out=np.zeros_like(shift),where=k!=0)
+                  # CLASS default matter_source_in_current_gauge=no already
+                  # exports d_m as the gauge-invariant matter density source.
+                  # For the velocity, theta_cb^GI = f_b theta_b^S + k^2 alpha,
+                  # with k^2 alpha=(h'+6 eta')/2 in synchronous gauge.
+                  shift=.5*(hp+6.*ep)
                   a=1./(1.+z)
                   H=float(np.interp(z,bg.z,bg['H [1/Mpc]']))
                   Hc=a*H
-                  dbN=db-3.*Hc*alpha
-                  dcN=dc-3.*Hc*alpha
-                  dS=fb*db+fc*dc
-                  dN=fb*dbN+fc*dcN
-                  thb=tb+shift
-                  thc=shift
-                  vb=-thb/Hc
-                  vc=-thc/Hc
+                  theta_b_gi=tb+shift
+                  theta_c_gi=shift
+                  vb=-theta_b_gi/Hc
+                  vc=-theta_c_gi/Hc
                   vcb=fb*vb+fc*vc
-                  ratio_delta=np.divide(dN,dS,out=np.ones_like(dN),where=np.abs(dS)>1e-300)
-                  ratio_v=np.divide(vcb,dN,out=np.zeros_like(vcb),where=np.abs(dN)>1e-300)
+                  ratio_v=np.divide(vcb,dm,out=np.zeros_like(vcb),where=np.abs(dm)>1e-300)
 
-                  kpk=pk[:,0]; Psync=pk[:,1]
-                  rdelt=np.interp(kpk,kh,ratio_delta)
+                  kpk=pk[:,0]
+                  Pdd=pk[:,1]
                   rv=np.interp(kpk,kh,ratio_v)
-                  Pdd=Psync*rdelt**2
                   Ptt=Pdd*rv**2
                   series[z]=(kpk,Pdd,Ptt)
 
