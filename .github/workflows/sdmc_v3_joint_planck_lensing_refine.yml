@@ -91,9 +91,9 @@ jobs:
                   'output = tCl,pCl,lCl,mPk\n'
                   'P_k_max_h/Mpc = 6.0\n'
                   'z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10\n'
-                  'write thermodynamics = yes\nwrite parameters = yes\n'
+                  'write background = yes\nwrite thermodynamics = yes\nwrite parameters = yes\n'
                   if full else
-                  'output = tCl,pCl,lCl\nwrite thermodynamics = no\nwrite parameters = no\n'
+                  'output = tCl,pCl,lCl\nwrite background = yes\nwrite thermodynamics = no\nwrite parameters = no\n'
               )
               return textwrap.dedent(f'''\
               H0 = 70.8514
