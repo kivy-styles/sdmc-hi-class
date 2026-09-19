@@ -1,0 +1,743 @@
+name: SDMC covariant official DESI ShapeFit gate
+
+on:
+  push:
+    branches:
+      - sdmc-covariant-desi-gate
+  workflow_dispatch:
+
+jobs:
+  covariant-independent-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas requests beautifulsoup4 h5py camb
+
+      - name: Apply SDMC parameterized patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build target parameterized hi_class
+        run: make -j2 class
+
+      - name: Generate the fixed NKp-v3 target background
+        run: |
+          mkdir -p output
+          cat > output/covariant_target.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_native_noslip
+          parameters_smg = 0.073128, 4.84, 1.426, 0.1, 0.0001
+          expansion_model = sdmc_full
+          expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          output_background_smg = 3
+          skip_stability_tests_smg = yes
+          write background = yes
+          write thermodynamics = no
+          root = output/covariant_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/covariant_target.ini
+
+      - name: Reconstruct regular covariant target table
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np, re
+          from scipy.interpolate import CubicSpline
+
+          src=Path('output/covariant_target_00_background.dat')
+          lines=src.read_text().splitlines()
+          hdr=[l for l in lines if l.startswith('#') and '1:z' in l][-1].lstrip('#').strip()
+          marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+          for i,m in enumerate(marks):
+              e=marks[i+1].start() if i+1<len(marks) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(src)
+          d={n:a[:,i] for i,n in enumerate(names)}
+          N=-np.log1p(d['z'])
+          order=np.argsort(N)
+          N=N[order]
+          def vv(name): return np.asarray(d[name])[order]
+
+          Hraw=vv('H [1/Mpc]')
+          rhoraw=vv('(.)rho_smg')
+          praw=vv('(.)p_smg')
+          H2raw=Hraw*Hraw
+
+          # Work with smooth dimensionless target ratios to avoid enormous
+          # dynamic ranges in the radiation era.
+          lnHsp=CubicSpline(N,np.log(Hraw))
+          rrsp=CubicSpline(N,rhoraw/H2raw)
+          ppsp=CubicSpline(N,praw/H2raw)
+
+          ph=N.copy()
+          H=np.exp(lnHsp(ph))
+          h=lnHsp(ph,1)
+          rho=rrsp(ph)*H*H
+          pre=ppsp(ph)*H*H
+          Hpa=H*H*h
+          X=0.5*H*H
+
+          AF=0.073128; zc=4.84; width=1.426
+          Nc=-np.log1p(zc)
+          xx=(ph-Nc)/(2.*width)
+          S=.5*(1.+np.tanh(xx))
+          F=np.exp(AF*S)
+          Fsp=CubicSpline(ph,F)
+          F1=Fsp(ph,1)
+          F2=Fsp(ph,2)
+          F3=Fsp(ph,3)
+
+          # Exact No-Slip on the target trajectory:
+          # X G3_X = -G4_phi = -F_phi/2.
+          g=-F1/(H*H)
+          gsp=CubicSpline(ph,g)
+          g1=gsp(ph,1)
+
+          # Independently prescribed, subluminal kinetic sector.
+          # This is NOT obtained from cs2num or from a target c_s^2:
+          # D(N)=1e-4+0.40*S(N), alpha_K=D-3/2 alpha_B^2.
+          Dtarget=1.e-4+0.40*S
+          alphaM=F1/F
+          alphaB=-2.*alphaM
+          alphaK_target=Dtarget-1.5*alphaB*alphaB
+
+          # Exact hi_class background identities specialized to
+          # G4=F/2, G3=g(phi) X, G2=k1 X+k2 X^2-V, phi=N.
+          R=3.*rho + 2.*g1*X*X + 6.*F1*H*H + 3.*(F-1.)*H*H
+          P=3.*pre + 2.*g1*X*X - 2.*X*F2 \
+             - 3.*(F-1.)*H*H - 2.*(F-1.)*Hpa \
+             - 2.*F1*(H*H+Hpa)
+          C=(R+P)/(2.*X)
+
+          # Covariant alpha_K equation:
+          # F alpha_K = k1 + 6 k2 X - 4 g_phi X + 6 g H^2,
+          # together with C=k1+2 k2 X from the background equations.
+          k2=(F*alphaK_target-C+4.*g1*X-6.*g*H*H)/(4.*X)
+          k1=C-2.*k2*X
+          V=.5*(R-P)-k2*X*X
+
+          spl={}
+          for name,y in [('g',g),('k1',k1),('k2',k2),('V',V)]:
+              sp=CubicSpline(ph,y)
+              spl[name]=(y,sp(ph,1),sp(ph,2),sp(ph,3))
+
+          # On-background prediction of alpha_K and sound speed.
+          alphaK=(k1+6.*k2*X-4.*spl['g'][1]*X+6.*g*H*H)/F
+          D=alphaK+1.5*alphaB*alphaB
+
+          # Interpolate the independently computed native numerator only for
+          # the reconstruction audit; it does not enter G2/G3/G4.
+          nssp=CubicSpline(N,vv('cs2num'))
+          Ns=nssp(ph)
+          cs2=Ns/D
+          mask=ph>=-np.log(101.)
+          print('COV_TARGET_AUDIT',
+                'Dmin_z100=',float(D[mask].min()),
+                'Dmax_z100=',float(D[mask].max()),
+                'cs2min_z100=',float(cs2[mask].min()),
+                'cs2max_z100=',float(cs2[mask].max()),
+                'Dmin_all=',float(D.min()),
+                'cs2min_all=',float(cs2.min()))
+
+          splines={}
+          for name,y in [('g',g),('k1',k1),('k2',k2),('V',V),('lnH',np.log(H))]:
+              splines[name]=CubicSpline(ph,y)
+
+          def carr(x):
+              return ','.join(f'{v:.17e}' for v in np.asarray(x).ravel())
+
+          hp=Path('gravity_smg/sdmc_covariant_replay_table.h')
+          with hp.open('w') as f:
+              f.write('#ifndef SDMC_COVARIANT_REPLAY_TABLE_H\n#define SDMC_COVARIANT_REPLAY_TABLE_H\n')
+              f.write(f'#define SDMC_COV_N {len(ph)}\n')
+              f.write('#define SDMC_COV_AF 0.073128\n')
+              f.write('#define SDMC_COV_ZC 4.84\n')
+              f.write('#define SDMC_COV_WIDTH 1.426\n')
+              f.write('static const double sdmc_cov_x[SDMC_COV_N] = {'+carr(ph)+'};\n')
+              for name,sp in splines.items():
+                  coeff=np.asarray(sp.c.T).reshape(-1)
+                  f.write(f'static const double sdmc_cov_{name}[4*(SDMC_COV_N-1)] = '+'{'+carr(coeff)+'};\n')
+              f.write(r'''
+          static int sdmc_cov_idx(double x){
+            int lo=0,hi=SDMC_COV_N-1;
+            if(x<=sdmc_cov_x[0]) return 0;
+            if(x>=sdmc_cov_x[SDMC_COV_N-1]) return SDMC_COV_N-2;
+            while(hi-lo>1){int m=(lo+hi)/2; if(sdmc_cov_x[m]<=x) lo=m; else hi=m;}
+            return lo;
+          }
+          static void sdmc_cov_eval(const double *coef,double x,
+                                    double *y,double *yp,double *ypp,double *yppp){
+            int i=sdmc_cov_idx(x);
+            double dx=x-sdmc_cov_x[i];
+            const double *cc=coef+4*i;
+            *y=((cc[0]*dx+cc[1])*dx+cc[2])*dx+cc[3];
+            *yp=(3.*cc[0]*dx+2.*cc[1])*dx+cc[2];
+            *ypp=6.*cc[0]*dx+2.*cc[1];
+            *yppp=6.*cc[0];
+          }
+          #endif
+          ''')
+          print('WROTE',hp)
+          PY
+
+      - name: Install full covariant replay model
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # The split tracker helper normally reads expansion_smg parameters.
+          # A real covariant model uses parameters_smg for the Lagrangian, so
+          # freeze the already-established tracker/background constants here.
+          p=Path('source/background.c'); s=p.read_text()
+          old='''  double Ox = pba->parameters_smg[0];
+            double lambda_e = pba->parameters_smg[1];
+            double zt = pba->parameters_smg[2];
+            double dNt = pba->parameters_smg[3];
+            double A = pba->parameters_smg[4];
+            double tauA = pba->parameters_smg[5];
+            double B = pba->parameters_smg[6];
+            double tauB = pba->parameters_smg[7];'''
+          new='''  double Ox = 0.7073985893;
+            double lambda_e = 20.0;
+            double zt = 21.10;
+            double dNt = 0.5;
+            double A = 0.01105624999;
+            double tauA = 0.25;
+            double B = 0.01951933685;
+            double tauB = 1.5;'''
+          if old not in s: raise RuntimeError('split tracker constant anchor missing')
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('include/background.h'); s=p.read_text()
+          old='    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip,\n'
+          new='    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_covariant_replay,\n'
+          if old not in s: raise RuntimeError('enum anchor missing')
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('gravity_smg/gravity_models_smg.c'); s=p.read_text()
+          s=s.replace('#include "gravity_models_smg.h"\n',
+                      '#include "gravity_models_smg.h"\n#include "sdmc_covariant_replay_table.h"\n',1)
+
+          anchor='''  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          parser='''  if (strcmp(string1,"sdmc_covariant_replay") == 0) {
+             pba->gravity_model_smg = sdmc_covariant_replay;
+             pba->field_evolution_smg = _TRUE_;
+             pba->M2_evolution_smg = _FALSE_;
+             flag2=_TRUE_;
+             pba->parameters_size_smg = 1;
+             class_read_list_of_doubles("parameters_smg",pba->parameters_smg,pba->parameters_size_smg);
+             if (has_tuning_index_smg == _FALSE_) {
+               pba->tuning_index_smg = 0;
+               pba->tuning_dxdy_guess_smg = 1.;
+             }
+           }
+
+          if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          if s.count(anchor)!=1: raise RuntimeError('parser anchor count '+str(s.count(anchor)))
+          s=s.replace(anchor,parser,1)
+
+          ganchor='''  else if(pba->gravity_model_smg == galileon){'''
+          gcode=r'''  else if (pba->gravity_model_smg == sdmc_covariant_replay) {
+            double Nc=-log(1.+SDMC_COV_ZC);
+            double xx=(phi-Nc)/(2.*SDMC_COV_WIDTH);
+            double tt=tanh(xx);
+            double uu=1.-tt*tt;
+            double w=SDMC_COV_WIDTH;
+            double S=.5*(1.+tt);
+            double S1=uu/(4.*w);
+            double S2=-tt*uu/(4.*w*w);
+            double S3=-uu*(1.-3.*tt*tt)/(8.*w*w*w);
+            double A=SDMC_COV_AF;
+            double F=exp(A*S);
+            double F1=F*(A*S1);
+            double F2=F*(A*A*S1*S1+A*S2);
+            double F3=F*(A*A*A*S1*S1*S1+3.*A*A*S1*S2+A*S3);
+
+            double g,g1,g2,g3;
+            double k1,k1p,k1pp,k1ppp;
+            double k2,k2p,k2pp,k2ppp;
+            double V,Vp,Vpp,Vppp;
+            sdmc_cov_eval(sdmc_cov_g,phi,&g,&g1,&g2,&g3);
+            sdmc_cov_eval(sdmc_cov_k1,phi,&k1,&k1p,&k1pp,&k1ppp);
+            sdmc_cov_eval(sdmc_cov_k2,phi,&k2,&k2p,&k2pp,&k2ppp);
+            sdmc_cov_eval(sdmc_cov_V,phi,&V,&Vp,&Vpp,&Vppp);
+            V += 3.*pba->H0*pba->H0*pba->parameters_smg[0];
+
+            pgf->G2 = k1*X+k2*X*X-V;
+            pgf->G2_X = k1+2.*k2*X;
+            pgf->G2_XX = 2.*k2;
+            pgf->G2_phi = k1p*X+k2p*X*X-Vp;
+            pgf->G2_Xphi = k1p+2.*k2p*X;
+            pgf->G2_XXphi = 2.*k2p;
+            pgf->G2_phiphi = k1pp*X+k2pp*X*X-Vpp;
+            pgf->G2_Xphiphi = k1pp+2.*k2pp*X;
+
+            pgf->G3_X = g;
+            pgf->G3_phi = g1*X;
+            pgf->G3_Xphi = g1;
+            pgf->G3_phiphi = g2*X;
+            pgf->G3_Xphiphi = g2;
+            pgf->G3_phiphiphi = g3*X;
+
+            pgf->DG4 = (F-1.)/2.;
+            pgf->G4 = F/2.;
+            pgf->G4_phi = F1/2.;
+            pgf->G4_phiphi = F2/2.;
+            pgf->G4_phiphiphi = F3/2.;
+          }
+
+          else if(pba->gravity_model_smg == galileon){'''
+          if s.count(ganchor)!=1: raise RuntimeError('G anchor count '+str(s.count(ganchor)))
+          s=s.replace(ganchor,gcode,1)
+
+          start=s.index('int gravity_models_initial_conditions_smg(')
+          pos=s.index('case propto_omega:',start)
+          ic='''case sdmc_covariant_replay:
+            {
+              double ph=log(a);
+              double lnh,lnhp,lnhpp,lnhppp;
+              sdmc_cov_eval(sdmc_cov_lnH,ph,&lnh,&lnhp,&lnhpp,&lnhppp);
+              pvecback_integration[pba->index_bi_phi_smg]=ph;
+              pvecback_integration[pba->index_bi_phi_prime_smg]=a*exp(lnh);
+            }
+            break;
+
+          '''
+          s=s[:pos]+ic+s[pos:]
+          p.write_text(s)
+          print('installed full covariant replay model')
+          PY
+
+      - name: Rebuild with covariant model
+        run: make clean && make -j2 class
+
+      - name: Run native covariant background evolution
+        run: |
+          cat > output/covariant_replay.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+
+          gravity_model = sdmc_covariant_replay
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = no
+          write parameters = yes
+          root = output/covariant_replay_
+          format = class
+          input_verbose = 1
+          background_verbose = 1
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          set +e
+          ./class output/covariant_replay.ini > output/covariant_replay.log 2>&1
+          rc=$?
+          set -e
+          echo "COVARIANT_REPLAY_RETURNCODE=$rc"
+          tail -120 output/covariant_replay.log
+          test "$rc" -eq 0
+
+      - name: Compare evolved covariant solution to target
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,csv
+
+          def read(path):
+              p=Path(path)
+              if not p.exists(): return None
+              lines=p.read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and '1:z' in l][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(p)
+              return {n:a[:,i] for i,n in enumerate(names)}
+
+          t=read('output/covariant_target_00_background.dat')
+          c=read('output/covariant_replay_00_background.dat')
+          if c is None:
+              print('COVARIANT_COMPARISON unavailable: replay background missing')
+              raise SystemExit(0)
+
+          zc=c['z']; Nt=-np.log1p(t['z']); Nc=-np.log1p(zc)
+          order=np.argsort(Nt); Nt=Nt[order]
+          def ti(name):
+              y=t[name][order]
+              return np.interp(Nc,Nt,y)
+
+          Ht=ti('H [1/Mpc]')
+          Ft=ti('M*^2_smg')
+          Hrel=np.abs(c['H [1/Mpc]']/Ht-1.)
+          Frel=np.abs(c['M*^2_smg']/Ft-1.)
+          mask100=zc<=100
+          mask1e4=zc<=1.e4
+          noslip=np.abs(c['braiding_smg']+2.*c['M2_running_smg'])
+
+          # field columns exist only for the true covariant model
+          phi=c.get('phi_smg',None)
+          if phi is None:
+              for k in c:
+                  if k.lower().startswith('phi') and 'prime' not in k.lower():
+                      phi=c[k]; break
+          phierr=np.nan
+          if phi is not None: phierr=float(np.max(np.abs(phi-Nc)))
+
+          out={
+            'max_abs_dH_H_z100':float(Hrel[mask100].max()),
+            'max_abs_dH_H_z1e4':float(Hrel[mask1e4].max()),
+            'max_abs_dF_F_z100':float(Frel[mask100].max()),
+            'min_D_z100':float(c['kin (D)'][mask100].min()),
+            'min_cs2_z100':float(c['c_s^2'][mask100].min()),
+            'max_cs2_z100':float(c['c_s^2'][mask100].max()),
+            'min_D_all':float(c['kin (D)'].min()),
+            'min_cs2_all':float(c['c_s^2'].min()),
+            'max_abs_noslip_z100':float(noslip[mask100].max()),
+            'max_abs_phi_minus_lna':phierr,
+            'F0':float(c['M*^2_smg'][np.argmin(np.abs(zc))]),
+            'alphaM0':float(c['M2_running_smg'][np.argmin(np.abs(zc))]),
+          }
+          print('COVARIANT_REPLAY_COMPARISON',out)
+          with open('output/covariant_replay_comparison.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=out.keys()); w.writeheader(); w.writerow(out)
+          PY
+
+      - name: Install official DESI DR1 ShapeFit machinery
+        run: |
+          python3 -m pip install "git+https://github.com/cosmodesi/cosmoprimo.git" "git+https://github.com/adematti/lsstypes.git"
+          git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git desi_official
+          python3 desi_official/dr1/cobaya/download.py --data-dir desi_data/likelihood
+
+      - name: Read official six-bin ShapeFit metadata
+        run: |
+          python3 - <<'PY'
+          import json,sys
+          from pathlib import Path
+          import numpy as np
+          sys.path.insert(0,str(Path('desi_official/dr1/cobaya').resolve()))
+          import lsstypes as types
+          from desi_shapefit_bao_all import list_zrange,dataset_fn,get_tracer_label
+          data_dir=Path('desi_data/likelihood')
+          rec=[]
+          for tracer,iz,zrange in list_zrange:
+              if tracer.lower()=='lya': continue
+              namespace=f'{get_tracer_label(tracer)}_z{iz}'
+              fn=dataset_fn(data_dir,tracer,zrange,observable_name='spectrum-poles-rotated')
+              d=types.read(fn)
+              sh=d.observable.get('shapefit')
+              row={
+                'tracer':tracer,'iz':iz,'zrange':list(zrange),'namespace':namespace,
+                'file':str(fn),'zeff':float(sh.attrs['zeff']),
+                'parameters':[str(x) for x in list(sh.parameters)],
+                'data':np.asarray(sh.value(),float).tolist(),
+                'covariance':np.asarray(d.covariance.value(),float).tolist()
+              }
+              rec.append(row)
+              print('DESI_SHAPEFIT_METADATA',row,flush=True)
+          Path('output/desi_shapefit_metadata.json').write_text(json.dumps(rec,indent=2))
+          z=','.join(f"{r['zeff']:.12g}" for r in rec)
+          Path('output/desi_zeff.txt').write_text(z+'\n')
+          print('DESI_ZEFF_LIST',z,flush=True)
+          PY
+
+      - name: Run covariant transfers at official DESI effective redshifts
+        run: |
+          ZPK="$(cat output/desi_zeff.txt)"
+          cat > output/covariant_desi.ini <<EOF
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_covariant_replay
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          gauge = synchronous
+          modes = s
+          output = mPk,dTk,vTk
+          extra_metric_transfer_functions = yes
+          matter_source_in_current_gauge = no
+          P_k_max_h/Mpc = 20.0
+          z_pk = $ZPK
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = yes
+          write parameters = yes
+          root = output/covariant_desi_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/covariant_desi.ini
+          echo "COVARIANT_DESI_TRANSFER_RETURNCODE=0"
+
+      - name: Evaluate official DESI DR1 ShapeFit likelihood
+        run: |
+          python3 - <<'PY'
+          import json,re,math,sys
+          from pathlib import Path
+          import numpy as np
+          import pandas as pd
+          from scipy.interpolate import interp1d
+          import lsstypes as types
+          from cosmoprimo import PowerSpectrumInterpolator1D, PowerSpectrumBAOFilter, Cosmology
+          from cosmoprimo.fiducial import DESI
+
+          OUT=Path('output')
+          C=299792.458
+          H0=70.8514; h=H0/100.
+          ob=0.02239952; oc=0.12444227328918850
+          Ob=ob/h**2; Oc=oc/h**2
+          fb=Ob/(Ob+Oc); fc=1.-fb
+          ns=0.964
+          meta=json.loads((OUT/'desi_shapefit_metadata.json').read_text())
+          zs=np.array([r['zeff'] for r in meta],float)
+
+          def tab(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and '1:' in l][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+
+          bg=tab(OUT/'covariant_desi_00_background.dat').sort_values('z')
+          th=tab(OUT/'covariant_desi_00_thermodynamics.dat').sort_values('z')
+          def biv(col,z): return float(np.interp(z,bg.z,bg[col]))
+
+          # drag epoch and r_d from the same covariant solution
+          zz=th.z.to_numpy(); kb=th.kappa_b.to_numpy(); cross=[]
+          for i in range(len(zz)-1):
+              if (kb[i]-1.)*(kb[i+1]-1.)<=0 and kb[i]!=kb[i+1]:
+                  q=(1.-kb[i])/(kb[i+1]-kb[i]); cross.append(zz[i]+q*(zz[i+1]-zz[i]))
+          zdrag=float(cross[0]); rd=biv('comov.snd.hrz.',zdrag)
+
+          # Map output suffixes to actual z using transfer-file headers.
+          entries=[]
+          for tf in sorted(OUT.glob('covariant_desi_z*_tk.dat')):
+              txt=tf.read_text().splitlines()
+              m=None
+              for line in txt[:12]:
+                  q=re.search(r'redshift z=([0-9eE+.\-]+)',line)
+                  if q: m=float(q.group(1)); break
+              if m is None: raise RuntimeError(f'cannot read z from {tf}')
+              suffix=re.search(r'(z\d+)_tk\.dat        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-covariant-official-desi-shapefit
+          path: |
+            output/covariant_target_00_background.dat
+            output/covariant_replay.ini
+            output/covariant_replay.log
+            output/covariant_replay_00_*
+            output/covariant_replay_comparison.csv
+            output/desi_shapefit_metadata.json
+            output/desi_zeff.txt
+            output/covariant_desi.ini
+            output/covariant_desi_00_*
+            output/covariant_desi_z*_*
+            output/desi_official_shapefit_*.csv
+            output/desi_velocity_mapping_audit.csv
+          if-no-files-found: warn
+,tf.name).group(1)
+              entries.append((m,tf,OUT/f'covariant_desi_{suffix}_pk.dat'))
+          if len(entries)!=len(zs): raise RuntimeError((len(entries),len(zs)))
+
+          # common k grid; build synchronous delta_cb and CAMB-compatible
+          # Newtonian velocity spectra using P_m as normalization anchor.
+          kcommon=None; pdd_cols=[]; ptt_cols=[]; audits=[]
+          for z in zs:
+              zfile,tf,pf=min(entries,key=lambda x:abs(x[0]-z))
+              tk=tab(tf)
+              pk=np.loadtxt(pf)
+              kh=tk['k (h/Mpc)'].to_numpy()
+              Pm=np.interp(kh,pk[:,0],pk[:,1])
+              db=tk['d_b'].to_numpy(); dc=tk['d_cdm'].to_numpy()
+              dm=tk['d_m'].to_numpy(); tb=tk['t_b'].to_numpy()
+              hp=tk['h_prime'].to_numpy(); ep=tk['eta_prime'].to_numpy()
+              shift=.5*(hp+6.*ep)  # k^2 alpha
+              a=1./(1.+z); H=biv('H [1/Mpc]',z); Hconf=a*H
+              vNc=-shift/Hconf
+              vNb=-(tb+shift)/Hconf
+              dcb=fb*db+fc*dc
+              vcb=fb*vNb+fc*vNc
+              good=(np.isfinite(Pm)&np.isfinite(dm)&(np.abs(dm)>1e-30)&
+                    np.isfinite(dcb)&np.isfinite(vcb)&(kh>0))
+              kh=kh[good]; Pm=Pm[good]; dm=dm[good]; dcb=dcb[good]; vcb=vcb[good]
+              Pdd=Pm*(dcb/dm)**2
+              Ptt=Pm*(vcb/dm)**2
+              if kcommon is None:
+                  # common logarithmic interval shared by all files
+                  kcommon=np.geomspace(max(5e-4,kh.min()),min(15.,kh.max()),900)
+              pdd_cols.append(np.exp(np.interp(np.log(kcommon),np.log(kh),np.log(Pdd))))
+              ptt_cols.append(np.exp(np.interp(np.log(kcommon),np.log(kh),np.log(Ptt))))
+              ratio=vcb/dcb; fbg=biv('gr.fac. f',z)
+              piv=float(np.interp(0.03,kh,ratio))
+              km=(kh>=0.01)&(kh<=0.2)
+              audits.append({'z':z,'file_z':zfile,'f_background':fbg,
+                             'vnewt_cb_over_delta_pivot':piv,'pivot_over_f':piv/fbg,
+                             'min_ratio_over_f_0p01_0p2':float(np.min(ratio[km]/fbg)),
+                             'max_ratio_over_f_0p01_0p2':float(np.max(ratio[km]/fbg))})
+
+          Pdd=np.stack(pdd_cols,axis=1)
+          Ptt=np.stack(ptt_cols,axis=1)
+          pkdd=PowerSpectrumInterpolator1D(kcommon,Pdd)
+          pktt=PowerSpectrumInterpolator1D(kcommon,Ptt)
+
+          fid=DESI(engine='camb')
+          fid_dd=fid.get_fourier().pk_interpolator(of='delta_cb').to_1d(z=zs)
+          fid_tt=fid.get_fourier().pk_interpolator(of='theta_cb').to_1d(z=zs)
+          filt=PowerSpectrumBAOFilter(fid_dd,engine='peakaverage',cosmo=fid,cosmo_fid=fid)
+          filt(fid_dd,cosmo=fid)
+          fid_nw=filt.smooth_pk_interpolator()
+
+          cosmo=Cosmology(n_s=ns,Omega_b=Ob,Omega_cdm=Oc,Omega_ncdm=0.,H0=H0)
+          cosmo.rs_drag=rd*h
+          filt(pkdd,cosmo=cosmo)
+          model_nw=filt.smooth_pk_interpolator()
+
+          def get_f_m(dd,nw,tt,s=1.):
+              kp=.03/s; dk=1e-2
+              kval=kp*np.array([1.-dk,1.+dk])
+              pknw=nw(kval)
+              m=np.diff(np.log(pknw),axis=0)[0]/np.diff(np.log(kval))[0]
+              Ap=dd(kp)/s**3
+              f=tt.sigma8()/dd.sigma8()
+              return dict(m=np.asarray(m),f=np.asarray(f),Ap=np.asarray(Ap),
+                          f_sqrt_Ap=np.asarray(f)*np.sqrt(np.asarray(Ap)))
+          sf_fid=get_f_m(fid_dd,fid_nw,fid_tt)
+          sdrag=(rd*h)/fid.rs_drag
+          sf=get_f_m(pkdd,model_nw,pktt,s=sdrag)
+
+          rows=[]; total=0.
+          for i,r in enumerate(meta):
+              z=float(r['zeff']); params=r['parameters']
+              Hkms=biv('H [1/Mpc]',z)*C
+              DA=biv('comov. dist.',z)/(1.+z)
+              apar=(1./(Hkms/100.)/rd)/(1./fid.efunc(z)/fid.rs_drag)
+              aper=(DA/rd)/(fid.angular_diameter_distance(z)/fid.rs_drag)
+              theory=[]
+              for param in params:
+                  if param in ['qpar','qper','qiso','qap']:
+                      c={'iso':(1/3,2/3),'par':(1.,0.),'per':(0.,1.),'ap':(1.,-1.)}[param[1:]]
+                      theory.append(apar**c[0]*aper**c[1])
+                  elif param=='df':
+                      theory.append(sf['f_sqrt_Ap'][i]/sf_fid['f_sqrt_Ap'][i])
+                  elif param=='dm':
+                      theory.append(sf['m'][i]-sf_fid['m'][i])
+                  else:
+                      raise ValueError(param)
+              theory=np.asarray(theory,float)
+              data=np.asarray(r['data'],float); cov=np.asarray(r['covariance'],float)
+              diff=theory-data; chi=float(diff@np.linalg.inv(cov)@diff)
+              total+=chi
+              row={'namespace':r['namespace'],'tracer':r['tracer'],'z':z,'chi2':chi,
+                   'apar':float(apar),'aper':float(aper),
+                   'f_sqrt_Ap':float(sf['f_sqrt_Ap'][i]),'m':float(sf['m'][i])}
+              for p,t,d in zip(params,theory,data):
+                  row[f'th_{p}']=float(t); row[f'data_{p}']=float(d)
+              rows.append(row)
+              print('DESI_OFFICIAL_SHAPEFIT_BIN',row,flush=True)
+
+          pd.DataFrame(rows).to_csv(OUT/'desi_official_shapefit_bins.csv',index=False)
+          pd.DataFrame(audits).to_csv(OUT/'desi_velocity_mapping_audit.csv',index=False)
+          summary={'chi2_shape_only':float(total),'nbins':len(rows),'ndata':int(sum(len(r['parameters']) for r in meta)),
+                   'rd_Mpc':float(rd),'zdrag':float(zdrag),
+                   'max_abs_pivot_over_f_minus1':float(max(abs(x['pivot_over_f']-1.) for x in audits))}
+          pd.DataFrame([summary]).to_csv(OUT/'desi_official_shapefit_summary.csv',index=False)
+          print('DESI_VELOCITY_MAPPING_AUDIT')
+          print(pd.DataFrame(audits).to_string(index=False),flush=True)
+          print('DESI_OFFICIAL_SHAPEFIT_SUMMARY',summary,flush=True)
+          PY
+
+      - name: Preserve covariant replay
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-covariant-noslip-independent-kinetic-replay
+          path: |
+            output/covariant_target_00_background.dat
+            output/covariant_replay.ini
+            output/covariant_replay.log
+            output/covariant_replay_00_*
+            output/covariant_replay_comparison.csv
+          if-no-files-found: warn
