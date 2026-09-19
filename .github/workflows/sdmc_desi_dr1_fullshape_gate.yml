@@ -1,9 +1,9 @@
-name: SDMC r032 floor0225 covariant DESI full-shape gate
+name: SDMC r032 L17.75 Z18.8 floor0225 covariant DESI full-shape gate
 
 on:
   push:
     branches:
-      - sdmc-r032-floor0225-covariant-desi
+      - sdmc-r032-l1775-z188-floor0225-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -231,7 +231,7 @@ jobs:
             double B = pba->parameters_smg[6];
             double tauB = pba->parameters_smg[7];'''
           new='''  double Ox = 0.7073985893;
-            double lambda_e = 18.25;
+            double lambda_e = 17.75;
             double zt = 19.2;
             double dNt = 0.5;
             double A = 0.01105624999;
@@ -454,7 +454,7 @@ jobs:
             'F0':float(c['M*^2_smg'][np.argmin(np.abs(zc))]),
             'alphaM0':float(c['M2_running_smg'][np.argmin(np.abs(zc))]),
           }
-          print('FLOOR0225_COVARIANT_DESI_REPLAY_COMPARISON',out)
+          print('L1775_Z188_FLOOR0225_COVARIANT_DESI_REPLAY_COMPARISON',out)
           with open('output/covariant_replay_comparison.csv','w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=out.keys()); w.writeheader(); w.writerow(out)
           PY
@@ -864,7 +864,7 @@ jobs:
           covrows,covchi=profile_model('COVARIANT',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('FLOOR0225_COVARIANT_DESI_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
+          print('L1775_Z188_FLOOR0225_COVARIANT_DESI_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
