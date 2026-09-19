@@ -94,9 +94,7 @@ jobs:
           def pantheonplus():
               p=DATA/'PantheonPlus/Pantheon+SH0ES.dat'
               # pandas keeps the leading '#' first-column name as '#'; read manually for exact columns.
-              lines=p.read_text().splitlines()
-              cols=lines[0].removeprefix('#').split()
-              arr=pd.read_csv(p,sep=r'\s+',comment='#',names=cols,engine='python')
+              arr=pd.read_csv(p,sep=r'\s+',engine='python')
               mag=arr['m_b_corr'].to_numpy(float)
               zcmb=arr['zHD'].to_numpy(float) if 'zHD' in arr.columns else arr['zhd'].to_numpy(float)
               zhel=arr['zHEL'].to_numpy(float) if 'zHEL' in arr.columns else arr['zhel'].to_numpy(float)
