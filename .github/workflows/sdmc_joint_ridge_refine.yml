@@ -1,9 +1,6 @@
 name: SDMC independent-D stability ridge refinement
 
 on:
-  push:
-    branches:
-      - sdmc-joint-pds-independent
   workflow_dispatch:
 
 jobs:
