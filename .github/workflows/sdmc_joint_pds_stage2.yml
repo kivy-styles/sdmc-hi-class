@@ -1,13 +1,13 @@
-name: SDMC independent-D joint DESI stage 5
+name: SDMC u026 raw DESI fast
 
 on:
   push:
     branches:
-      - sdmc-joint-pds-stage5
+      - sdmc-u026-desi-fast
   workflow_dispatch:
 
 jobs:
-  stage5:
+  u026-desi:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
