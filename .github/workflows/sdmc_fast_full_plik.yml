@@ -1,9 +1,9 @@
-name: SDMC r032 lambda-zt full Plik profile
+name: SDMC r032 globally subluminal floor full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-lzt-micro-full-plik
+      - sdmc-r032-global-floor-full-plik
   workflow_dispatch:
 
 jobs:
@@ -37,7 +37,7 @@ jobs:
           print('PLANCK_DATA_READY')
           PY
 
-      - name: Build r032 independent-D and LCDM spectra
+      - name: Build globally subluminal independent-D and LCDM spectra
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential
@@ -129,7 +129,6 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.0715, 5.0, 1.426, 0.40, 1.0, 0.0001
           expansion_model = sdmc_full
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
@@ -150,17 +149,24 @@ jobs:
           lensing_verbose = 0
           output_verbose = 0
           ''')
+          # Global-subluminality shortlist at the refined background
+          # (lambda_e,z_t,DeltaN_bg)=(18.25,19.2,0.5).  D0 is adjusted
+          # with Dfloor so that the present-day D is held fixed.
           cases={
-            'L18p15_Z19p15':(18.15,19.15),
-            'L18p1_Z19p2':(18.10,19.20),
-            'L18p2_Z19p1':(18.20,19.10),
+            'F02013':(0.3742684513367302,0.02013),
+            'F02050':(0.37379313066746356,0.02050),
+            'F02100':(0.3731508054387249,0.02100),
+            'F02200':(0.37186615498124764,0.02200),
           }
-          for name,(lam,zt) in cases.items():
+          for name,(d0,dfloor) in cases.items():
               root=f'input_artifact/unpacked/{name}_'
-              txt=base+f'expansion_smg = 0.7073985893,{lam},{zt},0.5,0.01105624999,0.25,0.01951933685,1.5\nroot = {root}\n'
+              txt=base+(
+                  f'parameters_smg = 0.0715, 5.0, 1.426, {d0:.16g}, 1.0, {dfloor:.16g}\n'
+                  f'expansion_smg = 0.7073985893,18.25,19.2,0.5,0.01105624999,0.25,0.01951933685,1.5\n'
+                  f'root = {root}\n')
               Path(f'input_artifact/unpacked/{name}.ini').write_text(txt)
           PY
-          for C in L18p15_Z19p15 L18p1_Z19p2 L18p2_Z19p1; do
+          for C in F02013 F02050 F02100 F02200; do
             ./class input_artifact/unpacked/$C.ini
             test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
           done
@@ -331,23 +337,23 @@ jobs:
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,displaced])
           lcdm['delta_vs_lcdm']=0.0
           rows=[lcdm]
-          for label in ['L18p15_Z19p15','L18p1_Z19p2','L18p2_Z19p1']:
+          for label in ['F02013','F02050','F02100','F02200']:
               row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
               row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
               rows.append(row)
-              print('LZT_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
+              print('GLOBAL_FLOOR_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
           fields=list(rows[0].keys())
-          with (OUT/'lzt_fullplik_profile.csv').open('w',newline='') as f:
+          with (OUT/'global_floor_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
           best=min(rows[1:],key=lambda r:r['chi2_profile_total'])
-          (OUT/'lzt_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
-          print('LZT_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
+          (OUT/'global_floor_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
+          print('GLOBAL_FLOOR_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
           PY
 
       - name: Preserve fast profile
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-lzt-micro-full-plik-profile
+          name: sdmc-r032-global-floor-full-plik-profile
           path: output/*
           if-no-files-found: warn
