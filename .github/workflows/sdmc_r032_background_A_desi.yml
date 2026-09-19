@@ -1,9 +1,9 @@
-name: SDMC r032 fine lambda-z_t at floor045 raw DESI
+name: SDMC r032 upper-lambda Z17.8 floor045 raw DESI
 
 on:
   push:
     branches:
-      - sdmc-r032-lzt-fine-floor045-desi
+      - sdmc-r032-lambda-upper-z178-floor045-desi
   workflow_dispatch:
 
 jobs:
@@ -181,11 +181,11 @@ jobs:
           zpk=(out/'desi_zpk.txt').read_text().strip()
           As=math.exp(3.076)/1e10
           candidates=[
-              ('L1725Z178_F0450',0.34231919445927034,0.04500,17.25,17.80),
-              ('L1750Z176_F0450',0.34231919445927034,0.04500,17.50,17.60),
-              ('L1750Z178_F0450',0.34231919445927034,0.04500,17.50,17.80),
-              ('L1750Z180_F0450',0.34231919445927034,0.04500,17.50,18.00),
               ('L1775Z178_F0450',0.34231919445927034,0.04500,17.75,17.80),
+              ('L1800Z178_F0450',0.34231919445927034,0.04500,18.00,17.80),
+              ('L1825Z178_F0450',0.34231919445927034,0.04500,18.25,17.80),
+              ('L1850Z178_F0450',0.34231919445927034,0.04500,18.50,17.80),
+              ('L1875Z178_F0450',0.34231919445927034,0.04500,18.75,17.80),
           ]
           for cid,D0,Dfloor,lambda_e,z_t in candidates:
               root=f'output/desi_{cid}_'
@@ -355,11 +355,11 @@ jobs:
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
           candidate_meta={
-            'L1725Z178_F0450':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.25,z_t=17.80,D0=0.34231919445927034,Dfloor=0.04500,delta_planck=math.nan,delta_pp=4.667226366233081,delta_union3=4.192407527472824,delta_desy5=9.770791582763195),
-            'L1750Z176_F0450':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.50,z_t=17.60,D0=0.34231919445927034,Dfloor=0.04500,delta_planck=math.nan,delta_pp=4.667225446552038,delta_union3=4.192406644040602,delta_desy5=9.770789824426174),
-            'L1750Z178_F0450':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.50,z_t=17.80,D0=0.34231919445927034,Dfloor=0.04500,delta_planck=math.nan,delta_pp=4.667228215839714,delta_union3=4.192409304989269,delta_desy5=9.770795121788979),
-            'L1750Z180_F0450':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.50,z_t=18.00,D0=0.34231919445927034,Dfloor=0.04500,delta_planck=math.nan,delta_pp=4.6672308426350355,delta_union3=4.192411827243632,delta_desy5=9.770800173282623),
             'L1775Z178_F0450':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.75,z_t=17.80,D0=0.34231919445927034,Dfloor=0.04500,delta_planck=math.nan,delta_pp=4.667229986283928,delta_union3=4.192411007345072,delta_desy5=9.770798556506634),
+            'L1800Z178_F0450':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.00,z_t=17.80,D0=0.34231919445927034,Dfloor=0.04500,delta_planck=math.nan,delta_pp=4.66723,delta_union3=4.19241,delta_desy5=9.77080),
+            'L1825Z178_F0450':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=17.80,D0=0.34231919445927034,Dfloor=0.04500,delta_planck=math.nan,delta_pp=4.66723,delta_union3=4.19241,delta_desy5=9.77080),
+            'L1850Z178_F0450':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.50,z_t=17.80,D0=0.34231919445927034,Dfloor=0.04500,delta_planck=math.nan,delta_pp=4.66723,delta_union3=4.19241,delta_desy5=9.77080),
+            'L1875Z178_F0450':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.75,z_t=17.80,D0=0.34231919445927034,Dfloor=0.04500,delta_planck=math.nan,delta_pp=4.66723,delta_union3=4.19241,delta_desy5=9.77080),
           }
           models={cid:model_data(f'desi_{cid}',70.8514,0.02239952,0.12444227328918850,0.964)
                   for cid in candidate_meta}
