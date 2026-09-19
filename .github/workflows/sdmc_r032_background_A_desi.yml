@@ -1,9 +1,9 @@
-name: SDMC r032 globally subluminal floor raw DESI
+name: SDMC r032 lambda17.75 zt18.8 raw DESI
 
 on:
   push:
     branches:
-      - sdmc-r032-global-floor-desi
+      - sdmc-r032-l1775-z188-desi
   workflow_dispatch:
 
 jobs:
@@ -181,12 +181,10 @@ jobs:
           zpk=(out/'desi_zpk.txt').read_text().strip()
           As=math.exp(3.076)/1e10
           candidates=[
-              ('F02013',0.3742684513367302,0.02013),
-              ('F02050',0.37379313066746356,0.02050),
-              ('F02100',0.3731508054387249,0.02100),
-              ('F02200',0.37186615498124764,0.02200),
+              ('CUR',0.37186615498124764,0.02200,18.25,19.20),
+              ('L1775Z188',0.37186615498124764,0.02200,17.75,18.80),
           ]
-          for cid,D0,Dfloor in candidates:
+          for cid,D0,Dfloor,lambda_e,z_t in candidates:
               root=f'output/desi_{cid}_'
               ini=textwrap.dedent(f'''\
               H0 = 70.8514
@@ -208,7 +206,7 @@ jobs:
               gravity_model = sdmc_v3_independent_kinetic
               parameters_smg = 0.0715, 5.00, 1.426, {D0:.16g}, 1.0, {Dfloor:.16g}
               expansion_model = sdmc_full
-              expansion_smg = 0.7073985893,18.25,19.2,0.5,0.01105624999,0.25,0.01951933685,1.5
+              expansion_smg = 0.7073985893,{lambda_e:.12g},{z_t:.12g},0.5,0.01105624999,0.25,0.01951933685,1.5
               pert_initial_conditions_smg = zero
               method_qs_smg = fully_dynamic
               gauge = synchronous
@@ -354,26 +352,14 @@ jobs:
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
           candidate_meta={
-            'F02013':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
-                          D0=0.3742684513367302,Dfloor=0.02013,
-                          delta_planck=41.47105288335365,
-                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
-                          delta_desy5=9.770832888782024),
-            'F02050':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
-                          D0=0.37379313066746356,Dfloor=0.02050,
-                          delta_planck=41.449403036454896,
-                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
-                          delta_desy5=9.770832888782024),
-            'F02100':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
-                          D0=0.3731508054387249,Dfloor=0.02100,
-                          delta_planck=41.420536492076735,
-                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
-                          delta_desy5=9.770832888782024),
-            'F02200':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
-                          D0=0.37186615498124764,Dfloor=0.02200,
-                          delta_planck=41.30644048251179,
-                          delta_pp=4.667247864883393,delta_union3=4.192428181268042,
-                          delta_desy5=9.770832888782024),
+            'CUR':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=18.25,z_t=19.20,
+                       D0=0.37186615498124764,Dfloor=0.02200,
+                       delta_planck=math.nan,delta_pp=4.667247864883393,
+                       delta_union3=4.192428181268042,delta_desy5=9.770832888782024),
+            'L1775Z188':dict(AF=0.0715,zc=5.00,width=1.426,lambda_e=17.75,z_t=18.80,
+                       D0=0.37186615498124764,Dfloor=0.02200,
+                       delta_planck=math.nan,delta_pp=4.667241517454386,
+                       delta_union3=4.192422084466671,delta_desy5=9.770820699632168),
           }
           models={cid:model_data(f'desi_{cid}',70.8514,0.02239952,0.12444227328918850,0.964)
                   for cid in candidate_meta}
