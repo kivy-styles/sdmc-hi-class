@@ -307,8 +307,8 @@ jobs:
           rep('gravity_smg/gravity_models_smg.c',anchor,model)
 
           # Initial conditions: phi=N, dot(phi)=H_target(phi).
-          anchor='''	  case nkgb:
-		  {'''
+          anchor='''    case nkgb:
+      {'''
           ic=r'''    case sdmc_v3_covariant_recon:
       {
         double kval,kp,kpp,y,yp,ypp,u,up,upp,q,qp,qpp;
@@ -320,8 +320,8 @@ jobs:
       }
       break;
 
-	  case nkgb:
-		  {'''
+    case nkgb:
+      {'''
           rep('gravity_smg/gravity_models_smg.c',anchor,ic)
           print('covariant reconstruction model patched')
           PY
