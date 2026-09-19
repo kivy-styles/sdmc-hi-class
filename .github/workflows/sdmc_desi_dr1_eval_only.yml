@@ -193,21 +193,29 @@ jobs:
 
           def prepare_basis(m):
               kin=np.geomspace(min(5e-4,kobs[0]/2),max(1.0,kobs[-1]*2),500)
-              zs=np.array(zvals)
-              Pdd=np.stack([np.interp(kin,*m['series'][z][:2]) for z in zs],axis=-1)
-              Ptt=np.stack([np.interp(kin,m['series'][z][0],m['series'][z][2]) for z in zs],axis=-1)
+              # Match the official reptvelocileptors implementation exactly:
+              # the theory redshift grid contains only the fitted DESI bins,
+              # in likelihood order. The first BGS bin is the REPT reference,
+              # not z=0.
+              ztheory=np.array([b['zeff'] for b in blocks],float)
+              Pdd=np.stack([np.interp(kin,*m['series'][float(z)][:2]) for z in ztheory],axis=-1)
+              Ptt=np.stack([np.interp(kin,m['series'][float(z)][0],m['series'][float(z)][2]) for z in ztheory],axis=-1)
               pki=PowerSpectrumInterpolator1D(kin,Pdd)
               cosmo=Cosmology(n_s=m['ns'],Omega_b=m['ob']/m['h']**2,
                               Omega_cdm=m['oc']/m['h']**2,Omega_ncdm=0.,H0=m['H0'])
               cosmo.rs_drag=m['rd']*m['h']
-              filt=PowerSpectrumBAOFilter(pki,engine='peakaverage',cosmo=cosmo,cosmo_fid=fid)
+
+              # DESI constructs the peak-average BAO filter from its fiducial
+              # cosmology, then applies that same filter definition to the
+              # model spectrum.
+              pkfid=fid.get_fourier().pk_interpolator(of='delta_cb').to_1d(z=ztheory)
+              filt=PowerSpectrumBAOFilter(pkfid,engine='peakaverage',cosmo=fid,cosmo_fid=fid)
               filt(pki,cosmo=cosmo)
               Pnw=filt.smooth_pk_interpolator()(kin)
               sig8=np.asarray(pki.sigma8())
               ptti=PowerSpectrumInterpolator1D(kin,Ptt)
               fs8=np.asarray(ptti.sigma8())
 
-              extk=None; pcb=None; pnw=None; ptt=None; pt=None
               pt=REPT(kin,Pdd[:,0],pnw=Pnw[:,0],kmin=kobs[0],kmax=kobs[-1],
                       nk=200,rbao=110,sbao=None,beyond_gauss=True,one_loop=True,
                       shear=True,cutoff=20,jn=5,N=4000,threads=2,
@@ -219,8 +227,8 @@ jobs:
                                      assume_sorted=True)(np.log10(extk))
               pcb=loginterp(Pdd); pnw=loginterp(Pnw); ptt=loginterp(Ptt)
               tables={}
-              for b in blocks:
-                  z=b['zeff']; iz=zvals.index(z)
+              for iz,b in enumerate(blocks):
+                  z=b['zeff']
                   Hkms=float(np.interp(z,m['bg'].z,m['bg']['H [1/Mpc]']))*C
                   DA=float(np.interp(z,m['bg'].z,m['bg']['comov. dist.']))/(1.+z)
                   qpar=float(fid.efunc(z)/(Hkms/(100.*m['h'])))
