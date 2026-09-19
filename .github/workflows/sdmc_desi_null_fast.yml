@@ -35,7 +35,9 @@ jobs:
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
           do
-            curl -L --fail --retry 3 -o "desi_likelihood/$FN" "$BASE/$FN"
+            curl -4 -L --fail --connect-timeout 15 --max-time 180 \
+              --retry 10 --retry-delay 4 --retry-all-errors \
+              -o "desi_likelihood/$FN" "$BASE/$FN"
           done
 
       - name: Download successful CLASS bridge result
