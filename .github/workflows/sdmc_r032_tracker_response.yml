@@ -1,9 +1,9 @@
-name: SDMC r032 global subluminality kinetic scan
+name: SDMC r032 fine kinetic-floor proxy scan
 
 on:
   push:
     branches:
-      - sdmc-r032-global-subluminal-floor
+      - sdmc-r032-floor-fine-proxy
   workflow_dispatch:
 
 jobs:
@@ -152,7 +152,7 @@ jobs:
           DN_BG=0.50
           S0=0.7784218611214628
           D_TODAY=0.31146874444858513
-          FLOORS=[0.015,0.018,0.0195,0.0200,0.02013,0.0205,0.021,0.022,0.025]
+          FLOORS=[0.0210,0.0215,0.02175,0.0220,0.02225,0.0225,0.02275,0.0230,0.02325,0.0235,0.02375,0.0240,0.0245,0.0250]
           candidates=[]
           for floor in FLOORS:
               d0=(D_TODAY-floor)/S0
