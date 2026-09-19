@@ -1,9 +1,9 @@
-name: SDMC r032 core kinetic-floor full Plik
+name: SDMC r032 micro kinetic-floor full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-global-floor-core-full-plik
+      - sdmc-r032-floor-micro-full-plik
   workflow_dispatch:
 
 jobs:
@@ -153,9 +153,9 @@ jobs:
           # (lambda_e,z_t,DeltaN_bg)=(18.25,19.2,0.5).  D0 is adjusted
           # with Dfloor so that the present-day D is held fixed.
           cases={
-            'F02225':(0.3715449923668783,0.02225),
             'F02250':(0.371223829752509,0.02250),
-            'F02275':(0.3709026671381397,0.02275),
+            'F02255':(0.37115959722963515,0.02255),
+            'F02260':(0.3710953647067613,0.02260),
           }
           for name,(d0,dfloor) in cases.items():
               root=f'input_artifact/unpacked/{name}_'
@@ -165,7 +165,7 @@ jobs:
                   f'root = {root}\n')
               Path(f'input_artifact/unpacked/{name}.ini').write_text(txt)
           PY
-          for C in F02225 F02250 F02275; do
+          for C in F02250 F02255 F02260; do
             ./class input_artifact/unpacked/$C.ini
             test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
           done
@@ -336,17 +336,17 @@ jobs:
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,displaced])
           lcdm['delta_vs_lcdm']=0.0
           rows=[lcdm]
-          for label in ['F02225','F02250','F02275']:
+          for label in ['F02250','F02255','F02260']:
               row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
               row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
               rows.append(row)
-              print('CORE_FLOOR_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
+              print('MICRO_FLOOR_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
           fields=list(rows[0].keys())
           with (OUT/'core_floor_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
           best=min(rows[1:],key=lambda r:r['chi2_profile_total'])
           (OUT/'core_floor_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
-          print('CORE_FLOOR_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
+          print('MICRO_FLOOR_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
           PY
 
       - name: Preserve fast profile
