@@ -1,0 +1,154 @@
+name: SDMC three-supernova distance gate
+
+on:
+  push:
+    branches:
+      - sdmc-sn-three-gate
+  workflow_dispatch:
+
+jobs:
+  sn-distance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install numerical dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Download official Cobaya SN data v1.8
+        run: |
+          rm -rf sn_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          find sn_data/PantheonPlus sn_data/Union3 sn_data/DESY5 -maxdepth 2 -type f | sort
+
+      - name: Download validated covariant and LCDM background artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p input_artifact
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/$GITHUB_REPOSITORY/actions/artifacts/10585330670/zip \
+            > input_artifact/artifact.zip
+          unzip -q input_artifact/artifact.zip -d input_artifact/unpacked
+          test -f input_artifact/unpacked/desi_cov_00_background.dat
+          test -f input_artifact/unpacked/desi_lcdm_00_background.dat
+
+      - name: Evaluate PantheonPlus Union3 and DESY5
+        run: |
+          mkdir -p output
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,csv
+          import numpy as np
+          import pandas as pd
+          from scipy.linalg import cho_factor,cho_solve
+
+          ROOT=Path('input_artifact/unpacked')
+          DATA=Path('sn_data')
+          OUT=Path('output')
+
+          def class_table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values('z')
+
+          bg={
+              'COVARIANT':class_table(ROOT/'desi_cov_00_background.dat'),
+              'LCDM':class_table(ROOT/'desi_lcdm_00_background.dat')
+          }
+
+          def read_cov(path,n):
+              a=np.loadtxt(path)
+              a=np.asarray(a,float).reshape(-1)
+              if len(a)==n*n+1 and int(round(a[0]))==n:
+                  a=a[1:]
+              if len(a)!=n*n:
+                  raise RuntimeError(f'covariance size mismatch {path}: {len(a)} vs {n*n}')
+              return a.reshape(n,n)
+
+          def cobaya_chi2(C,resid):
+              # Exact flat absolute-magnitude projection used by the Cobaya SN base class:
+              # d^T C^-1 d - (1^T C^-1 d)^2/(1^T C^-1 1).
+              cf=cho_factor(C,lower=True,check_finite=False)
+              y=cho_solve(cf,resid,check_finite=False)
+              one=np.ones_like(resid)
+              u=cho_solve(cf,one,check_finite=False)
+              return float(resid.dot(y) - (one.dot(y))**2/(one.dot(u)))
+
+          def lumdist_term(model,zcmb,zhel):
+              b=bg[model]
+              DM=np.interp(zcmb,b.z,b['comov. dist.'])
+              DA=DM/(1.+zcmb)
+              # Exact Cobaya SN convention: 5 log10[(1+zhel)(1+zcmb) D_A/Mpc].
+              return 5.*np.log10((1.+zhel)*(1.+zcmb)*DA)
+
+          def pantheonplus():
+              p=DATA/'PantheonPlus/Pantheon+SH0ES.dat'
+              h=pd.read_csv(p,delim_whitespace=True,comment=None)
+              # pandas keeps the leading '#' first-column name as '#'; read manually for exact columns.
+              lines=p.read_text().splitlines()
+              cols=lines[0].removeprefix('#').split()
+              arr=pd.read_csv(p,sep=r'\s+',comment='#',names=cols,engine='python')
+              mag=arr['m_b_corr'].to_numpy(float)
+              zcmb=arr['zHD'].to_numpy(float) if 'zHD' in arr.columns else arr['zhd'].to_numpy(float)
+              zhel=arr['zHEL'].to_numpy(float) if 'zHEL' in arr.columns else arr['zhel'].to_numpy(float)
+              C=read_cov(DATA/'PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov',len(mag))
+              mask=zcmb>0.01
+              return 'PantheonPlus',mag[mask],zcmb[mask],zhel[mask],C[np.ix_(mask,mask)]
+
+          def union3():
+              p=DATA/'Union3/lcparam_full.txt'
+              lines=p.read_text().splitlines()
+              cols=lines[0].removeprefix('#').split()
+              arr=pd.read_csv(p,sep=r'\s+',comment='#',names=cols,engine='python')
+              cmap={c.lower():c for c in arr.columns}
+              zcmb=arr[cmap['zcmb']].to_numpy(float)
+              mag=arr[cmap['mb']].to_numpy(float)
+              C=read_cov(DATA/'Union3/mag_covmat.txt',len(mag))
+              return 'Union3',mag,zcmb,zcmb.copy(),C
+
+          def desy5():
+              p=DATA/'DESY5/DES-SN5YR_HD.csv'
+              arr=pd.read_csv(p)
+              cmap={c.lower():c for c in arr.columns}
+              zcmb=arr[cmap['zhd']].to_numpy(float)
+              zhel=arr[cmap['zhel']].to_numpy(float)
+              mag=arr[cmap['mu']].to_numpy(float)
+              err=arr[cmap['muerr_final']].to_numpy(float)
+              C=read_cov(DATA/'DESY5/covsys_000.txt',len(mag))
+              C=C+np.diag(err*err)
+              return 'DESY5',mag,zcmb,zhel,C
+
+          rows=[]
+          for loader in [pantheonplus,union3,desy5]:
+              name,mag,zcmb,zhel,C=loader()
+              vals={}
+              for model in ['COVARIANT','LCDM']:
+                  mu=lumdist_term(model,zcmb,zhel)
+                  chi=cobaya_chi2(C,mag-mu)
+                  vals[model]=chi
+                  rows.append(dict(dataset=name,model=model,n=len(mag),chi2_projected=chi))
+                  print('SN_RESULT',name,model,'N',len(mag),'CHI2',chi,flush=True)
+              delta=vals['COVARIANT']-vals['LCDM']
+              print('SN_DELTA_CHI2',name,delta,flush=True)
+              rows.append(dict(dataset=name,model='DELTA_COV_MINUS_LCDM',n=len(mag),chi2_projected=delta))
+
+          pd.DataFrame(rows).to_csv(OUT/'sn_three_profile.csv',index=False)
+          PY
+
+      - name: Preserve SN results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-sn-three-gate
+          path: output/*
+          if-no-files-found: warn
