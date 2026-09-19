@@ -110,44 +110,46 @@ jobs:
           mkdir -p input_artifact/unpacked
           python3 - <<'PY'
           from pathlib import Path
-          base='''H0 = 70.8514
-omega_b = 0.02239952
-omega_cdm = 0.12444227328918850
-N_ncdm = 0
-N_ur = 3.046
-T_cmb = 2.7255
-YHe = 0.2453
-A_s = 2.16715426219737e-9
-n_s = 0.964
-tau_reio = 0.0544
-Omega_Lambda = 0
-Omega_fld = 3.1443554e-8
-fluid_equation_of_state = SDMC_TRACKER
-cs2_fld = 0.003
-use_ppf = no
-Omega_smg = -1
-gravity_model = sdmc_v3_independent_kinetic
-parameters_smg = 0.0715, 5.0, 1.426, 0.40, 1.0, 0.0001
-expansion_model = sdmc_full
-pert_initial_conditions_smg = zero
-method_qs_smg = fully_dynamic
-a_ini_over_a_today_default = 1.e-8
-a_ini_test_qs_smg = 1.e-8
-pert_ic_ini_z_ref_smg = 1.e7
-a_min_stability_test_smg = 1.e-8
-modes = s
-output = tCl,pCl,lCl
-lensing = yes
-l_max_scalars = 3000
-format = class
-input_verbose = 0
-background_verbose = 0
-thermodynamics_verbose = 0
-perturbations_verbose = 0
-spectra_verbose = 0
-lensing_verbose = 0
-output_verbose = 0
-'''
+          import textwrap
+          base=textwrap.dedent('''\
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.0715, 5.0, 1.426, 0.40, 1.0, 0.0001
+          expansion_model = sdmc_full
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          modes = s
+          output = tCl,pCl,lCl
+          lensing = yes
+          l_max_scalars = 3000
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          ''')
           cases={
             'current':(0.01105624999,0.25),
             'a000_t025':(0.0,0.25),
