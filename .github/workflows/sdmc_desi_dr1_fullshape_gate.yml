@@ -1,9 +1,9 @@
-name: SDMC DESI DR1 raw full-shape gate
+name: SDMC r032 direct covariant DESI full-shape gate
 
 on:
   push:
     branches:
-      - sdmc-desi-dr1-fullshape-fast
+      - sdmc-r032-desi-covariant-direct
   workflow_dispatch:
 
 jobs:
@@ -54,7 +54,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_native_noslip
-          parameters_smg = 0.073128, 4.84, 1.426, 0.1, 0.0001
+          parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
           expansion_model = sdmc_full
           expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
@@ -110,7 +110,7 @@ jobs:
           Hpa=H*H*h
           X=0.5*H*H
 
-          AF=0.073128; zc=4.84; width=1.426
+          AF=0.0715; zc=5.00; width=1.426
           Nc=-np.log1p(zc)
           xx=(ph-Nc)/(2.*width)
           S=.5*(1.+np.tanh(xx))
@@ -183,8 +183,8 @@ jobs:
           with hp.open('w') as f:
               f.write('#ifndef SDMC_COVARIANT_REPLAY_TABLE_H\n#define SDMC_COVARIANT_REPLAY_TABLE_H\n')
               f.write(f'#define SDMC_COV_N {len(ph)}\n')
-              f.write('#define SDMC_COV_AF 0.073128\n')
-              f.write('#define SDMC_COV_ZC 4.84\n')
+              f.write('#define SDMC_COV_AF 0.0715\n')
+              f.write('#define SDMC_COV_ZC 5.00\n')
               f.write('#define SDMC_COV_WIDTH 1.426\n')
               f.write('static const double sdmc_cov_x[SDMC_COV_N] = {'+carr(ph)+'};\n')
               for name,sp in splines.items():
@@ -842,7 +842,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-dr1-fullshape-gate
+          name: sdmc-r032-direct-covariant-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
