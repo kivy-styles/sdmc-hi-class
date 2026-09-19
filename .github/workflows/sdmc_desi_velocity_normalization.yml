@@ -1,0 +1,109 @@
+name: SDMC DESI velocity normalization validation
+
+on:
+  push:
+    branches:
+      - sdmc-desi-transfer-validation
+  workflow_dispatch:
+
+jobs:
+  validate-velocity-normalization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Run Newtonian-gauge LCDM transfer test
+        run: |
+          mkdir -p output
+          cat > output/desi_velocity_lcdm.ini <<'EOF'
+          H0 = 67.36
+          omega_b = 0.02237
+          omega_cdm = 0.1200
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.10e-9
+          n_s = 0.9649
+          tau_reio = 0.0544
+          Omega_Lambda = 0.6847
+          gauge = newtonian
+          modes = s
+          output = mPk,mTk,vTk
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0.2,0.5,1.0,1.5
+          write background = yes
+          root = output/desi_velocity_lcdm_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/desi_velocity_lcdm.ini
+
+      - name: Validate CAMB/DESI Newtonian velocity normalization
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, numpy as np, pandas as pd
+
+          def read_table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)]
+              if not hdr:
+                  raise RuntimeError(f'numbered header missing in {path}')
+              h=hdr[-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',h)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(h)
+                  names.append(h[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names), lines
+
+          bg,_=read_table('output/desi_velocity_lcdm_00_background.dat')
+          bg=bg.sort_values('z')
+          def iv(col,z): return float(np.interp(z,bg.z,bg[col]))
+
+          rows=[]
+          for path in sorted(Path('output').glob('desi_velocity_lcdm_*tk_ad.dat')):
+              tab,lines=read_table(path)
+              zline=next((l for l in lines if 'redshift z=' in l),None)
+              if zline is None: raise RuntimeError(f'z header missing {path}')
+              z=float(re.search(r'redshift z=([0-9.eE+-]+)',zline).group(1))
+              H=iv('H [1/Mpc]',z)
+              a=1/(1+z)
+              Hconf=a*H
+              fbg=iv('gr.fac. f',z) if 'gr.fac. f' in bg.columns else float('nan')
+              kcol=tab.columns[0]
+              m=(tab[kcol]>=0.02)&(tab[kcol]<=0.2)
+              for species in ['cdm','b']:
+                  d='d_'+species; t='t_'+species
+                  if d not in tab.columns or t not in tab.columns:
+                      raise RuntimeError(f'missing {d}/{t}; columns={list(tab.columns)}')
+                  ratio=-tab.loc[m,t].to_numpy()/(Hconf*tab.loc[m,d].to_numpy())
+                  rows.append({
+                    'z':z,'species':species,'f_background':fbg,
+                    'median_minus_theta_over_Hdelta':float(np.median(ratio)),
+                    'mean_minus_theta_over_Hdelta':float(np.mean(ratio)),
+                    'std_over_k':float(np.std(ratio)),
+                    'max_abs_delta_from_f':float(np.max(np.abs(ratio-fbg))),
+                    'median_delta_from_f':float(np.median(ratio)-fbg),
+                    'kmin':float(tab.loc[m,kcol].min()),'kmax':float(tab.loc[m,kcol].max()),
+                  })
+          out=pd.DataFrame(rows).sort_values(['z','species'])
+          out.to_csv('output/desi_velocity_normalization.csv',index=False)
+          print('DESI_VELOCITY_NORMALIZATION')
+          print(out.to_string(index=False),flush=True)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desi-velocity-normalization
+          path: |
+            output/desi_velocity_lcdm_00_background.dat
+            output/desi_velocity_lcdm_*tk_ad.dat
+            output/desi_velocity_normalization.csv
