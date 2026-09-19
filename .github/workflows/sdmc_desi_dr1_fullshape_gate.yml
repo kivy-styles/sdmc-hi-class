@@ -3,7 +3,7 @@ name: SDMC DESI DR1 raw full-shape gate
 on:
   push:
     branches:
-      - sdmc-desi-dr1-fullshape-fast
+      - sdmc-desi-lcdm-null
   workflow_dispatch:
 
 jobs:
@@ -838,6 +838,203 @@ jobs:
                                  OUT/'desi_dr1_fs_summary.csv',index=False)
           PY
 
+      - name: Validate LCDM bridge against native CAMB velocities
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys,re,json,math
+          import numpy as np
+          import pandas as pd
+          from scipy.interpolate import interp1d
+          from scipy.optimize import minimize
+          import camb
+          sys.path.insert(0,'desi-kp-cosmological-likelihoods/dr1/cobaya')
+          import lsstypes as types
+          from cosmoprimo import PowerSpectrumInterpolator1D,PowerSpectrumBAOFilter,Cosmology
+          from cosmoprimo.fiducial import DESI
+          from velocileptors.EPT.ept_fullresum_varyDz_nu_fftw import REPT
+          from desi_fs_bao_all import list_zrange,dataset_fn,get_tracer_label,get_physical_stochastic_settings
+
+          OUT=Path('output')
+          C=299792.458
+          records=json.loads((OUT/'desi_zeff.json').read_text())
+          zvals=[0.0]+sorted({float(r['zeff']) for r in records})
+
+          blocks=[]
+          for tracer,iz,zrange in list_zrange:
+              if 'lya' in tracer.lower(): continue
+              fn=dataset_fn('desi_likelihood',tracer,zrange,observable_name='spectrum-poles-rotated')
+              d=types.read(fn)
+              sp=d.observable.get('spectrum')
+              theory=d.window.theory.get('spectrum')
+              kin=theory.get(0).coords('k')
+              win=d.window.at.observable.get('spectrum').at.theory.get('spectrum').value()
+              blocks.append(dict(
+                  tracer=tracer,namespace=f'{get_tracer_label(tracer)}_z{iz}',
+                  zeff=float(sp.attrs['zeff']),data=sp.value(),
+                  precision=np.linalg.inv(d.covariance.value()),
+                  window=win,kin=np.asarray(kin,float),
+                  shotnoise=float(np.mean(sp.get(0).values('shotnoise')))
+              ))
+          kobs=blocks[0]['kin']
+
+          starts={
+            'BGS_z0':(1.11348,0.660148,-0.223088),
+            'LRG_z0':(1.1351,-0.139101,-0.910397),
+            'LRG_z1':(1.22446,-0.671727,-0.22624),
+            'LRG_z2':(1.04564,-0.493139,-0.24021),
+            'ELG_z1':(0.127936,-0.578801,-1.45356),
+            'QSO_z0':(0.780983,0.353843,0.135725),
+          }
+          fid=DESI(engine='camb')
+          all_marg=['alpha0p','alpha2p','alpha4p','alpha6p','sn0p','sn2p','sn4p']
+          scales=np.array([12.5]*4+[2.]+[5.]*2)
+          marg=['alpha0p','alpha2p','sn0p','sn2p']
+          gi=np.array([all_marg.index(x) for x in marg])
+          prior_hess=-np.diag(scales[gi]**-2)
+
+          # Exact matched LCDM used by the CLASS bridge.
+          H0=67.36; h=H0/100.; ob=0.02237; oc=0.1200; ns=0.9649; As=2.10e-9
+          fb=ob/(ob+oc); fc=1.-fb
+          pars=camb.CAMBparams()
+          pars.set_cosmology(H0=H0,ombh2=ob,omch2=oc,mnu=0.,nnu=3.046,TCMB=2.7255,YHe=0.2453,tau=0.0544)
+          pars.InitPower.set_params(As=As,ns=ns)
+          pars.set_matter_power(redshifts=sorted(zvals,reverse=True),kmax=2.5)
+          pars.NonLinear=camb.model.NonLinear_none
+          res=camb.get_results(pars)
+
+          def camb_pk(var1,var2):
+              kh,zout,pk=res.get_linear_matter_power_spectrum(
+                  var1=var1,var2=var2,hubble_units=True,k_hunit=True,
+                  have_power_spectra=True,nonlinear=False)
+              pk=np.asarray(pk)
+              if pk.shape==(len(zout),len(kh)): pk=pk.T
+              elif pk.shape!=(len(kh),len(zout)): raise RuntimeError((var1,var2,pk.shape,len(kh),len(zout)))
+              # reorder columns to zvals
+              cols=[]
+              for z in zvals:
+                  iz=int(np.argmin(np.abs(np.asarray(zout)-z)))
+                  if abs(float(zout[iz])-z)>1e-6: raise RuntimeError(('z mismatch',z,zout))
+                  cols.append(pk[:,iz])
+              return np.asarray(kh),np.stack(cols,axis=-1)
+
+          kh,Pdd0=camb_pk('delta_nonu','delta_nonu')
+          _,Pcc0=camb_pk('v_newtonian_cdm','v_newtonian_cdm')
+          _,Pbb0=camb_pk('v_newtonian_baryon','v_newtonian_baryon')
+          _,Pcb0=camb_pk('v_newtonian_baryon','v_newtonian_cdm')
+          Ptt0=fb*fb*Pbb0+2*fb*fc*Pcb0+fc*fc*Pcc0
+
+          kin=np.geomspace(min(5e-4,kobs[0]/2),max(1.0,kobs[-1]*2),500)
+          def loggrid(pk):
+              return 10**interp1d(np.log10(kh),np.log10(np.maximum(pk,1e-300)),
+                                  kind='cubic',fill_value='extrapolate',axis=0,
+                                  assume_sorted=True)(np.log10(kin))
+          Pdd=loggrid(Pdd0)
+          Ptt=loggrid(Ptt0)
+
+          pki=PowerSpectrumInterpolator1D(kin,Pdd)
+          cosp=Cosmology(n_s=ns,Omega_b=ob/h**2,Omega_cdm=oc/h**2,Omega_ncdm=0.,H0=H0)
+          derived=res.get_derived_params()
+          rd=float(derived['rdrag'])
+          cosp.rs_drag=rd*h
+          filt=PowerSpectrumBAOFilter(pki,engine='peakaverage',cosmo=cosp,cosmo_fid=fid)
+          filt(pki,cosmo=cosp)
+          Pnw=filt.smooth_pk_interpolator()(kin)
+          sig8=np.asarray(pki.sigma8())
+          ptti=PowerSpectrumInterpolator1D(kin,Ptt)
+          fs8=np.asarray(ptti.sigma8())
+
+          pt=REPT(kin,Pdd[:,0],pnw=Pnw[:,0],kmin=kobs[0],kmax=kobs[-1],
+                  nk=200,rbao=110,sbao=None,beyond_gauss=True,one_loop=True,
+                  shear=True,cutoff=20,jn=5,N=4000,threads=2,
+                  extrap_min=-4,extrap_max=3,import_wisdom=False)
+          extk=np.append(pt.kv,1.)
+          def regrid(arr):
+              return 10**interp1d(np.log10(kin),np.log10(np.maximum(arr,1e-300)),
+                                  kind='cubic',fill_value='extrapolate',axis=0,
+                                  assume_sorted=True)(np.log10(extk))
+          pcb=regrid(Pdd); pnw=regrid(Pnw); ptt=regrid(Ptt)
+
+          tables={}
+          for b in blocks:
+              z=b['zeff']; iz=zvals.index(z)
+              Hkms=float(res.hubble_parameter(z))
+              DA=float(res.angular_diameter_distance(z))
+              qpar=float(fid.efunc(z)/(Hkms/(100.*h)))
+              qper=float(DA*h/fid.angular_diameter_distance(z))
+              Dz=float(np.sqrt(pcb[-1,iz]/pcb[-1,0]))
+              fk=np.sqrt(np.maximum(ptt[:-1,iz]/pcb[:-1,iz],0.))
+              pks=pt.compute_redshift_space_power_multipoles_tables(
+                  fk,apar=qpar,aperp=qper,ngauss=4,
+                  pcb=pcb[:-1,iz],pcb_nw=pnw[:-1,iz],Dz=Dz)[1:]
+              basis=np.stack([
+                  interp1d(pt.kv,pks[j],kind='cubic',fill_value='extrapolate',
+                           axis=0,assume_sorted=True)(kobs)
+                  for j in range(3)
+              ],axis=0)
+              tables[b['namespace']]=dict(basis=basis,sigma8=float(sig8[iz]),
+                                           fsigma8=float(fs8[iz]),qpar=qpar,qper=qper,Dz=Dz)
+
+          def get_poles(info,x,settings,sn,return_gradient=False):
+              pktable=info['basis']; sigma8=info['sigma8']; f=info['fsigma8']/sigma8
+              b1p,b2p,bsp=x; b3p=0.
+              b1L=b1p/sigma8-1.; b2L=b2p/sigma8**2
+              bsL=bsp/sigma8**2; b3L=b3p/sigma8**3
+              b1=1.+b1L; b2=8./21.*b1L+b2L; bs=bsL-(2./7.)*b1L; b3=3*b3L+b1L
+              gradient=np.zeros((7,7))
+              gradient[0,0]=b1*b1
+              gradient[1,0]=gradient[1,1]=f*b1
+              gradient[2,1]=f*f
+              gradient[2,2]=f*b1
+              gradient[3,2]=f*f
+              fsat=settings['fsat']; sigv=settings['sigv']
+              for jj,pole in enumerate([0,2,4]):
+                  gradient[jj-3,jj-3]=sn*(fsat if pole>0 else 1.)*sigv**pole
+              base=[1,b1,b1*b1,b2,b1*b2,b2*b2,bs,b1*bs,b2*bs,bs*bs,b3,b1*b3]
+              mono=np.concatenate([np.asarray(base),gradient.dot(np.zeros(7))])
+              poles=np.sum(pktable*mono,axis=-1)
+              if return_gradient: return poles,pktable[...,-7:].dot(gradient)
+              return poles
+
+          rows=[]; total=0.
+          for b in blocks:
+              settings=get_physical_stochastic_settings(tracer=b['tracer'].upper()[:3])
+              def block_logp(x):
+                  poles,grad=get_poles(tables[b['namespace']],x,settings,b['shotnoise'],True)
+                  theory=b['window'].dot(poles.ravel())
+                  grad=grad[...,gi].reshape(-1,len(gi)); grad=b['window'].dot(grad)
+                  diff=theory-b['data']; pgrad=b['precision'].dot(grad)
+                  postgrad=-pgrad.T.dot(diff)
+                  likeh=-grad.T.dot(pgrad); posth=prior_hess+likeh
+                  dx=-np.linalg.solve(posth,postgrad)
+                  logl=-.5*diff.T.dot(b['precision']).dot(diff)
+                  logl+=.5*dx.dot(likeh).dot(dx)+postgrad.dot(dx)
+                  logprior=.5*dx.dot(prior_hess).dot(dx)
+                  logl+=-.5*np.linalg.slogdet(-posth)[1]
+                  logbias=-.5*(x[1]/5.)**2-.5*(x[2]/5.)**2
+                  return float(logl+logprior+logbias)
+              opt=minimize(lambda x:-2*block_logp(x),np.array(starts[b['namespace']]),
+                           method='L-BFGS-B',bounds=[(0.,3.),(-20.,20.),(-20.,20.)],
+                           options={'maxiter':500,'ftol':1e-10,'gtol':1e-6})
+              row=dict(namespace=b['namespace'],chi2_profile=float(opt.fun),success=bool(opt.success),
+                       b1p=float(opt.x[0]),b2p=float(opt.x[1]),bsp=float(opt.x[2]),
+                       sigma8=tables[b['namespace']]['sigma8'],
+                       fsigma8=tables[b['namespace']]['fsigma8'],
+                       qpar=tables[b['namespace']]['qpar'],qper=tables[b['namespace']]['qper'])
+              rows.append(row); total+=float(opt.fun)
+              print('DESI_CAMB_NULL_BLOCK',row,flush=True)
+          bridge=pd.read_csv(OUT/'desi_dr1_fs_summary.csv').iloc[0]
+          bridge_lcdm=float(bridge['lcdm_chi2'])
+          delta=total-bridge_lcdm
+          print('DESI_CAMB_NULL_TOTAL',total,flush=True)
+          print('DESI_CLASS_BRIDGE_LCDM_TOTAL',bridge_lcdm,flush=True)
+          print('DESI_CAMB_MINUS_CLASS_BRIDGE',delta,flush=True)
+          pd.DataFrame(rows).to_csv(OUT/'desi_camb_null_blocks.csv',index=False)
+          pd.DataFrame([dict(camb_lcdm=total,class_bridge_lcdm=bridge_lcdm,
+                             delta_camb_minus_class=delta)]).to_csv(
+                                 OUT/'desi_camb_null_summary.csv',index=False)
+          PY
+
       - name: Preserve DESI DR1 raw full-shape gate
         if: always()
         uses: actions/upload-artifact@v4
@@ -857,4 +1054,6 @@ jobs:
             output/desi_lcdm_z*_*
             output/desi_dr1_fs_profile.csv
             output/desi_dr1_fs_summary.csv
+            output/desi_camb_null_blocks.csv
+            output/desi_camb_null_summary.csv
           if-no-files-found: warn
