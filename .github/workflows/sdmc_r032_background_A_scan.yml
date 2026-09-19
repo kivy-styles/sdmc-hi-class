@@ -1,9 +1,9 @@
-name: SDMC r032 lower lambda-z_t floor0225 refinement
+name: SDMC r032 lower-background floor stability map
 
 on:
   push:
     branches:
-      - sdmc-r032-lambda-zt-lower-floor0225
+      - sdmc-r032-lambda17-floor-stability-map
   workflow_dispatch:
 
 jobs:
@@ -145,11 +145,15 @@ jobs:
 
           # Refine the background transition at the covariantly validated kinetic floor.
           POWER=1.0
-          DFLOOR=0.0225
-          D0=0.371223829752509
-          LAMBDAS=[16.50,16.75,17.00,17.25,17.50,17.75]
-          ZTS=[17.80,18.00,18.20,18.40,18.60,18.80]
-          candidates=[(lam,zt) for lam in LAMBDAS for zt in ZTS]
+          S0=0.7784218611214628
+          D_TODAY=0.31146874444858513
+          POINTS=[(17.25,18.00),(17.50,18.00),(17.75,18.80)]
+          FLOORS=[0.0250,0.0275,0.0300,0.0325,0.0350,0.0375,0.0400,0.0450,0.0500]
+          candidates=[]
+          for lambda_e,z_t in POINTS:
+              for Dfloor in FLOORS:
+                  D0=(D_TODAY-Dfloor)/S0
+                  candidates.append((lambda_e,z_t,Dfloor,D0))
 
           # ---------- shared table helpers ----------
           def table(path):
@@ -253,7 +257,7 @@ jobs:
               )
 
           # ---------- INI generators ----------
-          def sdmc_ini(lambda_e,z_t,root):
+          def sdmc_ini(lambda_e,z_t,Dfloor,D0,root):
               As=math.exp(3.076)/1e10
               return textwrap.dedent(f'''\
               H0 = 70.8514
@@ -273,7 +277,7 @@ jobs:
               use_ppf = no
               Omega_smg = -1
               gravity_model = sdmc_v3_independent_kinetic
-              parameters_smg = 0.0715, 5.00, 1.426, {D0:.16g}, {POWER}, {DFLOOR:.16g}
+              parameters_smg = 0.0715, 5.00, 1.426, {D0:.16g}, {POWER}, {Dfloor:.16g}
               expansion_model = sdmc_full
               expansion_smg = 0.7073985893,{lambda_e:.12g},{z_t:.12g},0.5,0.01105624999,0.25,0.01951933685,1.5
               pert_initial_conditions_smg = zero
@@ -342,13 +346,13 @@ jobs:
 
           # ---------- candidate screen ----------
           rows=[]
-          for ic,(lambda_e,z_t) in enumerate(candidates,1):
+          for ic,(lambda_e,z_t,Dfloor,D0) in enumerate(candidates,1):
               tag=f'c{ic:03d}'
               root=str(OUT/(tag+'_'))
-              ip=OUT/(tag+'.ini'); ip.write_text(sdmc_ini(lambda_e,z_t,root))
+              ip=OUT/(tag+'.ini'); ip.write_text(sdmc_ini(lambda_e,z_t,Dfloor,D0,root))
               cp=subprocess.run(['./class',str(ip)],stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,text=True,timeout=240)
-              rec={'id':tag,'AF':0.0715,'zc':5.00,'width':1.426,'lambda_e':lambda_e,'z_t':z_t,'Dfloor':DFLOOR,'D0':D0,'returncode':cp.returncode,'status':'FAIL'}
+              rec={'id':tag,'AF':0.0715,'zc':5.00,'width':1.426,'lambda_e':lambda_e,'z_t':z_t,'Dfloor':Dfloor,'D0':D0,'returncode':cp.returncode,'status':'FAIL'}
               bgp=Path(root+'00_background.dat'); clp=Path(root+'00_cl_lensed.dat')
               if bgp.exists():
                   bg=table(bgp)
@@ -382,10 +386,10 @@ jobs:
                   rec['joint_desy5']=rec['delta_planck']+rec['delta_desy5']
                   stable=(rec['min_D_all']>0 and rec['min_cs2_all']>0 and rec['max_cs2_all']<=1.0)
                   rec['stable_subluminal']=bool(stable)
-                  print('LOWER_LZT_F0225_GLOBAL_CANDIDATE',rec,flush=True)
+                  print('LOWER_BG_FLOOR_GLOBAL_CANDIDATE',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('LOWER_LZT_F0225_GLOBAL_FAIL',rec,flush=True)
+                  print('LOWER_BG_FLOOR_GLOBAL_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
@@ -403,10 +407,10 @@ jobs:
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
           shortlist.to_csv(OUT/'r032_lambda_zt_sn_lite_shortlist.csv',index=False)
-          print('LOWER_LZT_F0225_GLOBAL_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
-          print('LOWER_LZT_F0225_GLOBAL_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
-          print('LOWER_LZT_F0225_GLOBAL_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
-          print('LOWER_LZT_F0225_GLOBAL_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
+          print('LOWER_BG_FLOOR_GLOBAL_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
+          print('LOWER_BG_FLOOR_GLOBAL_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
+          print('LOWER_BG_FLOOR_GLOBAL_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
+          print('LOWER_BG_FLOOR_GLOBAL_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
