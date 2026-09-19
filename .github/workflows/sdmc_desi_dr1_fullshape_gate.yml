@@ -3,7 +3,7 @@ name: SDMC DESI DR1 raw full-shape gate
 on:
   push:
     branches:
-      - sdmc-desi-dr1-fullshape-gate
+      - sdmc-desi-dr1-fullshape-fast
   workflow_dispatch:
 
 jobs:
@@ -468,7 +468,19 @@ jobs:
           python3 -m pip install git+https://github.com/sfschen/velocileptors.git
           rm -rf desi-kp-cosmological-likelihoods
           git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
-          python3 desi-kp-cosmological-likelihoods/dr1/cobaya/download.py --data-dir desi_likelihood
+          mkdir -p desi_likelihood
+          BASE=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          for FN in \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
+          do
+            curl -L --fail --retry 3 -o "desi_likelihood/$FN" "$BASE/$FN"
+          done
+          ls -lh desi_likelihood
 
       - name: Read official DESI effective redshifts
         run: |
