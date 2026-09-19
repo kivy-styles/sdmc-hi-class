@@ -1,0 +1,302 @@
+name: SDMC r032 late-background response scan
+
+on:
+  push:
+    branches:
+      - sdmc-r032-background-scan
+  workflow_dispatch:
+
+jobs:
+  background-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Add corrected independent kinetic model
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          def rep(path,old,new):
+              p=Path(path); s=p.read_text()
+              if new in s: return
+              if s.count(old)!=1: raise RuntimeError(f'{path}: anchor count {s.count(old)}')
+              p.write_text(s.replace(old,new,1))
+
+          rep('include/background.h',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip,\n',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_v3_independent_kinetic,\n')
+
+          anchor='''  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          parser='''  if (strcmp(string1,"sdmc_v3_independent_kinetic") == 0) {
+             pba->gravity_model_smg = sdmc_v3_independent_kinetic;
+             pba->field_evolution_smg = _FALSE_;
+             pba->M2_evolution_smg = _FALSE_;
+             flag2=_TRUE_;
+             pba->parameters_2_size_smg = 6;
+             class_read_list_of_doubles("parameters_smg",pba->parameters_2_smg,pba->parameters_2_size_smg);
+             class_test(pba->parameters_2_smg[0] <= 0. || pba->parameters_2_smg[1] <= 0. ||
+                        pba->parameters_2_smg[2] <= 0. || pba->parameters_2_smg[3] <= 0. ||
+                        pba->parameters_2_smg[4] < 0. || pba->parameters_2_smg[5] <= 0., errmsg,
+                        "sdmc_v3_independent_kinetic requires positive AF,zc,width,D0,Dfloor and non-negative p");
+           }
+
+          if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,parser)
+
+          canchor='''  else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          closure=r'''  else if (pba->gravity_model_smg == sdmc_v3_independent_kinetic) {
+            double AF=pba->parameters_2_smg[0];
+            double zc=pba->parameters_2_smg[1];
+            double width=pba->parameters_2_smg[2];
+            double D0=pba->parameters_2_smg[3];
+            double power=pba->parameters_2_smg[4];
+            double Dfloor=pba->parameters_2_smg[5];
+            double N=log(a);
+            double Nc=-log(1.+zc);
+            double x=(N-Nc)/(2.*width);
+            double th=tanh(x);
+            double ch=cosh(x);
+            double sech2=1./(ch*ch);
+            double S=.5*(1.+th);
+            double F=exp(AF*S);
+            double am=AF/(4.*width)*sech2;
+            double bra=-2.*am;
+            double D=Dfloor + D0*pow(S,power);
+            double ak=D-1.5*bra*bra;
+            pvecback[pba->index_bg_kineticity_smg]=ak;
+            pvecback[pba->index_bg_braiding_smg]=bra;
+            pvecback[pba->index_bg_tensor_excess_smg]=0.;
+            pvecback[pba->index_bg_M2_running_smg]=am;
+            pvecback[pba->index_bg_beyond_horndeski_smg]=0.;
+            pvecback[pba->index_bg_delta_M2_smg]=F-1.;
+            pvecback[pba->index_bg_M2_smg]=F;
+          }
+
+          else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          rep('gravity_smg/gravity_models_smg.c',canchor,closure)
+          PY
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Download SN likelihood data
+        run: |
+          rm -rf sn_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+
+      - name: Scan late background around r032
+        run: |
+          mkdir -p output/bgscan
+          python3 - <<'PY'
+          from pathlib import Path
+          import math,re,subprocess,textwrap
+          import numpy as np
+          import pandas as pd
+          from scipy.linalg import cho_factor,cho_solve
+
+          OUT=Path('output/bgscan'); DATA=Path('sn_data')
+          AF,ZC,W=0.0715,5.00,1.426
+          D0,POWER,DFLOOR=0.40,1.0,1e-4
+          # Keep early tracker and short-lived positive late term fixed.
+          LAMBDA,ZT,DNT=20.0,21.10,0.5
+          A,TAUA=0.01105624999,0.25
+          OXS=[0.6800,0.6900,0.7000,0.7073985893,0.7150]
+          BS=[0.0,0.0050,0.0100,0.0150,0.01951933685]
+          TAUBS=[1.0,1.5,2.0]
+          candidates=[(ox,b,tb) for ox in OXS for b in BS for tb in TAUBS]
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values('z')
+
+          def read_cov(path,n):
+              a=np.asarray(np.loadtxt(path),float).reshape(-1)
+              if len(a)==n*n+1 and int(round(a[0]))==n: a=a[1:]
+              if len(a)!=n*n: raise RuntimeError((path,len(a),n*n))
+              return a.reshape(n,n)
+          def pack(C):
+              cf=cho_factor(C,lower=True,check_finite=False)
+              one=np.ones(C.shape[0]); u=cho_solve(cf,one,check_finite=False)
+              return cf,one,float(one@u)
+          def chi2(pack,resid):
+              cf,one,den=pack; y=cho_solve(cf,resid,check_finite=False)
+              return float(resid@y-(one@y)**2/den)
+
+          pp=pd.read_csv(DATA/'PantheonPlus/Pantheon+SH0ES.dat',sep=r'\s+',header=0,engine='python')
+          ppm=pp['m_b_corr'].to_numpy(float); ppz=pp['zHD'].to_numpy(float); pph=pp['zHEL'].to_numpy(float)
+          C=read_cov(DATA/'PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov',len(ppm)); m=ppz>0.01
+          ppm,ppz,pph,C=ppm[m],ppz[m],pph[m],C[np.ix_(m,m)]
+          ppp=pack(C)
+
+          p=DATA/'Union3/lcparam_full.txt'; lines=p.read_text().splitlines(); cols=lines[0].removeprefix('#').split()
+          un=pd.read_csv(p,sep=r'\s+',comment='#',names=cols,engine='python'); cm={c.lower():c for c in un.columns}
+          unm=un[cm['mb']].to_numpy(float); unz=un[cm['zcmb']].to_numpy(float); unp=pack(read_cov(DATA/'Union3/mag_covmat.txt',len(unm)))
+
+          de=pd.read_csv(DATA/'DESY5/DES-SN5YR_HD.csv'); cm={c.lower():c for c in de.columns}
+          dem=de[cm['mu']].to_numpy(float); dez=de[cm['zhd']].to_numpy(float); deh=de[cm['zhel']].to_numpy(float)
+          dee=de[cm['muerr_final']].to_numpy(float)
+          dep=pack(read_cov(DATA/'DESY5/covsys_000.txt',len(dem))+np.diag(dee*dee))
+
+          def mu(bg,z,zh):
+              DM=np.interp(z,bg.z,bg['comov. dist.']); DA=DM/(1.+z)
+              return 5*np.log10((1.+zh)*(1.+z)*DA)
+          def sns(bg):
+              return (chi2(ppp,ppm-mu(bg,ppz,pph)),
+                      chi2(unp,unm-mu(bg,unz,unz)),
+                      chi2(dep,dem-mu(bg,dez,deh)))
+
+          def ini(ox,b,tb,root):
+              return textwrap.dedent(f'''\
+              H0 = 70.8514
+              omega_b = 0.02239952
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              tau_reio = 0.0544
+              Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = 0.003
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_v3_independent_kinetic
+              parameters_smg = {AF}, {ZC}, {W}, {D0}, {POWER}, {DFLOOR}
+              expansion_model = sdmc_full
+              expansion_smg = {ox}, {LAMBDA}, {ZT}, {DNT}, {A}, {TAUA}, {b}, {tb}
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+              output_background_smg = 3
+              write background = yes
+              write thermodynamics = yes
+              root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              output_verbose = 0
+              ''')
+
+          def lcdm_ini(root):
+              return textwrap.dedent(f'''\
+              H0 = 67.36
+              omega_b = 0.02237
+              omega_cdm = 0.1200
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              tau_reio = 0.0544
+              write background = yes
+              write thermodynamics = yes
+              root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              output_verbose = 0
+              ''')
+
+          # LCDM SN/acoustic baseline.
+          lr=str(OUT/'lcdm_'); lip=OUT/'lcdm.ini'; lip.write_text(lcdm_ini(lr))
+          cp=subprocess.run(['./class',str(lip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=120)
+          if cp.returncode: raise RuntimeError(cp.stdout[-2000:])
+          lbg=table(lr+'00_background.dat'); lth=table(lr+'00_thermodynamics.dat'); lsn=sns(lbg)
+          def acoustic(bg,th):
+              zs=float(th.loc[th['g [Mpc^-1]'].idxmax(),'z'])
+              z=th.z.to_numpy(); kb=th.kappa_b.to_numpy(); cross=[]
+              for i in range(len(z)-1):
+                  if (kb[i]-1)*(kb[i+1]-1)<=0 and kb[i]!=kb[i+1]:
+                      q=(1-kb[i])/(kb[i+1]-kb[i]); cross.append(z[i]+q*(z[i+1]-z[i]))
+              zd=float(cross[0])
+              iv=lambda c,x:float(np.interp(x,bg.z,bg[c]))
+              rs=iv('comov.snd.hrz.',zs); rd=iv('comov.snd.hrz.',zd)
+              return zs,zd,rs,rd,math.pi*iv('comov. dist.',zs)/rs
+          lac=acoustic(lbg,lth)
+          print('BGSCAN_LCDM',{'sn':lsn,'acoustic':lac},flush=True)
+
+          rows=[]
+          for i,(ox,b,tb) in enumerate(candidates,1):
+              tag=f'b{i:03d}'; root=str(OUT/(tag+'_')); ip=OUT/(tag+'.ini'); ip.write_text(ini(ox,b,tb,root))
+              cp=subprocess.run(['./class',str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=120)
+              rec={'id':tag,'OmegaX0':ox,'B':b,'tauB':tb,'returncode':cp.returncode,'status':'FAIL'}
+              bp=Path(root+'00_background.dat'); tp=Path(root+'00_thermodynamics.dat')
+              if bp.exists():
+                  bg=table(bp); m=bg.z<=100
+                  rec.update(min_D_z100=float(bg.loc[m,'kin (D)'].min()),
+                             min_cs2_z100=float(bg.loc[m,'c_s^2'].min()),
+                             max_cs2_z100=float(bg.loc[m,'c_s^2'].max()))
+              if cp.returncode==0 and bp.exists() and tp.exists():
+                  bg=table(bp); th=table(tp); sn=sns(bg); ac=acoustic(bg,th)
+                  rec.update(status='OK',
+                    chi2_pp=sn[0],chi2_union3=sn[1],chi2_desy5=sn[2],
+                    delta_pp=sn[0]-lsn[0],delta_union3=sn[1]-lsn[1],delta_desy5=sn[2]-lsn[2],
+                    zstar=ac[0],zdrag=ac[1],rsstar=ac[2],rd=ac[3],ellA=ac[4],
+                    delta_ellA=ac[4]-lac[4],delta_rd=ac[3]-lac[3])
+                  for zz in [0.295,0.510,0.706,0.919,1.317,1.491]:
+                      DM=float(np.interp(zz,bg.z,bg['comov. dist.']))
+                      DH=1/float(np.interp(zz,bg.z,bg['H [1/Mpc]']))
+                      rec[f'DMrd_{zz:.3f}']=DM/ac[3]; rec[f'DHrd_{zz:.3f}']=DH/ac[3]
+                  rec['stable_subluminal']=bool(rec['min_D_z100']>0 and rec['min_cs2_z100']>0 and rec['max_cs2_z100']<=1)
+                  print('BGSCAN_OK',rec,flush=True)
+              else:
+                  rec['error']=cp.stdout[-800:]
+                  print('BGSCAN_FAIL',rec,flush=True)
+              rows.append(rec)
+
+          df=pd.DataFrame(rows); df.to_csv(OUT/'r032_background_scan.csv',index=False)
+          ok=df[(df.status=='OK')&(df.stable_subluminal==True)].copy()
+          if ok.empty: raise SystemExit('no stable background candidates')
+          # Rank separately by SN and by SN with acoustic closeness; do not pretend this is a Planck likelihood.
+          ellscale=0.20
+          for sn in ['delta_pp','delta_union3','delta_desy5']:
+              ok[f'{sn}_acoustic_screen']=ok[sn]+(ok.delta_ellA/ellscale)**2
+          keep=set()
+          for c in ['delta_pp','delta_union3','delta_desy5',
+                    'delta_pp_acoustic_screen','delta_union3_acoustic_screen','delta_desy5_acoustic_screen']:
+              keep.update(ok.nsmallest(8,c).id.tolist())
+          short=ok[ok.id.isin(sorted(keep))].copy()
+          short.to_csv(OUT/'r032_background_shortlist.csv',index=False)
+          print('BGSCAN_BEST_PP',ok.nsmallest(10,'delta_pp').to_dict('records'),flush=True)
+          print('BGSCAN_BEST_UNION3',ok.nsmallest(10,'delta_union3').to_dict('records'),flush=True)
+          print('BGSCAN_BEST_DESY5',ok.nsmallest(10,'delta_desy5').to_dict('records'),flush=True)
+          print('BGSCAN_BEST_PP_ACOUSTIC',ok.nsmallest(10,'delta_pp_acoustic_screen').to_dict('records'),flush=True)
+          PY
+
+      - name: Preserve background scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-background-scan
+          path: |
+            output/bgscan/r032_background_scan.csv
+            output/bgscan/r032_background_shortlist.csv
+          if-no-files-found: warn
