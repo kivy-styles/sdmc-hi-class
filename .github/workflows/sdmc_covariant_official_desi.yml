@@ -600,25 +600,7 @@ jobs:
                   q=re.search(r'redshift z=([0-9eE+.\-]+)',line)
                   if q: m=float(q.group(1)); break
               if m is None: raise RuntimeError(f'cannot read z from {tf}')
-              suffix=re.search(r'(z\d+)_tk\.dat        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdmc-covariant-official-desi-shapefit
-          path: |
-            output/covariant_target_00_background.dat
-            output/covariant_replay.ini
-            output/covariant_replay.log
-            output/covariant_replay_00_*
-            output/covariant_replay_comparison.csv
-            output/desi_shapefit_metadata.json
-            output/desi_zeff.txt
-            output/covariant_desi.ini
-            output/covariant_desi_00_*
-            output/covariant_desi_z*_*
-            output/desi_official_shapefit_*.csv
-            output/desi_velocity_mapping_audit.csv
-          if-no-files-found: warn
-,tf.name).group(1)
+              suffix=re.search(r'(z\\d+)_tk\\.dat$',tf.name).group(1)
               entries.append((m,tf,OUT/f'covariant_desi_{suffix}_pk.dat'))
           if len(entries)!=len(zs): raise RuntimeError((len(entries),len(zs)))
 
