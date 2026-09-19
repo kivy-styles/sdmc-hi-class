@@ -1,9 +1,9 @@
-name: SDMC r032 lower lambda-z_t floor0225 refinement
+name: SDMC r032 coarse lower lambda-z_t global bracket
 
 on:
   push:
     branches:
-      - sdmc-r032-lambda-zt-lower-floor0225
+      - sdmc-r032-lambda-zt-coarse-bracket-floor0225
   workflow_dispatch:
 
 jobs:
@@ -147,8 +147,8 @@ jobs:
           POWER=1.0
           DFLOOR=0.0225
           D0=0.371223829752509
-          LAMBDAS=[16.50,16.75,17.00,17.25,17.50,17.75]
-          ZTS=[17.80,18.00,18.20,18.40,18.60,18.80]
+          LAMBDAS=[15.00,15.50,16.00,16.50]
+          ZTS=[16.00,16.60,17.20,17.80]
           candidates=[(lam,zt) for lam in LAMBDAS for zt in ZTS]
 
           # ---------- shared table helpers ----------
@@ -382,10 +382,10 @@ jobs:
                   rec['joint_desy5']=rec['delta_planck']+rec['delta_desy5']
                   stable=(rec['min_D_all']>0 and rec['min_cs2_all']>0 and rec['max_cs2_all']<=1.0)
                   rec['stable_subluminal']=bool(stable)
-                  print('LOWER_LZT_F0225_GLOBAL_CANDIDATE',rec,flush=True)
+                  print('COARSE_LZT_F0225_GLOBAL_CANDIDATE',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('LOWER_LZT_F0225_GLOBAL_FAIL',rec,flush=True)
+                  print('COARSE_LZT_F0225_GLOBAL_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
@@ -403,10 +403,10 @@ jobs:
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
           shortlist.to_csv(OUT/'r032_lambda_zt_sn_lite_shortlist.csv',index=False)
-          print('LOWER_LZT_F0225_GLOBAL_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
-          print('LOWER_LZT_F0225_GLOBAL_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
-          print('LOWER_LZT_F0225_GLOBAL_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
-          print('LOWER_LZT_F0225_GLOBAL_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
+          print('COARSE_LZT_F0225_GLOBAL_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
+          print('COARSE_LZT_F0225_GLOBAL_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
+          print('COARSE_LZT_F0225_GLOBAL_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
+          print('COARSE_LZT_F0225_GLOBAL_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
@@ -415,7 +415,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-lambda-zt-lower-floor0225
+          name: sdmc-r032-lambda-zt-coarse-bracket-floor0225
           path: |
             output/joint_screen/r032_lambda_zt_sn_lite.csv
             output/joint_screen/r032_lambda_zt_sn_lite_shortlist.csv
