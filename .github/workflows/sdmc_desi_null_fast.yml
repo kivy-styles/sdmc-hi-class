@@ -1,4 +1,4 @@
-name: SDMC DESI LCDM bridge null fast
+name: SDMC DESI CAMB nuisance robustness
 
 on:
   push:
@@ -181,9 +181,27 @@ jobs:
                   val+=-.5*np.linalg.slogdet(-posth)[1]
                   val+=-.5*(x[1]/5.)**2-.5*(x[2]/5.)**2
                   return float(val)
-              opt=minimize(lambda x:-2*logp(x),np.array(starts[b['namespace']]),method='L-BFGS-B',
-                           bounds=[(0,3),(-20,20),(-20,20)],options={'maxiter':500,'ftol':1e-10,'gtol':1e-6})
+              seeds=[
+                  np.array(starts[b['namespace']],float),
+                  np.array([1.0,0.0,0.0]),
+                  np.array([0.55,4.0,-4.0]),
+                  np.array([1.8,-4.0,4.0]),
+                  np.array([2.6,8.0,-8.0]),
+                  np.array([1.4,-10.0,-10.0]),
+              ]
+              trials=[]
+              for iseed,seed in enumerate(seeds):
+                  opti=minimize(lambda x:-2*logp(x),seed,method='L-BFGS-B',
+                                bounds=[(0,3),(-20,20),(-20,20)],
+                                options={'maxiter':800,'ftol':1e-11,'gtol':3e-7,'maxls':50})
+                  trials.append(opti)
+                  print('DESI_CAMB_ROBUST_TRIAL',b['namespace'],iseed,float(opti.fun),
+                        bool(opti.success),[float(v) for v in opti.x],flush=True)
+              finite=[o for o in trials if np.isfinite(o.fun)]
+              opt=min(finite,key=lambda o:o.fun)
+              vals=np.array([float(o.fun) for o in finite])
               row={'namespace':b['namespace'],'chi2_profile':float(opt.fun),'success':bool(opt.success),
+                   'start_spread_chi2':float(vals.max()-vals.min()) if len(vals)>1 else 0.,
                    'b1p':float(opt.x[0]),'b2p':float(opt.x[1]),'bsp':float(opt.x[2]),
                    'sigma8':tables[b['namespace']]['sigma8'],'fsigma8':tables[b['namespace']]['fsigma8'],
                    'qpar':tables[b['namespace']]['qpar'],'qper':tables[b['namespace']]['qper']}
@@ -195,9 +213,9 @@ jobs:
           bridge=pd.read_csv(candidates[0]).iloc[0]
           bridge_lcdm=float(bridge['lcdm_chi2'])
           delta=total-bridge_lcdm
-          print('DESI_CAMB_NULL_TOTAL',total,flush=True)
+          print('DESI_CAMB_ROBUST_TOTAL',total,flush=True)
           print('DESI_CLASS_BRIDGE_LCDM_TOTAL',bridge_lcdm,flush=True)
-          print('DESI_CAMB_MINUS_CLASS_BRIDGE',delta,flush=True)
+          print('DESI_CAMB_ROBUST_MINUS_CLASS_SINGLESTART',delta,flush=True)
           pd.DataFrame(rows).to_csv('output/desi_camb_null_blocks.csv',index=False)
           pd.DataFrame([{'camb_lcdm':total,'class_bridge_lcdm':bridge_lcdm,
                          'delta_camb_minus_class':delta}]).to_csv('output/desi_camb_null_summary.csv',index=False)
