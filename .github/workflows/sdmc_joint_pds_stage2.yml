@@ -1,13 +1,13 @@
-name: SDMC independent-D joint DESI stage 2
+name: SDMC independent-D joint DESI stage 3
 
 on:
   push:
     branches:
-      - sdmc-joint-pds-stage2
+      - sdmc-joint-pds-stage3
   workflow_dispatch:
 
 jobs:
-  stage2:
+  stage3:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -164,10 +164,10 @@ jobs:
           zpk=(out/'desi_zpk.txt').read_text().strip()
           As=math.exp(3.076)/1e10
           candidates=[
-              ('c008',0.0715,5.20,1.426),
-              ('c020',0.0747,4.50,1.426),
-              ('c014',0.073128,4.84,1.426),
-              ('c023',0.0747,4.84,1.426),
+              ('r032',0.0715,5.00,1.426),
+              ('r023',0.0705,5.40,1.426),
+              ('r035',0.0715,5.20,1.426),
+              ('r047',0.0725,5.00,1.426),
           ]
           for cid,AF,zc,width in candidates:
               root=f'output/desi_{cid}_'
@@ -337,16 +337,16 @@ jobs:
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
           candidate_meta={
-            'c008':dict(AF=0.0715,zc=5.20,width=1.426,delta_planck=61.42710881832181,
+            'r032':dict(AF=0.0715,zc=5.00,width=1.426,delta_planck=60.75913262760537,
                         delta_pp=4.667266171891242,delta_union3=4.192445770910126,
                         delta_desy5=9.7708680331707),
-            'c020':dict(AF=0.0747,zc=4.50,width=1.426,delta_planck=61.502812790156895,
+            'r023':dict(AF=0.0705,zc=5.40,width=1.426,delta_planck=61.25103178552786,
                         delta_pp=4.667266171891242,delta_union3=4.192445770910126,
                         delta_desy5=9.7708680331707),
-            'c014':dict(AF=0.073128,zc=4.84,width=1.426,delta_planck=61.525453893643316,
+            'r035':dict(AF=0.0715,zc=5.20,width=1.426,delta_planck=61.427108818321585,
                         delta_pp=4.667266171891242,delta_union3=4.192445770910126,
                         delta_desy5=9.7708680331707),
-            'c023':dict(AF=0.0747,zc=4.84,width=1.426,delta_planck=62.77654918354142,
+            'r047':dict(AF=0.0725,zc=5.00,width=1.426,delta_planck=61.573068358232604,
                         delta_pp=4.667266171891242,delta_union3=4.192445770910126,
                         delta_desy5=9.7708680331707),
           }
@@ -539,8 +539,8 @@ jobs:
               summary.append(rec)
               print('JOINT_DESI_CANDIDATE',rec,flush=True)
           sdf=pd.DataFrame(summary)
-          sdf.to_csv(OUT/'joint_stage2_desi_summary.csv',index=False)
-          pd.DataFrame(allrows).to_csv(OUT/'joint_stage2_desi_blocks.csv',index=False)
+          sdf.to_csv(OUT/'joint_stage3_desi_summary.csv',index=False)
+          pd.DataFrame(allrows).to_csv(OUT/'joint_stage3_desi_blocks.csv',index=False)
           print('JOINT_DESI_BEST_PLANCK_DESI',sdf.nsmallest(4,'joint_planck_desi').to_dict('records'),flush=True)
           print('JOINT_DESI_BEST_PP',sdf.nsmallest(4,'joint_pp').to_dict('records'),flush=True)
           print('JOINT_DESI_BEST_UNION3',sdf.nsmallest(4,'joint_union3').to_dict('records'),flush=True)
@@ -551,10 +551,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-independent-d-joint-desi-stage2
+          name: sdmc-independent-d-joint-desi-stage3
           path: |
-            output/joint_stage2_desi_summary.csv
-            output/joint_stage2_desi_blocks.csv
+            output/joint_stage3_desi_summary.csv
+            output/joint_stage3_desi_blocks.csv
             output/desi_zeff.json
             output/desi_zpk.txt
           if-no-files-found: warn
