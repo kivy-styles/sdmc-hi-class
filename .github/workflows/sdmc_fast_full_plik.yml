@@ -44,7 +44,7 @@ jobs:
           mkdir -p input_artifact
           gh api \
             -H "Accept: application/vnd.github+json" \
-            /repos/\${GITHUB_REPOSITORY}/actions/artifacts/10584475049/zip \
+            /repos/$GITHUB_REPOSITORY/actions/artifacts/10584475049/zip \
             > input_artifact/artifact.zip
           unzip -q input_artifact/artifact.zip -d input_artifact/unpacked
           find input_artifact/unpacked -maxdepth 3 -type f | sort | sed -n '1,120p'
