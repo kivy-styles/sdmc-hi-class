@@ -1,13 +1,13 @@
-name: SDMC r032 zt stability ridge refine
+name: SDMC r032 lambda zt interaction grid
 
 on:
   push:
     branches:
-      - sdmc-r032-zt-refine
+      - sdmc-r032-lambda-zt-grid
   workflow_dispatch:
 
 jobs:
-  zt-refine:
+  lambda-zt-grid:
     runs-on: ubuntu-latest
     timeout-minutes: 100
     steps:
@@ -152,22 +152,9 @@ jobs:
           # tracker / handoff parameters. Omega_X0 is index 0 and is the
           # default hi_class shooting parameter, so it is intentionally not
           # treated as an independent scan direction here.
-          candidates=[
-            ('ZT160',20.0,16.0,0.50),
-            ('ZT165',20.0,16.5,0.50),
-            ('ZT170',20.0,17.0,0.50),
-            ('ZT1725',20.0,17.25,0.50),
-            ('ZT175',20.0,17.5,0.50),
-            ('ZT1775',20.0,17.75,0.50),
-            ('ZT180',20.0,18.0,0.50),
-            ('ZT1825',20.0,18.25,0.50),
-            ('ZT185',20.0,18.5,0.50),
-            ('ZT190',20.0,19.0,0.50),
-            ('ZT195',20.0,19.5,0.50),
-            ('ZT200',20.0,20.0,0.50),
-            ('ZT205',20.0,20.5,0.50),
-            ('base',20.0,21.10,0.50),
-          ]
+          LAMBDAS=[18.0,18.5,19.0,19.5,20.0]
+          ZTS=[18.5,19.0,19.5,20.0,20.5]
+          candidates=[(f'L{lam:g}_Z{zt:g}',lam,zt,0.50) for lam in LAMBDAS for zt in ZTS]
 
           # ---------- shared table helpers ----------
           def table(path):
@@ -398,14 +385,14 @@ jobs:
                   rec['joint_desy5']=rec['delta_planck']+rec['delta_desy5']
                   stable=(rec['min_D_z100']>0 and rec['min_cs2_z100']>0 and rec['max_cs2_z100']<=1.0)
                   rec['stable_subluminal']=bool(stable)
-                  print('ZT_REFINE_OK',rec,flush=True)
+                  print('LZT_GRID_OK',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('ZT_REFINE_FAIL',rec,flush=True)
+                  print('LZT_GRID_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
-          df.to_csv(OUT/'r032_zt_refine.csv',index=False)
+          df.to_csv(OUT/'r032_lambda_zt_grid.csv',index=False)
           ok=df[(df.status=='OK') & (df.stable_subluminal==True)].copy()
           if ok.empty:
               raise SystemExit('No stable subluminal candidates in joint screen')
@@ -415,14 +402,14 @@ jobs:
           keep=set()
           for col in ['joint_pp','joint_union3','joint_desy5','delta_planck']:
               for x in ok.nsmallest(4,col)['id']: keep.add(x)
-          current=ok[ok.id=='base']
+          current=ok[(np.isclose(ok.lambda_e,20.0))&(np.isclose(ok.z_t,20.5))]
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
-          shortlist.to_csv(OUT/'r032_zt_refine_shortlist.csv',index=False)
-          print('ZT_REFINE_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
-          print('ZT_REFINE_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
-          print('ZT_REFINE_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
-          print('ZT_REFINE_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','DeltaN_bg','delta_planck',
+          shortlist.to_csv(OUT/'r032_lambda_zt_grid_shortlist.csv',index=False)
+          print('LZT_GRID_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
+          print('LZT_GRID_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
+          print('LZT_GRID_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
+          print('LZT_GRID_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','DeltaN_bg','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
@@ -431,8 +418,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-zt-refine
+          name: sdmc-r032-lambda-zt-grid
           path: |
-            output/joint_screen/r032_zt_refine.csv
-            output/joint_screen/r032_zt_refine_shortlist.csv
+            output/joint_screen/r032_lambda_zt_grid.csv
+            output/joint_screen/r032_lambda_zt_grid_shortlist.csv
           if-no-files-found: warn
