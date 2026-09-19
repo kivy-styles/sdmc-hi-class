@@ -1,13 +1,13 @@
-name: SDMC r032 lambda-zt boundary fine scan
+name: SDMC r032 global subluminality kinetic scan
 
 on:
   push:
     branches:
-      - sdmc-r032-lzt-boundary-fine
+      - sdmc-r032-global-subluminal-floor
   workflow_dispatch:
 
 jobs:
-  lambda-zt-boundary-fine:
+  global-subluminality-kinetic:
     runs-on: ubuntu-latest
     timeout-minutes: 100
     steps:
@@ -143,18 +143,20 @@ jobs:
           lowE=EE(packages_path='planck_packages')
           lens=LensingNative(packages_path='planck_packages')
 
-          # Corrected independent kinetic closure held fixed.
-          D0=0.40
+          # Global-subluminality refinement at the current best background.
+          # Raise the early-time D floor while reducing D0 so D(z=0) stays
+          # fixed at the baseline value 1e-4 + 0.40*S0.
           POWER=1.0
-          DFLOOR=1e-4
-
-          # One-at-a-time response map of the remaining untuned sdmc_full
-          # tracker / handoff parameters. Omega_X0 is index 0 and is the
-          # default hi_class shooting parameter, so it is intentionally not
-          # treated as an independent scan direction here.
-          LAMBDAS=[17.0,17.25,17.5,17.75,18.0,18.25,18.5]
-          ZTS=[18.6,18.8,19.0,19.2,19.4,19.6,19.8,20.0,20.2,20.4]
-          candidates=[(f'L{lam:g}_Z{zt:g}',lam,zt,0.50) for lam in LAMBDAS for zt in ZTS]
+          LAMBDA_E=18.25
+          Z_T=19.2
+          DN_BG=0.50
+          S0=0.7784218611214628
+          D_TODAY=0.31146874444858513
+          FLOORS=[0.015,0.018,0.0195,0.0200,0.02013,0.0205,0.021,0.022,0.025]
+          candidates=[]
+          for floor in FLOORS:
+              d0=(D_TODAY-floor)/S0
+              candidates.append((f'F{floor:.5f}',d0,floor))
 
           # ---------- shared table helpers ----------
           def table(path):
@@ -347,13 +349,18 @@ jobs:
 
           # ---------- candidate screen ----------
           rows=[]
-          for ic,(label,lambda_e,z_t,dN_bg) in enumerate(candidates,1):
+          for ic,(label,D0v,DFLOORv) in enumerate(candidates,1):
               tag=label
+              lambda_e=LAMBDA_E; z_t=Z_T; dN_bg=DN_BG
+              D0=D0v; DFLOOR=DFLOORv
               root=str(OUT/(tag+'_'))
               ip=OUT/(tag+'.ini'); ip.write_text(sdmc_ini(lambda_e,z_t,dN_bg,root))
               cp=subprocess.run(['./class',str(ip)],stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,text=True,timeout=240)
-              rec={'id':tag,'AF':0.0715,'zc':5.00,'width':1.426,'lambda_e':lambda_e,'z_t':z_t,'DeltaN_bg':dN_bg,'returncode':cp.returncode,'status':'FAIL'}
+              rec={'id':tag,'AF':0.0715,'zc':5.00,'width':1.426,
+                   'lambda_e':lambda_e,'z_t':z_t,'DeltaN_bg':dN_bg,
+                   'D0':D0v,'Dfloor':DFLOORv,
+                   'returncode':cp.returncode,'status':'FAIL'}
               bgp=Path(root+'00_background.dat'); clp=Path(root+'00_cl_lensed.dat')
               if bgp.exists():
                   bg=table(bgp)
@@ -364,6 +371,8 @@ jobs:
                     'max_cs2_z100':float(bg.loc[m,'c_s^2'].max()),
                     'min_D_all':float(bg['kin (D)'].min()),
                     'min_cs2_all':float(bg['c_s^2'].min()),
+                    'max_cs2_all':float(bg['c_s^2'].max()),
+                    'z_at_max_cs2_all':float(bg.loc[bg['c_s^2'].idxmax(),'z']),
                     'max_abs_noslip_z100':float(np.max(np.abs(
                         bg.loc[m,'braiding_smg']+2*bg.loc[m,'M2_running_smg']))),
                   })
@@ -383,19 +392,20 @@ jobs:
                   rec['joint_pp']=rec['delta_planck']+rec['delta_pantheonplus']
                   rec['joint_union3']=rec['delta_planck']+rec['delta_union3']
                   rec['joint_desy5']=rec['delta_planck']+rec['delta_desy5']
-                  stable=(rec['min_D_z100']>0 and rec['min_cs2_z100']>0 and rec['max_cs2_z100']<=1.0)
+                  stable=(rec['min_D_all']>0 and rec['min_cs2_all']>0 and rec['max_cs2_all']<=1.0)
                   rec['stable_subluminal']=bool(stable)
-                  print('LZT_GRID_OK',rec,flush=True)
+                  rec['global_subluminal']=bool(stable)
+                  print('GLOBAL_D_SCAN_OK',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('LZT_GRID_FAIL',rec,flush=True)
+                  print('GLOBAL_D_SCAN_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
           df.to_csv(OUT/'r032_lambda_zt_grid.csv',index=False)
           ok=df[(df.status=='OK') & (df.stable_subluminal==True)].copy()
           if ok.empty:
-              raise SystemExit('No stable subluminal candidates in joint screen')
+              raise SystemExit('No globally stable subluminal kinetic candidates')
 
           # Keep union of top candidates under each alternative SN compilation,
           # plus the exact validated current point.
@@ -406,10 +416,10 @@ jobs:
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
           shortlist.to_csv(OUT/'r032_lambda_zt_grid_shortlist.csv',index=False)
-          print('LZT_GRID_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
-          print('LZT_GRID_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
-          print('LZT_GRID_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
-          print('LZT_GRID_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','DeltaN_bg','delta_planck',
+          print('GLOBAL_D_BEST_PP',ok.nsmallest(6,'joint_pp').to_dict('records'),flush=True)
+          print('GLOBAL_D_BEST_UNION3',ok.nsmallest(6,'joint_union3').to_dict('records'),flush=True)
+          print('GLOBAL_D_BEST_DESY5',ok.nsmallest(6,'joint_desy5').to_dict('records'),flush=True)
+          print('GLOBAL_D_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','DeltaN_bg','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
