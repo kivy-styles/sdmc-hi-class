@@ -1,13 +1,13 @@
-name: SDMC r032 lambda-zt micro scan
+name: SDMC r032 handoff-width micro scan
 
 on:
   push:
     branches:
-      - sdmc-r032-lzt-micro
+      - sdmc-r032-dnbg-micro
   workflow_dispatch:
 
 jobs:
-  lambda-zt-micro:
+  dnbg-micro:
     runs-on: ubuntu-latest
     timeout-minutes: 100
     steps:
@@ -152,9 +152,8 @@ jobs:
           # tracker / handoff parameters. Omega_X0 is index 0 and is the
           # default hi_class shooting parameter, so it is intentionally not
           # treated as an independent scan direction here.
-          LAMBDAS=[18.10,18.15,18.20,18.25,18.30,18.35]
-          ZTS=[19.05,19.10,19.15,19.20,19.25,19.30,19.35]
-          candidates=[(f'L{lam:g}_Z{zt:g}',lam,zt,0.50) for lam in LAMBDAS for zt in ZTS]
+          DNS=[0.44,0.46,0.48,0.50,0.52,0.54,0.56]
+          candidates=[(f'DN{dn:g}',18.15,19.15,dn) for dn in DNS]
 
           # ---------- shared table helpers ----------
           def table(path):
@@ -418,7 +417,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-lzt-micro
+          name: sdmc-r032-dnbg-micro
           path: |
             output/joint_screen/r032_lambda_zt_grid.csv
             output/joint_screen/r032_lambda_zt_grid_shortlist.csv
