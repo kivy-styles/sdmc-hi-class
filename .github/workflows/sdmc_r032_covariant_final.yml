@@ -1,9 +1,9 @@
-name: SDMC r032 floor0225 covariant gate
+name: SDMC r032 L17.75 Z18.8 floor0225 covariant gate
 
 on:
   push:
     branches:
-      - sdmc-r032-floor0225-covariant
+      - sdmc-r032-l1775-z188-floor0225-covariant
   workflow_dispatch:
 
 jobs:
@@ -231,7 +231,7 @@ jobs:
             double B = pba->parameters_smg[6];
             double tauB = pba->parameters_smg[7];'''
           new='''  double Ox = 0.7073985893;
-            double lambda_e = 18.25;
+            double lambda_e = 17.75;
             double zt = 19.2;
             double dNt = 0.5;
             double A = 0.01105624999;
@@ -454,7 +454,7 @@ jobs:
             'F0':float(c['M*^2_smg'][np.argmin(np.abs(zc))]),
             'alphaM0':float(c['M2_running_smg'][np.argmin(np.abs(zc))]),
           }
-          print('FLOOR0225_COVARIANT_REPLAY_COMPARISON',out)
+          print('L1775_Z188_FLOOR0225_COVARIANT_REPLAY_COMPARISON',out)
           with open('output/covariant_replay_comparison.csv','w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=out.keys()); w.writeheader(); w.writerow(out)
           PY
@@ -1095,7 +1095,7 @@ jobs:
           cov,cx=run_one('COVARIANT',OUT/'covariant_observable_00_cl_lensed.dat',[param_best,x0,displaced])
           lcdm,lx=run_one('LCDM',OUT/'fullplik_lcdm_00_cl_lensed.dat',[x0,param_best,cx])
           delta=cov['chi2_profile_total']-lcdm['chi2_profile_total']
-          print('FLOOR0225_COV_MINUIT_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
+          print('L1775_Z188_FLOOR0225_COV_MINUIT_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
           fields=list(cov.keys())
           with (OUT/'fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows([cov,lcdm])
