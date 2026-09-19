@@ -1,9 +1,9 @@
-name: SDMC r032 zt18 full Plik profile
+name: SDMC r032 final zt full Plik profile
 
 on:
   push:
     branches:
-      - sdmc-r032-zt18-full-plik
+      - sdmc-r032-zt-final-full-plik
   workflow_dispatch:
 
 jobs:
@@ -151,15 +151,17 @@ jobs:
           output_verbose = 0
           ''')
           cases={
-            'current':21.10,
-            'zt18':18.0,
+            'zt185':18.5,
+            'zt190':19.0,
+            'zt195':19.5,
+            'zt200':20.0,
           }
           for name,zt in cases.items():
               root=f'input_artifact/unpacked/{name}_'
               txt=base+f'expansion_smg = 0.7073985893,20.0,{zt},0.5,0.01105624999,0.25,0.01951933685,1.5\nroot = {root}\n'
               Path(f'input_artifact/unpacked/{name}.ini').write_text(txt)
           PY
-          for C in current zt18; do
+          for C in zt185 zt190 zt195 zt200; do
             ./class input_artifact/unpacked/$C.ini
             test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
           done
@@ -330,23 +332,23 @@ jobs:
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,displaced])
           lcdm['delta_vs_lcdm']=0.0
           rows=[lcdm]
-          for label in ['current','zt18']:
+          for label in ['zt185','zt190','zt195','zt200']:
               row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
               row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
               rows.append(row)
-              print('ZT18_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
+              print('ZT_FINAL_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
           fields=list(rows[0].keys())
-          with (OUT/'zt18_fullplik_profile.csv').open('w',newline='') as f:
+          with (OUT/'zt_final_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
           best=min(rows[1:],key=lambda r:r['chi2_profile_total'])
-          (OUT/'zt18_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
-          print('ZT18_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
+          (OUT/'zt_final_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
+          print('ZT_FINAL_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
           PY
 
       - name: Preserve fast profile
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-zt18-full-plik-profile
+          name: sdmc-r032-zt-final-full-plik-profile
           path: output/*
           if-no-files-found: warn
