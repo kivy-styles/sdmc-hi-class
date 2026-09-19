@@ -37,8 +37,9 @@ jobs:
             likelihood_spectrum-poles-rotated+bao-recon_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5 \
             likelihood_bao_syst_Lya_GCcomb_z1.8-4.2.h5
           do
-            curl -L --fail --retry 3 -o "desi_likelihood/$FN" "$BASE/$FN"
+            curl -L --fail --retry 3 -o "desi_likelihood/$FN" "$BASE/$FN" &
           done
+          wait
           ls -lh desi_likelihood
 
       - name: Download validated covariant and LCDM DESI transfer artifact
