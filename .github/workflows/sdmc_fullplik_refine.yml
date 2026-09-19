@@ -40,13 +40,13 @@ jobs:
 
       - name: Recover completed covariant and LCDM spectra
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p output
           curl -L --fail --retry 4 \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/\${{ github.repository }}/actions/artifacts/10584845266/zip" \
+            "https://api.github.com/repos/kivy-styles/sdmc-hi-class/actions/artifacts/10584845266/zip" \
             -o /tmp/planck_cov_artifact.zip
           unzip -q /tmp/planck_cov_artifact.zip -d /tmp/planck_cov_artifact
           cp /tmp/planck_cov_artifact/covariant_observable_00_cl_lensed.dat output/
