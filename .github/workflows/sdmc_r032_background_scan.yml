@@ -193,6 +193,10 @@ jobs:
               expansion_smg = {ox}, {LAMBDA}, {ZT}, {DNT}, {A}, {TAUA}, {b}, {tb}
               pert_initial_conditions_smg = zero
               method_qs_smg = fully_dynamic
+              a_ini_over_a_today_default = 1.e-8
+              a_ini_test_qs_smg = 1.e-8
+              pert_ic_ini_z_ref_smg = 1.e7
+              a_min_stability_test_smg = 1.e-8
               output_background_smg = 3
               write background = yes
               write thermodynamics = yes
