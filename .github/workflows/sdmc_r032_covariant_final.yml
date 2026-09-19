@@ -1,9 +1,9 @@
-name: SDMC r032 zt18 covariant gate
+name: SDMC r032 L18 Z19.5 covariant gate
 
 on:
   push:
     branches:
-      - sdmc-r032-zt18-covariant
+      - sdmc-r032-l18-z195-covariant
   workflow_dispatch:
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
           gravity_model = sdmc_v3_native_noslip
           parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893, 20.0, 18.0, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.7073985893, 18.0, 19.5, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
           skip_stability_tests_smg = yes
           write background = yes
@@ -784,7 +784,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.0715, 5.00, 1.426, 0.40, 1.0, 0.0001
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893,20.0,18.0,0.5,0.01105624999,0.25,0.01951933685,1.5
+          expansion_smg = 0.7073985893,18.0,19.5,0.5,0.01105624999,0.25,0.01951933685,1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -1241,7 +1241,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-zt18-covariant
+          name: sdmc-r032-l18-z195-covariant
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay.ini
