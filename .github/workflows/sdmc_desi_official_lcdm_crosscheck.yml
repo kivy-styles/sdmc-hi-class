@@ -74,6 +74,7 @@ jobs:
               observable_name='spectrum-poles-rotated'
               tracers=['bgs_z0','lrg_z0','lrg_z1','lrg_z2','elg_z1','qso_z0']
               solve='marg'
+              params={f'pre_{ns}.{p}':None for ns in nuis for p in ['b1p','b2p','bsp','b3p']}
 
           info={
             'theory':{
