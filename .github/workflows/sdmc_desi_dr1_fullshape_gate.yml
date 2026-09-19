@@ -3,7 +3,7 @@ name: SDMC r032 direct covariant DESI full-shape gate
 on:
   push:
     branches:
-      - sdmc-r032-desi-covariant-direct
+      - sdmc-r032-l18-z195-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
           gravity_model = sdmc_v3_native_noslip
           parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.7073985893, 18.0, 19.5, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
           skip_stability_tests_smg = yes
           write background = yes
@@ -231,7 +231,7 @@ jobs:
             double B = pba->parameters_smg[6];
             double tauB = pba->parameters_smg[7];'''
           new='''  double Ox = 0.7073985893;
-            double lambda_e = 20.0;
+            double lambda_e = 18.0;
             double zt = 21.10;
             double dNt = 0.5;
             double A = 0.01105624999;
@@ -469,7 +469,8 @@ jobs:
           rm -rf desi-kp-cosmological-likelihoods
           git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
           mkdir -p desi_likelihood
-          BASE=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           for FN in \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
