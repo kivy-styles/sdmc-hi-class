@@ -19,7 +19,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 python3-pip
           python3 -m pip install --upgrade pip
-          python3 -m pip install numpy scipy pandas cobaya
+          python3 -m pip install numpy scipy pandas cobaya cython
 
       - name: Apply SDMC parameterized patches
         run: |
@@ -473,7 +473,7 @@ jobs:
           p=re.sub(r'(?m)^root\s*=.*$','root = output/covariant_observable_',p)
           p += '''
           modes = s
-          output = tCl,pCl,lCl,mPk
+          output = tCl,pCl,lCl,mPk,dTk,vTk
           lensing = yes
           l_max_scalars = 3000
           P_k_max_h/Mpc = 6.0
@@ -490,6 +490,90 @@ jobs:
           echo "$rc" > output/covariant_observable.returncode
           echo "COVARIANT_OBSERVABLE_RETURNCODE=$rc"
           tail -160 output/covariant_observable.log || true
+
+      - name: Build hiclassy and probe DESI transfer conventions
+        if: always()
+        run: |
+          make -j2 libclass.a
+          python3 -m pip install -e . --no-build-isolation
+          python3 - <<'PY'
+          import numpy as np, pandas as pd
+          from hiclassy import HiClass
+
+          pars={
+            'H0':70.8514,
+            'omega_b':0.02239952,
+            'omega_cdm':0.12444227328918850,
+            'N_ncdm':0,
+            'N_ur':3.046,
+            'T_cmb':2.7255,
+            'YHe':0.2453,
+            'A_s':2.1671542621973737e-9,
+            'n_s':0.964,
+            'tau_reio':0.0544,
+            'Omega_Lambda':0,
+            'Omega_fld':3.1443554e-8,
+            'fluid_equation_of_state':'SDMC_TRACKER',
+            'cs2_fld':0.003,
+            'use_ppf':'no',
+            'Omega_smg':-1,
+            'gravity_model':'sdmc_covariant_replay',
+            'parameters_smg':'0.0',
+            'pert_initial_conditions_smg':'zero',
+            'method_qs_smg':'fully_dynamic',
+            'a_ini_over_a_today_default':1.e-8,
+            'a_ini_test_qs_smg':1.e-8,
+            'pert_ic_ini_z_ref_smg':1.e7,
+            'a_min_stability_test_smg':1.e-8,
+            'output':'mPk,dTk,vTk',
+            'P_k_max_h/Mpc':1.5,
+            'z_pk':'0,0.295,0.510,0.706,0.934,1.321,1.484',
+            'modes':'s',
+          }
+          cosmo=HiClass()
+          cosmo.set(pars)
+          cosmo.compute()
+          tk,k,zs=cosmo.get_transfer_and_k_and_z(output_format='class',h_units=True)
+          print('HICLASS_TRANSFER_KEYS',sorted(tk.keys()),flush=True)
+          bg=cosmo.get_background()
+          bz=np.asarray(bg['z'])
+          bf=np.asarray(bg['gr.fac. f'])
+          oo=np.argsort(bz); bz=bz[oo]; bf=bf[oo]
+          rows=[]
+          # Standard CLASS names are d_b, d_cdm, t_b, t_cdm.
+          db=tk.get('d_b',tk.get('d_baryon'))
+          dc=tk.get('d_cdm',tk.get('d_c'))
+          tb=tk.get('t_b',tk.get('t_baryon'))
+          tc=tk.get('t_cdm',tk.get('t_c'))
+          if any(x is None for x in [db,dc,tb,tc]):
+              raise SystemExit('required baryon/CDM transfer keys not found')
+          fb=0.02239952/(0.02239952+0.12444227328918850)
+          dcb=fb*db+(1.-fb)*dc
+          for iz,z in enumerate(zs):
+              if z>1.6: continue
+              fbg=float(np.interp(z,bz,bf))
+              # Hubble() is physical H/c in 1/Mpc; conformal H is aH.
+              a=1./(1.+z); HH=float(cosmo.Hubble(float(z))); aH=a*HH
+              q=(k>=0.005)&(k<=0.05)&(np.abs(dcb[:,iz])>0)
+              candidates={
+                'minus_t_over_aH':-tc[:,iz]/(aH*dcb[:,iz]),
+                'minus_k_t_over_aH':-k*tc[:,iz]/(aH*dcb[:,iz]),
+                'minus_t_over_k_aH':-tc[:,iz]/(k*aH*dcb[:,iz]),
+              }
+              for name,val in candidates.items():
+                  vv=val[q]
+                  rows.append({
+                    'z':float(z),'candidate':name,'f_background':fbg,
+                    'median':float(np.median(vv)),
+                    'rms_fractional_to_f':float(np.sqrt(np.mean((vv/fbg-1.)**2))),
+                    'min':float(np.min(vv)),'max':float(np.max(vv))
+                  })
+          df=pd.DataFrame(rows)
+          df.to_csv('output/covariant_desi_transfer_convention_probe.csv',index=False)
+          print('DESI_TRANSFER_CONVENTION_PROBE')
+          print(df.to_string(index=False),flush=True)
+          cosmo.struct_cleanup()
+          PY
 
       - name: Compute covariant observable diagnostics
         if: always()
@@ -672,6 +756,7 @@ jobs:
             output/covariant_observable.returncode
             output/covariant_observable_00_*
             output/covariant_observable_*.csv
+            output/covariant_desi_transfer_convention_probe.csv
           if-no-files-found: warn
 
       - name: Assert full covariant observable gate
