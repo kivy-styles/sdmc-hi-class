@@ -185,6 +185,9 @@ anchors=[
     ("lowerA_laterwide",(0.0600,2.0,1.40)),
     ("mildlower_later",(0.0680,3.0,1.20)),
     ("higherA_later",(0.0750,2.5,1.20)),
+    ("historical_joint",(0.07310,4.90,1.430)),
+    ("historical_micro",(0.073128,4.84,1.426)),
+    ("historical_edge",(0.07360,4.25,1.430)),
 ]
 LOW=np.array([0.050,1.0,0.45])
 HIGH=np.array([0.080,8.0,2.00])
