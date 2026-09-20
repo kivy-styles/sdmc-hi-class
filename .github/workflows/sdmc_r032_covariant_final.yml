@@ -1,9 +1,9 @@
-name: SDMC r032 L17.9125 Z17.775 floor04511 covariant gate
+name: SDMC r032 L17.9125 Z17.775 floor0451 covariant gate
 
 on:
   push:
     branches:
-      - sdmc-r032-l179125-z17775-floor04511-covariant
+      - sdmc-r032-l179125-z17775-floor0451-covariant
   workflow_dispatch:
 
 jobs:
