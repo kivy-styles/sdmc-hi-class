@@ -232,7 +232,7 @@ jobs:
             double tauB = pba->parameters_smg[7];'''
           new='''  double Ox = 0.7073985893;
             double lambda_e = 17.90;
-            double zt = 17.8;
+            double zt = 17.7875;
             double dNt = 0.5;
             double A = 0.01105624999;
             double tauA = 0.25;
