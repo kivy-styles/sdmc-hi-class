@@ -1,9 +1,9 @@
-name: SDMC r032 final micro SN gate
+name: SDMC r032 final local joint SN grid
 
 on:
   push:
     branches:
-      - sdmc-r032-final-micro-sn-gate
+      - sdmc-r032-final-local-joint-sn-grid
   workflow_dispatch:
 
 jobs:
@@ -147,7 +147,7 @@ jobs:
           POWER=1.0
           DFLOOR=0.045
           D0=0.34231919445927034
-          candidates=[(17.9125,17.7750),(17.9250,17.7750)]
+          candidates=[(17.9000,17.7750),(17.9125,17.7625),(17.9125,17.7750),(17.9125,17.7875),(17.9250,17.7750),(17.9132,17.7786)]
 
           # ---------- shared table helpers ----------
           def table(path):
@@ -379,14 +379,14 @@ jobs:
                   rec['joint_desy5']=rec['delta_planck']+rec['delta_desy5']
                   stable=(rec['min_D_all']>0 and rec['min_cs2_all']>0 and rec['max_cs2_all']<=1.0)
                   rec['stable_subluminal']=bool(stable)
-                  print('FINAL_MICRO_SN_CANDIDATE',rec,flush=True)
+                  print('FINAL_LOCAL_JOINT_SN_CANDIDATE',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('FINAL_MICRO_SN_FAIL',rec,flush=True)
+                  print('FINAL_LOCAL_JOINT_SN_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
-          df.to_csv(OUT/'r032_final_micro_sn.csv',index=False)
+          df.to_csv(OUT/'r032_final_local_joint_sn.csv',index=False)
           ok=df[(df.status=='OK') & (df.stable_subluminal==True)].copy()
           if ok.empty:
               raise SystemExit('No stable subluminal candidates in joint screen')
@@ -399,11 +399,11 @@ jobs:
           current=ok[(np.isclose(ok.lambda_e,18.25))&(np.isclose(ok.z_t,19.20))]
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
-          shortlist.to_csv(OUT/'r032_final_micro_sn_shortlist.csv',index=False)
-          print('FINAL_MICRO_SN_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
-          print('FINAL_MICRO_SN_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
-          print('FINAL_MICRO_SN_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
-          print('FINAL_MICRO_SN_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
+          shortlist.to_csv(OUT/'r032_final_local_joint_sn_shortlist.csv',index=False)
+          print('FINAL_LOCAL_JOINT_SN_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
+          print('FINAL_LOCAL_JOINT_SN_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
+          print('FINAL_LOCAL_JOINT_SN_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
+          print('FINAL_LOCAL_JOINT_SN_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
@@ -412,8 +412,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-final-micro-sn-gate
+          name: sdmc-r032-final-local-joint-sn-grid
           path: |
-            output/joint_screen/r032_final_micro_sn.csv
-            output/joint_screen/r032_final_micro_sn_shortlist.csv
+            output/joint_screen/r032_final_local_joint_sn.csv
+            output/joint_screen/r032_final_local_joint_sn_shortlist.csv
           if-no-files-found: warn
