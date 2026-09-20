@@ -1,9 +1,9 @@
-name: SDMC r032 L17.925 Z17.775 floor045 covariant gate
+name: SDMC r032 retimed gravity exact covariant gate
 
 on:
   push:
     branches:
-      - sdmc-r032-l17925-z17775-floor045-covariant
+      - sdmc-r032-retimed-gravity-exact
   workflow_dispatch:
 
 jobs:
@@ -54,7 +54,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_native_noslip
-          parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
+          parameters_smg = 0.060, 3.50, 0.800, 0.1, 0.0001
           expansion_model = sdmc_full
           expansion_smg = 0.7073985893, 17.925, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
@@ -110,7 +110,7 @@ jobs:
           Hpa=H*H*h
           X=0.5*H*H
 
-          AF=0.0715; zc=5.00; width=1.426
+          AF=0.060; zc=3.50; width=0.800
           Nc=-np.log1p(zc)
           xx=(ph-Nc)/(2.*width)
           S=.5*(1.+np.tanh(xx))
@@ -183,9 +183,9 @@ jobs:
           with hp.open('w') as f:
               f.write('#ifndef SDMC_COVARIANT_REPLAY_TABLE_H\n#define SDMC_COVARIANT_REPLAY_TABLE_H\n')
               f.write(f'#define SDMC_COV_N {len(ph)}\n')
-              f.write('#define SDMC_COV_AF 0.0715\n')
-              f.write('#define SDMC_COV_ZC 5.00\n')
-              f.write('#define SDMC_COV_WIDTH 1.426\n')
+              f.write('#define SDMC_COV_AF 0.060\n')
+              f.write('#define SDMC_COV_ZC 3.50\n')
+              f.write('#define SDMC_COV_WIDTH 0.800\n')
               f.write('static const double sdmc_cov_x[SDMC_COV_N] = {'+carr(ph)+'};\n')
               for name,sp in splines.items():
                   coeff=np.asarray(sp.c.T).reshape(-1)
@@ -787,7 +787,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.0715, 5.00, 1.426, 0.34231919445927034, 1.0, 0.045
+          parameters_smg = 0.060, 3.50, 0.800, 0.34231919445927034, 1.0, 0.045
           expansion_model = sdmc_full
           expansion_smg = 0.7073985893,17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
           pert_initial_conditions_smg = zero
