@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Combined acoustic-degeneracy + localized-braiding refinement.
+Micro-refinement of the combined acoustic-degeneracy + localized-braiding solution.
 
 Ordinary cosmology is fixed to the best acoustic-screen point (sobol002):
 H0=69.7095092787552, omega_b=0.02211778594478965,
