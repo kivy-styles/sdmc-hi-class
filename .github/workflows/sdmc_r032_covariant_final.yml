@@ -1,9 +1,9 @@
-name: SDMC r032 retimed gravity exact covariant gate
+name: SDMC r032 retimed gravity primordial exact gate
 
 on:
   push:
     branches:
-      - sdmc-r032-retimed-gravity-exact
+      - sdmc-r032-retimed-primordial-exact
   workflow_dispatch:
 
 jobs:
@@ -488,8 +488,8 @@ jobs:
           T_cmb = 2.7255
           YHe = 0.2453
 
-          A_s = 2.16715426219737e-9
-          n_s = 0.964
+          A_s = 2.137025495991624e-9
+          n_s = 0.962
           tau_reio = 0.0544
 
           Omega_Lambda = 0
@@ -777,8 +777,8 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.16715426219737e-9
-          n_s = 0.964
+          A_s = 2.137025495991624e-9
+          n_s = 0.962
           tau_reio = 0.0544
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -1117,8 +1117,8 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.16715426219737e-9
-          n_s = 0.964
+          A_s = 2.137025495991624e-9
+          n_s = 0.962
           tau_reio = 0.0544
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
