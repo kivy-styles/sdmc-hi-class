@@ -1,9 +1,9 @@
-name: SDMC r032 lambda ultramicro Z17.8 floor045 full Plik
+name: SDMC r032 lambda-z_t cross ultramicro floor045 full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-lambda-ultramicro-z178-floor045-full-plik
+      - sdmc-r032-lzt-cross-ultramicro-floor045-full-plik
   workflow_dispatch:
 
 jobs:
@@ -153,11 +153,13 @@ jobs:
           # (lambda_e,z_t,DeltaN_bg)=(18.25,19.2,0.5).  D0 is adjusted
           # with Dfloor so that the present-day D is held fixed.
           cases={
-            'L17900Z178_F0450':(0.34231919445927034,0.04500,17.9000,17.80),
-            'L179125Z178_F0450':(0.34231919445927034,0.04500,17.9125,17.80),
-            'L17925Z178_F0450':(0.34231919445927034,0.04500,17.9250,17.80),
-            'L179375Z178_F0450':(0.34231919445927034,0.04500,17.9375,17.80),
-            'L17950Z178_F0450':(0.34231919445927034,0.04500,17.9500,17.80),
+            'L17900Z17775_F0450':(0.34231919445927034,0.04500,17.9000,17.7750),
+            'L179125Z177625_F0450':(0.34231919445927034,0.04500,17.9125,17.7625),
+            'L179125Z17775_F0450':(0.34231919445927034,0.04500,17.9125,17.7750),
+            'L179125Z177875_F0450':(0.34231919445927034,0.04500,17.9125,17.7875),
+            'L17925Z177625_F0450':(0.34231919445927034,0.04500,17.9250,17.7625),
+            'L17925Z17775_F0450':(0.34231919445927034,0.04500,17.9250,17.7750),
+            'L17925Z177875_F0450':(0.34231919445927034,0.04500,17.9250,17.7875),
           }
           for name,(d0,dfloor,lambda_e,z_t) in cases.items():
               root=f'input_artifact/unpacked/{name}_'
@@ -167,7 +169,7 @@ jobs:
                   f'root = {root}\n')
               Path(f'input_artifact/unpacked/{name}.ini').write_text(txt)
           PY
-          for C in L17900Z178_F0450 L179125Z178_F0450 L17925Z178_F0450 L179375Z178_F0450 L17950Z178_F0450; do
+          for C in L17900Z17775_F0450 L179125Z177625_F0450 L179125Z17775_F0450 L179125Z177875_F0450 L17925Z177625_F0450 L17925Z17775_F0450 L17925Z177875_F0450; do
             ./class input_artifact/unpacked/$C.ini
             test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
           done
@@ -338,17 +340,17 @@ jobs:
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,displaced])
           lcdm['delta_vs_lcdm']=0.0
           rows=[lcdm]
-          for label in ['L17900Z178_F0450','L179125Z178_F0450','L17925Z178_F0450','L179375Z178_F0450','L17950Z178_F0450']:
+          for label in ['L17900Z17775_F0450','L179125Z177625_F0450','L179125Z17775_F0450','L179125Z177875_F0450','L17925Z177625_F0450','L17925Z17775_F0450','L17925Z177875_F0450']:
               row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
               row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
               rows.append(row)
-              print('LAMBDA_ULTRAMICRO_Z178_F045_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
+              print('LZT_CROSS_ULTRAMICRO_F045_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
           fields=list(rows[0].keys())
           with (OUT/'global_floor_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
           best=min(rows[1:],key=lambda r:r['chi2_profile_total'])
           (OUT/'global_floor_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
-          print('LAMBDA_ULTRAMICRO_Z178_F045_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
+          print('LZT_CROSS_ULTRAMICRO_F045_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
           PY
 
       - name: Preserve fast profile
