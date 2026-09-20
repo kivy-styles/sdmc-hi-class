@@ -296,19 +296,20 @@ lsn=sn_scores(lbg)
 lcdm={"planck":lp[-1],"pantheonplus":lsn[0],"union3":lsn[1],"desy5":lsn[2]}
 print("ORD6D_LCDM_REFERENCE",lcdm,flush=True)
 
-# Deterministic design: exact current, Planck-reference ordinary coordinates,
-# three points on the connecting line, plus a 64-point Sobol space-filling set.
-anchors=[
-    ("current",CURRENT),
-    ("reference_coords",REFERENCE),
-    ("line25",CURRENT+0.25*(REFERENCE-CURRENT)),
-    ("line50",CURRENT+0.50*(REFERENCE-CURRENT)),
-    ("line75",CURRENT+0.75*(REFERENCE-CURRENT)),
-]
-sob=qmc.Sobol(d=6,scramble=True,seed=20260920)
-u=sob.random_base2(m=6)
-xs=qmc.scale(u,LOW,HIGH)
-design=anchors+[(f"sobol{i+1:03d}",x) for i,x in enumerate(xs)]
+# Profile the A_s--tau degeneracy at the exact current background.
+# The high-l primary CMB approximately fixes ln A_s - 2 tau.  We therefore
+# test three slopes in ln(1e10 A_s) versus tau, including the constant-primary
+# slope 2, while n_s remains at the current 0.964.
+TAUS=[0.058,0.060,0.062,0.064,0.066,0.068,0.070,0.072]
+SLOPES=[0.0,1.0,2.0]
+design=[("current",CURRENT.copy())]
+for tau in TAUS:
+    for slope in SLOPES:
+        x=CURRENT.copy()
+        x[3]=0.964
+        x[4]=3.076 + slope*(tau-0.062)
+        x[5]=tau
+        design.append((f"tau{tau:.3f}_s{slope:.1f}".replace(".","p"),x))
 
 meta={
     "names":NAMES,
@@ -319,7 +320,7 @@ meta={
     "structural":{"AF":AF,"zc":ZC,"width":WIDTH,"D0":D0,"power":POWER,
                   "Dfloor":DFLOOR,"lambda_e":LAMBDA_E,"z_t":ZT},
     "n_design":len(design),
-    "note":"screen only; final points require exact covariant replay + full Plik + raw DESI FS",
+    "note":"A_s-tau degeneracy profile at fixed exact current background; full Plik and raw DESI required for finalists",
 }
 (OUT/"ordinary6d_design.json").write_text(json.dumps(meta,indent=2))
 
