@@ -1,9 +1,9 @@
-name: SDMC r032 late-sharp gravity exact covariant gate
+name: SDMC r032 late-sharp exact tau062 gate
 
 on:
   push:
     branches:
-      - sdmc-r032-latesharp-gravity-exact
+      - sdmc-r032-latesharp-exact-tau062
   workflow_dispatch:
 
 jobs:
@@ -490,7 +490,7 @@ jobs:
 
           A_s = 2.16715426219737e-9
           n_s = 0.964
-          tau_reio = 0.0544
+          tau_reio = 0.062
 
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -779,7 +779,7 @@ jobs:
           YHe = 0.2453
           A_s = 2.16715426219737e-9
           n_s = 0.964
-          tau_reio = 0.0544
+          tau_reio = 0.062
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -1119,7 +1119,7 @@ jobs:
           YHe = 0.2453
           A_s = 2.16715426219737e-9
           n_s = 0.964
-          tau_reio = 0.0544
+          tau_reio = 0.062
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
