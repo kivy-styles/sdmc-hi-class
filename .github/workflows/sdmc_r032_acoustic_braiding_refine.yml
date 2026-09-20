@@ -1,9 +1,9 @@
-name: SDMC r032 acoustic plus braiding refinement
+name: SDMC r032 acoustic plus braiding micro-refinement
 
 on:
   push:
     branches:
-      - sdmc-r032-acoustic-braiding-combined-refine
+      - sdmc-r032-acoustic-braiding-micro-refine
   workflow_dispatch:
 
 jobs:
