@@ -1,0 +1,150 @@
+name: SDMC matched LCDM 3D linear simulation
+
+on:
+  push:
+    branches:
+      - sdmc-matched-cdm-3d-simulation
+  workflow_dispatch:
+
+jobs:
+  matched-linear-simulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout simulation branch
+        uses: actions/checkout@v4
+
+      - name: Install numerical and plotting dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy matplotlib pillow
+
+      - name: Build hi_class for matched LCDM control
+        run: make -j2 class
+
+      - name: Download exact-leader SDMC observable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdmc-r032-l18-z195-covariant
+          path: sdmc_artifact
+          github-token: ${{ github.token }}
+          repository: kivy-styles/sdmc-hi-class
+          run-id: 35510661121
+
+      - name: Inventory SDMC source artifact
+        run: |
+          echo "Exact-leader source run: https://github.com/kivy-styles/sdmc-hi-class/actions/runs/35510661121"
+          find sdmc_artifact -maxdepth 4 -type f | sort | sed -n '1,220p'
+          test "$(find sdmc_artifact -type f -name 'covariant_observable_00_z1_pk.dat' | wc -l)" -eq 1
+          test "$(find sdmc_artifact -type f -name 'covariant_observable_00_z7_pk.dat' | wc -l)" -eq 1
+
+      - name: Generate matched flat LCDM spectra
+        run: |
+          mkdir -p output
+          cat > output/matched_lcdm.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+
+          Omega_k = 0
+          Omega_Lambda = 0.7073985893
+
+          modes = s
+          output = mPk
+          non linear = none
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0,0.5,1,2,3,5,10
+
+          write background = yes
+          write parameters = yes
+          root = output/matched_lcdm_
+          format = class
+
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 1
+          EOF
+          ./class output/matched_lcdm.ini
+          ls -lh output/matched_lcdm_00_z*_pk.dat
+
+      - name: Run same-phase 3D density simulation
+        run: |
+          mkdir -p simulation_output
+          python3 sdmc/run_matched_cdm_sdmc_simulation.py \
+            --sdmc-root sdmc_artifact \
+            --lcdm-root output \
+            --out simulation_output \
+            --grid 128 \
+            --box 500 \
+            --kcut 0.25 \
+            --seed 20260920 \
+            --slab 8
+
+      - name: Print numerical comparison
+        run: |
+          echo "===== SIMULATION SUMMARY ====="
+          cat simulation_output/simulation_summary.txt
+          echo
+          echo "===== METRICS ====="
+          cat simulation_output/matched_simulation_metrics.csv
+
+      - name: Write provenance record
+        run: |
+          cat > simulation_output/PROVENANCE.txt <<'EOF'
+          SDMC source:
+            exact leader (lambda_e,z_t,Dfloor) = (17.925,17.775,0.045)
+            GitHub Actions run = 35510661121
+            run URL = https://github.com/kivy-styles/sdmc-hi-class/actions/runs/35510661121
+            source artifact = sdmc-r032-l18-z195-covariant
+            note: artifact name is historical; source run is the exact 17.925/17.775 leader.
+
+          Matched LCDM control:
+            H0 = 70.8514 km/s/Mpc
+            omega_b = 0.02239952
+            omega_cdm = 0.12444227328918850
+            A_s = 2.16715426219737e-9
+            n_s = 0.964
+            tau_reio = 0.0544
+            N_ur = 3.046
+            Omega_k = 0
+            Omega_Lambda = 0.7073985893
+
+          Simulation:
+            identical Gaussian random phases in both cosmologies
+            seed = 20260920
+            box = 500 Mpc/h
+            grid = 128^3
+            low-pass k_cut = 0.25 h/Mpc
+            redshifts = 0,0.5,1,2,3,5,10
+            interpretation = linear/band-limited structure comparison
+            nonlinear N-body dynamics are NOT claimed.
+          EOF
+
+      - name: Preserve simulation products
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-vs-matched-lcdm-linear-3d-simulation
+          path: |
+            simulation_output/*
+            output/matched_lcdm.ini
+            output/matched_lcdm_00_background.dat
+            output/matched_lcdm_00_z*_pk.dat
+          if-no-files-found: warn
