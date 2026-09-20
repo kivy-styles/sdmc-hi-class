@@ -1,9 +1,9 @@
-name: SDMC r032 acoustic-degeneracy 6D screen
+name: SDMC r032 joint physical best ordinary 6D
 
 on:
   push:
     branches:
-      - sdmc-r032-acoustic-degeneracy-screen
+      - sdmc-r032-joint-physical-best-ordinary6d
   workflow_dispatch:
 
 jobs:
@@ -65,7 +65,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-acoustic-degeneracy-6d-screen
+          name: sdmc-r032-joint-physical-best-ordinary6d
           path: |
             output/acoustic6d/acoustic6d_screen.csv
             output/acoustic6d/acoustic6d_shortlist.csv
