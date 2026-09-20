@@ -166,32 +166,48 @@ rows=[]
 for ob in OBS:
   for oc in OCS:
     key=f"ob{ob:.5f}_oc{oc:.5f}".replace(".","p")
-    # Determine monotonic H0->ell_A behavior at a generous bracket.
-    try:
-        e66=eval_ell(66.,ob,oc,key); e74=eval_ell(74.,ob,oc,key)
-    except Exception as ex:
-        print("RIDGE_BRACKET_FAIL",key,str(ex),flush=True); continue
-    lo,hi=(66.,74.) if e66<e74 else (74.,66.)
-    elo,ehi=(e66,e74) if e66<e74 else (e74,e66)
+    samples=[]
+    for H in np.linspace(66.,74.,17):
+        try:
+            samples.append((float(H),eval_ell(float(H),ob,oc,key)))
+        except Exception:
+            pass
+    if len(samples)<2:
+        print("RIDGE_BRACKET_FAIL",key,"fewer than two stable H0 samples",flush=True); continue
     for target in TARGETS:
-      rec=dict(omega_b=ob,omega_cdm=oc,target_ell_A=target,ell66=e66,ell74=e74,status="NO_ROOT")
-      if not (elo<=target<=ehi):
+      rec=dict(omega_b=ob,omega_cdm=oc,target_ell_A=target,status="NO_ROOT",
+               stable_H0_min=min(h for h,e in samples),stable_H0_max=max(h for h,e in samples))
+      brackets=[]
+      for (h1,e1),(h2,e2) in zip(samples[:-1],samples[1:]):
+          if (e1-target)*(e2-target)<=0 and e1!=e2:
+              brackets.append((h1,h2))
+      if not brackets:
         rows.append(rec); print("RIDGE_POINT",json.dumps(rec,sort_keys=True),flush=True); continue
       try:
+        h1,h2=min(brackets,key=lambda q:abs(0.5*(q[0]+q[1])-70.8514))
         f=lambda H: eval_ell(H,ob,oc,key)-target
-        Hroot=float(brentq(f,66.,74.,xtol=2e-5,rtol=1e-9,maxiter=32))
+        Hroot=float(brentq(f,h1,h2,xtol=2e-5,rtol=1e-9,maxiter=32))
         root=str(OUT/(f"final_{key}_e{target:.3f}_".replace(".","p")))
         ip=OUT/(f"final_{key}_e{target:.3f}.ini".replace(".","p"))
         ip.write_text(sdmc_ini(root,Hroot,ob,oc,True))
         cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=240)
         if cp.returncode: raise RuntimeError(cp.stdout[-1800:])
-        ea,zs,rs=acoustic(root); bg=table(Path(root+"00_background.dat"))
+        bgfiles=sorted(Path(root).parent.glob(Path(root).name+"*background.dat"))
+        thfiles=sorted(Path(root).parent.glob(Path(root).name+"*thermodynamics.dat"))
+        clfiles=sorted(Path(root).parent.glob(Path(root).name+"*cl_lensed.dat"))
+        if len(bgfiles)!=1 or len(thfiles)!=1 or len(clfiles)!=1:
+            raise RuntimeError(f"final output discovery failed bg={bgfiles} th={thfiles} cl={clfiles}")
+        bg=table(bgfiles[0]); th=table(thfiles[0])
+        zstar=float(th.loc[th["g [Mpc^-1]"].idxmax(),"z"])
+        rs=float(np.interp(zstar,bg.z,bg["comov.snd.hrz."]))
+        dm=float(np.interp(zstar,bg.z,bg["comov. dist."]))
+        ea=math.pi*dm/rs; zs=zstar
         stable=(float(bg["kin (D)"].min())>0 and float(bg["c_s^2"].min())>0 and float(bg["c_s^2"].max())<=1)
         rec.update(status="OK" if stable else "UNSTABLE",H0=Hroot,ell_A=ea,z_star=zs,rs_star=rs,
                    Omega_m0=(ob+oc)/(Hroot/100.)**2,
                    min_D=float(bg["kin (D)"].min()),min_cs2=float(bg["c_s^2"].min()),max_cs2=float(bg["c_s^2"].max()))
         if stable:
-            sc=score(Path(root+"00_cl_lensed.dat")); rec.update(sc)
+            sc=score(clfiles[0]); rec.update(sc)
             for k in ["chi2_high","chi2_lowT","chi2_lowE","chi2_lensing","chi2_cal","chi2_total"]:
                 rec["delta_"+k]=rec[k]-base[k]
       except Exception as ex:
