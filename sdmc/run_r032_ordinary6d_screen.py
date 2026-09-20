@@ -382,7 +382,7 @@ for ic,(tag,x) in enumerate(design,1):
 
 df=pd.DataFrame(rows)
 df.to_csv(OUT/"ordinary6d_screen.csv",index=False)
-ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
+ok=df[(df.status=="OK") & (df.get("stable_subluminal",False)==True)].copy()
 if ok.empty:
     raise SystemExit("No stable subluminal candidates in 6D screen")
 
