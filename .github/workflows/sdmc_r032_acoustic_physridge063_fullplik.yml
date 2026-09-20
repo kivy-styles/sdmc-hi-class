@@ -1,0 +1,173 @@
+name: SDMC r032 acoustic physical-ridge063 full Plik validation
+
+on:
+  push:
+    branches:
+      - sdmc-r032-acoustic-physridge063-fullplik
+  workflow_dispatch:
+
+jobs:
+  fullplik-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya iminuit
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Install Planck likelihood data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          for cls,path in [(TT,'planck_packages'),(EE,'planck_packages'),
+                           (LensingNative,'planck_packages'),(TTTEEE,'planck_full')]:
+              if not cls.install(path=path,no_progress_bars=True):
+                  raise SystemExit(f'Planck install failed: {cls}')
+          PY
+
+      - name: Generate physical ridge, acoustic control and LCDM spectra
+        run: |
+          mkdir -p output
+          cat > output/physical_ridge.ini <<'EOF'
+          H0 = 69.7095092787552
+          omega_b = 0.02211778594478965
+          omega_cdm = 0.1258596659367904
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.17005124877665152e-9
+          n_s = 0.9637720508351921
+          tau_reio = 0.06456347454525531
+
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.0573794336710125,3.0902165911160413,0.5979282500222326,0.34231919445927034,1.0,0.045
+          expansion_model = sdmc_full
+          expansion_smg = 0.6953970160452582,17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          output_background_smg = 3
+
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0
+          write background = yes
+          write thermodynamics = yes
+          root = output/physical_ridge_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+
+          sed 's/parameters_smg = 0.0573794336710125,3.0902165911160413,0.5979282500222326,0.34231919445927034,1.0,0.045/parameters_smg = 0.0715,5.0,1.426,0.34231919445927034,1.0,0.045/; s#root = output/physical_ridge_#root = output/acoustic_control_#'             output/physical_ridge.ini > output/acoustic_control.ini
+
+          cat > output/fullplik_lcdm.ini <<'EOF'
+          H0 = 67.36
+          omega_b = 0.02237
+          omega_cdm = 0.1200
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.10e-9
+          n_s = 0.9649
+          tau_reio = 0.0544
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0
+          write background = yes
+          write thermodynamics = yes
+          root = output/fullplik_lcdm_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+
+          ./class output/physical_ridge.ini
+          ./class output/acoustic_control.ini
+          ./class output/fullplik_lcdm.ini
+
+      - name: Verify physical ridge stability
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,pandas as pd,json
+          lines=Path('output/physical_ridge_00_background.dat').read_text().splitlines()
+          hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+          ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          b=pd.DataFrame(np.loadtxt('output/physical_ridge_00_background.dat'),columns=names)
+          out=dict(min_D=float(b['kin (D)'].min()),min_cs2=float(b['c_s^2'].min()),
+                   max_cs2=float(b['c_s^2'].max()),
+                   max_abs_noslip=float(np.max(np.abs(b['braiding_smg']+2*b['M2_running_smg']))),
+                   F0=float(b.iloc[np.argmin(np.abs(b.z.to_numpy()))]['M*^2_smg']))
+          print('PHYSRIDGE063_STABILITY',json.dumps(out,sort_keys=True),flush=True)
+          if not(out['min_D']>0 and out['min_cs2']>0 and out['max_cs2']<=1):
+              raise SystemExit('PHYSRIDGE063_STABILITY_FAIL')
+          PY
+
+      - name: Profile official full Plik nuisance sector
+        run: python3 sdmc/run_r032_physridge_fullplik_profile.py
+
+      - name: Preserve validation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-acoustic-physridge063-fullplik
+          path: |
+            output/physical_ridge.ini
+            output/physical_ridge_00_*
+            output/acoustic_control.ini
+            output/acoustic_control_00_*
+            output/fullplik_lcdm.ini
+            output/fullplik_lcdm_00_*
+            output/physical_ridge_fullplik_profile.csv
+          if-no-files-found: warn
