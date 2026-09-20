@@ -1,9 +1,9 @@
-name: SDMC DESI strawman geometry ensemble control
+name: SDMC DESI 128-geometry nuisance null ensemble
 
 on:
   push:
     branches:
-      - sdmc-desi-strawman-ensemble-control
+      - sdmc-desi-strawman-null128-control
   workflow_dispatch:
 
 jobs:
@@ -151,7 +151,19 @@ jobs:
           dpar=np.array([0.00965072,0.01797025,0.02510890,0.03196861,0.04225963,0.04579289])
           dper=np.array([0.00427017,0.00792129,0.01115372,0.01437656,0.01950412,0.02138752])
           signs=np.array([1.,-1.,1.,-1.,1.,-1.])
-          case_names=['LCDM_PHYSICAL','STRAWMAN_REVERSED','STRAWMAN_ALTERNATING','STRAWMAN_OPPOSITE','STRAWMAN_REVERSED_OPPOSITE','STRAWMAN_ROLL2','STRAWMAN_ROLL3_NEG','STRAWMAN_MIXED','STRAWMAN_RANDOM_A','STRAWMAN_RANDOM_B']
+          # Deterministic null ensemble fixed before this run:
+          # 64 exhaustive paired sign patterns + 64 fixed-seed permutation/sign patterns.
+          # Each control uses exactly the same multiset of SDMC-sized AP-offset amplitudes.
+          controls={}
+          for mask in range(64):
+              sg=np.array([1. if (mask>>i)&1 else -1. for i in range(6)])
+              controls[f'SIGN_{mask:02d}']=(sg*dpar.copy(),sg*dper.copy())
+          rng=np.random.default_rng(20260920)
+          for ii in range(64):
+              perm=rng.permutation(6)
+              sg=rng.choice(np.array([-1.,1.]),size=6)
+              controls[f'PERM_{ii:02d}']=(sg*dpar[perm],sg*dper[perm])
+          case_names=['LCDM_PHYSICAL']+list(controls.keys())
 
           # physical LCDM AP values for each block, in block order
           physical=[]
@@ -169,27 +181,8 @@ jobs:
               qp,qt=physical[ib]
               if case=='LCDM_PHYSICAL':
                   return qp,qt
-              if case=='STRAWMAN_REVERSED':
-                  return qp+dpar[::-1][ib], qt+dper[::-1][ib]
-              if case=='STRAWMAN_ALTERNATING':
-                  return qp+signs[ib]*dpar[ib], qt+signs[ib]*dper[ib]
-              if case=='STRAWMAN_OPPOSITE':
-                  return qp-dpar[ib], qt-dper[ib]
-              if case=='STRAWMAN_REVERSED_OPPOSITE':
-                  return qp-dpar[::-1][ib], qt-dper[::-1][ib]
-              if case=='STRAWMAN_ROLL2':
-                  return qp+np.roll(dpar,2)[ib], qt+np.roll(dper,2)[ib]
-              if case=='STRAWMAN_ROLL3_NEG':
-                  return qp-np.roll(dpar,3)[ib], qt-np.roll(dper,3)[ib]
-              if case=='STRAWMAN_MIXED':
-                  return qp+dpar[::-1][ib], qt+signs[ib]*dper[ib]
-              if case=='STRAWMAN_RANDOM_A':
-                  perm=np.array([2,5,0,4,1,3]); sg=np.array([1.,-1.,-1.,1.,1.,-1.])
-                  return qp+sg[ib]*dpar[perm][ib], qt+sg[ib]*dper[perm][ib]
-              if case=='STRAWMAN_RANDOM_B':
-                  perm=np.array([4,0,5,1,3,2]); sg=np.array([-1.,1.,-1.,1.,-1.,1.])
-                  return qp+sg[ib]*dpar[perm][ib], qt+sg[ib]*dper[perm][ib]
-              raise ValueError(case)
+              dp,dt=controls[case]
+              return qp+float(dp[ib]),qt+float(dt[ib])
 
           def build_table(b,ib,case):
               z=b['zeff']; iz=zvals.index(z)
@@ -272,13 +265,31 @@ jobs:
               rec={'case':case,'chi2_total':totals[case],'delta_vs_physical_lcdm':delta}
               summary.append(rec)
               print('STRAW_DELTA',rec,flush=True)
+          sdf=pd.DataFrame(summary)
           pd.DataFrame(rows).to_csv('output/desi_strawman_geometry_blocks.csv',index=False)
-          pd.DataFrame(summary).to_csv('output/desi_strawman_geometry_summary.csv',index=False)
+          sdf.to_csv('output/desi_strawman_geometry_summary.csv',index=False)
+          null=sdf[sdf['case']!='LCDM_PHYSICAL']['delta_vs_physical_lcdm'].to_numpy(float)
+          sdmc_delta=-12.98476687140419
+          stats={
+              'n_null':int(len(null)),
+              'min_delta':float(np.min(null)),
+              'p01':float(np.quantile(null,0.01)),
+              'p05':float(np.quantile(null,0.05)),
+              'median':float(np.median(null)),
+              'p95':float(np.quantile(null,0.95)),
+              'max_delta':float(np.max(null)),
+              'n_better_than_sdmc':int(np.sum(null<=sdmc_delta)),
+              'n_better_than_minus10':int(np.sum(null<=-10.0)),
+              'n_better_than_minus7p5':int(np.sum(null<=-7.5)),
+              'sdmc_reference_delta':sdmc_delta
+          }
+          print('STRAW_NULL128_SUMMARY',stats,flush=True)
+          pd.DataFrame([stats]).to_csv('output/desi_strawman_null128_stats.csv',index=False)
           PY
       - name: Preserve strawman geometry control
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-strawman-ensemble-control
+          name: sdmc-desi-strawman-null128-control
           path: output/*
           if-no-files-found: warn
