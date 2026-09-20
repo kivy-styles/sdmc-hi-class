@@ -23,7 +23,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/gravity_gap_scan"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/late_sharp_gravity"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=0.0025
 H0=70.8514; OB=0.02239952; OC=0.12444227328918850
 NS=0.964; LNAS=3.076; TAU=0.0544
@@ -32,9 +32,9 @@ OR=4.17998772e-5
 OX=1.-(OB+OC+OR)/(H0/100.)**2
 D0=0.34231919445927034; DFLOOR=0.045
 LAM=17.925; ZT=17.775
-AFS=[0.0001,0.010,0.020,0.035,0.050,0.060,0.0715,0.085]
-ZCS=[3.5,5.0,6.5,8.0]
-WIDTHS=[0.8,1.2,1.426,1.8]
+AFS=[0.045,0.050,0.055,0.060,0.065,0.070]
+ZCS=[1.0,1.75,2.5,3.0,3.5,4.0]
+WIDTHS=[0.35,0.50,0.65,0.80,1.00]
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages")
@@ -199,7 +199,7 @@ for AF in AFS:
       rows.append(rec)
       print("GRAVITY_GAP_POINT",json.dumps(rec,sort_keys=True),flush=True)
 
-df=pd.DataFrame(rows); df.to_csv(OUT/"gravity_gap_scan.csv",index=False)
+df=pd.DataFrame(rows); df.to_csv(OUT/"late_sharp_gravity.csv",index=False)
 ok=df[(df.status=="OK")&(df.stable_subluminal==True)].copy()
 if ok.empty: raise SystemExit("no stable points")
 print("GRAVITY_GAP_BEST_TOTAL",ok.nsmallest(15,"chi2_total").to_dict("records"),flush=True)
