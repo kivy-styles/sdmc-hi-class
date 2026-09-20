@@ -1,0 +1,244 @@
+name: SDMC r032 delayed No-Slip covariant replay
+
+on:
+  push:
+    branches:
+      - sdmc-r032-delayed-noslip-covariant-replay
+  workflow_dispatch:
+
+jobs:
+  delayed-covariant-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya
+
+      - name: Apply SDMC parameterized patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build target hi_class
+        run: make -j2 class
+
+      - name: Generate delayed-No-Slip target background
+        run: |
+          mkdir -p output
+          cat > output/delayed_target.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_native_noslip
+          parameters_smg = 0.05912758882623165, 3.284172759018838, 0.3490921955090016, 0.1, 0.0001
+          expansion_model = sdmc_full
+          expansion_smg = 0.7073985893, 17.925, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          output_background_smg = 3
+          skip_stability_tests_smg = yes
+          write background = yes
+          write thermodynamics = no
+          root = output/delayed_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/delayed_target.ini
+
+      - name: Reconstruct and install candidate-specific covariant replay
+        run: |
+          python3 sdmc/prepare_candidate_covariant_replay.py             --target output/delayed_target_00_background.dat             --OmegaX 0.7073985893             --lambda-e 17.925             --z-t 17.775             --AF 0.05912758882623165             --zc 3.284172759018838             --width 0.3490921955090016             --Dfloor 0.045             --D0 0.34231919445927034
+
+      - name: Rebuild covariant model
+        run: |
+          make clean
+          make -j2 class
+
+      - name: Free-evolve delayed covariant background and observables
+        run: |
+          cat > output/delayed_covariant.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_covariant_replay
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+
+          a_ini_over_a_today_default = 1.e-12
+          a_ini_test_qs_smg = 1.e-12
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-12
+
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0,0.5,1,2,3,5,10
+          write background = yes
+          write thermodynamics = yes
+          write parameters = yes
+          root = output/delayed_covariant_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/delayed_covariant.ini
+
+      - name: Compare free covariant evolution to target
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,csv,json
+
+          def read(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and '1:z' in l][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(path)
+              return {n:a[:,i] for i,n in enumerate(names)}
+
+          t=read('output/delayed_target_00_background.dat')
+          c=read('output/delayed_covariant_00_background.dat')
+          z=c['z']; Nt=-np.log1p(t['z']); Nc=-np.log1p(z)
+          order=np.argsort(Nt); Nt=Nt[order]
+          def ti(name): return np.interp(Nc,Nt,t[name][order])
+          Hrel=np.abs(c['H [1/Mpc]']/ti('H [1/Mpc]')-1.)
+          Frel=np.abs(c['M*^2_smg']/ti('M*^2_smg')-1.)
+          m100=z<=100.; m1e4=z<=1e4
+          noslip=np.abs(c['braiding_smg']+2*c['M2_running_smg'])
+          phi=None
+          for k in c:
+              if k.lower().startswith('phi') and 'prime' not in k.lower():
+                  phi=c[k]; break
+          phierr=float(np.max(np.abs(phi-Nc))) if phi is not None else float('nan')
+          out={
+            'max_abs_dH_H_z100':float(Hrel[m100].max()),
+            'max_abs_dH_H_z1e4':float(Hrel[m1e4].max()),
+            'max_abs_dF_F_z100':float(Frel[m100].max()),
+            'min_D_all':float(c['kin (D)'].min()),
+            'min_cs2_all':float(c['c_s^2'].min()),
+            'max_cs2_all':float(c['c_s^2'].max()),
+            'z_at_max_cs2_all':float(z[np.argmax(c['c_s^2'])]),
+            'max_abs_noslip_z100':float(noslip[m100].max()),
+            'max_abs_phi_minus_lna':phierr,
+            'F0':float(c['M*^2_smg'][np.argmin(abs(z))]),
+            'alphaM0':float(c['M2_running_smg'][np.argmin(abs(z))]),
+          }
+          print('DELAYED_COVARIANT_REPLAY_COMPARISON',json.dumps(out,sort_keys=True),flush=True)
+          with open('output/delayed_covariant_replay_comparison.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=out.keys()); w.writeheader(); w.writerow(out)
+          if not (out['min_D_all']>0 and out['min_cs2_all']>0 and out['max_cs2_all']<=1.0):
+              raise SystemExit('DELAYED_GLOBAL_COVARIANT_STABILITY_FAIL')
+          print('DELAYED_GLOBAL_COVARIANT_STABILITY_PASS',flush=True)
+          PY
+
+      - name: Install Planck native likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              if not cls.install(path='planck_packages',no_progress_bars=True):
+                  raise SystemExit(f'Planck install failed: {cls}')
+          PY
+
+      - name: Score covariant replay with Planck-lite plus lensing
+        run: |
+          python3 - <<'PY'
+          import numpy as np,json
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          TCMB=2.7255; SIG=.0025
+          high=TTTEEE_lite_native(packages_path='planck_packages')
+          lowT=TT(packages_path='planck_packages'); lowE=EE(packages_path='planck_packages')
+          lens=LensingNative(packages_path='planck_packages')
+          a=np.loadtxt('output/delayed_covariant_00_cl_lensed.dat')
+          ell=a[:,0].astype(int); n=int(ell.max())+1; conv=(TCMB*1e6)**2
+          tt=np.zeros(n);ee=np.zeros(n);te=np.zeros(n);pp=np.zeros(n)
+          tt[ell]=a[:,1]*conv;ee[ell]=a[:,2]*conv;te[ell]=a[:,3]*conv
+          L=ell.astype(float);pp[ell]=a[:,5]*L*(L+1.)
+          harr=np.column_stack([ell,tt[ell],te[ell],ee[ell]])
+          d={'tt':tt,'ee':ee,'te':te,'pp':pp}
+          def pcs(A):
+              A=float(A)
+              ch=float(high.chi_squared(harr,A_planck=A))
+              ct=float(-2*lowT.log_likelihood(tt,calib=A))
+              ce=float(-2*lowE.log_likelihood(ee,calib=A))
+              lp={lens.calibration_param:A} if getattr(lens,'calibration_param',None) else {}
+              cl=float(-2*lens.log_likelihood(d,**lp)); cp=((A-1)/SIG)**2
+              return ch,ct,ce,cl,cp,ch+ct+ce+cl+cp
+          o=minimize_scalar(lambda x:pcs(x)[-1],bounds=(.97,1.03),method='bounded')
+          A=float(o.x); vals=pcs(A)
+          out={'A_planck':A,'chi2_high':vals[0],'chi2_lowT':vals[1],'chi2_lowE':vals[2],
+               'chi2_lensing':vals[3],'chi2_cal':vals[4],'chi2_total':vals[5]}
+          print('DELAYED_COVARIANT_PLANCKLITE',json.dumps(out,sort_keys=True),flush=True)
+          PY
+
+      - name: Preserve delayed covariant replay
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-delayed-noslip-covariant-replay
+          path: |
+            output/delayed_target_00_background.dat
+            output/delayed_covariant_00_background.dat
+            output/delayed_covariant_00_cl_lensed.dat
+            output/delayed_covariant_00_z*_pk.dat
+            output/delayed_covariant_00_thermodynamics.dat
+            output/delayed_covariant_replay_comparison.csv
+          if-no-files-found: warn
