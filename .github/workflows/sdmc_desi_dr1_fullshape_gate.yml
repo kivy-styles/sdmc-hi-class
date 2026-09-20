@@ -1,9 +1,10 @@
 name: SDMC r032 L17.925 Z17.775 floor045 covariant DESI retry
+# duplicate fresh-run exact audit
 
 on:
   push:
     branches:
-      - sdmc-r032-l17925-z17775-floor045-covariant-desi-exact-retry2
+      - sdmc-r032-l17925-z17775-floor045-covariant-desi-exact-retry3
   workflow_dispatch:
 
 jobs:
