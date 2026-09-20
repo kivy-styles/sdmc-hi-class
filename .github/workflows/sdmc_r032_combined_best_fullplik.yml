@@ -74,7 +74,7 @@ jobs:
           gravity_model = sdmc_v3_lens_braiding
           parameters_smg = 0.0715, 5.0, 1.426, 0.34231919445927034, 1.0, 0.045, 0.024, 1.5, 0.8
           expansion_model = sdmc_full
-          expansion_smg = 0.695967538064375, 17.925, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.6953970160452582, 17.925, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           output_background_smg = 3
