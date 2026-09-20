@@ -1,6 +1,9 @@
 name: SDMC r032 ordinary cosmology DESI promotion
 
 on:
+  push:
+    branches:
+      - sdmc-r032-ordinary-cosmology-desi-promotion
   workflow_dispatch:
 
 jobs:
@@ -48,7 +51,7 @@ jobs:
           path: screen_artifact
           github-token: ${{ github.token }}
           repository: kivy-styles/sdmc-hi-class
-          run-id: 35533810785
+          run-id: 35533956034
 
       - name: Install official DESI DR1 full-shape likelihood
         run: |
