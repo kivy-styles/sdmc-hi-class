@@ -1,4 +1,5 @@
 name: SDMC r032 L17.9125 Z17.775 floor045 covariant DESI full-shape gate
+# exact-z_t fresh-run retry
 
 on:
   push:
