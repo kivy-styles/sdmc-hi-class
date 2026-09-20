@@ -305,10 +305,8 @@ anchors=[
     ("line50",CURRENT+0.50*(REFERENCE-CURRENT)),
     ("line75",CURRENT+0.75*(REFERENCE-CURRENT)),
 ]
-sob=qmc.Sobol(d=6,scramble=True,seed=20260920)
-u=sob.random_base2(m=6)
-xs=qmc.scale(u,LOW,HIGH)
-design=anchors+[(f"sobol{i+1:03d}",x) for i,x in enumerate(xs)]
+# Fast correlated line diagnostic only.
+design=anchors
 
 meta={
     "names":NAMES,
