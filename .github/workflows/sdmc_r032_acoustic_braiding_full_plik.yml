@@ -112,7 +112,7 @@ jobs:
           p=Path('input_artifact/unpacked/covariant_observable_00_background.dat')
           lines=p.read_text().splitlines()
           hdr=[x for x in lines if x.startswith('#') and '1:z' in x][-1].lstrip('#').strip()
-          ms=list(re.finditer(r'(\\d+)\\s*:\\s*',hdr)); names=[]
+          ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
           for i,m in enumerate(ms):
               e=ms[i+1].start() if i+1<len(ms) else len(hdr)
               names.append(hdr[m.end():e].strip())
