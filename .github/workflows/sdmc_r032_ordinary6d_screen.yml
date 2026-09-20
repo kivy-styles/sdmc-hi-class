@@ -1,13 +1,13 @@
-name: SDMC r032 ordinary cosmology 6D screen
+name: SDMC r032 Planck amplitude acoustic grid
 
 on:
   push:
     branches:
-      - sdmc-r032-ordinary-cosmology-6d-screen
+      - sdmc-r032-planck-amplitude-acoustic-grid
   workflow_dispatch:
 
 jobs:
-  ordinary6d-screen:
+  amplitude-acoustic-grid:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
