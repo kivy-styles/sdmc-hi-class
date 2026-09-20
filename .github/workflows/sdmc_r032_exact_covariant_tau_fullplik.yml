@@ -1,13 +1,13 @@
-name: SDMC r032 exact covariant tau full Plik profile
+name: SDMC r032 exact ordinary candidate 1 full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-exact-covariant-tau-profile
+      - sdmc-r032-exact-ordinary-candidate-1
   workflow_dispatch:
 
 jobs:
-  exact-covariant-tau:
+  exact-ordinary-candidate-1:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -41,16 +41,16 @@ jobs:
         run: |
           mkdir -p output
           cat > output/covariant_target.ini <<'EOF'
-          H0 = 70.8514
-          omega_b = 0.02239952
+          H0 = 70.66173072
+          omega_b = 0.02224
           omega_cdm = 0.12444227328918850
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.16715426219737e-9
+          A_s = 2.1628242850934083e-9
           n_s = 0.964
-          tau_reio = 0.0544
+          tau_reio = 0.061
 
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -61,7 +61,7 @@ jobs:
           gravity_model = sdmc_v3_native_noslip
           parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893,17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
+          expansion_smg = 0.7061451696512845,17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
 
           output_background_smg = 3
           skip_stability_tests_smg = yes
@@ -83,7 +83,7 @@ jobs:
 
       - name: Install exact covariant replay
         run: |
-          python3 sdmc/install_covariant_replay_candidate.py             --OmegaX 0.7073985893 --lambda-e 17.925 --z-t 17.775
+          python3 sdmc/install_covariant_replay_candidate.py             --OmegaX 0.7061451696512845 --lambda-e 17.925 --z-t 17.775
           make clean
           make -j2 class
 
@@ -92,19 +92,19 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import textwrap,subprocess
-          taus=[0.0544,0.0584,0.0604,0.0624,0.0644,0.0664]
+          taus=[0.061]
           for tau in taus:
               tag=f"{int(round(tau*10000)):04d}"
               root=f"output/tau_{tag}_"
               ini=textwrap.dedent(f"""\
-              H0 = 70.8514
-              omega_b = 0.02239952
+              H0 = 70.66173072
+              omega_b = 0.02224
               omega_cdm = 0.12444227328918850
               N_ncdm = 0
               N_ur = 3.046
               T_cmb = 2.7255
               YHe = 0.2453
-              A_s = 2.16715426219737e-9
+              A_s = 2.1628242850934083e-9
               n_s = 0.964
               tau_reio = {tau}
 
@@ -153,7 +153,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re,numpy as np
-          p=Path("output/tau_0544_00_background.dat")
+          p=Path("output/tau_0610_00_background.dat")
           lines=p.read_text().splitlines()
           hdr=[l for l in lines if l.startswith("#") and "1:z" in l][-1].lstrip("#").strip()
           ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
@@ -204,7 +204,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-exact-covariant-tau-fullplik
+          name: sdmc-r032-exact-ordinary-candidate-1-fullplik
           path: |
             output/exact_covariant_tau_fullplik.csv
             output/exact_covariant_tau_best.json
