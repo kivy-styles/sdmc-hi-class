@@ -1,9 +1,9 @@
-name: SDMC r032 L17.925 Z17.775 exact replay DESI audit retry4
+name: SDMC r032 tau062 exact replay DESI
 
 on:
   push:
     branches:
-      - sdmc-r032-l17925-z17775-floor045-covariant-desi-exact-retry4
+      - sdmc-r032-tau062-desi
   workflow_dispatch:
 
 jobs:
@@ -537,7 +537,7 @@ jobs:
           YHe = 0.2453
           A_s = 2.16715426219737e-9
           n_s = 0.964
-          tau_reio = 0.0544
+          tau_reio = 0.062
 
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
