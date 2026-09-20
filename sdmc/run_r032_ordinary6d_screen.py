@@ -305,10 +305,24 @@ anchors=[
     ("line50",CURRENT+0.50*(REFERENCE-CURRENT)),
     ("line75",CURRENT+0.75*(REFERENCE-CURRENT)),
 ]
-sob=qmc.Sobol(d=6,scramble=True,seed=20260920)
-u=sob.random_base2(m=6)
-xs=qmc.scale(u,LOW,HIGH)
-design=anchors+[(f"sobol{i+1:03d}",x) for i,x in enumerate(xs)]
+# Targeted amplitude/acoustic grid motivated by the local derivatives.
+# omega_b is moved slightly downward; H0 is adjusted along the locally
+# measured acoustic-scale compensation direction dH0/domega_b ~ 1189.
+# omega_c and n_s are held at the current exact-leader values for this stage.
+ob_vals=[0.02224,0.02230,0.02236,0.02239952]
+lnAs_vals=[3.056,3.062,3.068,3.074]
+tau_vals=[0.058,0.061,0.064]
+design=[("current",CURRENT.copy())]
+for obv in ob_vals:
+    H0v=CURRENT[0] + 1189.0*(obv-CURRENT[1])
+    for lav in lnAs_vals:
+        for tv in tau_vals:
+            x=CURRENT.copy()
+            x[0]=H0v
+            x[1]=obv
+            x[4]=lav
+            x[5]=tv
+            design.append((f"amp_ob{obv:.5f}_A{lav:.3f}_t{tv:.3f}",x))
 
 meta={
     "names":NAMES,
