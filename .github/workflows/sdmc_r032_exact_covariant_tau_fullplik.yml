@@ -1,9 +1,9 @@
-name: SDMC r032 joint physical best exact full Plik
+name: SDMC r032 joint physical best exact tau scan
 
 on:
   push:
     branches:
-      - sdmc-r032-joint-physical-best-exact
+      - sdmc-r032-joint-physical-best-exact-tau-scan
   workflow_dispatch:
 
 jobs:
@@ -92,7 +92,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import textwrap,subprocess
-          taus=[0.061]
+          taus=[0.0544,0.0564,0.0584,0.0600,0.0610,0.0624]
           for tau in taus:
               tag=f"{int(round(tau*10000)):04d}"
               root=f"output/tau_{tag}_"
@@ -204,7 +204,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-joint-physical-best-exact-fullplik
+          name: sdmc-r032-joint-physical-best-exact-tau-scan
           path: |
             output/exact_covariant_tau_fullplik.csv
             output/exact_covariant_tau_best.json
