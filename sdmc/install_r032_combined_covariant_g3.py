@@ -7,21 +7,21 @@ from pathlib import Path
 p=Path("source/background.c")
 s=p.read_text()
 old='''  double Ox = pba->parameters_smg[0];
-            double lambda_e = pba->parameters_smg[1];
-            double zt = pba->parameters_smg[2];
-            double dNt = pba->parameters_smg[3];
-            double A = pba->parameters_smg[4];
-            double tauA = pba->parameters_smg[5];
-            double B = pba->parameters_smg[6];
-            double tauB = pba->parameters_smg[7];'''
+  double lambda_e = pba->parameters_smg[1];
+  double zt = pba->parameters_smg[2];
+  double dNt = pba->parameters_smg[3];
+  double A = pba->parameters_smg[4];
+  double tauA = pba->parameters_smg[5];
+  double B = pba->parameters_smg[6];
+  double tauB = pba->parameters_smg[7];'''
 new='''  double Ox = 0.6953970160452582;
-            double lambda_e = 17.925;
-            double zt = 17.775;
-            double dNt = 0.5;
-            double A = 0.01105624999;
-            double tauA = 0.25;
-            double B = 0.01951933685;
-            double tauB = 1.5;'''
+  double lambda_e = 17.925;
+  double zt = 17.775;
+  double dNt = 0.5;
+  double A = 0.01105624999;
+  double tauA = 0.25;
+  double B = 0.01951933685;
+  double tauB = 1.5;'''
 if old not in s:
     raise RuntimeError("split tracker constant anchor missing")
 p.write_text(s.replace(old,new,1))
