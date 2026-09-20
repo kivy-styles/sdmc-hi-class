@@ -1,9 +1,9 @@
-name: SDMC r032 L17.75 Z17.8 high-floor micro full Plik
+name: SDMC r032 L18.00 Z17.8 high-floor micro full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-l1775-z178-highfloor-micro-full-plik
+      - sdmc-r032-l1800-z178-highfloor-micro-full-plik
   workflow_dispatch:
 
 jobs:
@@ -153,11 +153,11 @@ jobs:
           # (lambda_e,z_t,DeltaN_bg)=(18.25,19.2,0.5).  D0 is adjusted
           # with Dfloor so that the present-day D is held fixed.
           cases={
-            'L1775Z178_F0430':(0.3448884953742249,0.04300,17.75,17.80),
-            'L1775Z178_F0440':(0.3436038449167476,0.04400,17.75,17.80),
-            'L1775Z178_F0450':(0.34231919445927034,0.04500,17.75,17.80),
-            'L1775Z178_F0460':(0.34103454400179306,0.04600,17.75,17.80),
-            'L1775Z178_F0470':(0.3397498935443158,0.04700,17.75,17.80),
+            'L1800Z178_F0430':(0.3448884953742249,0.04300,18.00,17.80),
+            'L1800Z178_F0440':(0.3436038449167476,0.04400,18.00,17.80),
+            'L1800Z178_F0450':(0.34231919445927034,0.04500,18.00,17.80),
+            'L1800Z178_F0460':(0.34103454400179306,0.04600,18.00,17.80),
+            'L1800Z178_F0470':(0.3397498935443158,0.04700,18.00,17.80),
           }
           for name,(d0,dfloor,lambda_e,z_t) in cases.items():
               root=f'input_artifact/unpacked/{name}_'
@@ -167,7 +167,7 @@ jobs:
                   f'root = {root}\n')
               Path(f'input_artifact/unpacked/{name}.ini').write_text(txt)
           PY
-          for C in L1775Z178_F0430 L1775Z178_F0440 L1775Z178_F0450 L1775Z178_F0460 L1775Z178_F0470; do
+          for C in L1800Z178_F0430 L1800Z178_F0440 L1800Z178_F0450 L1800Z178_F0460 L1800Z178_F0470; do
             ./class input_artifact/unpacked/$C.ini
             test -f input_artifact/unpacked/${C}_00_cl_lensed.dat
           done
@@ -338,17 +338,17 @@ jobs:
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,displaced])
           lcdm['delta_vs_lcdm']=0.0
           rows=[lcdm]
-          for label in ['L1775Z178_F0430','L1775Z178_F0440','L1775Z178_F0450','L1775Z178_F0460','L1775Z178_F0470']:
+          for label in ['L1800Z178_F0430','L1800Z178_F0440','L1800Z178_F0450','L1800Z178_F0460','L1800Z178_F0470']:
               row,x=run_one(label.upper(),ROOT/f'{label}_00_cl_lensed.dat',[default,lx])
               row['delta_vs_lcdm']=row['chi2_profile_total']-lcdm['chi2_profile_total']
               rows.append(row)
-              print('L1775Z178_HIGHFLOOR_MICRO_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
+              print('L1800Z178_HIGHFLOOR_MICRO_FULL_PLIK_DELTA',label,row['delta_vs_lcdm'],flush=True)
           fields=list(rows[0].keys())
           with (OUT/'global_floor_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(rows)
           best=min(rows[1:],key=lambda r:r['chi2_profile_total'])
           (OUT/'global_floor_fullplik_best.json').write_text(json.dumps(best,indent=2,sort_keys=True))
-          print('L1775Z178_HIGHFLOOR_MICRO_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
+          print('L1800Z178_HIGHFLOOR_MICRO_FULL_PLIK_BEST',json.dumps(best,sort_keys=True),flush=True)
           PY
 
       - name: Preserve fast profile
