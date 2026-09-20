@@ -1,9 +1,9 @@
-name: SDMC r032 L17.9125 Z17.775 floor045 covariant DESI full-shape gate
+name: SDMC r032 L17.9125 Z17.775 floor04555 covariant DESI full-shape gate
 
 on:
   push:
     branches:
-      - sdmc-r032-l179125-z17775-floor045-covariant-desi
+      - sdmc-r032-l179125-z17775-floor04555-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -129,7 +129,7 @@ jobs:
           # Independently prescribed, subluminal kinetic sector.
           # This is NOT obtained from cs2num or from a target c_s^2:
           # D(N)=0.0225+0.371223829752509*S(N), alpha_K=D-3/2 alpha_B^2.
-          Dtarget=0.045+0.34231919445927034*S
+          Dtarget=0.0455+0.3416768692305317*S
           alphaM=F1/F
           alphaB=-2.*alphaM
           alphaK_target=Dtarget-1.5*alphaB*alphaB
@@ -454,7 +454,7 @@ jobs:
             'F0':float(c['M*^2_smg'][np.argmin(np.abs(zc))]),
             'alphaM0':float(c['M2_running_smg'][np.argmin(np.abs(zc))]),
           }
-          print('L179125_Z17775_FLOOR045_COVARIANT_DESI_REPLAY_COMPARISON',out)
+          print('L179125_Z17775_FLOOR0455_COVARIANT_DESI_REPLAY_COMPARISON',out)
           with open('output/covariant_replay_comparison.csv','w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=out.keys()); w.writeheader(); w.writerow(out)
           PY
@@ -864,7 +864,7 @@ jobs:
           covrows,covchi=profile_model('COVARIANT',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('L179125_Z17775_FLOOR045_COVARIANT_DESI_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
+          print('L179125_Z17775_FLOOR0455_COVARIANT_DESI_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
