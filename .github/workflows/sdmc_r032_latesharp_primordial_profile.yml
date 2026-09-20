@@ -1,9 +1,9 @@
-name: SDMC r032 late-sharp gravity primordial profile
+name: SDMC r032 late-sharp primordial tau profile
 
 on:
   push:
     branches:
-      - sdmc-r032-latesharp-primordial-profile
+      - sdmc-r032-latesharp-primordial-tau-profile
   workflow_dispatch:
 
 jobs:
@@ -50,6 +50,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-latesharp-primordial-profile
-          path: output/latesharp_prim/latesharp_gravity_primordial_profile.csv
+          name: sdmc-r032-latesharp-primordial-tau-profile
+          path: output/latesharp_prim/latesharp_gravity_primordial_tau_profile.csv
           if-no-files-found: warn
