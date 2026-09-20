@@ -1,0 +1,149 @@
+name: SDMC r032 Planck GR-shadow decomposition
+
+on:
+  push:
+    branches:
+      - sdmc-r032-planck-gr-shadow
+  workflow_dispatch:
+
+jobs:
+  planck-gr-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya iminuit
+
+      - name: Build CLASS
+        run: make -j2 class
+
+      - name: Install Planck likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE as FullTTTEEE
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              ok=cls.install(path='planck_packages',no_progress_bars=True)
+              if not ok: raise SystemExit(f'Planck install failed: {cls}')
+          ok=FullTTTEEE.install(path='planck_full',no_progress_bars=True)
+          if not ok: raise SystemExit('full Plik install failed')
+          print('PLANCK_INSTALL_OK')
+          PY
+
+      - name: Download exact-leader SDMC observable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdmc-r032-l18-z195-covariant
+          path: exact_artifact
+          github-token: ${{ github.token }}
+          repository: kivy-styles/sdmc-hi-class
+          run-id: 35510661121
+
+      - name: Locate exact SDMC spectrum
+        run: |
+          mkdir -p output
+          COV=$(find exact_artifact -type f -name 'covariant_observable_00_cl_lensed.dat' | head -n1)
+          if [ -z "$COV" ]; then
+            echo "Exact covariant C_l file not found"
+            find exact_artifact -type f | sort | sed -n '1,300p'
+            exit 1
+          fi
+          cp "$COV" output/sdmc_exact_00_cl_lensed.dat
+          echo "SDMC spectrum: $COV"
+
+      - name: Generate Planck-reference LCDM and same-ordinary-parameter GR shadow
+        run: |
+          cat > output/lcdm_planck_ref.ini <<'EOF'
+          H0 = 67.36
+          omega_b = 0.02237
+          omega_cdm = 0.1200
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.10e-9
+          n_s = 0.9649
+          tau_reio = 0.0544
+          Omega_k = 0
+          Omega_Lambda = 0.6861357737372773
+          modes = s
+          output = tCl,pCl,lCl
+          lensing = yes
+          l_max_scalars = 3000
+          root = output/lcdm_planck_ref_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/lcdm_planck_ref.ini
+
+          cat > output/gr_shadow_sdmc_cosmo.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.16715426219737e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_k = 0
+          Omega_Lambda = 0.7073985893
+          modes = s
+          output = tCl,pCl,lCl
+          lensing = yes
+          l_max_scalars = 3000
+          root = output/gr_shadow_sdmc_cosmo_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/gr_shadow_sdmc_cosmo.ini
+
+      - name: Profile full Planck nuisance sector and decompose gap
+        run: |
+          python3 sdmc/run_r032_planck_gr_shadow.py \
+            --lcdm output/lcdm_planck_ref_00_cl_lensed.dat \
+            --shadow output/gr_shadow_sdmc_cosmo_00_cl_lensed.dat \
+            --sdmc output/sdmc_exact_00_cl_lensed.dat \
+            --out output/planck_gr_shadow_profile.csv
+
+      - name: Preserve Planck GR-shadow decomposition
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-planck-gr-shadow
+          path: |
+            output/planck_gr_shadow_profile.csv
+            output/planck_gr_shadow_profile.json
+            output/lcdm_planck_ref.ini
+            output/lcdm_planck_ref_00_cl_lensed.dat
+            output/gr_shadow_sdmc_cosmo.ini
+            output/gr_shadow_sdmc_cosmo_00_cl_lensed.dat
+            output/sdmc_exact_00_cl_lensed.dat
+          if-no-files-found: warn
