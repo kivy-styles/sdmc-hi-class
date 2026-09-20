@@ -1,9 +1,9 @@
-name: SDMC DESI strawman geometry negative control
+name: SDMC DESI strawman geometry ensemble control
 
 on:
   push:
     branches:
-      - sdmc-desi-strawman-geometry-control
+      - sdmc-desi-strawman-ensemble-control
   workflow_dispatch:
 
 jobs:
@@ -151,7 +151,7 @@ jobs:
           dpar=np.array([0.00965072,0.01797025,0.02510890,0.03196861,0.04225963,0.04579289])
           dper=np.array([0.00427017,0.00792129,0.01115372,0.01437656,0.01950412,0.02138752])
           signs=np.array([1.,-1.,1.,-1.,1.,-1.])
-          case_names=['LCDM_PHYSICAL','STRAWMAN_REVERSED','STRAWMAN_ALTERNATING']
+          case_names=['LCDM_PHYSICAL','STRAWMAN_REVERSED','STRAWMAN_ALTERNATING','STRAWMAN_OPPOSITE','STRAWMAN_REVERSED_OPPOSITE','STRAWMAN_ROLL2','STRAWMAN_ROLL3_NEG','STRAWMAN_MIXED','STRAWMAN_RANDOM_A','STRAWMAN_RANDOM_B']
 
           # physical LCDM AP values for each block, in block order
           physical=[]
@@ -173,6 +173,22 @@ jobs:
                   return qp+dpar[::-1][ib], qt+dper[::-1][ib]
               if case=='STRAWMAN_ALTERNATING':
                   return qp+signs[ib]*dpar[ib], qt+signs[ib]*dper[ib]
+              if case=='STRAWMAN_OPPOSITE':
+                  return qp-dpar[ib], qt-dper[ib]
+              if case=='STRAWMAN_REVERSED_OPPOSITE':
+                  return qp-dpar[::-1][ib], qt-dper[::-1][ib]
+              if case=='STRAWMAN_ROLL2':
+                  return qp+np.roll(dpar,2)[ib], qt+np.roll(dper,2)[ib]
+              if case=='STRAWMAN_ROLL3_NEG':
+                  return qp-np.roll(dpar,3)[ib], qt-np.roll(dper,3)[ib]
+              if case=='STRAWMAN_MIXED':
+                  return qp+dpar[::-1][ib], qt+signs[ib]*dper[ib]
+              if case=='STRAWMAN_RANDOM_A':
+                  perm=np.array([2,5,0,4,1,3]); sg=np.array([1.,-1.,-1.,1.,1.,-1.])
+                  return qp+sg[ib]*dpar[perm][ib], qt+sg[ib]*dper[perm][ib]
+              if case=='STRAWMAN_RANDOM_B':
+                  perm=np.array([4,0,5,1,3,2]); sg=np.array([-1.,1.,-1.,1.,-1.,1.])
+                  return qp+sg[ib]*dpar[perm][ib], qt+sg[ib]*dper[perm][ib]
               raise ValueError(case)
 
           def build_table(b,ib,case):
@@ -263,6 +279,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-strawman-geometry-control
+          name: sdmc-desi-strawman-ensemble-control
           path: output/*
           if-no-files-found: warn
