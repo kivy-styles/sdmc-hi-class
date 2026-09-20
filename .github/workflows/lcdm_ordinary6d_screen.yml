@@ -1,0 +1,56 @@
+name: LCDM matched ordinary cosmology 6D screen
+
+on:
+  push:
+    branches:
+      - sdmc-r032-lcdm-ordinary6d-screen
+  workflow_dispatch:
+
+jobs:
+  lcdm6d-screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya
+      - name: Build CLASS/hi_class
+        run: make -j2 class
+      - name: Install Planck and SN likelihood data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              ok=cls.install(path='planck_packages',no_progress_bars=True)
+              if not ok:
+                  raise SystemExit(f'Planck install failed: {cls}')
+          PY
+          rm -rf sn_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+      - name: Run matched LCDM six-dimensional screen
+        run: python3 sdmc/run_lcdm_ordinary6d_screen.py
+      - name: Print shortlist
+        if: always()
+        run: |
+          if [ -f output/lcdm6d/lcdm6d_shortlist.csv ]; then
+            echo "===== LCDM 6D SHORTLIST ====="
+            cat output/lcdm6d/lcdm6d_shortlist.csv
+          fi
+      - name: Preserve LCDM screen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcdm-ordinary-cosmology-6d-screen
+          path: |
+            output/lcdm6d/lcdm6d_design.json
+            output/lcdm6d/lcdm6d_screen.csv
+            output/lcdm6d/lcdm6d_shortlist.csv
+          if-no-files-found: warn
