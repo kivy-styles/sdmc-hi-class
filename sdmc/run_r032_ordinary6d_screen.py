@@ -342,7 +342,7 @@ for ic,(tag,x) in enumerate(design,1):
     bgp=Path(root+"00_background.dat")
     clp=Path(root+"00_cl_lensed.dat")
     thp=Path(root+"00_thermodynamics.dat")
-    pkp=Path(root+"00_z1_pk.dat")
+    pkp=Path(root+"00_pk.dat")
     if bgp.exists():
         bg=table(bgp)
         rec.update({
