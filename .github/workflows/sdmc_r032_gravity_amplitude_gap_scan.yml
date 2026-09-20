@@ -1,13 +1,13 @@
-name: SDMC r032 late gravity Planck-gap scan
+name: SDMC r032 late sharp gravity refine
 
 on:
   push:
     branches:
-      - sdmc-r032-gravity-amplitude-gap-scan
+      - sdmc-r032-late-sharp-gravity-refine
   workflow_dispatch:
 
 jobs:
-  gravity-gap:
+  late-sharp-gravity:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -56,6 +56,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-gravity-amplitude-gap-scan
-          path: output/gravity_gap_scan/gravity_gap_scan.csv
+          name: sdmc-r032-late-sharp-gravity-refine
+          path: output/late_sharp_gravity/late_sharp_gravity.csv
           if-no-files-found: warn
