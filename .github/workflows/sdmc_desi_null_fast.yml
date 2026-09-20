@@ -1,9 +1,9 @@
-name: SDMC DESI CAMB nuisance robustness
+name: SDMC DESI strawman geometry negative control
 
 on:
   push:
     branches:
-      - sdmc-desi-null-fast
+      - sdmc-desi-strawman-geometry-control
   workflow_dispatch:
 
 jobs:
@@ -26,7 +26,8 @@ jobs:
       - name: Download six official DESI likelihood blocks
         run: |
           mkdir -p desi_likelihood
-          BASE=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           for FN in \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
@@ -35,23 +36,24 @@ jobs:
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
           do
-            curl -4 -L --fail --connect-timeout 15 --max-time 180 \
-              --retry 10 --retry-delay 4 --retry-all-errors \
-              -o "desi_likelihood/$FN" "$BASE/$FN"
+            ok=0
+            for attempt in 1 2 3 4 5 6 7 8; do
+              echo "DESI strawman-control download $FN attempt $attempt"
+              for BASE in "$BASE_PRIMARY" "$BASE_MIRROR"; do
+                if curl -L --fail --retry 5 --retry-all-errors --retry-delay 5 \
+                     --connect-timeout 20 --max-time 240 \
+                     -o "desi_likelihood/$FN" "$BASE/$FN"; then
+                  ok=1
+                  break 2
+                fi
+              done
+              sleep 5
+            done
+            test "$ok" = 1
           done
+          ls -lh desi_likelihood
 
-      - name: Download successful CLASS bridge result
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p input_artifact
-          gh api -H "Accept: application/vnd.github+json" \
-            /repos/$GITHUB_REPOSITORY/actions/artifacts/10585330670/zip \
-            > input_artifact/artifact.zip
-          unzip -q input_artifact/artifact.zip -d input_artifact/unpacked
-          find input_artifact/unpacked -type f | sort | sed -n '1,120p'
-
-      - name: Evaluate native CAMB LCDM null
+      - name: Evaluate matched LCDM and deliberately wrong geometry controls
         run: |
           mkdir -p output
           python3 - <<'PY'
@@ -95,6 +97,7 @@ jobs:
           gi=np.array([all_marg.index(x) for x in marg])
           prior_hess=-np.diag(scales[gi]**-2)
 
+          # Same physical LCDM clustering spectrum in every case.
           H0=67.36; h=H0/100.; ob=0.02237; oc=0.1200; ns=0.9649; As=2.10e-9
           fb=ob/(ob+oc); fc=1.-fb
           pars=camb.CAMBparams()
@@ -141,20 +144,49 @@ jobs:
               return 10**interp1d(np.log10(kin),np.log10(np.maximum(arr,1e-300)),kind='cubic',
                                   fill_value='extrapolate',axis=0,assume_sorted=True)(np.log10(extk))
           pcb,pnw,ptt=rg(Pdd),rg(Pnw),rg(Ptt)
-          tables={}
+
+          # AP-offset amplitudes are copied only as a scale reference from the final SDMC-vs-LCDM
+          # geometry difference. Their redshift ordering/sign is then deliberately scrambled.
+          # This makes the controls non-SDMC and intentionally devoid of a physical background.
+          dpar=np.array([0.00965072,0.01797025,0.02510890,0.03196861,0.04225963,0.04579289])
+          dper=np.array([0.00427017,0.00792129,0.01115372,0.01437656,0.01950412,0.02138752])
+          signs=np.array([1.,-1.,1.,-1.,1.,-1.])
+          case_names=['LCDM_PHYSICAL','STRAWMAN_REVERSED','STRAWMAN_ALTERNATING']
+
+          # physical LCDM AP values for each block, in block order
+          physical=[]
           for b in blocks:
-              z=b['zeff']; iz=zvals.index(z)
+              z=b['zeff']
               Hkms=float(res.hubble_parameter(z)); DA=float(res.angular_diameter_distance(z))
               qpar=float(fid.efunc(z)/(Hkms/(100*h)))
               qper=float(DA*h/fid.angular_diameter_distance(z))
+              physical.append((qpar,qper))
+          print('STRAW_GEOM_PHYSICAL',physical,flush=True)
+          print('STRAW_GEOM_DPAR',dpar.tolist(),flush=True)
+          print('STRAW_GEOM_DPER',dper.tolist(),flush=True)
+
+          def geometry(case,ib):
+              qp,qt=physical[ib]
+              if case=='LCDM_PHYSICAL':
+                  return qp,qt
+              if case=='STRAWMAN_REVERSED':
+                  return qp+dpar[::-1][ib], qt+dper[::-1][ib]
+              if case=='STRAWMAN_ALTERNATING':
+                  return qp+signs[ib]*dpar[ib], qt+signs[ib]*dper[ib]
+              raise ValueError(case)
+
+          def build_table(b,ib,case):
+              z=b['zeff']; iz=zvals.index(z)
+              qpar,qper=geometry(case,ib)
               Dz=float(np.sqrt(pcb[-1,iz]/pcb[-1,0]))
               fk=np.sqrt(np.maximum(ptt[:-1,iz]/pcb[:-1,iz],0.))
-              pks=pt.compute_redshift_space_power_multipoles_tables(fk,apar=qpar,aperp=qper,ngauss=4,
-                      pcb=pcb[:-1,iz],pcb_nw=pnw[:-1,iz],Dz=Dz)[1:]
+              pks=pt.compute_redshift_space_power_multipoles_tables(
+                  fk,apar=qpar,aperp=qper,ngauss=4,
+                  pcb=pcb[:-1,iz],pcb_nw=pnw[:-1,iz],Dz=Dz)[1:]
               basis=np.stack([interp1d(pt.kv,pks[j],kind='cubic',fill_value='extrapolate',
                                       axis=0,assume_sorted=True)(kobs) for j in range(3)],axis=0)
-              tables[b['namespace']]=dict(basis=basis,sigma8=float(sig8[iz]),fsigma8=float(fs8[iz]),
-                                           qpar=qpar,qper=qper)
+              return dict(basis=basis,sigma8=float(sig8[iz]),fsigma8=float(fs8[iz]),
+                          qpar=qpar,qper=qper,Dz=Dz)
 
           def poles(info,x,settings,sn):
               pkt=info['basis']; sigma8=info['sigma8']; f=info['fsigma8']/sigma8
@@ -162,71 +194,75 @@ jobs:
               b1=1+b1L; b2=8/21*b1L+b2L; bs=bsL-2/7*b1L; b3=b1L
               G=np.zeros((7,7)); G[0,0]=b1*b1; G[1,0]=G[1,1]=f*b1
               G[2,1]=f*f; G[2,2]=f*b1; G[3,2]=f*f
-              for jj,ell in enumerate([0,2,4]): G[jj-3,jj-3]=sn*(settings['fsat'] if ell>0 else 1.)*settings['sigv']**ell
+              for jj,ell in enumerate([0,2,4]):
+                  G[jj-3,jj-3]=sn*(settings['fsat'] if ell>0 else 1.)*settings['sigv']**ell
               base=[1,b1,b1*b1,b2,b1*b2,b2*b2,bs,b1*bs,b2*bs,bs*bs,b3,b1*b3]
               pp=np.sum(pkt*np.concatenate([np.asarray(base),G.dot(np.zeros(7))]),axis=-1)
               grad=pkt[...,-7:].dot(G)
               return pp,grad
 
-          rows=[]; total=0.
-          for b in blocks:
-              settings=get_physical_stochastic_settings(tracer=b['tracer'].upper()[:3])
-              def logp(x):
-                  pp,grad=poles(tables[b['namespace']],x,settings,b['shotnoise'])
-                  theory=b['window'].dot(pp.ravel())
-                  grad=b['window'].dot(grad[...,gi].reshape(-1,len(gi)))
-                  diff=theory-b['data']; pgrad=b['precision'].dot(grad)
-                  postgrad=-pgrad.T.dot(diff); likeh=-grad.T.dot(pgrad); posth=prior_hess+likeh
-                  dx=-np.linalg.solve(posth,postgrad)
-                  val=-.5*diff.T.dot(b['precision']).dot(diff)
-                  val+=.5*dx.dot(likeh).dot(dx)+postgrad.dot(dx)+.5*dx.dot(prior_hess).dot(dx)
-                  val+=-.5*np.linalg.slogdet(-posth)[1]
-                  val+=-.5*(x[1]/5.)**2-.5*(x[2]/5.)**2
-                  return float(val)
-              seeds=[
-                  np.array(starts[b['namespace']],float),
-                  np.array([1.0,0.0,0.0]),
-                  np.array([0.55,4.0,-4.0]),
-                  np.array([1.8,-4.0,4.0]),
-                  np.array([2.6,8.0,-8.0]),
-                  np.array([1.4,-10.0,-10.0]),
-              ]
-              trials=[]
-              for iseed,seed in enumerate(seeds):
-                  opti=minimize(lambda x:-2*logp(x),seed,method='L-BFGS-B',
-                                bounds=[(0,3),(-20,20),(-20,20)],
-                                options={'maxiter':800,'ftol':1e-11,'gtol':3e-7,'maxls':50})
-                  trials.append(opti)
-                  print('DESI_CAMB_ROBUST_TRIAL',b['namespace'],iseed,float(opti.fun),
-                        bool(opti.success),[float(v) for v in opti.x],flush=True)
-              finite=[o for o in trials if np.isfinite(o.fun)]
-              opt=min(finite,key=lambda o:o.fun)
-              vals=np.array([float(o.fun) for o in finite])
-              row={'namespace':b['namespace'],'chi2_profile':float(opt.fun),'success':bool(opt.success),
-                   'start_spread_chi2':float(vals.max()-vals.min()) if len(vals)>1 else 0.,
-                   'b1p':float(opt.x[0]),'b2p':float(opt.x[1]),'bsp':float(opt.x[2]),
-                   'sigma8':tables[b['namespace']]['sigma8'],'fsigma8':tables[b['namespace']]['fsigma8'],
-                   'qpar':tables[b['namespace']]['qpar'],'qper':tables[b['namespace']]['qper']}
-              rows.append(row); total+=float(opt.fun)
-              print('DESI_CAMB_NULL_BLOCK',row,flush=True)
+          rows=[]; totals={}
+          for case in case_names:
+              total=0.
+              print('STRAW_CASE_BEGIN',case,flush=True)
+              for ib,b in enumerate(blocks):
+                  info=build_table(b,ib,case)
+                  settings=get_physical_stochastic_settings(tracer=b['tracer'].upper()[:3])
+                  def logp(x):
+                      pp,grad=poles(info,x,settings,b['shotnoise'])
+                      theory=b['window'].dot(pp.ravel())
+                      grad=b['window'].dot(grad[...,gi].reshape(-1,len(gi)))
+                      diff=theory-b['data']; pgrad=b['precision'].dot(grad)
+                      postgrad=-pgrad.T.dot(diff); likeh=-grad.T.dot(pgrad); posth=prior_hess+likeh
+                      dx=-np.linalg.solve(posth,postgrad)
+                      val=-.5*diff.T.dot(b['precision']).dot(diff)
+                      val+=.5*dx.dot(likeh).dot(dx)+postgrad.dot(dx)+.5*dx.dot(prior_hess).dot(dx)
+                      val+=-.5*np.linalg.slogdet(-posth)[1]
+                      val+=-.5*(x[1]/5.)**2-.5*(x[2]/5.)**2
+                      return float(val)
+                  seeds=[
+                      np.array(starts[b['namespace']],float),
+                      np.array([1.0,0.0,0.0]),
+                      np.array([0.55,4.0,-4.0]),
+                      np.array([1.8,-4.0,4.0]),
+                      np.array([2.6,8.0,-8.0]),
+                      np.array([1.4,-10.0,-10.0]),
+                  ]
+                  trials=[]
+                  for iseed,seed in enumerate(seeds):
+                      opti=minimize(lambda x:-2*logp(x),seed,method='L-BFGS-B',
+                                    bounds=[(0,3),(-20,20),(-20,20)],
+                                    options={'maxiter':800,'ftol':1e-11,'gtol':3e-7,'maxls':50})
+                      trials.append(opti)
+                      print('STRAW_TRIAL',case,b['namespace'],iseed,float(opti.fun),
+                            bool(opti.success),[float(v) for v in opti.x],flush=True)
+                  finite=[o for o in trials if np.isfinite(o.fun)]
+                  opt=min(finite,key=lambda o:o.fun)
+                  vals=np.array([float(o.fun) for o in finite])
+                  row={'case':case,'namespace':b['namespace'],'chi2_profile':float(opt.fun),
+                       'success':bool(opt.success),'start_spread_chi2':float(vals.max()-vals.min()),
+                       'b1p':float(opt.x[0]),'b2p':float(opt.x[1]),'bsp':float(opt.x[2]),
+                       'sigma8':info['sigma8'],'fsigma8':info['fsigma8'],
+                       'qpar':info['qpar'],'qper':info['qper']}
+                  rows.append(row); total+=float(opt.fun)
+                  print('STRAW_BLOCK',row,flush=True)
+              totals[case]=total
+              print('STRAW_TOTAL',case,total,flush=True)
 
-          candidates=list(Path('input_artifact/unpacked').rglob('desi_dr1_fs_summary.csv'))
-          if len(candidates)!=1: raise RuntimeError(('bridge summary candidates',candidates))
-          bridge=pd.read_csv(candidates[0]).iloc[0]
-          bridge_lcdm=float(bridge['lcdm_chi2'])
-          delta=total-bridge_lcdm
-          print('DESI_CAMB_ROBUST_TOTAL',total,flush=True)
-          print('DESI_CLASS_BRIDGE_LCDM_TOTAL',bridge_lcdm,flush=True)
-          print('DESI_CAMB_ROBUST_MINUS_CLASS_SINGLESTART',delta,flush=True)
-          pd.DataFrame(rows).to_csv('output/desi_camb_null_blocks.csv',index=False)
-          pd.DataFrame([{'camb_lcdm':total,'class_bridge_lcdm':bridge_lcdm,
-                         'delta_camb_minus_class':delta}]).to_csv('output/desi_camb_null_summary.csv',index=False)
+          base=totals['LCDM_PHYSICAL']
+          summary=[]
+          for case in case_names:
+              delta=totals[case]-base
+              rec={'case':case,'chi2_total':totals[case],'delta_vs_physical_lcdm':delta}
+              summary.append(rec)
+              print('STRAW_DELTA',rec,flush=True)
+          pd.DataFrame(rows).to_csv('output/desi_strawman_geometry_blocks.csv',index=False)
+          pd.DataFrame(summary).to_csv('output/desi_strawman_geometry_summary.csv',index=False)
           PY
-
-      - name: Preserve null test
+      - name: Preserve strawman geometry control
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-camb-null-fast
+          name: sdmc-desi-strawman-geometry-control
           path: output/*
           if-no-files-found: warn
