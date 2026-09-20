@@ -1,9 +1,9 @@
-name: SDMC r032 L17.925 Z17.775 floor045 covariant gate
+name: SDMC r032 Planck calibration compensation
 
 on:
   push:
     branches:
-      - sdmc-r032-l17925-z17775-floor045-covariant
+      - sdmc-r032-planck-calibration-compensation
   workflow_dispatch:
 
 jobs:
@@ -489,8 +489,8 @@ jobs:
           YHe = 0.2453
 
           A_s = 2.16715426219737e-9
-          n_s = 0.964
-          tau_reio = 0.0544
+          n_s = 0.972
+          tau_reio = 0.06261
 
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -778,8 +778,8 @@ jobs:
           T_cmb = 2.7255
           YHe = 0.2453
           A_s = 2.16715426219737e-9
-          n_s = 0.964
-          tau_reio = 0.0544
+          n_s = 0.972
+          tau_reio = 0.06261
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -1100,7 +1100,7 @@ jobs:
           cov,cx=run_one('COVARIANT',OUT/'covariant_observable_00_cl_lensed.dat',[param_best,x0,displaced])
           lcdm,lx=run_one('LCDM',OUT/'fullplik_lcdm_00_cl_lensed.dat',[x0,param_best,cx])
           delta=cov['chi2_profile_total']-lcdm['chi2_profile_total']
-          print('L17925_Z17775_FLOOR045_COV_MINUIT_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
+          print('PLANCK_CALIBRATION_COMPENSATION_FULLPLIK_DELTA',delta,flush=True)
           fields=list(cov.keys())
           with (OUT/'fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows([cov,lcdm])
@@ -1118,8 +1118,8 @@ jobs:
           T_cmb = 2.7255
           YHe = 0.2453
           A_s = 2.16715426219737e-9
-          n_s = 0.964
-          tau_reio = 0.0544
+          n_s = 0.972
+          tau_reio = 0.06261
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
