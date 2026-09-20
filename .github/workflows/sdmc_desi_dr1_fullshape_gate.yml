@@ -1,9 +1,9 @@
-name: SDMC r032 ordinary candidate 1 exact DESI
+name: SDMC r032 joint physical seed exact DESI
 
 on:
   push:
     branches:
-      - sdmc-r032-ordinary-candidate-1-desi-exact
+      - sdmc-r032-joint-physical-seed-desi-exact
   workflow_dispatch:
 
 jobs:
@@ -54,7 +54,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_native_noslip
-          parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
+          parameters_smg = 0.0600, 5.00, 0.9573146853146852, 0.1, 0.0001
           expansion_model = sdmc_full
           expansion_smg = 0.7061451696512845, 17.925, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
@@ -110,7 +110,7 @@ jobs:
           Hpa=H*H*h
           X=0.5*H*H
 
-          AF=0.0715; zc=5.00; width=1.426
+          AF=0.0600; zc=5.00; width=0.9573146853146852
           Nc=-np.log1p(zc)
           xx=(ph-Nc)/(2.*width)
           S=.5*(1.+np.tanh(xx))
