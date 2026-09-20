@@ -1,9 +1,9 @@
-name: SDMC r032 joint physical Planck refine
+name: SDMC r032 joint physical boundary refine
 
 on:
   push:
     branches:
-      - sdmc-r032-joint-physical-planck-refine
+      - sdmc-r032-joint-physical-boundary-refine
   workflow_dispatch:
 
 jobs:
