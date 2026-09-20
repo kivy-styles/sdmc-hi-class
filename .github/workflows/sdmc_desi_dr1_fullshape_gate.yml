@@ -1,9 +1,9 @@
-name: SDMC r032 L17.9125 Z17.775 floor04511 covariant DESI full-shape gate
+name: SDMC r032 L17.9125 Z17.775 floor0451 covariant DESI full-shape gate
 
 on:
   push:
     branches:
-      - sdmc-r032-l179125-z17775-floor04511-covariant-desi
+      - sdmc-r032-l179125-z17775-floor0451-covariant-desi
   workflow_dispatch:
 
 jobs:
