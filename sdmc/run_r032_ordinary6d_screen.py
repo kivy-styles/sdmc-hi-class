@@ -296,19 +296,26 @@ lsn=sn_scores(lbg)
 lcdm={"planck":lp[-1],"pantheonplus":lsn[0],"union3":lsn[1],"desy5":lsn[2]}
 print("ORD6D_LCDM_REFERENCE",lcdm,flush=True)
 
-# Deterministic design: exact current, Planck-reference ordinary coordinates,
-# three points on the connecting line, plus a 64-point Sobol space-filling set.
-anchors=[
-    ("current",CURRENT),
-    ("reference_coords",REFERENCE),
-    ("line25",CURRENT+0.25*(REFERENCE-CURRENT)),
-    ("line50",CURRENT+0.50*(REFERENCE-CURRENT)),
-    ("line75",CURRENT+0.75*(REFERENCE-CURRENT)),
-]
-sob=qmc.Sobol(d=6,scramble=True,seed=20260920)
-u=sob.random_base2(m=6)
-xs=qmc.scale(u,LOW,HIGH)
-design=anchors+[(f"sobol{i+1:03d}",x) for i,x in enumerate(xs)]
+# Profile the ordinary background around the exact leader while keeping
+# the newly identified primordial optimum n_s=0.964, tau=0.062 and fixed A_s.
+# The local acoustic constraint is
+#   d ell_A ~= -0.836 dH0 + 784 d omega_b - 293 d omega_c,
+# so omega_c is adjusted to stay close to the same acoustic scale.
+HGRID=[70.8514,70.70,70.55,70.40,70.25]
+DOB=[-0.00020,-0.00010,0.0,0.00010]
+design=[]
+for H0 in HGRID:
+    dH=H0-CURRENT[0]
+    for dob in DOB:
+        x=CURRENT.copy()
+        x[0]=H0
+        x[1]=CURRENT[1]+dob
+        x[2]=CURRENT[2]+(-0.836*dH+784.0*dob)/293.0
+        x[3]=0.964
+        x[4]=3.076
+        x[5]=0.062
+        tag=f"H{H0:.2f}_dob{dob:+.5f}".replace(".","p").replace("+","p").replace("-","m")
+        design.append((tag,x))
 
 meta={
     "names":NAMES,
@@ -319,7 +326,7 @@ meta={
     "structural":{"AF":AF,"zc":ZC,"width":WIDTH,"D0":D0,"power":POWER,
                   "Dfloor":DFLOOR,"lambda_e":LAMBDA_E,"z_t":ZT},
     "n_design":len(design),
-    "note":"screen only; final points require exact covariant replay + full Plik + raw DESI FS",
+    "note":"tau062 acoustic-manifold profile; final points require exact covariant replay + full Plik + raw DESI FS",
 }
 (OUT/"ordinary6d_design.json").write_text(json.dumps(meta,indent=2))
 
