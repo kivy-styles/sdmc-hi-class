@@ -66,7 +66,7 @@ def sigma_r_from_pk(k: np.ndarray, p: np.ndarray, R: float = 8.0) -> float:
     nz = x != 0
     W[nz] = 3.0 * (np.sin(x[nz]) - x[nz] * np.cos(x[nz])) / x[nz] ** 3
     y = k**3 * p * W**2 / (2.0 * np.pi**2)
-    return float(np.sqrt(np.trapz(y, x=np.log(k))))
+    return float(np.sqrt(np.trapezoid(y, x=np.log(k))))
 
 
 def make_kgrid(n: int, box: float):
@@ -95,7 +95,7 @@ def field_from_pk(
     cell_volume = dx**3
     amp = np.sqrt(pk / cell_volume) * filt
     dk = white_k * amp
-    return np.fft.irfftn(dk, s=(n, n, n)).real
+    return np.fft.irfftn(dk, s=(n, n, n), axes=(0, 1, 2)).real
 
 
 def shell_power(delta: np.ndarray, box: float, nbins: int = 28):
