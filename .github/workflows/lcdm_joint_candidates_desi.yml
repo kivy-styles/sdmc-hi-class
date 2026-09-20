@@ -1,0 +1,191 @@
+name: LCDM competing controls raw DESI full shape
+
+on:
+  push:
+    branches:
+      - lcdm-joint-candidates-desi
+  workflow_dispatch:
+
+jobs:
+  lcdm-desi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install base dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
+          python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
+          python3 -m pip install git+https://github.com/adematti/lsstypes.git
+          python3 -m pip install git+https://github.com/sfschen/velocileptors.git
+
+      - name: Build CLASS
+        run: make -j2 class
+
+      - name: Install official DESI DR1 full-shape data
+        run: |
+          rm -rf desi-kp-cosmological-likelihoods
+          git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
+          mkdir -p desi_likelihood output
+          BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          for FN in             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
+          do
+            ok=0
+            for attempt in 1 2 3 4 5 6
+            do
+              for BASE in "$BASE_PRIMARY" "$BASE_MIRROR"
+              do
+                if curl -L --fail --retry 4 --retry-all-errors --retry-delay 5                      --connect-timeout 30 --max-time 300 -C -                      -o "desi_likelihood/$FN" "$BASE/$FN"; then
+                  ok=1
+                  break 2
+                fi
+              done
+              sleep $((attempt*8))
+            done
+            test "$ok" -eq 1
+          done
+
+      - name: Read DESI effective redshifts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys,json
+          sys.path.insert(0,'desi-kp-cosmological-likelihoods/dr1/cobaya')
+          import lsstypes as types
+          from desi_fs_bao_all import list_zrange,dataset_fn,get_tracer_label
+          records=[]
+          for tracer,iz,zrange in list_zrange:
+              if 'lya' in tracer.lower(): continue
+              fn=dataset_fn('desi_likelihood',tracer,zrange,observable_name='spectrum-poles-rotated')
+              d=types.read(fn)
+              sp=d.observable.get('spectrum')
+              records.append(dict(tracer=tracer,iz=iz,zrange=list(zrange),
+                                  namespace=f"{get_tracer_label(tracer)}_z{iz}",
+                                  zeff=float(sp.attrs['zeff']),file=str(fn)))
+          Path('output/desi_zeff.json').write_text(json.dumps(records,indent=2))
+          zs=[0.0]+sorted({r['zeff'] for r in records})
+          Path('output/desi_zpk.txt').write_text(','.join(f'{z:.10g}' for z in zs))
+          print('LCDM_CONTROL_DESI_ZPK',zs,flush=True)
+          PY
+
+      - name: Generate three LCDM transfer sets
+        run: |
+          ZPK=$(cat output/desi_zpk.txt)
+
+          cat > output/lcdm_ref.ini <<EOF
+          H0 = 67.36
+          omega_b = 0.02237
+          omega_cdm = 0.1200
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.10e-9
+          n_s = 0.9649
+          tau_reio = 0.0544
+          gauge = synchronous
+          modes = s
+          output = mPk,dTk,vTk
+          extra_metric_transfer_functions = yes
+          matter_source_in_current_gauge = no
+          P_k_max_h/Mpc = 2.0
+          z_pk = $ZPK
+          write background = yes
+          write thermodynamics = yes
+          root = output/lcdm_ref_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+
+          cat > output/lcdm_054.ini <<EOF
+          H0 = 68.78113517636451
+          omega_b = 0.022678412813829034
+          omega_cdm = 0.11795410220236471
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.0501263240428498e-9
+          n_s = 0.9621755753970704
+          tau_reio = 0.0451812363281846
+          gauge = synchronous
+          modes = s
+          output = mPk,dTk,vTk
+          extra_metric_transfer_functions = yes
+          matter_source_in_current_gauge = no
+          P_k_max_h/Mpc = 2.0
+          z_pk = $ZPK
+          write background = yes
+          write thermodynamics = yes
+          root = output/lcdm_054_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+
+          cat > output/lcdm_023.ini <<EOF
+          H0 = 67.60664539063684
+          omega_b = 0.022342536433760673
+          omega_cdm = 0.11976407214092616
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1098478763809977e-9
+          n_s = 0.9538520053924993
+          tau_reio = 0.055672660948336124
+          gauge = synchronous
+          modes = s
+          output = mPk,dTk,vTk
+          extra_metric_transfer_functions = yes
+          matter_source_in_current_gauge = no
+          P_k_max_h/Mpc = 2.0
+          z_pk = $ZPK
+          write background = yes
+          write thermodynamics = yes
+          root = output/lcdm_023_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+
+          ./class output/lcdm_ref.ini
+          ./class output/lcdm_054.ini
+          ./class output/lcdm_023.ini
+
+      - name: Evaluate official DESI full-shape likelihood
+        run: python3 sdmc/evaluate_lcdm_control_desi.py
+
+      - name: Print summary
+        if: always()
+        run: |
+          test ! -f output/lcdm_control_desi_summary.csv || cat output/lcdm_control_desi_summary.csv
+
+      - name: Preserve DESI controls
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcdm-competing-controls-desi
+          path: |
+            output/lcdm_control_desi_profile.csv
+            output/lcdm_control_desi_summary.csv
+            output/desi_zeff.json
+          if-no-files-found: warn
