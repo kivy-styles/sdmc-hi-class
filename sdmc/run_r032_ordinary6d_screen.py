@@ -296,19 +296,37 @@ lsn=sn_scores(lbg)
 lcdm={"planck":lp[-1],"pantheonplus":lsn[0],"union3":lsn[1],"desy5":lsn[2]}
 print("ORD6D_LCDM_REFERENCE",lcdm,flush=True)
 
-# Deterministic design: exact current, Planck-reference ordinary coordinates,
-# three points on the connecting line, plus a 64-point Sobol space-filling set.
-anchors=[
-    ("current",CURRENT),
-    ("reference_coords",REFERENCE),
-    ("line25",CURRENT+0.25*(REFERENCE-CURRENT)),
-    ("line50",CURRENT+0.50*(REFERENCE-CURRENT)),
-    ("line75",CURRENT+0.75*(REFERENCE-CURRENT)),
-]
-sob=qmc.Sobol(d=6,scramble=True,seed=20260920)
-u=sob.random_base2(m=6)
-xs=qmc.scale(u,LOW,HIGH)
-design=anchors+[(f"sobol{i+1:03d}",x) for i,x in enumerate(xs)]
+# Targeted profile along the locally fitted acoustic-angle manifold:
+#   d ell_A ~= -0.836 dH0 + 784 d omega_b - 293 d omega_c.
+# With omega_b fixed, choose d omega_c ~= -(0.836/293) dH0.
+# At each background point test both the original primordial sector and the
+# analytic calibration-compensation direction (n_s,tau)=(0.972,0.06261).
+HGRID=[70.8514,70.50,70.15,69.80,69.45]
+design=[]
+for H0 in HGRID:
+    dH=H0-CURRENT[0]
+    oc=CURRENT[2]-(0.836/293.0)*dH
+    base=CURRENT.copy()
+    base[0]=H0
+    base[2]=oc
+    design.append((f"acoustic_base_H{H0:.2f}".replace(".","p"),base))
+    comp=base.copy()
+    comp[3]=0.972
+    comp[4]=3.076
+    comp[5]=0.06261
+    design.append((f"acoustic_comp_H{H0:.2f}".replace(".","p"),comp))
+
+# Baryon-direction checks at two representative H0 values, with omega_c
+# adjusted by the same local ell_A relation.
+for H0 in [70.50,70.15]:
+    dH=H0-CURRENT[0]
+    for dob in [-0.00015,0.00015]:
+        ob=CURRENT[1]+dob
+        oc=CURRENT[2]+(-0.836*dH+784.0*dob)/293.0
+        x=CURRENT.copy()
+        x[0]=H0; x[1]=ob; x[2]=oc; x[3]=0.972; x[5]=0.06261
+        sign="m" if dob<0 else "p"
+        design.append((f"acoustic_comp_H{H0:.2f}_{sign}ob".replace(".","p"),x))
 
 meta={
     "names":NAMES,
@@ -319,7 +337,7 @@ meta={
     "structural":{"AF":AF,"zc":ZC,"width":WIDTH,"D0":D0,"power":POWER,
                   "Dfloor":DFLOOR,"lambda_e":LAMBDA_E,"z_t":ZT},
     "n_design":len(design),
-    "note":"screen only; final points require exact covariant replay + full Plik + raw DESI FS",
+    "note":"acoustic-profiled targeted screen; final points require exact covariant replay + full Plik + raw DESI FS",
 }
 (OUT/"ordinary6d_design.json").write_text(json.dumps(meta,indent=2))
 
