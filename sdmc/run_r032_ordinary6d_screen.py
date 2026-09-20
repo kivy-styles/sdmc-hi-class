@@ -305,10 +305,16 @@ anchors=[
     ("line50",CURRENT+0.50*(REFERENCE-CURRENT)),
     ("line75",CURRENT+0.75*(REFERENCE-CURRENT)),
 ]
-sob=qmc.Sobol(d=6,scramble=True,seed=20260920)
-u=sob.random_base2(m=6)
-xs=qmc.scale(u,LOW,HIGH)
-design=anchors+[(f"sobol{i+1:03d}",x) for i,x in enumerate(xs)]
+# Local finite-difference stencil around the exact current point.
+# Step sizes are deliberately modest so that we can resolve a narrow
+# compensation direction that a wide space-filling design could miss.
+steps=np.array([0.15,0.00012,0.0008,0.0030,0.012,0.0040],float)
+design=[("current",CURRENT.copy())]
+for j,name in enumerate(NAMES):
+    xp=CURRENT.copy(); xm=CURRENT.copy()
+    xp[j]+=steps[j]; xm[j]-=steps[j]
+    design.append((f"{name}_plus",xp))
+    design.append((f"{name}_minus",xm))
 
 meta={
     "names":NAMES,
