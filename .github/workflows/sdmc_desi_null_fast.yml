@@ -1,9 +1,9 @@
-name: SDMC DESI strawman geometry negative control
+name: SDMC DESI smooth strawman background scan
 
 on:
   push:
     branches:
-      - sdmc-desi-strawman-geometry-control
+      - sdmc-desi-smooth-strawman-background-scan
   workflow_dispatch:
 
 jobs:
@@ -145,15 +145,16 @@ jobs:
                                   fill_value='extrapolate',axis=0,assume_sorted=True)(np.log10(extk))
           pcb,pnw,ptt=rg(Pdd),rg(Pnw),rg(Ptt)
 
-          # AP-offset amplitudes are copied only as a scale reference from the final SDMC-vs-LCDM
-          # geometry difference. Their redshift ordering/sign is then deliberately scrambled.
-          # This makes the controls non-SDMC and intentionally devoid of a physical background.
-          dpar=np.array([0.00965072,0.01797025,0.02510890,0.03196861,0.04225963,0.04579289])
-          dper=np.array([0.00427017,0.00792129,0.01115372,0.01437656,0.01950412,0.02138752])
-          signs=np.array([1.,-1.,1.,-1.,1.,-1.])
-          case_names=['LCDM_PHYSICAL','STRAWMAN_REVERSED','STRAWMAN_ALTERNATING']
+          # Coherent but deliberately unmotivated background controls.
+          # Every case uses the same physical LCDM clustering spectrum and nuisance model.
+          # Only H(z) and the self-consistent angular-diameter distance are warped.
+          from scipy.integrate import quad
+          C_LIGHT=299792.458
+          amplitudes=[-0.12,-0.10,-0.08,-0.06,-0.04,-0.02,0.0,0.02,0.04,0.06,0.08,0.10,0.12]
+          case_names=['LCDM_PHYSICAL']
+          case_names += [f'TOY_G1_{a:+.2f}' for a in amplitudes if abs(a)>1e-12]
+          case_names += [f'TOY_G2_{a:+.2f}' for a in amplitudes if abs(a)>1e-12]
 
-          # physical LCDM AP values for each block, in block order
           physical=[]
           for b in blocks:
               z=b['zeff']
@@ -161,19 +162,36 @@ jobs:
               qpar=float(fid.efunc(z)/(Hkms/(100*h)))
               qper=float(DA*h/fid.angular_diameter_distance(z))
               physical.append((qpar,qper))
-          print('STRAW_GEOM_PHYSICAL',physical,flush=True)
-          print('STRAW_GEOM_DPAR',dpar.tolist(),flush=True)
-          print('STRAW_GEOM_DPER',dper.tolist(),flush=True)
+
+          def parse_case(case):
+              if case=='LCDM_PHYSICAL': return None,None
+              fam='G1' if case.startswith('TOY_G1_') else 'G2'
+              a=float(case.rsplit('_',1)[1])
+              return fam,a
+
+          def gfun(z,fam):
+              u=z/(1.+z)
+              return u if fam=='G1' else u*u
+
+          def toy_H(z,fam,a):
+              return float(res.hubble_parameter(z))*(1.+a*gfun(z,fam))
 
           def geometry(case,ib):
               qp,qt=physical[ib]
               if case=='LCDM_PHYSICAL':
                   return qp,qt
-              if case=='STRAWMAN_REVERSED':
-                  return qp+dpar[::-1][ib], qt+dper[::-1][ib]
-              if case=='STRAWMAN_ALTERNATING':
-                  return qp+signs[ib]*dpar[ib], qt+signs[ib]*dper[ib]
-              raise ValueError(case)
+              fam,a=parse_case(case)
+              z=blocks[ib]['zeff']
+              Ht=toy_H(z,fam,a)
+              # One coherent flat toy background: DA derives from the same H(z).
+              chi=quad(lambda zz:C_LIGHT/toy_H(zz,fam,a),0.,z,epsabs=1e-7,epsrel=2e-8,limit=200)[0]
+              DAt=chi/(1.+z)
+              qpar=float(fid.efunc(z)/(Ht/(100*h)))
+              qper=float(DAt*h/fid.angular_diameter_distance(z))
+              return qpar,qper
+
+          print('SMOOTH_STRAW_PHYSICAL',physical,flush=True)
+          print('SMOOTH_STRAW_AMPLITUDES',amplitudes,flush=True)
 
           def build_table(b,ib,case):
               z=b['zeff']; iz=zvals.index(z)
@@ -204,7 +222,7 @@ jobs:
           rows=[]; totals={}
           for case in case_names:
               total=0.
-              print('STRAW_CASE_BEGIN',case,flush=True)
+              print('SMOOTH_STRAW_CASE_BEGIN',case,flush=True)
               for ib,b in enumerate(blocks):
                   info=build_table(b,ib,case)
                   settings=get_physical_stochastic_settings(tracer=b['tracer'].upper()[:3])
@@ -234,7 +252,7 @@ jobs:
                                     bounds=[(0,3),(-20,20),(-20,20)],
                                     options={'maxiter':800,'ftol':1e-11,'gtol':3e-7,'maxls':50})
                       trials.append(opti)
-                      print('STRAW_TRIAL',case,b['namespace'],iseed,float(opti.fun),
+                      print('SMOOTH_STRAW_TRIAL',case,b['namespace'],iseed,float(opti.fun),
                             bool(opti.success),[float(v) for v in opti.x],flush=True)
                   finite=[o for o in trials if np.isfinite(o.fun)]
                   opt=min(finite,key=lambda o:o.fun)
@@ -245,9 +263,9 @@ jobs:
                        'sigma8':info['sigma8'],'fsigma8':info['fsigma8'],
                        'qpar':info['qpar'],'qper':info['qper']}
                   rows.append(row); total+=float(opt.fun)
-                  print('STRAW_BLOCK',row,flush=True)
+                  print('SMOOTH_STRAW_BLOCK',row,flush=True)
               totals[case]=total
-              print('STRAW_TOTAL',case,total,flush=True)
+              print('SMOOTH_STRAW_TOTAL',case,total,flush=True)
 
           base=totals['LCDM_PHYSICAL']
           summary=[]
@@ -255,14 +273,14 @@ jobs:
               delta=totals[case]-base
               rec={'case':case,'chi2_total':totals[case],'delta_vs_physical_lcdm':delta}
               summary.append(rec)
-              print('STRAW_DELTA',rec,flush=True)
-          pd.DataFrame(rows).to_csv('output/desi_strawman_geometry_blocks.csv',index=False)
-          pd.DataFrame(summary).to_csv('output/desi_strawman_geometry_summary.csv',index=False)
+              print('SMOOTH_STRAW_DELTA',rec,flush=True)
+          pd.DataFrame(rows).to_csv('output/desi_smooth_strawman_blocks.csv',index=False)
+          pd.DataFrame(summary).to_csv('output/desi_smooth_strawman_summary.csv',index=False)
           PY
-      - name: Preserve strawman geometry control
+      - name: Preserve smooth strawman background scan
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-strawman-geometry-control
+          name: sdmc-desi-smooth-strawman-background-scan
           path: output/*
           if-no-files-found: warn
