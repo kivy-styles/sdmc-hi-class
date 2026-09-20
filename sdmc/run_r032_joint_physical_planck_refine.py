@@ -137,13 +137,13 @@ print("NOSLIP_REFINE_LCDM",lcdm,flush=True)
 
 # Joint physical refinement around the stable low-AF solution, now using
 # the acoustic/amplitude ordinary-cosmology candidate.
-AFS=[0.0525,0.0550,0.0575,0.0600,0.0625,0.0650]
-ZCS=[4.6,5.0,5.4]
+AFS=[0.0400,0.0450,0.0475,0.0500,0.0525,0.0550]
+ZCS=[3.0,3.4,3.8,4.2,4.6]
 design=[("ordinary_only",0.0715,5.0,1.426),
         ("structural_seed",0.0600,5.0,0.9573146853146852)]
 for af in AFS:
     wc=af/(0.0715/1.426)
-    for fac in [0.65,0.75,0.85]:
+    for fac in [0.50,0.60,0.65,0.70]:
         w=wc*fac
         for zc in ZCS:
             design.append((f"joint_af{af:.4f}_zc{zc:.2f}_w{w:.3f}",af,zc,w))
