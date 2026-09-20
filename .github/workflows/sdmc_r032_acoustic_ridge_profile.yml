@@ -1,0 +1,55 @@
+name: SDMC r032 acoustic ridge profile
+
+on:
+  push:
+    branches:
+      - sdmc-r032-acoustic-ridge-profile
+  workflow_dispatch:
+
+jobs:
+  acoustic-ridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+      - name: Build hi_class
+        run: make -j2 class
+      - name: Install Planck likelihood data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              ok=cls.install(path='planck_packages',no_progress_bars=True)
+              if not ok: raise SystemExit(f'Planck install failed: {cls}')
+          PY
+      - name: Profile the SDMC acoustic ridge
+        run: python3 sdmc/run_r032_acoustic_ridge_profile.py
+      - name: Preserve acoustic ridge
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-acoustic-ridge-profile
+          path: output/acoustic_ridge/acoustic_ridge_profile.csv
+          if-no-files-found: warn
