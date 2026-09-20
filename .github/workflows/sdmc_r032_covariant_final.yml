@@ -3,7 +3,7 @@ name: SDMC r032 L17.9125 Z17.0 floor045 covariant profile anchor
 on:
   push:
     branches:
-      - sdmc-r032-l179125-z1700-floor045-covariant
+      - sdmc-r032-audit-z1700-exact-covariant
   workflow_dispatch:
 
 jobs:
@@ -232,7 +232,7 @@ jobs:
             double tauB = pba->parameters_smg[7];'''
           new='''  double Ox = 0.7073985893;
             double lambda_e = 17.9125;
-            double zt = 17.8;
+            double zt = 17.0;
             double dNt = 0.5;
             double A = 0.01105624999;
             double tauA = 0.25;
