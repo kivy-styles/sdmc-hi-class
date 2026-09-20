@@ -1,0 +1,45 @@
+name: SDMC r032 physical ridge tau Q ns refinement
+on:
+  push:
+    branches: [sdmc-r032-acoustic-physridge-tau-q-ns]
+  workflow_dispatch:
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+      - run: make -j2 class
+      - name: Install Planck
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for c in (TTTEEE_lite_native,TT,EE,LensingNative):
+              assert c.install(path='planck_packages',no_progress_bars=True)
+          PY
+      - run: python3 sdmc/run_r032_physridge_tau_q_ns.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-physridge-tau-q-ns
+          path: output/phys_tauqns/phys_tau_q_ns_refine.csv
