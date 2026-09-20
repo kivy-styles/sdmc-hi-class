@@ -20,7 +20,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/delayed_noslip"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/delayed_noslip_local"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; SIG=.0025
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages"); lowE=EE(packages_path="planck_packages")
@@ -98,15 +98,15 @@ def ini(AF,zc,w,cs2,root):
 
 anchors=[
  ("current",.0715,5.,1.426),
- ("late2",.055,2.,.8),
- ("late1",.045,1.,.6),
- ("weaklate",.030,1.5,1.0)
+ ("broad_best",0.05912758882623165,3.284172759018838,0.3490921955090016),
+ ("broad_s32",0.06683718590065836,2.8873871725052593,0.8156898508314043),
+ ("broad_s16",0.06350275671109556,4.872160436213017,0.4909840957261622)
 ]
-lo=np.array([.020,.4,.25]); hi=np.array([.075,5.0,2.0])
-pts=qmc.scale(qmc.Sobol(d=3,scramble=True,seed=20260921).random_base2(m=5),lo,hi)
+lo=np.array([.050,2.35,.18]); hi=np.array([.0685,4.25,.72])
+pts=qmc.scale(qmc.Sobol(d=3,scramble=True,seed=20260922).random_base2(m=6),lo,hi)
 design=anchors+[(f"s{i+1:02d}",*v) for i,v in enumerate(pts)]
 (OUT/"design.json").write_text(json.dumps({"low":lo.tolist(),"high":hi.tolist(),
- "n_geometry":len(design),"tracker_cs2":[.003,1e-8]},indent=2))
+ "stage":"local_refine","n_geometry":len(design),"tracker_cs2":[.003,1e-8]},indent=2))
 
 rows=[]; k=0
 for cphi in [.003,1e-8]:
