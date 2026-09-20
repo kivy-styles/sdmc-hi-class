@@ -8,7 +8,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/tau_fullplik"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/sharp_fullplik"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255
 high=TTTEEE(packages_path="planck_full")
 lowT=TT(packages_path="planck_packages")
@@ -89,7 +89,7 @@ def sdmc_ini(tau,root):
     use_ppf = no
     Omega_smg = -1
     gravity_model = sdmc_v3_independent_kinetic
-    parameters_smg = 0.0715,5.0,1.426,0.34231919445927034,1.0,0.045
+    parameters_smg = 0.036947266645729546,4.2729806587100025,0.3756495761351945,0.34231919445927034,1.0,0.045
     expansion_model = sdmc_full
     expansion_smg = 0.7073985893,17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
     pert_initial_conditions_smg = zero
@@ -206,7 +206,7 @@ def profile(label,path,seeds):
         if not m.fmin.is_valid:
             m.simplex(ncall=3000); m.migrad(ncall=6000)
         row=(float(m.fval),np.array([m.values[n] for n in names],float),bool(m.fmin.is_valid),int(m.nfcn))
-        print("TAUFULL_SEED",label,iseed,*[row[0],row[2],row[3]],flush=True)
+        print("SHARPFULL_SEED",label,iseed,*[row[0],row[2],row[3]],flush=True)
         if best is None or row[0]<best[0]: best=row
     fval,x,valid,nfcn=best
     p,lh,lt,le,ll=pieces(x)
@@ -215,7 +215,7 @@ def profile(label,path,seeds):
          "chi2_nuisance_priors":prior_chi2(p),"A_planck":p["A_planck"],
          "valid":valid,"nfcn":nfcn}
     row.update({n:p[n] for n in names if n!="A_planck"})
-    print("TAUFULL_RESULT",json.dumps(row,sort_keys=True),flush=True)
+    print("SHARPFULL_RESULT",json.dumps(row,sort_keys=True),flush=True)
     return row,x
 
 # LCDM first gives a common reference and an additional robust nuisance seed.
@@ -228,7 +228,7 @@ for tag,tau,path in models:
     row["tau_reio"]=tau
     row["delta_vs_lcdm"]=row["chi2_profile_total"]-lcdm["chi2_profile_total"]
     rows.append(row); prev=x
-    print("TAUFULL_DELTA",tag,tau,row["delta_vs_lcdm"],flush=True)
+    print("SHARPFULL_DELTA",tag,tau,row["delta_vs_lcdm"],flush=True)
 
 fields=list(rows[0].keys())
 with (OUT/"tau_fullplik_profile.csv").open("w",newline="") as f:
@@ -236,4 +236,4 @@ with (OUT/"tau_fullplik_profile.csv").open("w",newline="") as f:
 with (OUT/"lcdm_fullplik_profile.csv").open("w",newline="") as f:
     w=csv.DictWriter(f,fieldnames=list(lcdm.keys())); w.writeheader(); w.writerow(lcdm)
 best=min(rows,key=lambda r:r["delta_vs_lcdm"])
-print("TAUFULL_BEST",json.dumps(best,sort_keys=True),flush=True)
+print("SHARPFULL_BEST",json.dumps(best,sort_keys=True),flush=True)
