@@ -1,9 +1,9 @@
-name: SDMC r032 physical lensing DESI screen
+name: SDMC r032 rounded late-sharp DESI screen
 
 on:
   push:
     branches:
-      - sdmc-r032-physical-lensing-desi-screen
+      - sdmc-r032-latesharp-rounded-desi
   workflow_dispatch:
 
 jobs:
@@ -123,7 +123,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.0661676420550793, 3.0664408076554537, 0.5638187950477004, 0.34231919445927034, 1.0, 0.045
+          parameters_smg = 0.045, 3.5, 0.5, 0.34231919445927034, 1.0, 0.045
           expansion_model = sdmc_full
           expansion_smg = 0.7073985893, 17.925, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           pert_initial_conditions_smg = zero
@@ -455,7 +455,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-global-floor-covariant-desi
+          name: sdmc-r032-latesharp-rounded-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
