@@ -17,13 +17,13 @@ from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
 OUT=Path("output/latesharp_prim"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=0.0025
-H0=70.8514; OB=0.02239952; OC=0.12444227328918850; TAU=0.0544
+H0=70.8514; OB=0.02239952; OC=0.12444227328918850
 AF=0.045; ZC=3.5; WIDTH=0.5
 D0=0.34231919445927034; DFLOOR=0.045
 LAM=17.925; ZT=17.775; OR=4.17998772e-5
 OX=1.-(OB+OC+OR)/(H0/100.)**2
 LNAS=[3.050,3.054,3.058,3.062,3.066,3.070,3.074,3.078]
-NSS=[0.958,0.962,0.964,0.966,0.970]
+NSS=[0.960,0.962,0.964,0.966]\nTAUS=[0.058,0.060,0.062,0.064,0.066]
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages"); lowE=EE(packages_path="planck_packages")
@@ -92,7 +92,7 @@ def lcdm_ini(root):
     output_verbose = 0
     """)
 
-def ini(root,lnAs,ns):
+def ini(root,lnAs,ns,tau):
     return textwrap.dedent(f"""\
     H0 = {H0}
     omega_b = {OB}
@@ -103,7 +103,7 @@ def ini(root,lnAs,ns):
     YHe = 0.2453
     A_s = {math.exp(lnAs)/1e10:.17e}
     n_s = {ns:.16g}
-    tau_reio = {TAU}
+    tau_reio = {tau:.16g}
     Omega_Lambda = 0
     Omega_fld = 3.1443554e-8
     fluid_equation_of_state = SDMC_TRACKER
@@ -142,28 +142,30 @@ base=score(Path(lr+"00_cl_lensed.dat"))
 print("LATESHARP_PRIM_LCDM",base,flush=True)
 
 rows=[]
-for ns in NSS:
-  for lnAs in LNAS:
-    tag=f"ns{ns:.3f}_la{lnAs:.3f}".replace(".","p")
-    root=str(OUT/(tag+"_")); ip=OUT/(tag+".ini"); ip.write_text(ini(root,lnAs,ns))
-    cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=240)
-    rec=dict(id=tag,n_s=ns,ln10As=lnAs,A_s=math.exp(lnAs)/1e10,returncode=cp.returncode,status="FAIL")
-    bgp=Path(root+"00_background.dat"); clp=Path(root+"00_cl_lensed.dat"); pkp=Path(root+"00_pk.dat")
-    if bgp.exists():
-        bg=table(bgp)
-        rec.update(min_D=float(bg["kin (D)"].min()),min_cs2=float(bg["c_s^2"].min()),
-                   max_cs2=float(bg["c_s^2"].max()),F0=float(bg.iloc[np.argmin(np.abs(bg.z.to_numpy()))]["M*^2_smg"]))
-    if cp.returncode==0 and clp.exists() and pkp.exists():
-        stable=rec.get("min_D",0)>0 and rec.get("min_cs2",0)>0 and rec.get("max_cs2",2)<=1
-        rec["stable_subluminal"]=bool(stable)
-        if stable:
-            sc=score(clp); rec.update(sc); rec["sigma8"]=sigma8(pkp); rec["status"]="OK"
-            for k in ["chi2_high","chi2_lowT","chi2_lowE","chi2_lensing","chi2_cal","chi2_total"]:
-                rec["delta_"+k]=rec[k]-base[k]
-    if rec["status"]!="OK": rec["error"]=cp.stdout[-900:].replace("\n"," | ")
-    rows.append(rec); print("LATESHARP_PRIM_POINT",json.dumps(rec,sort_keys=True),flush=True)
+for tau in TAUS:
+  for ns in NSS:
+    for lnAs in LNAS:
+      tag=f"t{tau:.3f}_ns{ns:.3f}_la{lnAs:.3f}".replace(".","p")
+      root=str(OUT/(tag+"_")); ip=OUT/(tag+".ini"); ip.write_text(ini(root,lnAs,ns,tau))
+      cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=240)
+      rec=dict(id=tag,tau_reio=tau,n_s=ns,ln10As=lnAs,Q=lnAs-2*tau,
+               A_s=math.exp(lnAs)/1e10,returncode=cp.returncode,status="FAIL")
+      bgp=Path(root+"00_background.dat"); clp=Path(root+"00_cl_lensed.dat"); pkp=Path(root+"00_pk.dat")
+      if bgp.exists():
+          bg=table(bgp)
+          rec.update(min_D=float(bg["kin (D)"].min()),min_cs2=float(bg["c_s^2"].min()),
+                     max_cs2=float(bg["c_s^2"].max()),F0=float(bg.iloc[np.argmin(np.abs(bg.z.to_numpy()))]["M*^2_smg"]))
+      if cp.returncode==0 and clp.exists() and pkp.exists():
+          stable=rec.get("min_D",0)>0 and rec.get("min_cs2",0)>0 and rec.get("max_cs2",2)<=1
+          rec["stable_subluminal"]=bool(stable)
+          if stable:
+              sc=score(clp); rec.update(sc); rec["sigma8"]=sigma8(pkp); rec["status"]="OK"
+              for k in ["chi2_high","chi2_lowT","chi2_lowE","chi2_lensing","chi2_cal","chi2_total"]:
+                  rec["delta_"+k]=rec[k]-base[k]
+      if rec["status"]!="OK": rec["error"]=cp.stdout[-900:].replace("\n"," | ")
+      rows.append(rec); print("LATESHARP_PRIMTAU_POINT",json.dumps(rec,sort_keys=True),flush=True)
 
-df=pd.DataFrame(rows); df.to_csv(OUT/"latesharp_gravity_primordial_profile.csv",index=False)
+df=pd.DataFrame(rows); df.to_csv(OUT/"latesharp_gravity_primordial_tau_profile.csv",index=False)
 ok=df[(df.status=="OK")&(df.stable_subluminal==True)].copy()
-print("LATESHARP_PRIM_BEST_TOTAL",ok.nsmallest(20,"chi2_total").to_dict("records"),flush=True)
-print("LATESHARP_PRIM_BEST_HIGH",ok.nsmallest(20,"chi2_high").to_dict("records"),flush=True)
+print("LATESHARP_PRIMTAU_BEST_TOTAL",ok.nsmallest(20,"chi2_total").to_dict("records"),flush=True)
+print("LATESHARP_PRIMTAU_BEST_HIGH",ok.nsmallest(20,"chi2_high").to_dict("records"),flush=True)
