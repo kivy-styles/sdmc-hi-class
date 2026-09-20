@@ -305,10 +305,23 @@ anchors=[
     ("line50",CURRENT+0.50*(REFERENCE-CURRENT)),
     ("line75",CURRENT+0.75*(REFERENCE-CURRENT)),
 ]
-sob=qmc.Sobol(d=6,scramble=True,seed=20260920)
-u=sob.random_base2(m=6)
-xs=qmc.scale(u,LOW,HIGH)
-design=anchors+[(f"sobol{i+1:03d}",x) for i,x in enumerate(xs)]
+# Refine the acoustic-scale-preserving ordinary-cosmology manifold.
+# Local derivatives around r032 give approximately:
+#   dH0/domega_b ~ +1189
+#   dH0/domega_c ~ -365
+# for fixed ell_A.
+ob_vals=[0.02200,0.02208,0.02216,0.02224,0.02232]
+oc_vals=[0.12400,0.12444227328918850,0.12490]
+ns_vals=[0.960,0.964,0.968]
+design=[("current",CURRENT.copy())]
+for obv in ob_vals:
+    for ocv in oc_vals:
+        H0v=CURRENT[0]+1189.0*(obv-CURRENT[1])-365.0*(ocv-CURRENT[2])
+        for nsv in ns_vals:
+            x=CURRENT.copy()
+            x[0]=H0v; x[1]=obv; x[2]=ocv; x[3]=nsv
+            x[4]=3.074; x[5]=0.061
+            design.append((f"man_ob{obv:.5f}_oc{ocv:.5f}_ns{nsv:.3f}",x))
 
 meta={
     "names":NAMES,
