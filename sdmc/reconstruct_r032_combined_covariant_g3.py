@@ -77,9 +77,11 @@ g=(F*alphaB_target+F1)/(H*H)
 gsp=CubicSpline(ph,g)
 g1=gsp(ph,1)
 
-# Background identities specialized to the above Horndeski ansatz.
-R=3.*rho + 2.*g1*X*X + 6.*F1*H*H + 3.*(F-1.)*H*H
-P=3.*pre + 2.*g1*X*X - 2.*X*F2    - 3.*(F-1.)*H*H - 2.*(F-1.)*Hpa    - 2.*F1*(H*H+Hpa)
+# General background identities for G4=F/2 and G3=g(phi) X.
+# The No-Slip formulas used earlier had already substituted
+# g=-F_phi/H^2; retain the explicit g terms here.
+R=3.*rho + 2.*g1*X*X + 3.*F1*H*H - 6.*X*g*H*H + 3.*(F-1.)*H*H
+P=3.*pre + 2.*g1*X*X - 2.*X*F2 - 3.*(F-1.)*H*H - 2.*(F-1.)*Hpa - F1*(2.*H*H+Hpa) + 2.*X*g*Hpa
 C=(R+P)/(2.*X)
 
 # Covariant alpha_K equation:
