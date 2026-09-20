@@ -3,7 +3,7 @@ name: SDMC r032 L17.925 Z17.775 exact replay DESI audit retry4
 on:
   push:
     branches:
-      - sdmc-r032-retimed-gravity-desi-exact
+      - sdmc-r032-retimed-primordial-desi-exact
   workflow_dispatch:
 
 jobs:
@@ -535,8 +535,8 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.16715426219737e-9
-          n_s = 0.964
+          A_s = 2.137025495991624e-9
+          n_s = 0.962
           tau_reio = 0.0544
 
           Omega_Lambda = 0
@@ -589,7 +589,7 @@ jobs:
           T_cmb = 2.7255
           YHe = 0.2453
           A_s = 2.10e-9
-          n_s = 0.9649
+          n_s = 0.9629
           tau_reio = 0.0544
 
           gauge = synchronous
