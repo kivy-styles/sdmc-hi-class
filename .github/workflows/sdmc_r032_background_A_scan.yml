@@ -1,9 +1,9 @@
-name: SDMC r032 upper-lambda Z17.8 floor045 stability screen
+name: SDMC r032 lower-lambda Z17.775 floor045 stability screen
 
 on:
   push:
     branches:
-      - sdmc-r032-lambda-upper-z178-floor045-stability
+      - sdmc-r032-lambda-lower-z17775-floor045-stability
   workflow_dispatch:
 
 jobs:
@@ -147,8 +147,8 @@ jobs:
           POWER=1.0
           DFLOOR=0.045
           D0=0.34231919445927034
-          LAMBDAS=[17.75,18.00,18.25,18.50,18.75]
-          ZTS=[17.80]
+          LAMBDAS=[16.00,16.50,17.00,17.25,17.50,17.75,17.9125]
+          ZTS=[17.775]
           candidates=[(lam,zt) for lam in LAMBDAS for zt in ZTS]
 
           # ---------- shared table helpers ----------
@@ -382,14 +382,14 @@ jobs:
                   rec['joint_desy5']=rec['delta_planck']+rec['delta_desy5']
                   stable=(rec['min_D_all']>0 and rec['min_cs2_all']>0 and rec['max_cs2_all']<=1.0)
                   rec['stable_subluminal']=bool(stable)
-                  print('UPPER_LAMBDA_Z178_F045_STABILITY_CANDIDATE',rec,flush=True)
+                  print('LOWER_LAMBDA_Z17775_F045_STABILITY_CANDIDATE',rec,flush=True)
               else:
                   rec['error']=cp.stdout[-1000:]
-                  print('UPPER_LAMBDA_Z178_F045_STABILITY_FAIL',rec,flush=True)
+                  print('LOWER_LAMBDA_Z17775_F045_STABILITY_FAIL',rec,flush=True)
               rows.append(rec)
 
           df=pd.DataFrame(rows)
-          df.to_csv(OUT/'r032_lambda_zt_sn_lite.csv',index=False)
+          df.to_csv(OUT/'r032_lambda_lower_z17775_floor045.csv',index=False)
           ok=df[(df.status=='OK') & (df.stable_subluminal==True)].copy()
           if ok.empty:
               raise SystemExit('No stable subluminal candidates in joint screen')
@@ -402,11 +402,11 @@ jobs:
           current=ok[(np.isclose(ok.lambda_e,18.25))&(np.isclose(ok.z_t,19.20))]
           for x in current.id: keep.add(x)
           shortlist=ok[ok.id.isin(sorted(keep))].copy().sort_values('joint_pp')
-          shortlist.to_csv(OUT/'r032_lambda_zt_sn_lite_shortlist.csv',index=False)
-          print('UPPER_LAMBDA_Z178_F045_STABILITY_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
-          print('UPPER_LAMBDA_Z178_F045_STABILITY_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
-          print('UPPER_LAMBDA_Z178_F045_STABILITY_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
-          print('UPPER_LAMBDA_Z178_F045_STABILITY_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
+          shortlist.to_csv(OUT/'r032_lambda_lower_z17775_floor045_shortlist.csv',index=False)
+          print('LOWER_LAMBDA_Z17775_F045_STABILITY_BEST_PP',ok.nsmallest(8,'joint_pp').to_dict('records'),flush=True)
+          print('LOWER_LAMBDA_Z17775_F045_STABILITY_BEST_UNION3',ok.nsmallest(8,'joint_union3').to_dict('records'),flush=True)
+          print('LOWER_LAMBDA_Z17775_F045_STABILITY_BEST_DESY5',ok.nsmallest(8,'joint_desy5').to_dict('records'),flush=True)
+          print('LOWER_LAMBDA_Z17775_F045_STABILITY_SHORTLIST',shortlist[['id','AF','zc','width','lambda_e','z_t','Dfloor','D0','delta_planck',
                                                    'delta_pantheonplus','delta_union3','delta_desy5',
                                                    'joint_pp','joint_union3','joint_desy5']].to_dict('records'),flush=True)
           PY
@@ -415,8 +415,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-lambda-upper-z178-floor045-stability
+          name: sdmc-r032-lambda-lower-z17775-floor045-stability
           path: |
-            output/joint_screen/r032_lambda_zt_sn_lite.csv
-            output/joint_screen/r032_lambda_zt_sn_lite_shortlist.csv
+            output/joint_screen/r032_lambda_lower_z17775_floor045.csv
+            output/joint_screen/r032_lambda_lower_z17775_floor045_shortlist.csv
           if-no-files-found: warn
