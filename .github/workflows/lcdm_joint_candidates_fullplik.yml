@@ -1,0 +1,147 @@
+name: LCDM competing controls full Plik
+
+on:
+  push:
+    branches:
+      - lcdm-joint-candidates-fullplik
+  workflow_dispatch:
+
+jobs:
+  lcdm-fullplik:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya iminuit
+
+      - name: Build CLASS
+        run: make -j2 class
+
+      - name: Install official Planck likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          if not TTTEEE.install(path='planck_full',no_progress_bars=True):
+              raise SystemExit('full Plik install failed')
+          for cls in (TT,EE,LensingNative):
+              if not cls.install(path='planck_packages',no_progress_bars=True):
+                  raise SystemExit(f'Planck install failed: {cls}')
+          PY
+
+      - name: Generate competing LCDM spectra
+        run: |
+          mkdir -p output
+          cat > output/lcdm_reference.ini <<'EOF'
+          H0 = 67.36
+          omega_b = 0.02237
+          omega_cdm = 0.1200
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.10e-9
+          n_s = 0.9649
+          tau_reio = 0.0544
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0
+          root = output/lcdm_reference_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+
+          cat > output/lcdm_sobol054.ini <<'EOF'
+          H0 = 68.78113517636451
+          omega_b = 0.022678412813829034
+          omega_cdm = 0.11795410220236471
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.050333824058797e-9
+          n_s = 0.9621755753970704
+          tau_reio = 0.0451812363281846
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0
+          root = output/lcdm_sobol054_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+
+          cat > output/lcdm_sobol023.ini <<'EOF'
+          H0 = 67.60664539063684
+          omega_b = 0.022342536433760673
+          omega_cdm = 0.11976407214092616
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.100877538501686e-9
+          n_s = 0.9538520053924993
+          tau_reio = 0.055672660948336124
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0
+          root = output/lcdm_sobol023_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+
+          ./class output/lcdm_reference.ini
+          ./class output/lcdm_sobol054.ini
+          ./class output/lcdm_sobol023.ini
+
+      - name: Profile all three with full Plik
+        run: python3 sdmc/run_lcdm_control_fullplik_profile.py
+
+      - name: Show results
+        if: always()
+        run: |
+          test ! -f output/lcdm_control_fullplik_profile.csv || cat output/lcdm_control_fullplik_profile.csv
+
+      - name: Preserve control validation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcdm-competing-controls-fullplik
+          path: |
+            output/lcdm_*_00_cl_lensed.dat
+            output/lcdm_control_fullplik_profile.csv
+          if-no-files-found: warn
