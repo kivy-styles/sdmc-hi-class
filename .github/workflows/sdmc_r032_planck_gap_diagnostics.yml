@@ -1,13 +1,13 @@
-name: SDMC r032 Planck gap diagnostics
+name: SDMC r032 combined Planck gap diagnostic
 
 on:
   push:
     branches:
-      - sdmc-r032-planck-gap-diagnostics
+      - sdmc-r032-planck-gap-combined-diagnostic
   workflow_dispatch:
 
 jobs:
-  planck-gap-diagnostics:
+  combined-planck-gap:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
