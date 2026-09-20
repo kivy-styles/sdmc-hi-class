@@ -3,7 +3,7 @@ name: SDMC r032 L17.925 Z17.775 floor045 covariant DESI retry
 on:
   push:
     branches:
-      - sdmc-r032-l17925-z17775-floor045-covariant-desi-retry
+      - sdmc-r032-l17925-z17775-floor045-covariant-desi-exact-retry2
   workflow_dispatch:
 
 jobs:
