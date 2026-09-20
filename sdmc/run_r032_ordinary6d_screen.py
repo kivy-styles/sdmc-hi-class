@@ -296,19 +296,21 @@ lsn=sn_scores(lbg)
 lcdm={"planck":lp[-1],"pantheonplus":lsn[0],"union3":lsn[1],"desy5":lsn[2]}
 print("ORD6D_LCDM_REFERENCE",lcdm,flush=True)
 
-# Deterministic design: exact current, Planck-reference ordinary coordinates,
-# three points on the connecting line, plus a 64-point Sobol space-filling set.
-anchors=[
-    ("current",CURRENT),
-    ("reference_coords",REFERENCE),
-    ("line25",CURRENT+0.25*(REFERENCE-CURRENT)),
-    ("line50",CURRENT+0.50*(REFERENCE-CURRENT)),
-    ("line75",CURRENT+0.75*(REFERENCE-CURRENT)),
-]
-sob=qmc.Sobol(d=6,scramble=True,seed=20260920)
-u=sob.random_base2(m=6)
-xs=qmc.scale(u,LOW,HIGH)
-design=anchors+[(f"sobol{i+1:03d}",x) for i,x in enumerate(xs)]
+# Isolate the local primordial/reionization compensation at the exact
+# current SDMC background. A_s is held fixed, while n_s and tau are scanned.
+NS_GRID=[0.958,0.964,0.970,0.976,0.982]
+TAU_GRID=[0.050,0.056,0.062,0.068,0.074]
+design=[]
+for ns in NS_GRID:
+    for tau in TAU_GRID:
+        x=CURRENT.copy()
+        x[3]=ns
+        x[4]=3.076
+        x[5]=tau
+        design.append((f"ns{ns:.3f}_tau{tau:.3f}".replace(".","p"),x))
+# Keep the exact current point explicitly even though it does not lie exactly
+# on the coarse tau grid.
+design.insert(0,("current",CURRENT.copy()))
 
 meta={
     "names":NAMES,
@@ -319,7 +321,7 @@ meta={
     "structural":{"AF":AF,"zc":ZC,"width":WIDTH,"D0":D0,"power":POWER,
                   "Dfloor":DFLOOR,"lambda_e":LAMBDA_E,"z_t":ZT},
     "n_design":len(design),
-    "note":"screen only; final points require exact covariant replay + full Plik + raw DESI FS",
+    "note":"n_s-tau local profile at fixed current background and fixed A_s",
 }
 (OUT/"ordinary6d_design.json").write_text(json.dumps(meta,indent=2))
 
