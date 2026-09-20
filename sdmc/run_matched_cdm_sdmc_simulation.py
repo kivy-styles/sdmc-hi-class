@@ -179,6 +179,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sdmc-root", required=True, type=Path)
     ap.add_argument("--lcdm-root", required=True, type=Path)
+    ap.add_argument("--lcdm-prefix", default="matched_lcdm")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--grid", type=int, default=128)
     ap.add_argument("--box", type=float, default=500.0, help="box side in Mpc/h")
@@ -195,7 +196,7 @@ def main():
         raise ValueError("box and kcut must be positive")
 
     sdmc_files = [find_one(args.sdmc_root, f"covariant_observable_00_z{i}_pk.dat") for i in range(1, 8)]
-    lcdm_files = [find_one(args.lcdm_root, f"matched_lcdm_00_z{i}_pk.dat") for i in range(1, 8)]
+    lcdm_files = [find_one(args.lcdm_root, f"{args.lcdm_prefix}_00_z{i}_pk.dat") for i in range(1, 8)]
 
     rng = np.random.default_rng(args.seed)
     white = rng.normal(size=(n, n, n))
@@ -205,6 +206,7 @@ def main():
 
     metrics = []
     target_ratios: Dict[float, Tuple[np.ndarray, np.ndarray]] = {}
+    shape_ratios: Dict[float, Tuple[np.ndarray, np.ndarray]] = {}
     frame_paths = []
 
     for z, fs, fl in zip(ZPK, sdmc_files, lcdm_files):
@@ -223,20 +225,34 @@ def main():
         ratio = psl / np.maximum(pll, 1e-300)
         target_ratios[z] = (kval, ratio)
 
+        s8_l = sigma_r_from_pk(kl, pl)
+        s8_s = sigma_r_from_pk(ks, ps)
+        s8_ratio = s8_s / s8_l
+        amp = float(np.sum(lcdm * sdmc) / np.maximum(np.sum(lcdm * lcdm), 1e-300))
+        shape_resid = sdmc - amp * lcdm
+        shape_mask = (kval >= 0.02) & (kval <= min(0.20, common_max))
+        ratio_shape = ratio / max(s8_ratio * s8_ratio, 1e-300)
+        shape_ratios[z] = (kval, ratio_shape)
+
         row = {
             "z": z,
-            "sigma8_target_lcdm": sigma_r_from_pk(kl, pl),
-            "sigma8_target_sdmc": sigma_r_from_pk(ks, ps),
-            "sigma8_ratio_sdmc_over_lcdm": sigma_r_from_pk(ks, ps) / sigma_r_from_pk(kl, pl),
+            "sigma8_target_lcdm": s8_l,
+            "sigma8_target_sdmc": s8_s,
+            "sigma8_ratio_sdmc_over_lcdm": s8_ratio,
             "field_rms_lcdm": float(np.std(lcdm)),
             "field_rms_sdmc": float(np.std(sdmc)),
             "field_rms_diff": float(np.std(diff)),
             "field_corrcoef": safe_corr(lcdm, sdmc),
-            "mean_pk_ratio_0p02_0p20": float(np.mean(ratio[(kval >= 0.02) & (kval <= min(0.20, common_max))])),
+            "best_linear_amplitude_sdmc_vs_lcdm": amp,
+            "shape_residual_rms_fraction_of_sdmc": float(np.std(shape_resid) / max(np.std(sdmc), 1e-300)),
+            "mean_pk_ratio_0p02_0p20": float(np.mean(ratio[shape_mask])),
+            "mean_shape_only_pk_ratio_0p02_0p20": float(np.mean(ratio_shape[shape_mask])),
+            "max_abs_shape_only_pk_deviation_0p02_0p20": float(np.max(np.abs(ratio_shape[shape_mask] - 1.0))),
         }
         for kp in (0.02, 0.05, 0.10, 0.20):
             if kp <= common_max:
                 row[f"pk_ratio_k{str(kp).replace('.', 'p')}"] = float(np.interp(kp, kval, ratio))
+                row[f"shape_only_pk_ratio_k{str(kp).replace('.', 'p')}"] = float(np.interp(kp, kval, ratio_shape))
         metrics.append(row)
 
         kgl, pgl, nml = shell_power(lcdm, args.box)
@@ -274,6 +290,22 @@ def main():
     ax.legend(ncol=2, fontsize=8)
     fig.tight_layout()
     fig.savefig(args.out / "pk_ratio_evolution.png", dpi=180)
+    plt.close(fig)
+
+    # Shape-only ratio after removing the sigma8 amplitude difference.
+    fig, ax = plt.subplots(figsize=(8.2, 5.4))
+    for z in ZPK:
+        k, r = shape_ratios[z]
+        ax.semilogx(k, r, label=f"z={z:g}")
+    ax.axhline(1.0, lw=1.0, color="black", alpha=0.6)
+    ax.set_xlim(0.01, args.kcut)
+    ax.set_xlabel(r"$k\\;[h\\,{\\rm Mpc}^{-1}]$")
+    ax.set_ylabel(r"$[P_{\\rm SDMC}/P_{\\Lambda CDM}]/(\\sigma_{8,\\rm SDMC}/\\sigma_{8,\\Lambda CDM})^2$")
+    ax.set_title("Shape-only power ratio after amplitude matching")
+    ax.grid(alpha=0.25)
+    ax.legend(ncol=2, fontsize=8)
+    fig.tight_layout()
+    fig.savefig(args.out / "pk_shape_only_ratio_evolution.png", dpi=180)
     plt.close(fig)
 
     # sigma8 history from the actual target spectra.
@@ -317,13 +349,14 @@ def main():
         "same Gaussian phases used for both cosmologies at every redshift",
         "interpretation = linear/band-limited; not a nonlinear N-body calculation",
         "",
-        "z    sigma8_LCDM   sigma8_SDMC   ratio      corr(field)   rms(diff)",
+        "z    sigma8_LCDM   sigma8_SDMC   ratio      corr(field)   rms(diff)     shape_rms/SDMC",
     ]
     for m in sorted(metrics, key=lambda r: r["z"]):
         summary.append(
             f"{m['z']:4.1f}  {m['sigma8_target_lcdm']:.8f}  "
             f"{m['sigma8_target_sdmc']:.8f}  {m['sigma8_ratio_sdmc_over_lcdm']:.8f}  "
-            f"{m['field_corrcoef']:.9f}  {m['field_rms_diff']:.8e}"
+            f"{m['field_corrcoef']:.9f}  {m['field_rms_diff']:.8e}  "
+            f"{m['shape_residual_rms_fraction_of_sdmc']:.8e}"
         )
     (args.out / "simulation_summary.txt").write_text("\n".join(summary) + "\n")
     print("\n".join(summary), flush=True)
