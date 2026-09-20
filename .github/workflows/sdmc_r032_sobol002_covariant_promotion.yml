@@ -1,0 +1,1270 @@
+name: SDMC r032 Sobol002 exact covariant Planck promotion
+
+on:
+  push:
+    branches:
+      - sdmc-r032-sobol002-exact-promotion
+  workflow_dispatch:
+
+jobs:
+  covariant-independent-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya iminuit
+
+      - name: Apply SDMC parameterized patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build target parameterized hi_class
+        run: make -j2 class
+
+      - name: Generate the fixed NKp-v3 target background
+        run: |
+          mkdir -p output
+          cat > output/covariant_target.ini <<'EOF'
+          H0 = 69.7095092787552
+          omega_b = 0.0221177859447896
+          omega_cdm = 0.1258596659367904
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_native_noslip
+          parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
+          expansion_model = sdmc_full
+          expansion_smg = 0.6953970160452583, 17.925, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          output_background_smg = 3
+          skip_stability_tests_smg = yes
+          write background = yes
+          write thermodynamics = no
+          root = output/covariant_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/covariant_target.ini
+
+      - name: Reconstruct regular covariant target table
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np, re
+          from scipy.interpolate import CubicSpline
+
+          src=Path('output/covariant_target_00_background.dat')
+          lines=src.read_text().splitlines()
+          hdr=[l for l in lines if l.startswith('#') and '1:z' in l][-1].lstrip('#').strip()
+          marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+          for i,m in enumerate(marks):
+              e=marks[i+1].start() if i+1<len(marks) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(src)
+          d={n:a[:,i] for i,n in enumerate(names)}
+          N=-np.log1p(d['z'])
+          order=np.argsort(N)
+          N=N[order]
+          def vv(name): return np.asarray(d[name])[order]
+
+          Hraw=vv('H [1/Mpc]')
+          rhoraw=vv('(.)rho_smg')
+          praw=vv('(.)p_smg')
+          H2raw=Hraw*Hraw
+
+          # Work with smooth dimensionless target ratios to avoid enormous
+          # dynamic ranges in the radiation era.
+          lnHsp=CubicSpline(N,np.log(Hraw))
+          rrsp=CubicSpline(N,rhoraw/H2raw)
+          ppsp=CubicSpline(N,praw/H2raw)
+
+          ph=N.copy()
+          H=np.exp(lnHsp(ph))
+          h=lnHsp(ph,1)
+          rho=rrsp(ph)*H*H
+          pre=ppsp(ph)*H*H
+          Hpa=H*H*h
+          X=0.5*H*H
+
+          AF=0.0715; zc=5.00; width=1.426
+          Nc=-np.log1p(zc)
+          xx=(ph-Nc)/(2.*width)
+          S=.5*(1.+np.tanh(xx))
+          F=np.exp(AF*S)
+          Fsp=CubicSpline(ph,F)
+          F1=Fsp(ph,1)
+          F2=Fsp(ph,2)
+          F3=Fsp(ph,3)
+
+          # Exact No-Slip on the target trajectory:
+          # X G3_X = -G4_phi = -F_phi/2.
+          g=-F1/(H*H)
+          gsp=CubicSpline(ph,g)
+          g1=gsp(ph,1)
+
+          # Independently prescribed, subluminal kinetic sector.
+          # This is NOT obtained from cs2num or from a target c_s^2:
+          # D(N)=0.045+0.34231919445927034*S(N), alpha_K=D-3/2 alpha_B^2.
+          Dtarget=0.045+0.34231919445927034*S
+          alphaM=F1/F
+          alphaB=-2.*alphaM
+          alphaK_target=Dtarget-1.5*alphaB*alphaB
+
+          # Exact hi_class background identities specialized to
+          # G4=F/2, G3=g(phi) X, G2=k1 X+k2 X^2-V, phi=N.
+          R=3.*rho + 2.*g1*X*X + 6.*F1*H*H + 3.*(F-1.)*H*H
+          P=3.*pre + 2.*g1*X*X - 2.*X*F2 \
+             - 3.*(F-1.)*H*H - 2.*(F-1.)*Hpa \
+             - 2.*F1*(H*H+Hpa)
+          C=(R+P)/(2.*X)
+
+          # Covariant alpha_K equation:
+          # F alpha_K = k1 + 6 k2 X - 4 g_phi X + 6 g H^2,
+          # together with C=k1+2 k2 X from the background equations.
+          k2=(F*alphaK_target-C+4.*g1*X-6.*g*H*H)/(4.*X)
+          k1=C-2.*k2*X
+          V=.5*(R-P)-k2*X*X
+
+          spl={}
+          for name,y in [('g',g),('k1',k1),('k2',k2),('V',V)]:
+              sp=CubicSpline(ph,y)
+              spl[name]=(y,sp(ph,1),sp(ph,2),sp(ph,3))
+
+          # On-background prediction of alpha_K and sound speed.
+          alphaK=(k1+6.*k2*X-4.*spl['g'][1]*X+6.*g*H*H)/F
+          D=alphaK+1.5*alphaB*alphaB
+
+          # Interpolate the independently computed native numerator only for
+          # the reconstruction audit; it does not enter G2/G3/G4.
+          nssp=CubicSpline(N,vv('cs2num'))
+          Ns=nssp(ph)
+          cs2=Ns/D
+          mask=ph>=-np.log(101.)
+          print('COV_TARGET_AUDIT',
+                'Dmin_z100=',float(D[mask].min()),
+                'Dmax_z100=',float(D[mask].max()),
+                'cs2min_z100=',float(cs2[mask].min()),
+                'cs2max_z100=',float(cs2[mask].max()),
+                'Dmin_all=',float(D.min()),
+                'cs2min_all=',float(cs2.min()))
+
+          splines={}
+          for name,y in [('g',g),('k1',k1),('k2',k2),('V',V),('lnH',np.log(H))]:
+              splines[name]=CubicSpline(ph,y)
+
+          def carr(x):
+              return ','.join(f'{v:.17e}' for v in np.asarray(x).ravel())
+
+          hp=Path('gravity_smg/sdmc_covariant_replay_table.h')
+          with hp.open('w') as f:
+              f.write('#ifndef SDMC_COVARIANT_REPLAY_TABLE_H\n#define SDMC_COVARIANT_REPLAY_TABLE_H\n')
+              f.write(f'#define SDMC_COV_N {len(ph)}\n')
+              f.write('#define SDMC_COV_AF 0.0715\n')
+              f.write('#define SDMC_COV_ZC 5.00\n')
+              f.write('#define SDMC_COV_WIDTH 1.426\n')
+              f.write('static const double sdmc_cov_x[SDMC_COV_N] = {'+carr(ph)+'};\n')
+              for name,sp in splines.items():
+                  coeff=np.asarray(sp.c.T).reshape(-1)
+                  f.write(f'static const double sdmc_cov_{name}[4*(SDMC_COV_N-1)] = '+'{'+carr(coeff)+'};\n')
+              f.write(r'''
+          static int sdmc_cov_idx(double x){
+            int lo=0,hi=SDMC_COV_N-1;
+            if(x<=sdmc_cov_x[0]) return 0;
+            if(x>=sdmc_cov_x[SDMC_COV_N-1]) return SDMC_COV_N-2;
+            while(hi-lo>1){int m=(lo+hi)/2; if(sdmc_cov_x[m]<=x) lo=m; else hi=m;}
+            return lo;
+          }
+          static void sdmc_cov_eval(const double *coef,double x,
+                                    double *y,double *yp,double *ypp,double *yppp){
+            int i=sdmc_cov_idx(x);
+            double dx=x-sdmc_cov_x[i];
+            const double *cc=coef+4*i;
+            *y=((cc[0]*dx+cc[1])*dx+cc[2])*dx+cc[3];
+            *yp=(3.*cc[0]*dx+2.*cc[1])*dx+cc[2];
+            *ypp=6.*cc[0]*dx+2.*cc[1];
+            *yppp=6.*cc[0];
+          }
+          #endif
+          ''')
+          print('WROTE',hp)
+          PY
+
+      - name: Install full covariant replay model
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # The split tracker helper normally reads expansion_smg parameters.
+          # A real covariant model uses parameters_smg for the Lagrangian, so
+          # freeze the already-established tracker/background constants here.
+          p=Path('source/background.c'); s=p.read_text()
+          old='''  double Ox = pba->parameters_smg[0];
+            double lambda_e = pba->parameters_smg[1];
+            double zt = pba->parameters_smg[2];
+            double dNt = pba->parameters_smg[3];
+            double A = pba->parameters_smg[4];
+            double tauA = pba->parameters_smg[5];
+            double B = pba->parameters_smg[6];
+            double tauB = pba->parameters_smg[7];'''
+          new='''  double Ox = 0.6953970160452583;
+            double lambda_e = 17.925;
+            double zt = 17.775;
+            double dNt = 0.5;
+            double A = 0.01105624999;
+            double tauA = 0.25;
+            double B = 0.01951933685;
+            double tauB = 1.5;'''
+          if old not in s: raise RuntimeError('split tracker constant anchor missing')
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('include/background.h'); s=p.read_text()
+          old='    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip,\n'
+          new='    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_covariant_replay,\n'
+          if old not in s: raise RuntimeError('enum anchor missing')
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('gravity_smg/gravity_models_smg.c'); s=p.read_text()
+          s=s.replace('#include "gravity_models_smg.h"\n',
+                      '#include "gravity_models_smg.h"\n#include "sdmc_covariant_replay_table.h"\n',1)
+
+          anchor='''  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          parser='''  if (strcmp(string1,"sdmc_covariant_replay") == 0) {
+             pba->gravity_model_smg = sdmc_covariant_replay;
+             pba->field_evolution_smg = _TRUE_;
+             pba->M2_evolution_smg = _FALSE_;
+             flag2=_TRUE_;
+             pba->parameters_size_smg = 1;
+             class_read_list_of_doubles("parameters_smg",pba->parameters_smg,pba->parameters_size_smg);
+             if (has_tuning_index_smg == _FALSE_) {
+               pba->tuning_index_smg = 0;
+               pba->tuning_dxdy_guess_smg = 1.;
+             }
+           }
+
+          if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          if s.count(anchor)!=1: raise RuntimeError('parser anchor count '+str(s.count(anchor)))
+          s=s.replace(anchor,parser,1)
+
+          ganchor='''  else if(pba->gravity_model_smg == galileon){'''
+          gcode=r'''  else if (pba->gravity_model_smg == sdmc_covariant_replay) {
+            double Nc=-log(1.+SDMC_COV_ZC);
+            double xx=(phi-Nc)/(2.*SDMC_COV_WIDTH);
+            double tt=tanh(xx);
+            double uu=1.-tt*tt;
+            double w=SDMC_COV_WIDTH;
+            double S=.5*(1.+tt);
+            double S1=uu/(4.*w);
+            double S2=-tt*uu/(4.*w*w);
+            double S3=-uu*(1.-3.*tt*tt)/(8.*w*w*w);
+            double A=SDMC_COV_AF;
+            double F=exp(A*S);
+            double F1=F*(A*S1);
+            double F2=F*(A*A*S1*S1+A*S2);
+            double F3=F*(A*A*A*S1*S1*S1+3.*A*A*S1*S2+A*S3);
+
+            double g,g1,g2,g3;
+            double k1,k1p,k1pp,k1ppp;
+            double k2,k2p,k2pp,k2ppp;
+            double V,Vp,Vpp,Vppp;
+            sdmc_cov_eval(sdmc_cov_g,phi,&g,&g1,&g2,&g3);
+            sdmc_cov_eval(sdmc_cov_k1,phi,&k1,&k1p,&k1pp,&k1ppp);
+            sdmc_cov_eval(sdmc_cov_k2,phi,&k2,&k2p,&k2pp,&k2ppp);
+            sdmc_cov_eval(sdmc_cov_V,phi,&V,&Vp,&Vpp,&Vppp);
+            V += 3.*pba->H0*pba->H0*pba->parameters_smg[0];
+
+            pgf->G2 = k1*X+k2*X*X-V;
+            pgf->G2_X = k1+2.*k2*X;
+            pgf->G2_XX = 2.*k2;
+            pgf->G2_phi = k1p*X+k2p*X*X-Vp;
+            pgf->G2_Xphi = k1p+2.*k2p*X;
+            pgf->G2_XXphi = 2.*k2p;
+            pgf->G2_phiphi = k1pp*X+k2pp*X*X-Vpp;
+            pgf->G2_Xphiphi = k1pp+2.*k2pp*X;
+
+            pgf->G3_X = g;
+            pgf->G3_phi = g1*X;
+            pgf->G3_Xphi = g1;
+            pgf->G3_phiphi = g2*X;
+            pgf->G3_Xphiphi = g2;
+            pgf->G3_phiphiphi = g3*X;
+
+            pgf->DG4 = (F-1.)/2.;
+            pgf->G4 = F/2.;
+            pgf->G4_phi = F1/2.;
+            pgf->G4_phiphi = F2/2.;
+            pgf->G4_phiphiphi = F3/2.;
+          }
+
+          else if(pba->gravity_model_smg == galileon){'''
+          if s.count(ganchor)!=1: raise RuntimeError('G anchor count '+str(s.count(ganchor)))
+          s=s.replace(ganchor,gcode,1)
+
+          start=s.index('int gravity_models_initial_conditions_smg(')
+          pos=s.index('case propto_omega:',start)
+          ic='''case sdmc_covariant_replay:
+            {
+              double ph=log(a);
+              double lnh,lnhp,lnhpp,lnhppp;
+              sdmc_cov_eval(sdmc_cov_lnH,ph,&lnh,&lnhp,&lnhpp,&lnhppp);
+              pvecback_integration[pba->index_bi_phi_smg]=ph;
+              pvecback_integration[pba->index_bi_phi_prime_smg]=a*exp(lnh);
+            }
+            break;
+
+          '''
+          s=s[:pos]+ic+s[pos:]
+          p.write_text(s)
+          print('installed full covariant replay model')
+          PY
+
+      - name: Rebuild with covariant model
+        run: make clean && make -j2 class
+
+      - name: Run native covariant background evolution
+        run: |
+          cat > output/covariant_replay.ini <<'EOF'
+          H0 = 69.7095092787552
+          omega_b = 0.0221177859447896
+          omega_cdm = 0.1258596659367904
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+
+          gravity_model = sdmc_covariant_replay
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+
+          a_ini_over_a_today_default = 1.e-12
+          a_ini_test_qs_smg = 1.e-12
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-12
+
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = no
+          write parameters = yes
+          root = output/covariant_replay_
+          format = class
+          input_verbose = 1
+          background_verbose = 1
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          set +e
+          ./class output/covariant_replay.ini > output/covariant_replay.log 2>&1
+          rc=$?
+          set -e
+          echo "COVARIANT_REPLAY_RETURNCODE=$rc"
+          tail -120 output/covariant_replay.log
+          test "$rc" -eq 0
+
+      - name: Compare evolved covariant solution to target
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,csv
+
+          def read(path):
+              p=Path(path)
+              if not p.exists(): return None
+              lines=p.read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and '1:z' in l][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(p)
+              return {n:a[:,i] for i,n in enumerate(names)}
+
+          t=read('output/covariant_target_00_background.dat')
+          c=read('output/covariant_replay_00_background.dat')
+          if c is None:
+              print('COVARIANT_COMPARISON unavailable: replay background missing')
+              raise SystemExit(0)
+
+          zc=c['z']; Nt=-np.log1p(t['z']); Nc=-np.log1p(zc)
+          order=np.argsort(Nt); Nt=Nt[order]
+          def ti(name):
+              y=t[name][order]
+              return np.interp(Nc,Nt,y)
+
+          Ht=ti('H [1/Mpc]')
+          Ft=ti('M*^2_smg')
+          Hrel=np.abs(c['H [1/Mpc]']/Ht-1.)
+          Frel=np.abs(c['M*^2_smg']/Ft-1.)
+          mask100=zc<=100
+          mask1e4=zc<=1.e4
+          noslip=np.abs(c['braiding_smg']+2.*c['M2_running_smg'])
+
+          # field columns exist only for the true covariant model
+          phi=c.get('phi_smg',None)
+          if phi is None:
+              for k in c:
+                  if k.lower().startswith('phi') and 'prime' not in k.lower():
+                      phi=c[k]; break
+          phierr=np.nan
+          if phi is not None: phierr=float(np.max(np.abs(phi-Nc)))
+
+          out={
+            'max_abs_dH_H_z100':float(Hrel[mask100].max()),
+            'max_abs_dH_H_z1e4':float(Hrel[mask1e4].max()),
+            'max_abs_dF_F_z100':float(Frel[mask100].max()),
+            'min_D_z100':float(c['kin (D)'][mask100].min()),
+            'min_cs2_z100':float(c['c_s^2'][mask100].min()),
+            'max_cs2_z100':float(c['c_s^2'][mask100].max()),
+            'min_D_all':float(c['kin (D)'].min()),
+            'min_cs2_all':float(c['c_s^2'].min()),
+            'max_cs2_all':float(c['c_s^2'].max()),
+            'z_at_max_cs2_all':float(zc[np.argmax(c['c_s^2'])]),
+            'max_abs_noslip_z100':float(noslip[mask100].max()),
+            'max_abs_phi_minus_lna':phierr,
+            'F0':float(c['M*^2_smg'][np.argmin(np.abs(zc))]),
+            'alphaM0':float(c['M2_running_smg'][np.argmin(np.abs(zc))]),
+          }
+          print('L17925_Z17775_FLOOR045_COVARIANT_REPLAY_COMPARISON',out)
+          with open('output/covariant_replay_comparison.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=out.keys()); w.writeheader(); w.writerow(out)
+          if not (out['min_D_all']>0 and out['min_cs2_all']>0 and out['max_cs2_all']<=1.0):
+              raise SystemExit('GLOBAL_COVARIANT_STABILITY_GATE_FAIL '+repr(out))
+          print('GLOBAL_COVARIANT_STABILITY_GATE_PASS',out,flush=True)
+          PY
+
+      - name: Install Planck native likelihood data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              ok=cls.install(path='planck_packages',no_progress_bars=True)
+              if not ok:
+                  raise SystemExit(f'Planck install failed: {cls}')
+          PY
+
+      - name: Run full covariant perturbation and observable gate
+        run: |
+          cat > output/covariant_observable.ini <<'EOF'
+          H0 = 69.7095092787552
+          omega_b = 0.0221177859447896
+          omega_cdm = 0.1258596659367904
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+
+          A_s = 2.170051248776652e-9
+          n_s = 0.963772050835192
+          tau_reio = 0.0645634745452553
+
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+
+          gravity_model = sdmc_covariant_replay
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.5,1,2,3,5,10
+
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = yes
+          write parameters = yes
+          root = output/covariant_observable_
+          format = class
+
+          input_verbose = 1
+          background_verbose = 1
+          thermodynamics_verbose = 0
+          perturbations_verbose = 1
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          set +e
+          ./class output/covariant_observable.ini > output/covariant_observable.log 2>&1
+          rc=$?
+          set -e
+          echo "COVARIANT_OBSERVABLE_RETURNCODE=$rc"
+          tail -160 output/covariant_observable.log
+          test "$rc" -eq 0
+
+      - name: Evaluate Planck components and derived covariant observables
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, math, re
+          import numpy as np
+          import pandas as pd
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+
+          ROOT=Path('output')
+          TCMB=2.7255
+          CAL_SIGMA=0.0025
+          PACKAGES='planck_packages'
+          clpath=ROOT/'covariant_observable_00_cl_lensed.dat'
+
+          high=TTTEEE_lite_native(packages_path=PACKAGES)
+          lowt=TT(packages_path=PACKAGES)
+          lowe=EE(packages_path=PACKAGES)
+          lens=LensingNative(packages_path=PACKAGES)
+
+          def load_cls(path):
+              a=np.loadtxt(path)
+              ell=a[:,0].astype(int)
+              lmax=int(ell.max())
+              conv=(TCMB*1e6)**2
+              tt=np.zeros(lmax+1); ee=np.zeros(lmax+1); te=np.zeros(lmax+1)
+              bb=np.zeros(lmax+1); pp=np.zeros(lmax+1)
+              tp=np.zeros(lmax+1); ep=np.zeros(lmax+1)
+              tt[ell]=a[:,1]*conv
+              ee[ell]=a[:,2]*conv
+              te[ell]=a[:,3]*conv
+              bb[ell]=a[:,4]*conv
+              ll=ell*(ell+1.0)
+              pp[ell]=a[:,5]*ll
+              tp[ell]=a[:,6]*np.sqrt(ll)*(TCMB*1e6)
+              ep[ell]=a[:,7]*np.sqrt(ll)*(TCMB*1e6)
+              return np.column_stack([ell,tt[ell],te[ell],ee[ell]]),{
+                  'tt':tt,'ee':ee,'te':te,'bb':bb,'pp':pp,'tp':tp,'ep':ep}
+
+          high_array,dls=load_cls(clpath)
+          def pieces(A):
+              A=float(A)
+              ch=float(high.chi_squared(high_array,A_planck=A))
+              ct=float(-2*lowt.log_likelihood(dls['tt'],calib=A))
+              ce=float(-2*lowe.log_likelihood(dls['ee'],calib=A))
+              cl=float(-2*lens.log_likelihood(dls,A_planck=A))
+              cp=((A-1.0)/CAL_SIGMA)**2
+              return ch,ct,ce,cl,cp
+          def total(A):
+              q=pieces(A)
+              return sum(q) if all(np.isfinite(q)) else np.inf
+          opt=minimize_scalar(total,bounds=(0.97,1.03),method='bounded',
+                              options={'xatol':1e-10})
+          A=float(opt.x)
+          ch,ct,ce,cl,cp=pieces(A)
+          chi=ch+ct+ce+cl+cp
+          ref=1103.5661917539776
+          like={
+              'A_planck':A,
+              'chi2_high':ch,
+              'chi2_lowT':ct,
+              'chi2_lowE':ce,
+              'chi2_lensing':cl,
+              'chi2_cal':cp,
+              'chi2_total':chi,
+              'delta_chi2_vs_parameterized_independent':chi-ref,
+          }
+          print('COVARIANT_PLANCK_COMPONENTS',like,flush=True)
+          with (ROOT/'covariant_observable_planck.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=like.keys()); w.writeheader(); w.writerow(like)
+
+          def parse_table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  names.append(hdr[m.end():end].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+
+          bg=parse_table(ROOT/'covariant_observable_00_background.dat').sort_values('z')
+          th=parse_table(ROOT/'covariant_observable_00_thermodynamics.dat')
+          def interp(col,z):
+              return float(np.interp(z,bg['z'],bg[col]))
+
+          zstar=float(th.loc[th['g [Mpc^-1]'].idxmax(),'z'])
+          ts=th.sort_values('z'); zz=ts.z.to_numpy(); kb=ts.kappa_b.to_numpy()
+          crosses=[]
+          for i in range(len(zz)-1):
+              if (kb[i]-1)*(kb[i+1]-1)<=0 and kb[i]!=kb[i+1]:
+                  q=(1-kb[i])/(kb[i+1]-kb[i])
+                  crosses.append(zz[i]+q*(zz[i+1]-zz[i]))
+          zdrag=float(crosses[0]) if crosses else float('nan')
+          rsstar=interp('comov.snd.hrz.',zstar)
+          rd=interp('comov.snd.hrz.',zdrag) if np.isfinite(zdrag) else float('nan')
+          ellA=math.pi*interp('comov. dist.',zstar)/rsstar
+          nsres=float(np.max(np.abs(bg['braiding_smg']+2*bg['M2_running_smg'])))
+          acoustic={
+              'z_star':zstar,'z_drag':zdrag,'rs_star_Mpc':rsstar,'rd_Mpc':rd,
+              'ell_A':ellA,
+              'F0':interp('M*^2_smg',0.0),
+              'alphaM0':interp('M2_running_smg',0.0),
+              'min_D_all':float(bg['kin (D)'].min()),
+              'min_cs2_all':float(bg['c_s^2'].min()),
+              'max_cs2_all':float(bg['c_s^2'].max()),
+              'max_abs_noslip':nsres,
+          }
+          print('COVARIANT_ACOUSTIC_STABILITY',acoustic,flush=True)
+          with (ROOT/'covariant_observable_acoustic.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=acoustic.keys()); w.writeheader(); w.writerow(acoustic)
+
+          def sigmaR(path,R=8.0):
+              a=np.loadtxt(path); k=a[:,0]; P=a[:,1]; x=k*R
+              W=np.ones_like(x); q=x!=0
+              W[q]=3*(np.sin(x[q])-x[q]*np.cos(x[q]))/x[q]**3
+              integ=k**3*P*W**2/(2*np.pi**2)
+              return math.sqrt(np.trapezoid(integ,x=np.log(k)))
+
+          zpk=[0,0.5,1,2,3,5,10]
+          growth=[]
+          for i,z in enumerate(zpk,1):
+              fp=ROOT/f'covariant_observable_00_z{i}_pk.dat'
+              if not fp.exists(): continue
+              s8=sigmaR(fp)
+              ff=interp('gr.fac. f',z) if 'gr.fac. f' in bg.columns else float('nan')
+              DD=interp('gr.fac. D',z) if 'gr.fac. D' in bg.columns else float('nan')
+              growth.append({'z':z,'sigma8':s8,'f':ff,'fsigma8':ff*s8,'growth_D':DD})
+          pd.DataFrame(growth).to_csv(ROOT/'covariant_observable_growth.csv',index=False)
+          print('COVARIANT_GROWTH')
+          print(pd.DataFrame(growth).to_string(index=False),flush=True)
+
+          bao=[]
+          for z in [0.295,0.510,0.706,0.934,1.321,1.484,2.330]:
+              if not np.isfinite(rd): break
+              DM=interp('comov. dist.',z)
+              DH=1.0/interp('H [1/Mpc]',z)
+              DV=(z*DM*DM*DH)**(1/3)
+              bao.append({'z':z,'rd_Mpc':rd,'DM_over_rd':DM/rd,'DH_over_rd':DH/rd,
+                          'DV_over_rd':DV/rd,'DM_Mpc':DM,'DH_Mpc':DH,'DV_Mpc':DV})
+          pd.DataFrame(bao).to_csv(ROOT/'covariant_observable_bao.csv',index=False)
+          print('COVARIANT_BAO')
+          print(pd.DataFrame(bao).to_string(index=False),flush=True)
+
+          pkrows=[]
+          fp=ROOT/'covariant_observable_00_z1_pk.dat'
+          if fp.exists():
+              a=np.loadtxt(fp); kk=a[:,0]; pp=a[:,1]
+              for kval in [0.01,0.05,0.1,0.2,0.5,1.0,2.0,4.0,6.0]:
+                  pkrows.append({'k_hMpc':kval,'P_Mpch3':float(np.interp(kval,kk,pp))})
+          pd.DataFrame(pkrows).to_csv(ROOT/'covariant_observable_pk_z0_samples.csv',index=False)
+          PY
+
+      - name: Add parameterized independent-kinetic reference model
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          def rep(path,old,new):
+              p=Path(path); s=p.read_text()
+              if new in s: return
+              if s.count(old)!=1: raise RuntimeError(f'{path}: anchor count {s.count(old)}')
+              p.write_text(s.replace(old,new,1))
+
+          rep('include/background.h',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_covariant_replay,\n',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_covariant_replay, sdmc_v3_independent_kinetic,\n')
+
+          p=Path('gravity_smg/gravity_models_smg.c'); s=p.read_text()
+          needle='if (strcmp(string1,"eft_alphas_power_law") == 0) {'
+          if s.count(needle)!=1: raise RuntimeError('parser token count '+str(s.count(needle)))
+          parser='''  if (strcmp(string1,"sdmc_v3_independent_kinetic") == 0) {
+             pba->gravity_model_smg = sdmc_v3_independent_kinetic;
+             pba->field_evolution_smg = _FALSE_;
+             pba->M2_evolution_smg = _FALSE_;
+             flag2=_TRUE_;
+             pba->parameters_2_size_smg = 6;
+             class_read_list_of_doubles("parameters_smg",pba->parameters_2_smg,pba->parameters_2_size_smg);
+             class_test(pba->parameters_2_smg[0] <= 0. || pba->parameters_2_smg[1] <= 0. ||
+                        pba->parameters_2_smg[2] <= 0. || pba->parameters_2_smg[3] <= 0. ||
+                        pba->parameters_2_smg[4] < 0. || pba->parameters_2_smg[5] <= 0., errmsg,
+                        "sdmc_v3_independent_kinetic requires positive AF,zc,width,D0,Dfloor and non-negative p");
+           }
+
+          '''
+          s=s.replace(needle,parser+needle,1)
+
+          ctoken='else if (pba->gravity_model_smg == eft_alphas_power_law) {'
+          if s.count(ctoken)!=1: raise RuntimeError('closure token count '+str(s.count(ctoken)))
+          closure=r'''  else if (pba->gravity_model_smg == sdmc_v3_independent_kinetic) {
+            double AF=pba->parameters_2_smg[0];
+            double zc=pba->parameters_2_smg[1];
+            double width=pba->parameters_2_smg[2];
+            double D0=pba->parameters_2_smg[3];
+            double power=pba->parameters_2_smg[4];
+            double Dfloor=pba->parameters_2_smg[5];
+            double N=log(a);
+            double Nc=-log(1.+zc);
+            double x=(N-Nc)/(2.*width);
+            double th=tanh(x);
+            double ch=cosh(x);
+            double sech2=1./(ch*ch);
+            double S=.5*(1.+th);
+            double F=exp(AF*S);
+            double am=AF/(4.*width)*sech2;
+            double bra=-2.*am;
+            double D=Dfloor + D0*pow(S,power);
+            double ak=D-1.5*bra*bra;
+            pvecback[pba->index_bg_kineticity_smg]=ak;
+            pvecback[pba->index_bg_braiding_smg]=bra;
+            pvecback[pba->index_bg_tensor_excess_smg]=0.;
+            pvecback[pba->index_bg_M2_running_smg]=am;
+            pvecback[pba->index_bg_beyond_horndeski_smg]=0.;
+            pvecback[pba->index_bg_delta_M2_smg]=F-1.;
+            pvecback[pba->index_bg_M2_smg]=F;
+          }
+
+          '''
+          s=s.replace(ctoken,closure+ctoken,1)
+          p.write_text(s)
+          print('paired independent-kinetic reference installed')
+          PY
+
+      - name: Rebuild with paired reference model
+        run: make clean && make -j2 class
+
+      - name: Run parameterized independent reference
+        run: |
+          cat > output/independent_reference.ini <<'EOF'
+          H0 = 69.7095092787552
+          omega_b = 0.0221177859447896
+          omega_cdm = 0.1258596659367904
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.170051248776652e-9
+          n_s = 0.963772050835192
+          tau_reio = 0.0645634745452553
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.0715, 5.00, 1.426, 0.34231919445927034, 1.0, 0.045
+          expansion_model = sdmc_full
+          expansion_smg = 0.6953970160452583,17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.5,1,2,3,5,10
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = yes
+          write parameters = yes
+          root = output/independent_reference_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/independent_reference.ini
+          echo "INDEPENDENT_REFERENCE_RETURNCODE=0"
+
+      - name: Direct covariant versus independent observable comparison
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import math,re,csv
+          import numpy as np
+          import pandas as pd
+
+          OUT=Path('output')
+          cov=np.loadtxt(OUT/'covariant_observable_00_cl_lensed.dat')
+          ref=np.loadtxt(OUT/'independent_reference_00_cl_lensed.dat')
+          ell=ref[:,0].astype(int)
+          if not np.array_equal(ell,cov[:,0].astype(int)):
+              raise RuntimeError('C_ell grids differ')
+          mask=(ell>=2)&(ell<=2500)
+
+          def rel_stats(c,r,m):
+              scale=np.maximum(np.abs(r),1e-8*np.nanmax(np.abs(r[m])))
+              x=(c-r)/scale
+              return float(np.nanmax(np.abs(x[m]))),float(np.sqrt(np.nanmean(x[m]**2)))
+
+          rows=[]
+          # CLASS columns: ell, TT, EE, TE, BB, PP, TP, EP
+          for name,j in [('TT',1),('EE',2),('BB',4),('PP',5)]:
+              mx,rms=rel_stats(cov[:,j],ref[:,j],mask)
+              rows.append({'observable':name,'max_norm_residual':mx,'rms_norm_residual':rms})
+          # TE is sign-changing: normalize to sqrt(TT*EE)
+          den=np.sqrt(np.maximum(np.abs(ref[:,1]*ref[:,2]),1e-300))
+          te=(cov[:,3]-ref[:,3])/den
+          rows.append({'observable':'TE','max_norm_residual':float(np.max(np.abs(te[mask]))),
+                       'rms_norm_residual':float(np.sqrt(np.mean(te[mask]**2)))})
+          pd.DataFrame(rows).to_csv(OUT/'covariant_vs_independent_cls.csv',index=False)
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+          bc=table(OUT/'covariant_observable_00_background.dat').sort_values('z')
+          br=table(OUT/'independent_reference_00_background.dat').sort_values('z')
+          z=bc.z.to_numpy()
+          def ir(col): return np.interp(z,br.z,br[col])
+          m100=z<=100
+          bcomp={
+            'max_dH_H_z100':float(np.max(np.abs(bc['H [1/Mpc]'].to_numpy()[m100]/ir('H [1/Mpc]')[m100]-1))),
+            'max_dF_F_z100':float(np.max(np.abs(bc['M*^2_smg'].to_numpy()[m100]/ir('M*^2_smg')[m100]-1))),
+            'max_dalphaM_z100':float(np.max(np.abs(bc['M2_running_smg'].to_numpy()[m100]-ir('M2_running_smg')[m100]))),
+            'max_dalphaB_z100':float(np.max(np.abs(bc['braiding_smg'].to_numpy()[m100]-ir('braiding_smg')[m100]))),
+            'max_dD_z100':float(np.max(np.abs(bc['kin (D)'].to_numpy()[m100]-ir('kin (D)')[m100]))),
+            'max_dcs2_z100':float(np.max(np.abs(bc['c_s^2'].to_numpy()[m100]-ir('c_s^2')[m100]))),
+          }
+          pd.DataFrame([bcomp]).to_csv(OUT/'covariant_vs_independent_background.csv',index=False)
+
+          def sigmaR(path,R=8.0):
+              a=np.loadtxt(path); k=a[:,0]; P=a[:,1]; x=k*R
+              W=np.ones_like(x); q=x!=0
+              W[q]=3*(np.sin(x[q])-x[q]*np.cos(x[q]))/x[q]**3
+              y=k**3*P*W**2/(2*np.pi**2)
+              return math.sqrt(np.trapezoid(y,x=np.log(k)))
+
+          pkrows=[]
+          zpk=[0,0.5,1,2,3,5,10]
+          for i,zz in enumerate(zpk,1):
+              pc=np.loadtxt(OUT/f'covariant_observable_00_z{i}_pk.dat')
+              pr=np.loadtxt(OUT/f'independent_reference_00_z{i}_pk.dat')
+              k=pr[:,0]
+              Pc=np.interp(k,pc[:,0],pc[:,1]); Pr=pr[:,1]
+              km=(k>=1e-3)&(k<=6.0)
+              rr=(Pc-Pr)/np.maximum(np.abs(Pr),1e-300)
+              sc=sigmaR(OUT/f'covariant_observable_00_z{i}_pk.dat')
+              sr=sigmaR(OUT/f'independent_reference_00_z{i}_pk.dat')
+              pkrows.append({'z':zz,
+                  'max_abs_dP_P':float(np.max(np.abs(rr[km]))),
+                  'rms_dP_P':float(np.sqrt(np.mean(rr[km]**2))),
+                  'sigma8_cov':sc,'sigma8_ref':sr,'delta_sigma8':sc-sr})
+          pd.DataFrame(pkrows).to_csv(OUT/'covariant_vs_independent_pk.csv',index=False)
+
+          # Thermodynamic/acoustic comparison on each model's own tables.
+          def acoustic(prefix):
+              b=table(OUT/f'{prefix}_00_background.dat').sort_values('z')
+              t=table(OUT/f'{prefix}_00_thermodynamics.dat').sort_values('z')
+              zs=float(t.loc[t['g [Mpc^-1]'].idxmax(),'z'])
+              zz=t.z.to_numpy(); kb=t.kappa_b.to_numpy(); cross=[]
+              for i in range(len(zz)-1):
+                  if (kb[i]-1)*(kb[i+1]-1)<=0 and kb[i]!=kb[i+1]:
+                      q=(1-kb[i])/(kb[i+1]-kb[i]); cross.append(zz[i]+q*(zz[i+1]-zz[i]))
+              zd=float(cross[0])
+              def iv(c,zv): return float(np.interp(zv,b.z,b[c]))
+              rs=iv('comov.snd.hrz.',zs); rd=iv('comov.snd.hrz.',zd)
+              la=math.pi*iv('comov. dist.',zs)/rs
+              return dict(zstar=zs,zdrag=zd,rsstar=rs,rd=rd,ellA=la)
+          ac=acoustic('covariant_observable'); ar=acoustic('independent_reference')
+          acomp={f'{k}_cov':ac[k] for k in ac}
+          acomp.update({f'{k}_ref':ar[k] for k in ar})
+          acomp.update({f'delta_{k}':ac[k]-ar[k] for k in ac})
+          pd.DataFrame([acomp]).to_csv(OUT/'covariant_vs_independent_acoustic.csv',index=False)
+
+          print('COVARIANT_VS_INDEPENDENT_CLS')
+          print(pd.DataFrame(rows).to_string(index=False),flush=True)
+          print('COVARIANT_VS_INDEPENDENT_BACKGROUND',bcomp,flush=True)
+          print('COVARIANT_VS_INDEPENDENT_PK')
+          print(pd.DataFrame(pkrows).to_string(index=False),flush=True)
+          print('COVARIANT_VS_INDEPENDENT_ACOUSTIC',acomp,flush=True)
+          PY
+
+      - name: Install official full Planck 2018 Plik likelihood
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          ok=TTTEEE.install(path='planck_full',no_progress_bars=True)
+          if not ok:
+              raise SystemExit('full Planck TTTEEE installation failed')
+          print('FULL_PLIK_INSTALL_OK')
+          PY
+
+      - name: Generate LCDM control for full Plik profiling
+        run: |
+          mkdir -p output
+          sed 's#root = output/sdmc_planck_lcdm_control_#root = output/fullplik_lcdm_#' \
+            sdmc/config/planck_lcdm_control.ini > output/fullplik_lcdm.ini
+          ./class output/fullplik_lcdm.ini
+
+      - name: Profile official full Plik nuisance sector with Minuit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, json
+          import numpy as np
+          from iminuit import Minuit
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+
+          OUT=Path('output')
+          TCMB=2.7255
+          high=TTTEEE(packages_path='planck_full')
+          lowT=TT(packages_path='planck_packages')
+          lowE=EE(packages_path='planck_packages')
+          lens=LensingNative(packages_path='planck_packages')
+
+          fixed={
+            'cib_index':-1.3,
+            'galf_TE_index':-2.4,
+            'galf_EE_index':-2.4,
+            'A_sbpx_100_100_TT':1.0,'A_sbpx_143_143_TT':1.0,
+            'A_sbpx_143_217_TT':1.0,'A_sbpx_217_217_TT':1.0,
+            'galf_EE_A_100':0.055,'galf_EE_A_100_143':0.040,
+            'galf_EE_A_100_217':0.094,'galf_EE_A_143':0.086,
+            'galf_EE_A_143_217':0.21,'galf_EE_A_217':0.70,
+            'A_cnoise_e2e_100_100_EE':1.0,'A_cnoise_e2e_143_143_EE':1.0,
+            'A_cnoise_e2e_217_217_EE':1.0,
+            'A_sbpx_100_100_EE':1.0,'A_sbpx_100_143_EE':1.0,
+            'A_sbpx_100_217_EE':1.0,'A_sbpx_143_143_EE':1.0,
+            'A_sbpx_143_217_EE':1.0,'A_sbpx_217_217_EE':1.0,
+            'A_pol':1.0,'calib_100P':1.021,'calib_143P':0.966,'calib_217P':1.040,
+          }
+          names=[
+            'A_planck','calib_100T','calib_217T',
+            'A_cib_217','xi_sz_cib','A_sz','ksz_norm',
+            'gal545_A_100','gal545_A_143','gal545_A_143_217','gal545_A_217',
+            'ps_A_100_100','ps_A_143_143','ps_A_143_217','ps_A_217_217',
+            'galf_TE_A_100','galf_TE_A_100_143','galf_TE_A_100_217',
+            'galf_TE_A_143','galf_TE_A_143_217','galf_TE_A_217'
+          ]
+          x0=np.array([
+            1.0,1.0002,0.99805,
+            67.,0.05,7.,3.,
+            8.6,10.6,23.5,91.9,
+            257.,47.,40.,104.,
+            .130,.130,.46,.207,.69,1.938
+          ],float)
+          # Best nuisance point from the independently parameterized L18_Z19.5
+          # full-Plik profile. Since the covariant replay spectra agree at
+          # ~1e-5 or better, this is a physically justified deterministic seed.
+          param_best=np.array([
+            1.0045213554451686,0.9998424064177515,0.9982224709218035,
+            45.72423851559507,0.7248916197434251,6.976523105384968,5.500029149071257e-06,
+            8.535071574604354,10.780908169898211,20.060917984547913,96.15277043474971,
+            254.14725387485439,53.74852187444169,57.054180993875775,125.69753555422906,
+            0.11540298701803288,0.13448306014088762,0.48055099721034644,
+            0.2266942865821831,0.66858903191407,2.1183252356550293
+          ],float)
+          bounds=[
+            (.97,1.03),
+            (.9946,1.0058),(.99285,1.00325),
+            (0,200),(0,1),(0,10),(0,10),
+            (0,24.6),(0,26.6),(0,91.5),(0,251.9),
+            (0,400),(0,400),(0,400),(0,400),
+            (0,0.466),(0,0.418),(0,1.18),(0,0.783),(0,1.41),(0,6.258)
+          ]
+          gauss={
+            'A_planck':(1.,.0025),
+            'calib_100T':(1.0002,.0007),'calib_217T':(.99805,.00065),
+            'gal545_A_100':(8.6,2.),'gal545_A_143':(10.6,2.),
+            'gal545_A_143_217':(23.5,8.5),'gal545_A_217':(91.9,20.),
+            'galf_TE_A_100':(.130,.042),'galf_TE_A_100_143':(.130,.036),
+            'galf_TE_A_100_217':(.46,.09),'galf_TE_A_143':(.207,.072),
+            'galf_TE_A_143_217':(.69,.09),'galf_TE_A_217':(1.938,.54),
+          }
+          expected=set(high.expected_params)
+          supplied=set(fixed)|set(names)
+          if expected!=supplied:
+              raise RuntimeError(f'param mismatch missing={sorted(expected-supplied)} extra={sorted(supplied-expected)}')
+
+          def load(path):
+              a=np.loadtxt(path); ell=a[:,0].astype(int); n=int(ell.max())+1
+              conv=(TCMB*1e6)**2
+              dl={k:np.zeros(n) for k in ['tt','ee','bb','te','pp','tp','ep']}
+              dl['tt'][ell]=a[:,1]*conv
+              dl['ee'][ell]=a[:,2]*conv
+              dl['te'][ell]=a[:,3]*conv
+              dl['bb'][ell]=a[:,4]*conv
+              ll=ell.astype(float)*(ell.astype(float)+1.)
+              dl['pp'][ell]=a[:,5]*ll
+              dl['tp'][ell]=a[:,6]*np.sqrt(ll)*(TCMB*1e6)
+              dl['ep'][ell]=a[:,7]*np.sqrt(ll)*(TCMB*1e6)
+              cl={k:np.zeros(n) for k in ['tt','ee','bb','te']}
+              fac=np.zeros(n); q=ell>=2; fac[ell[q]]=2*np.pi/ll[q]
+              for k in cl: cl[k][ell]=dl[k][ell]*fac[ell]
+              return cl,dl
+
+          def prior_chi2(p):
+              c=0.
+              for n,(mu,sig) in gauss.items():
+                  c+=((p[n]-mu)/sig)**2
+              c+=((p['ksz_norm']+1.6*p['A_sz']-9.5)/3.0)**2
+              return float(c)
+
+          def make_objective(path):
+              cl,dl=load(path)
+              def objective(*x):
+                  p=dict(fixed); p.update(dict(zip(names,map(float,x))))
+                  lh=float(high.log_likelihood(cl,**p)); A=p['A_planck']
+                  lt=float(lowT.log_likelihood(dl['tt'],calib=A))
+                  le=float(lowE.log_likelihood(dl['ee'],calib=A))
+                  lp={lens.calibration_param:A} if getattr(lens,'calibration_param',None) else {}
+                  ll=float(lens.log_likelihood(dl,**lp))
+                  if not all(np.isfinite([lh,lt,le,ll])): return 1e100
+                  return float(-2*(lh+lt+le+ll)+prior_chi2(p))
+              def pieces(x):
+                  p=dict(fixed); p.update(dict(zip(names,map(float,x))))
+                  lh=float(high.log_likelihood(cl,**p)); A=p['A_planck']
+                  lt=float(lowT.log_likelihood(dl['tt'],calib=A))
+                  le=float(lowE.log_likelihood(dl['ee'],calib=A))
+                  lp={lens.calibration_param:A} if getattr(lens,'calibration_param',None) else {}
+                  ll=float(lens.log_likelihood(dl,**lp))
+                  return p,lh,lt,le,ll
+              return objective,pieces
+
+          def run_one(label,path,seeds):
+              fun,pieces=make_objective(path)
+              best=None
+              for iseed,seed in enumerate(seeds):
+                  m=Minuit(fun,*seed,name=names)
+                  m.errordef=1.0; m.strategy=1; m.tol=0.1
+                  for n,b in zip(names,bounds): m.limits[n]=b
+                  for n in names: m.errors[n]=max(1e-5,0.02*max(abs(m.values[n]),1.0))
+                  m.migrad(ncall=6000)
+                  if not m.fmin.is_valid:
+                      m.simplex(ncall=3000); m.migrad(ncall=6000)
+                  row=(float(m.fval),np.array([m.values[n] for n in names],float),bool(m.fmin.is_valid),int(m.nfcn))
+                  print('COV_MINUIT_SEED',label,iseed,row[0],row[2],row[3],flush=True)
+                  if best is None or row[0]<best[0]: best=row
+              fval,x,valid,nfcn=best
+              p,lh,lt,le,ll=pieces(x)
+              row={'model':label,'chi2_profile_total':fval,'chi2_high_full':-2*lh,
+                   'chi2_lowT':-2*lt,'chi2_lowE':-2*le,'chi2_lensing':-2*ll,
+                   'chi2_nuisance_priors':prior_chi2(p),'A_planck':p['A_planck'],
+                   'valid':valid,'nfcn':nfcn}
+              row.update({n:p[n] for n in names if n!='A_planck'})
+              print('COV_MINUIT_RESULT',json.dumps(row,sort_keys=True),flush=True)
+              return row,x
+
+          displaced=x0.copy(); displaced[3]=80.; displaced[5]=5.; displaced[6]=2.
+          cov,cx=run_one('COVARIANT',OUT/'covariant_observable_00_cl_lensed.dat',[param_best,x0,displaced])
+          lcdm,lx=run_one('LCDM',OUT/'fullplik_lcdm_00_cl_lensed.dat',[x0,param_best,cx])
+          delta=cov['chi2_profile_total']-lcdm['chi2_profile_total']
+          print('L17925_Z17775_FLOOR045_COV_MINUIT_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
+          fields=list(cov.keys())
+          with (OUT/'fullplik_profile.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows([cov,lcdm])
+          (OUT/'fullplik_delta.txt').write_text(f'{delta:.12g}\n')
+          PY
+
+      - name: Run covariant density velocity transfer audit
+        run: |
+          cat > output/covariant_transfer.ini <<'EOF'
+          H0 = 69.7095092787552
+          omega_b = 0.0221177859447896
+          omega_cdm = 0.1258596659367904
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.170051248776652e-9
+          n_s = 0.963772050835192
+          tau_reio = 0.0645634745452553
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_covariant_replay
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          gauge = synchronous
+          modes = s
+          output = mPk,dTk,vTk
+          extra_metric_transfer_functions = yes
+          matter_source_in_current_gauge = no
+          P_k_max_h/Mpc = 2.0
+          z_pk = 0.295,0.510,0.706,0.919,1.317,1.491
+          output_background_smg = 3
+          write background = yes
+          write parameters = yes
+          root = output/covariant_transfer_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/covariant_transfer.ini
+          echo "COVARIANT_TRANSFER_RETURNCODE=0"
+
+      - name: Reconstruct CAMB-compatible Newtonian velocity transfers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, math
+          import numpy as np
+          import pandas as pd
+
+          OUT=Path('output')
+          H0=70.8514
+          h=H0/100.
+          ob=0.02239952
+          oc=0.12444227328918850
+          fb=ob/(ob+oc)
+          fc=1.-fb
+          zs=[0.295,0.510,0.706,0.919,1.317,1.491]
+
+          def tab(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and '1:' in l][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+
+          bg=tab(OUT/'covariant_transfer_00_background.dat').sort_values('z')
+          def biv(col,z): return float(np.interp(z,bg.z,bg[col]))
+
+          rows=[]
+          curves=[]
+          for iz,z in enumerate(zs,1):
+              tk=tab(OUT/f'covariant_transfer_00_z{iz}_tk.dat')
+              k_h=tk['k (h/Mpc)'].to_numpy()
+              k=k_h*h
+              db=tk['d_b'].to_numpy()
+              dc=tk['d_cdm'].to_numpy()
+              tb=tk['t_b'].to_numpy()
+              hp=tk['h_prime'].to_numpy()
+              ep=tk['eta_prime'].to_numpy()
+
+              # CLASS synchronous -> Newtonian:
+              # k^2 alpha = (h' + 6 eta')/2.
+              shift=.5*(hp+6.*ep)
+              thetaNc=shift
+              thetaNb=tb+shift
+              a=1./(1.+z)
+              H=biv('H [1/Mpc]',z)
+              Hconf=a*H
+              vNc=-thetaNc/Hconf
+              vNb=-thetaNb/Hconf
+
+              dcb=fb*db+fc*dc
+              vcb=fb*vNb+fc*vNc
+              ratio=vcb/dcb
+              fbg=biv('gr.fac. f',z)
+
+              # DESI pivot is 0.03 h/Mpc in fiducial coordinates; use same
+              # physical k/h location for this normalization audit.
+              piv=float(np.interp(0.03,k_h,ratio))
+              for kval in [0.01,0.03,0.05,0.10,0.20]:
+                  rv=float(np.interp(kval,k_h,ratio))
+                  rows.append({
+                    'z':z,'k_hMpc':kval,'vnewt_cb_over_delta_cb':rv,
+                    'f_background':fbg,'ratio_over_f':rv/fbg
+                  })
+              km=(k_h>=0.01)&(k_h<=0.20)&np.isfinite(ratio)
+              curves.append({
+                'z':z,'f_background':fbg,'pivot_ratio':piv,
+                'pivot_over_f':piv/fbg,
+                'min_ratio_over_f_0p01_0p2':float(np.min(ratio[km]/fbg)),
+                'max_ratio_over_f_0p01_0p2':float(np.max(ratio[km]/fbg)),
+                'max_abs_baryon_cdm_velocity_split_over_cb':float(
+                    np.max(np.abs((vNb[km]-vNc[km])/np.maximum(np.abs(vcb[km]),1e-300))))
+              })
+
+          pd.DataFrame(rows).to_csv(OUT/'covariant_transfer_velocity_samples.csv',index=False)
+          pd.DataFrame(curves).to_csv(OUT/'covariant_transfer_velocity_audit.csv',index=False)
+          print('COVARIANT_TRANSFER_VELOCITY_AUDIT')
+          print(pd.DataFrame(curves).to_string(index=False),flush=True)
+          print('COVARIANT_TRANSFER_VELOCITY_SAMPLES')
+          print(pd.DataFrame(rows).to_string(index=False),flush=True)
+          PY
+
+      - name: Preserve covariant observable gate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-l18-z195-covariant
+          path: |
+            output/covariant_target_00_background.dat
+            output/covariant_replay.ini
+            output/covariant_replay.log
+            output/covariant_replay_00_*
+            output/covariant_replay_comparison.csv
+            output/covariant_observable.ini
+            output/covariant_observable.log
+            output/covariant_observable_00_*
+            output/covariant_observable_*.csv
+            output/independent_reference.ini
+            output/independent_reference_00_*
+            output/covariant_vs_independent_*.csv
+            output/covariant_transfer.ini
+            output/covariant_transfer_00_*
+            output/covariant_transfer_z*_tk.dat
+            output/covariant_transfer_velocity_*.csv
+            output/fullplik_lcdm.ini
+            output/fullplik_lcdm_00_cl_lensed.dat
+            output/fullplik_profile.csv
+            output/fullplik_delta.txt
+          if-no-files-found: warn
