@@ -24,12 +24,12 @@ from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
 OUT=Path("output/acoustic6d"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=0.0025
-AF=0.0715; ZC=5.00; WIDTH=1.426
+AF=0.0525; ZC=4.60; WIDTH=0.680590909090909
 D0=0.34231919445927034; POWER=1.0; DFLOOR=0.045
 LAMBDA_E=17.925; ZT=17.775; OMEGA_R_PHYS=4.17998772e-5
 
-CURRENT=dict(H0=70.8514,ob=0.02239952,oc=0.12444227328918850,
-             ns=0.964,lnAs=3.076,tau=0.0544)
+CURRENT=dict(H0=70.66173072,ob=0.02224,oc=0.12444227328918850,
+             ns=0.964,lnAs=3.074,tau=0.061)
 Q0=CURRENT["lnAs"]-2*CURRENT["tau"]
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
@@ -226,18 +226,18 @@ def solve_H0(ob,oc,ns,lnAs,tau,target,tag):
     return float(brentq(f,lo,hi,xtol=2e-4,rtol=2e-7,maxiter=20))
 
 # Coordinates: ob, oc, ns, tau, Q, delta ell_A.
-LOW=np.array([0.02210,0.1210,0.957,0.048,Q0-0.025,-0.10])
-HIGH=np.array([0.02270,0.1275,0.976,0.070,Q0+0.010,+0.10])
+LOW=np.array([0.02180,0.1160,0.950,0.042,Q0-0.040,-0.15])
+HIGH=np.array([0.02290,0.1290,0.978,0.068,Q0+0.020,+0.15])
 # Current delta ell is measured once, so the exact current point is included on
 # the same coordinate system rather than privileged outside the solve.
 ecur=ell_for(CURRENT["H0"],CURRENT["ob"],CURRENT["oc"],CURRENT["ns"],CURRENT["lnAs"],CURRENT["tau"],"cur")
 dcur=float(ecur-ELL0)
 anchors=[
  ("current",np.array([CURRENT["ob"],CURRENT["oc"],CURRENT["ns"],CURRENT["tau"],Q0,dcur])),
- ("tau60_ns968",np.array([CURRENT["ob"],CURRENT["oc"],0.968,0.060,Q0-0.005,dcur])),
- ("tau65_ns970",np.array([CURRENT["ob"],CURRENT["oc"],0.970,0.065,Q0-0.008,dcur])),
- ("tau65_ns972",np.array([CURRENT["ob"],CURRENT["oc"],0.972,0.065,Q0-0.012,dcur])),
- ("tau60_ns972",np.array([CURRENT["ob"],CURRENT["oc"],0.972,0.060,Q0-0.010,dcur])),
+ ("lowtau",np.array([CURRENT["ob"],CURRENT["oc"],0.964,0.055,Q0-0.012,dcur])),
+ ("lowtau_lowQ",np.array([CURRENT["ob"],CURRENT["oc"],0.962,0.050,Q0-0.022,dcur])),
+ ("lowoc",np.array([0.02235,0.1210,0.964,0.056,Q0-0.015,dcur])),
+ ("lcdmward",np.array([0.02260,0.1185,0.962,0.048,Q0-0.025,dcur])),
 ]
 sob=qmc.Sobol(d=6,scramble=True,seed=20260920)
 design=anchors+[(f"sobol{i+1:03d}",x) for i,x in enumerate(qmc.scale(sob.random_base2(m=6),LOW,HIGH))]
@@ -266,7 +266,7 @@ for i,(tag,x) in enumerate(design,1):
 df=pd.DataFrame(rows); df.to_csv(OUT/"acoustic6d_screen.csv",index=False)
 ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
 if ok.empty: raise SystemExit("no stable acoustic candidates")
-keep=set(["current","tau60_ns968","tau65_ns970","tau65_ns972","tau60_ns972"])
+keep=set(["current","lowtau","lowtau_lowQ","lowoc","lcdmward"])
 for col in ["delta_planck","joint_pp","joint_union3","joint_desy5","chi2_lensing","chi2_cal"]:
     keep.update(ok.nsmallest(10,col)["id"].tolist())
 short=ok[ok.id.isin(keep)].copy()
