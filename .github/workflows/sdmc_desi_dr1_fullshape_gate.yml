@@ -1,9 +1,9 @@
-name: SDMC r032 L17.925 Z17.775 exact replay DESI audit retry4
+name: SDMC r032 acoustic tau062 best DESI
 
 on:
   push:
     branches:
-      - sdmc-r032-l17925-z17775-floor045-covariant-desi-exact-retry4
+      - sdmc-r032-acoustic-tau062-best-desi
   workflow_dispatch:
 
 jobs:
@@ -41,8 +41,8 @@ jobs:
           mkdir -p output
           cat > output/covariant_target.ini <<'EOF'
           H0 = 70.8514
-          omega_b = 0.02239952
-          omega_cdm = 0.12444227328918850
+          omega_b = 0.02219952
+          omega_cdm = 0.12390711970557075
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
@@ -56,7 +56,7 @@ jobs:
           gravity_model = sdmc_v3_native_noslip
           parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893, 17.925, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.7088630617506706, 17.925, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
           skip_stability_tests_smg = yes
           write background = yes
@@ -230,7 +230,7 @@ jobs:
             double tauA = pba->parameters_smg[5];
             double B = pba->parameters_smg[6];
             double tauB = pba->parameters_smg[7];'''
-          new='''  double Ox = 0.7073985893;
+          new='''  double Ox = 0.7088630617506706;
             double lambda_e = 17.925;
             double zt = 17.775;
             double dNt = 0.5;
@@ -348,8 +348,8 @@ jobs:
         run: |
           cat > output/covariant_replay.ini <<'EOF'
           H0 = 70.8514
-          omega_b = 0.02239952
-          omega_cdm = 0.12444227328918850
+          omega_b = 0.02219952
+          omega_cdm = 0.12390711970557075
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
@@ -529,15 +529,15 @@ jobs:
           ZPK=$(cat output/desi_zpk.txt)
           cat > output/desi_covariant_transfer.ini <<EOF
           H0 = 70.8514
-          omega_b = 0.02239952
-          omega_cdm = 0.12444227328918850
+          omega_b = 0.02219952
+          omega_cdm = 0.12390711970557075
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
           A_s = 2.16715426219737e-9
           n_s = 0.964
-          tau_reio = 0.0544
+          tau_reio = 0.062
 
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
