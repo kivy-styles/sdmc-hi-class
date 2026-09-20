@@ -1,13 +1,13 @@
-name: SDMC r032 ordinary cosmology 6D screen
+name: SDMC r032 ordinary acoustic manifold refine
 
 on:
   push:
     branches:
-      - sdmc-r032-ordinary-cosmology-6d-screen
+      - sdmc-r032-ordinary-acoustic-manifold-refine
   workflow_dispatch:
 
 jobs:
-  ordinary6d-screen:
+  ordinary-acoustic-refine:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
