@@ -22,12 +22,13 @@ parser='''  if (strcmp(string1,"sdmc_v3_independent_kinetic") == 0) {
      pba->field_evolution_smg = _FALSE_;
      pba->M2_evolution_smg = _FALSE_;
      flag2=_TRUE_;
-     pba->parameters_2_size_smg = 6;
+     pba->parameters_2_size_smg = 7;
      class_read_list_of_doubles("parameters_smg",pba->parameters_2_smg,pba->parameters_2_size_smg);
      class_test(pba->parameters_2_smg[0] <= 0. || pba->parameters_2_smg[1] <= 0. ||
                 pba->parameters_2_smg[2] <= 0. || pba->parameters_2_smg[3] <= 0. ||
-                pba->parameters_2_smg[4] < 0. || pba->parameters_2_smg[5] <= 0., errmsg,
-                "sdmc_v3_independent_kinetic requires positive AF,zc,width,D0,Dfloor and non-negative p");
+                pba->parameters_2_smg[4] < 0. || pba->parameters_2_smg[5] <= 0. ||
+                pba->parameters_2_smg[6] < 0. || pba->parameters_2_smg[6] > 1.25, errmsg,
+                "sdmc_v3_independent_kinetic requires positive AF,zc,width,D0,Dfloor, non-negative p, and 0<=normalization_q<=1.25");
    }
 
   if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
@@ -41,6 +42,7 @@ closure=r'''  else if (pba->gravity_model_smg == sdmc_v3_independent_kinetic) {
     double D0=pba->parameters_2_smg[3];
     double power=pba->parameters_2_smg[4];
     double Dfloor=pba->parameters_2_smg[5];
+    double normq=pba->parameters_2_smg[6];
     double N=log(a);
     double Nc=-log(1.+zc);
     double x=(N-Nc)/(2.*width);
@@ -48,7 +50,9 @@ closure=r'''  else if (pba->gravity_model_smg == sdmc_v3_independent_kinetic) {
     double ch=cosh(x);
     double sech2=1./(ch*ch);
     double S=.5*(1.+th);
-    double F=exp(AF*S);
+    double x0=(0.-Nc)/(2.*width);
+    double S0=.5*(1.+tanh(x0));
+    double F=exp(AF*(S-normq*S0));
     double am=AF/(4.*width)*sech2;
     double bra=-2.*am;
     double D=Dfloor + D0*pow(S,power);
