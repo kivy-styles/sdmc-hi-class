@@ -118,10 +118,22 @@ jobs:
               names.append(hdr[m.end():e].strip())
           a=np.loadtxt(p)
           d={n:a[:,i] for i,n in enumerate(names)}
+          print('FULLVALID_BACKGROUND_COLUMNS',names,flush=True)
+          if 'kin (D)' in d:
+              D=d['kin (D)']
+          elif 'kineticity_smg' in d and 'braiding_smg' in d:
+              D=d['kineticity_smg']+1.5*d['braiding_smg']**2
+          elif 'kineticity' in d and 'braiding_smg' in d:
+              D=d['kineticity']+1.5*d['braiding_smg']**2
+          else:
+              raise RuntimeError(f'cannot reconstruct D from columns: {names}')
+          cskey='c_s^2' if 'c_s^2' in d else ('cs2_smg' if 'cs2_smg' in d else None)
+          if cskey is None:
+              raise RuntimeError(f'cannot find scalar sound speed column: {names}')
           out={
-            'min_D_all':float(np.min(d['kin (D)'])),
-            'min_cs2_all':float(np.min(d['c_s^2'])),
-            'max_cs2_all':float(np.max(d['c_s^2'])),
+            'min_D_all':float(np.min(D)),
+            'min_cs2_all':float(np.min(d[cskey])),
+            'max_cs2_all':float(np.max(d[cskey])),
             'max_abs_slip_driver':float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg']))),
           }
           print('FULLVALID_STABILITY',json.dumps(out,sort_keys=True),flush=True)
