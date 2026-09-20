@@ -146,25 +146,16 @@ if cp.returncode: raise RuntimeError(cp.stdout[-3000:])
 base_lcdm=score(Path(lr+"00_cl_lensed.dat"))
 print("PLANCK_GAP_LCDM",base_lcdm,flush=True)
 
-variants=[]
-variants.append(dict(id="baseline"))
-variants.append(dict(id="bbn_helium",YHe="BBN"))
-variants.append(dict(id="minimal_nu_fixedY",minimal_nu=True))
-variants.append(dict(id="minimal_nu_bbn",minimal_nu=True,YHe="BBN"))
-
-# A_L diagnostic only. This is not treated as a physical extension.
-for al in [0.75,0.85,0.95,1.00,1.05,1.15,1.25]:
-    variants.append(dict(id=f"AL_{al:.2f}",A_L=al))
-
-# Keep primary high-l amplitude approximately fixed: d ln As = 2 d tau.
-for d in [-0.040,-0.030,-0.020,-0.010,0.010,0.020,0.030]:
-    variants.append(dict(id=f"Astaudir_{d:+.3f}",lnAs=lnAs0+d,tau=tau0+d/2.0))
-
-# A few orthogonal amplitude/optical-depth moves for diagnosis.
-for d in [-0.02,+0.02]:
-    variants.append(dict(id=f"lnAs_only_{d:+.3f}",lnAs=lnAs0+d))
-for d in [-0.010,+0.010]:
-    variants.append(dict(id=f"tau_only_{d:+.3f}",tau=tau0+d))
+variants=[dict(id="baseline")]
+# Diagnostic cube only: this separates lensing smoothing (A_L),
+# reionization damping (tau), and scalar amplitude (lnAs).
+for al in [1.10,1.15,1.20]:
+    for tv in [0.0584,0.0624,0.0664]:
+        for lav in [3.056,3.066,3.076]:
+            variants.append(dict(
+                id=f"comb_AL{al:.2f}_t{tv:.4f}_A{lav:.3f}",
+                A_L=al,tau=tv,lnAs=lav
+            ))
 
 rows=[]
 for i,v in enumerate(variants,1):
