@@ -1,9 +1,9 @@
-name: SDMC DESI strawman geometry negative control
+name: SDMC DESI random64 strawman geometry control
 
 on:
   push:
     branches:
-      - sdmc-desi-strawman-geometry-control
+      - sdmc-desi-strawman-random64-control
   workflow_dispatch:
 
 jobs:
@@ -151,7 +151,16 @@ jobs:
           dpar=np.array([0.00965072,0.01797025,0.02510890,0.03196861,0.04225963,0.04579289])
           dper=np.array([0.00427017,0.00792129,0.01115372,0.01437656,0.01950412,0.02138752])
           signs=np.array([1.,-1.,1.,-1.,1.,-1.])
-          case_names=['LCDM_PHYSICAL','STRAWMAN_REVERSED','STRAWMAN_ALTERNATING']
+          rng=np.random.default_rng(20260920)
+          random_specs={}
+          for ii in range(64):
+              perm=rng.permutation(6)
+              sg=rng.choice(np.array([-1.,1.]),size=6)
+              # Exclude the exact self-consistent SDMC ordering/sign pattern if ever drawn.
+              if np.all(perm==np.arange(6)) and np.all(sg==1.):
+                  sg[0]=-1.
+              random_specs[f'RANDOM64_{ii:02d}']=(perm,sg)
+          case_names=['LCDM_PHYSICAL']+list(random_specs)
 
           # physical LCDM AP values for each block, in block order
           physical=[]
@@ -171,8 +180,9 @@ jobs:
                   return qp,qt
               if case=='STRAWMAN_REVERSED':
                   return qp+dpar[::-1][ib], qt+dper[::-1][ib]
-              if case=='STRAWMAN_ALTERNATING':
-                  return qp+signs[ib]*dpar[ib], qt+signs[ib]*dper[ib]
+              if case.startswith('RANDOM64_'):
+                  perm,sg=random_specs[case]
+                  return qp+sg[ib]*dpar[perm][ib], qt+sg[ib]*dper[perm][ib]
               raise ValueError(case)
 
           def build_table(b,ib,case):
@@ -256,13 +266,29 @@ jobs:
               rec={'case':case,'chi2_total':totals[case],'delta_vs_physical_lcdm':delta}
               summary.append(rec)
               print('STRAW_DELTA',rec,flush=True)
-          pd.DataFrame(rows).to_csv('output/desi_strawman_geometry_blocks.csv',index=False)
-          pd.DataFrame(summary).to_csv('output/desi_strawman_geometry_summary.csv',index=False)
+          sdf=pd.DataFrame(summary)
+          ctrl=sdf[sdf.case!='LCDM_PHYSICAL'].copy()
+          vals=np.asarray(ctrl.delta_vs_physical_lcdm,float)
+          ensemble={
+              'n_controls':int(len(vals)),
+              'min_delta':float(vals.min()),
+              'median_delta':float(np.median(vals)),
+              'p10_delta':float(np.quantile(vals,0.10)),
+              'p90_delta':float(np.quantile(vals,0.90)),
+              'n_le_minus_12p98':int(np.sum(vals<=-12.98)),
+              'n_le_minus_10':int(np.sum(vals<=-10.0)),
+              'n_le_minus_7':int(np.sum(vals<=-7.0)),
+              'best_case':str(ctrl.iloc[int(np.argmin(vals))].case)
+          }
+          print('RANDOM64_ENSEMBLE_SUMMARY',ensemble,flush=True)
+          pd.DataFrame(rows).to_csv('output/desi_random64_strawman_blocks.csv',index=False)
+          sdf.to_csv('output/desi_random64_strawman_summary.csv',index=False)
+          pd.DataFrame([ensemble]).to_csv('output/desi_random64_ensemble_summary.csv',index=False)
           PY
-      - name: Preserve strawman geometry control
+      - name: Preserve random64 strawman control
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-desi-strawman-geometry-control
+          name: sdmc-desi-strawman-random64-control
           path: output/*
           if-no-files-found: warn
