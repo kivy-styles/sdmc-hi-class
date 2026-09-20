@@ -1,9 +1,9 @@
-name: SDMC r032 exact joint physical seed full Plik
+name: SDMC r032 joint physical best exact full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-exact-joint-physical-seed
+      - sdmc-r032-joint-physical-best-exact
   workflow_dispatch:
 
 jobs:
@@ -59,7 +59,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_native_noslip
-          parameters_smg = 0.0600, 5.00, 0.9573146853146852, 0.1, 0.0001
+          parameters_smg = 0.0525, 4.60, 0.680590909090909, 0.1, 0.0001
           expansion_model = sdmc_full
           expansion_smg = 0.7061451696512845,17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
 
@@ -78,7 +78,7 @@ jobs:
 
       - name: Reconstruct candidate covariant action
         run: |
-          python3 sdmc/reconstruct_covariant_target.py             --background output/covariant_target_00_background.dat             --header-out gravity_smg/sdmc_covariant_replay_table.h             --audit-out output/covariant_target_reconstruction_audit.json             --AF 0.0600 --zc 5.0 --width 0.9573146853146852             --Dfloor 0.045 --D0 0.34231919445927034
+          python3 sdmc/reconstruct_covariant_target.py             --background output/covariant_target_00_background.dat             --header-out gravity_smg/sdmc_covariant_replay_table.h             --audit-out output/covariant_target_reconstruction_audit.json             --AF 0.0525 --zc 4.6 --width 0.680590909090909             --Dfloor 0.045 --D0 0.34231919445927034
           cat output/covariant_target_reconstruction_audit.json
 
       - name: Install exact covariant replay
@@ -204,7 +204,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-exact-joint-physical-seed-fullplik
+          name: sdmc-r032-joint-physical-best-exact-fullplik
           path: |
             output/exact_covariant_tau_fullplik.csv
             output/exact_covariant_tau_best.json
