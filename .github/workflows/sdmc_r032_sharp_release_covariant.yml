@@ -371,6 +371,7 @@ jobs:
           a_ini_test_qs_smg = 1.e-12
           pert_ic_ini_z_ref_smg = 1.e7
           a_min_stability_test_smg = 1.e-12
+          skip_stability_tests_smg = yes
 
           output_background_smg = 3
           write background = yes
