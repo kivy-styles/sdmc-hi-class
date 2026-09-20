@@ -1,9 +1,9 @@
-name: SDMC r032 L17.9125 Z17.775 floor045 covariant gate
+name: SDMC r032 L17.90 Z17.7625 floor045 covariant gate
 
 on:
   push:
     branches:
-      - sdmc-r032-l179125-z17775-floor045-covariant
+      - sdmc-r032-l1790-z177625-floor045-covariant
   workflow_dispatch:
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
           gravity_model = sdmc_v3_native_noslip
           parameters_smg = 0.0715, 5.00, 1.426, 0.1, 0.0001
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893, 17.9125, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.7073985893, 17.90, 17.7625, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           output_background_smg = 3
           skip_stability_tests_smg = yes
           write background = yes
@@ -231,7 +231,7 @@ jobs:
             double B = pba->parameters_smg[6];
             double tauB = pba->parameters_smg[7];'''
           new='''  double Ox = 0.7073985893;
-            double lambda_e = 17.9125;
+            double lambda_e = 17.90;
             double zt = 17.8;
             double dNt = 0.5;
             double A = 0.01105624999;
@@ -456,7 +456,7 @@ jobs:
             'F0':float(c['M*^2_smg'][np.argmin(np.abs(zc))]),
             'alphaM0':float(c['M2_running_smg'][np.argmin(np.abs(zc))]),
           }
-          print('L179125_Z17775_FLOOR045_COVARIANT_REPLAY_COMPARISON',out)
+          print('L1790_Z177625_FLOOR045_COVARIANT_REPLAY_COMPARISON',out)
           with open('output/covariant_replay_comparison.csv','w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=out.keys()); w.writeheader(); w.writerow(out)
           if not (out['min_D_all']>0 and out['min_cs2_all']>0 and out['max_cs2_all']<=1.0):
@@ -789,7 +789,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.0715, 5.00, 1.426, 0.34231919445927034, 1.0, 0.045
           expansion_model = sdmc_full
-          expansion_smg = 0.7073985893,17.9125,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
+          expansion_smg = 0.7073985893,17.90,17.7625,0.5,0.01105624999,0.25,0.01951933685,1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -1100,7 +1100,7 @@ jobs:
           cov,cx=run_one('COVARIANT',OUT/'covariant_observable_00_cl_lensed.dat',[param_best,x0,displaced])
           lcdm,lx=run_one('LCDM',OUT/'fullplik_lcdm_00_cl_lensed.dat',[x0,param_best,cx])
           delta=cov['chi2_profile_total']-lcdm['chi2_profile_total']
-          print('L179125_Z17775_FLOOR045_COV_MINUIT_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
+          print('L1790_Z177625_FLOOR045_COV_MINUIT_DELTA_CHI2_COV_MINUS_LCDM',delta,flush=True)
           fields=list(cov.keys())
           with (OUT/'fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows([cov,lcdm])
