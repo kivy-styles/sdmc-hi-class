@@ -1,0 +1,214 @@
+name: SDMC r032 exact physical best full Plik
+
+on:
+  push:
+    branches:
+      - sdmc-r032-exact-physical-best-fullplik
+  workflow_dispatch:
+
+jobs:
+  exact-joint-physical-seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya iminuit
+
+      - name: Apply SDMC patches and independent kinetic helper
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+
+      - name: Build target solver
+        run: make -j2 class
+
+      - name: Generate exact r032 target background
+        run: |
+          mkdir -p output
+          cat > output/covariant_target.ini <<'EOF'
+          H0 = 70.66173072
+          omega_b = 0.02224
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1628242850934083e-9
+          n_s = 0.964
+          tau_reio = 0.061
+
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_native_noslip
+          parameters_smg = 0.0525, 4.60, 0.680590909090909, 0.1, 0.0001
+          expansion_model = sdmc_full
+          expansion_smg = 0.7061451696512845,17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
+
+          output_background_smg = 3
+          skip_stability_tests_smg = yes
+          write background = yes
+          root = output/covariant_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/covariant_target.ini
+          test -f output/covariant_target_00_background.dat
+
+      - name: Reconstruct candidate covariant action
+        run: |
+          python3 sdmc/reconstruct_covariant_target.py             --background output/covariant_target_00_background.dat             --header-out gravity_smg/sdmc_covariant_replay_table.h             --audit-out output/covariant_target_reconstruction_audit.json             --AF 0.0525 --zc 4.6 --width 0.680590909090909             --Dfloor 0.045 --D0 0.34231919445927034
+          cat output/covariant_target_reconstruction_audit.json
+
+      - name: Install exact covariant replay
+        run: |
+          python3 sdmc/install_covariant_replay_candidate.py             --OmegaX 0.7061451696512845 --lambda-e 17.925 --z-t 17.775
+          make clean
+          make -j2 class
+
+      - name: Generate exact covariant tau spectra
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap,subprocess
+          taus=[0.061]
+          for tau in taus:
+              tag=f"{int(round(tau*10000)):04d}"
+              root=f"output/tau_{tag}_"
+              ini=textwrap.dedent(f"""\
+              H0 = 70.66173072
+              omega_b = 0.02224
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = 2.1628242850934083e-9
+              n_s = 0.964
+              tau_reio = {tau}
+
+              Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = 0.003
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_covariant_replay
+              parameters_smg = 0.0
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+
+              a_ini_over_a_today_default = 1.e-8
+              a_ini_test_qs_smg = 1.e-8
+              pert_ic_ini_z_ref_smg = 1.e7
+              a_min_stability_test_smg = 1.e-8
+
+              modes = s
+              output = tCl,pCl,lCl
+              lensing = yes
+              l_max_scalars = 3000
+              output_background_smg = 3
+              write background = yes
+              root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              lensing_verbose = 0
+              output_verbose = 0
+              """)
+              ip=Path(f"output/tau_{tag}.ini"); ip.write_text(ini)
+              cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
+              print("EXACT_TAU_CLASS",tau,cp.returncode,flush=True)
+              if cp.returncode:
+                  print(cp.stdout[-3000:],flush=True)
+                  raise SystemExit(cp.returncode)
+          PY
+
+      - name: Check covariant stability is unchanged
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,numpy as np
+          p=Path("output/tau_0610_00_background.dat")
+          lines=p.read_text().splitlines()
+          hdr=[l for l in lines if l.startswith("#") and "1:z" in l][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
+          out={"min_D":float(np.min(d["kin (D)"])),
+               "min_cs2":float(np.min(d["c_s^2"])),
+               "max_cs2":float(np.max(d["c_s^2"])),
+               "max_abs_noslip":float(np.max(np.abs(d["braiding_smg"]+2*d["M2_running_smg"])))}
+          print("EXACT_TAU_STABILITY",out,flush=True)
+          if not(out["min_D"]>0 and out["min_cs2"]>0 and out["max_cs2"]<=1):
+              raise SystemExit("stability gate failed")
+          PY
+
+      - name: Generate LCDM control
+        run: |
+          sed 's#root = output/sdmc_planck_lcdm_control_#root = output/fullplik_lcdm_#'             sdmc/config/planck_lcdm_control.ini > output/fullplik_lcdm.ini
+          ./class output/fullplik_lcdm.ini
+          test -f output/fullplik_lcdm_00_cl_lensed.dat
+
+      - name: Install official Planck likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          if not TTTEEE.install(path='planck_full',no_progress_bars=True):
+              raise SystemExit('full Plik install failed')
+          for cls in (TT,EE,LensingNative):
+              if not cls.install(path='planck_packages',no_progress_bars=True):
+                  raise SystemExit(f'Planck native install failed: {cls}')
+          PY
+
+      - name: Profile exact covariant tau grid with full Plik
+        run: |
+          python3 sdmc/profile_fullplik_tau_scan.py --outdir output
+
+      - name: Print exact tau result
+        if: always()
+        run: |
+          test ! -f output/exact_covariant_tau_fullplik.csv || cat output/exact_covariant_tau_fullplik.csv
+          test ! -f output/exact_covariant_tau_best.json || cat output/exact_covariant_tau_best.json
+
+      - name: Preserve exact tau profile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-exact-physical-best-fullplik
+          path: |
+            output/exact_covariant_tau_fullplik.csv
+            output/exact_covariant_tau_best.json
+            output/covariant_target_reconstruction_audit.json
+            output/tau_*.ini
+            output/tau_*_00_cl_lensed.dat
+          if-no-files-found: warn
