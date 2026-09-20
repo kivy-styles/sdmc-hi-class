@@ -1,9 +1,9 @@
-name: SDMC r032 joint vertex L17.9132 Z17.7786 floor0451 covariant DESI full-shape gate
+name: SDMC r032 joint vertex L17.9132 Z17.7786 floor0451 covariant DESI retry
 
 on:
   push:
     branches:
-      - sdmc-r032-joint-vertex-l179132-z177786-floor0451-covariant-desi
+      - sdmc-r032-joint-vertex-l179132-z177786-floor0451-covariant-desi-retry
   workflow_dispatch:
 
 jobs:
