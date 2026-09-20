@@ -1,9 +1,9 @@
-name: SDMC r032 ordinary cosmology 6D screen
+name: SDMC r032 tau062 acoustic lowb extension
 
 on:
   push:
     branches:
-      - sdmc-r032-ordinary-cosmology-6d-screen
+      - sdmc-r032-tau062-acoustic-lowb-extend
   workflow_dispatch:
 
 jobs:
@@ -52,14 +52,14 @@ jobs:
           rm -rf sn_data
           git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
 
-      - name: Run six-dimensional ordinary cosmology screen
+      - name: Run tau062 acoustic low-b extension
         run: python3 sdmc/run_r032_ordinary6d_screen.py
 
       - name: Print shortlist
         if: always()
         run: |
           if [ -f output/ordinary6d/ordinary6d_shortlist.csv ]; then
-            echo "===== ORDINARY 6D SHORTLIST ====="
+            echo "===== TAU062 LOW-B SHORTLIST ====="
             cat output/ordinary6d/ordinary6d_shortlist.csv
           fi
 
@@ -67,7 +67,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-ordinary-cosmology-6d-screen
+          name: sdmc-r032-tau062-acoustic-lowb-extend
           path: |
             output/ordinary6d/ordinary6d_design.json
             output/ordinary6d/ordinary6d_screen.csv
