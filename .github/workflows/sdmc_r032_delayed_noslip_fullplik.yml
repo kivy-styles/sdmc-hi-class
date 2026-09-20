@@ -1,0 +1,122 @@
+name: SDMC r032 delayed No-Slip full-Plik promotion
+
+on:
+  push:
+    branches:
+      - sdmc-r032-delayed-noslip-fullplik
+  workflow_dispatch:
+
+jobs:
+  delayed-fullplik:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya iminuit
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+      - name: Build hi_class
+        run: make -j2 class
+      - name: Install Planck likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE as Full
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              if not cls.install(path='planck_packages',no_progress_bars=True):
+                  raise SystemExit(f'Planck install failed: {cls}')
+          if not Full.install(path='planck_full',no_progress_bars=True):
+              raise SystemExit('full Plik install failed')
+          PY
+      - name: Generate current and delayed-No-Slip spectra
+        run: |
+          mkdir -p output
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap,subprocess
+          cases={
+            'CURRENT':(0.0715,5.0,1.426,0.003),
+            'CURRENT_COLD':(0.0715,5.0,1.426,1e-8),
+            'DELAYED':(0.05912758882623165,3.284172759018838,0.3490921955090016,0.003),
+            'DELAYED_COLD':(0.05912758882623165,3.284172759018838,0.3490921955090016,1e-8),
+          }
+          def ini(AF,zc,w,cphi,root):
+              return textwrap.dedent(f'''\
+              H0 = 70.8514
+              omega_b = 0.02239952
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = 2.16715426219737e-9
+              n_s = 0.964
+              tau_reio = 0.0544
+              Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = {cphi:.17g}
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_v3_independent_kinetic
+              parameters_smg = {AF:.17g},{zc:.17g},{w:.17g},0.34231919445927034,1.0,0.045
+              expansion_model = sdmc_full
+              expansion_smg = 0.7073985893,17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+              output_background_smg = 3
+              modes = s
+              output = tCl,pCl,lCl
+              lensing = yes
+              l_max_scalars = 3000
+              write background = yes
+              root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              lensing_verbose = 0
+              output_verbose = 0
+              ''')
+          for label,p in cases.items():
+              root=f'output/{label.lower()}_'; ip=Path(f'output/{label.lower()}.ini')
+              ip.write_text(ini(*p,root))
+              cp=subprocess.run(['./class',str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
+              Path(f'output/{label.lower()}.log').write_text(cp.stdout)
+              if cp.returncode:
+                  raise SystemExit(f'{label} failed: {cp.returncode}')
+          PY
+      - name: Profile full Plik nuisance sector
+        run: |
+          python3 sdmc/profile_full_planck_candidates.py             --out output/delayed_noslip_fullplik.csv             CURRENT=output/current_00_cl_lensed.dat             CURRENT_COLD=output/current_cold_00_cl_lensed.dat             DELAYED=output/delayed_00_cl_lensed.dat             DELAYED_COLD=output/delayed_cold_00_cl_lensed.dat
+      - name: Preserve promotion
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-delayed-noslip-fullplik
+          path: |
+            output/delayed_noslip_fullplik.csv
+            output/*_00_cl_lensed.dat
+            output/*.ini
+          if-no-files-found: warn
