@@ -1,9 +1,9 @@
-name: SDMC r032 joint physical boundary refine
+name: SDMC r032 joint physical extended boundary refine
 
 on:
   push:
     branches:
-      - sdmc-r032-joint-physical-boundary-refine
+      - sdmc-r032-joint-physical-boundary-extended
   workflow_dispatch:
 
 jobs:
