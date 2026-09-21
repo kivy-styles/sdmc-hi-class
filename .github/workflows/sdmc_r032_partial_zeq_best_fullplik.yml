@@ -1,9 +1,9 @@
-name: SDMC r032 zt-best Q02 full Plik
+name: SDMC r032 zt-best Qfine full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-ztbest-q02-fullplik
+      - sdmc-r032-ztbest-qfine-fullplik
   workflow_dispatch:
 
 jobs:
