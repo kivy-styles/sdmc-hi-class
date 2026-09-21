@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality local-best DESI full-shape
+name: SDMC r032 partial-equality boundary-best DESI full-shape
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-localbest-desi
+      - sdmc-r032-partial-zeq-boundbest-desi
   workflow_dispatch:
 
 jobs:
@@ -88,18 +88,18 @@ jobs:
       - name: Print local002 DESI summary
         if: always()
         run: |
-          if [ -f output/partial_zeq_localbest_desi/partial_zeq_localbest_desi_summary.json ]; then
-            cat output/partial_zeq_localbest_desi/partial_zeq_localbest_desi_summary.json
+          if [ -f output/partial_zeq_boundbest_desi/partial_zeq_boundbest_desi_summary.json ]; then
+            cat output/partial_zeq_boundbest_desi/partial_zeq_boundbest_desi_summary.json
           fi
 
       - name: Preserve local002 DESI outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-partial-zeq-localbest-desi
+          name: sdmc-r032-partial-zeq-boundbest-desi
           path: |
-            output/partial_zeq_localbest_desi/partial_zeq_localbest_desi_summary.json
-            output/partial_zeq_localbest_desi/partial_zeq_localbest_desi_profile.csv
-            output/partial_zeq_localbest_desi/desi_zeff.json
-            output/partial_zeq_localbest_desi/*.ini
+            output/partial_zeq_boundbest_desi/partial_zeq_boundbest_desi_summary.json
+            output/partial_zeq_boundbest_desi/partial_zeq_boundbest_desi_profile.csv
+            output/partial_zeq_boundbest_desi/desi_zeff.json
+            output/partial_zeq_boundbest_desi/*.ini
           if-no-files-found: warn
