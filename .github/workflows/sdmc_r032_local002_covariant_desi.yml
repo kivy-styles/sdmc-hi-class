@@ -1,9 +1,9 @@
-name: SDMC r032 zt-best Qfine-best exact-covariant DESI validation
+name: SDMC r032 zt-best Qfine-best exact-covariant DESI retry
 
 on:
   push:
     branches:
-      - sdmc-r032-ztbest-qfinebest-covariant-desi
+      - sdmc-r032-ztbest-qfinebest-covariant-desi-retry
   workflow_dispatch:
 
 jobs:
@@ -109,13 +109,33 @@ jobs:
           echo "COVARIANT_ZTBEST_QFINEBEST_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
+        env:
+          PIP_DEFAULT_TIMEOUT: "45"
         run: |
-          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
-          python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
-          python3 -m pip install git+https://github.com/adematti/lsstypes.git
-          python3 -m pip install git+https://github.com/sfschen/velocileptors.git
+          python3 -m pip install --retries 4 numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
+          for PKG in \
+            git+https://github.com/cosmodesi/cosmoprimo.git \
+            git+https://github.com/adematti/lsstypes.git \
+            git+https://github.com/sfschen/velocileptors.git
+          do
+            ok=0
+            for attempt in 1 2 3
+            do
+              echo "pip git install $PKG attempt $attempt"
+              if timeout 180 python3 -m pip install --retries 2 "$PKG"; then ok=1; break; fi
+              sleep $((attempt*5))
+            done
+            test "$ok" -eq 1
+          done
           rm -rf desi-kp-cosmological-likelihoods
-          git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
+          ok=0
+          for attempt in 1 2 3
+          do
+            if timeout 120 git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git; then ok=1; break; fi
+            rm -rf desi-kp-cosmological-likelihoods
+            sleep $((attempt*5))
+          done
+          test "$ok" -eq 1
           mkdir -p desi_likelihood
           BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
