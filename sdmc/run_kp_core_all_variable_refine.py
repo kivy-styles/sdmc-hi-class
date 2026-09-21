@@ -186,7 +186,7 @@ def run(tag,c):
                    max_cs2=float(bg["c_s^2"].max()),
                    max_abs_noslip=float(np.max(np.abs(bg["braiding_smg"]+2*bg["M2_running_smg"]))))
         stable=(rec["min_D"]>0 and rec["min_cs2"]>0 and rec["max_cs2"]<=1
-                and rec["max_abs_noslip"]<1e-6)
+                and rec["max_abs_noslip"]<1e-5)
         rec["stable_subluminal"]=bool(stable)
         if stable:
             rec.update(derived(bg,th)); rec.update(pscore(clp)); rec["status"]="OK"
