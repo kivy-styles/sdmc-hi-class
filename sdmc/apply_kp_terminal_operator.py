@@ -181,6 +181,22 @@ insert=r'''    /*
     if ((ppt->kp_terminal_enabled != 0) &&
         (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off)) {
       double kp_C, kp_dlnC, kp_Fk;
+
+      /*
+       * index_bg_rs belongs to the long background vector. The ordinary
+       * perturbation RHS requests normal_info, so refresh the full vector
+       * here only when the terminal operator is enabled. This keeps the
+       * manuscript x-coordinate tied to the actual acoustic distance.
+       */
+      class_call(background_at_tau(pba,
+                                   tau,
+                                   long_info,
+                                   inter_closeby,
+                                   &(ppw->last_index_back),
+                                   pvecback),
+                 pba->error_message,
+                 error_message);
+
       sdmc_kp_terminal_terms(pba,pth,ppt,pvecback,R,k2,
                              delta_g,theta_g,theta_b,
                              &kp_C,&kp_dlnC,&kp_Fk);
