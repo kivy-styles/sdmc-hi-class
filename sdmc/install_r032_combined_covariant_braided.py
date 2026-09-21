@@ -160,25 +160,25 @@ print("WROTE",hp,flush=True)
 # Freeze the already-established tracker/background constants because the
 # covariant gravity model uses parameters_smg for its own shooting parameter.
 p=Path("source/background.c"); s=p.read_text()
-old='''  double Ox = pba->parameters_smg[0];
-    double lambda_e = pba->parameters_smg[1];
-    double zt = pba->parameters_smg[2];
-    double dNt = pba->parameters_smg[3];
-    double A = pba->parameters_smg[4];
-    double tauA = pba->parameters_smg[5];
-    double B = pba->parameters_smg[6];
-    double tauB = pba->parameters_smg[7];'''
-new=f'''  double Ox = {OX:.17g};
-    double lambda_e = {LAMBDA_E:.17g};
-    double zt = {ZT:.17g};
-    double dNt = 0.5;
-    double A = 0.01105624999;
-    double tauA = 0.25;
-    double B = 0.01951933685;
-    double tauB = 1.5;'''
-if old not in s:
-    raise RuntimeError("split tracker constant anchor missing")
-p.write_text(s.replace(old,new,1))
+hs=s.index("static void sdmc_tracker_fluid_target")
+he=s.index("static double sdmc_tracker_fluid_w_only",hs)
+block=s[hs:he]
+repls=[
+    (r"double\\s+Ox\\s*=\\s*pba->parameters_smg\\[0\\]\\s*;",f"double Ox = {OX:.17g};"),
+    (r"double\\s+lambda_e\\s*=\\s*pba->parameters_smg\\[1\\]\\s*;",f"double lambda_e = {LAMBDA_E:.17g};"),
+    (r"double\\s+zt\\s*=\\s*pba->parameters_smg\\[2\\]\\s*;",f"double zt = {ZT:.17g};"),
+    (r"double\\s+dNt\\s*=\\s*pba->parameters_smg\\[3\\]\\s*;","double dNt = 0.5;"),
+    (r"double\\s+A\\s*=\\s*pba->parameters_smg\\[4\\]\\s*;","double A = 0.01105624999;"),
+    (r"double\\s+tauA\\s*=\\s*pba->parameters_smg\\[5\\]\\s*;","double tauA = 0.25;"),
+    (r"double\\s+B\\s*=\\s*pba->parameters_smg\\[6\\]\\s*;","double B = 0.01951933685;"),
+    (r"double\\s+tauB\\s*=\\s*pba->parameters_smg\\[7\\]\\s*;","double tauB = 1.5;"),
+]
+for pat,val in repls:
+    block,n=re.subn(pat,val,block,count=1)
+    if n!=1:
+        raise RuntimeError("tracker helper constant pattern missing: "+pat)
+s=s[:hs]+block+s[he:]
+p.write_text(s)
 
 # Register covariant braided model after the two EFT diagnostic models.
 p=Path("include/background.h"); s=p.read_text()
