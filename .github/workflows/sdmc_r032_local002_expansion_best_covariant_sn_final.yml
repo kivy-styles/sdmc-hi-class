@@ -1,0 +1,142 @@
+name: SDMC r032 local002 expansion-best exact-covariant SN final
+
+on:
+  push:
+    branches:
+      - sdmc-r032-local002-expansion-best-covariant-sn-final
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  exact-covariant-sn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Download expansion-best exact-covariant DESI artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf input_cov
+          mkdir -p input_cov
+          gh run download 35593282108 \
+            --repo "${{ github.repository }}" \
+            --name sdmc-r032-local002-covariant-desi \
+            --dir input_cov
+          test -f input_cov/desi_cov_00_background.dat
+          test -f input_cov/desi_lcdm_00_background.dat
+          echo "EXPANSION_BEST_COV_SN_BACKGROUNDS_READY"
+
+      - name: Install SN data
+        run: |
+          rm -rf sn_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+
+      - name: Score exact-covariant SN compilations
+        run: |
+          mkdir -p output/expansion_best_cov_sn
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json
+          import numpy as np
+          import pandas as pd
+          from scipy.linalg import cho_factor, cho_solve
+
+          DATA=Path('sn_data')
+          OUT=Path('output/expansion_best_cov_sn')
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values('z')
+
+          def read_cov(path,n):
+              a=np.asarray(np.loadtxt(path),float).reshape(-1)
+              if len(a)==n*n+1 and int(round(a[0]))==n: a=a[1:]
+              if len(a)!=n*n:
+                  raise RuntimeError(f'covariance size mismatch {path}: {len(a)} vs {n*n}')
+              return a.reshape(n,n)
+
+          def setup(C):
+              cf=cho_factor(C,lower=True,check_finite=False)
+              one=np.ones(C.shape[0])
+              u=cho_solve(cf,one,check_finite=False)
+              return cf,one,float(one.dot(u))
+
+          def chi(pack,r):
+              cf,one,den=pack
+              y=cho_solve(cf,r,check_finite=False)
+              return float(r.dot(y)-(one.dot(y))**2/den)
+
+          def mu(bg,z,zh):
+              DM=np.interp(z,bg.z,bg['comov. dist.'])
+              DA=DM/(1.+z)
+              return 5.*np.log10((1.+zh)*(1.+z)*DA)
+
+          pp=pd.read_csv(DATA/'PantheonPlus/Pantheon+SH0ES.dat',sep=r'\s+',header=0,engine='python')
+          ppm=pp['m_b_corr'].to_numpy(float)
+          ppz=pp['zHD'].to_numpy(float)
+          ppzh=pp['zHEL'].to_numpy(float)
+          C=read_cov(DATA/'PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov',len(ppm))
+          m=ppz>0.01
+          ppm,ppz,ppzh,C=ppm[m],ppz[m],ppzh[m],C[np.ix_(m,m)]
+          ppp=setup(C)
+
+          p=DATA/'Union3/lcparam_full.txt'
+          cols=p.read_text().splitlines()[0].removeprefix('#').split()
+          un=pd.read_csv(p,sep=r'\s+',comment='#',names=cols,engine='python')
+          cm={c.lower():c for c in un.columns}
+          unm=un[cm['mb']].to_numpy(float)
+          unz=un[cm['zcmb']].to_numpy(float)
+          unp=setup(read_cov(DATA/'Union3/mag_covmat.txt',len(unm)))
+
+          de=pd.read_csv(DATA/'DESY5/DES-SN5YR_HD.csv')
+          cm={c.lower():c for c in de.columns}
+          dem=de[cm['mu']].to_numpy(float)
+          dez=de[cm['zhd']].to_numpy(float)
+          dezh=de[cm['zhel']].to_numpy(float)
+          derr=de[cm['muerr_final']].to_numpy(float)
+          dep=setup(read_cov(DATA/'DESY5/covsys_000.txt',len(dem))+np.diag(derr*derr))
+
+          def scores(bg):
+              return {
+                  'pantheonplus':chi(ppp,ppm-mu(bg,ppz,ppzh)),
+                  'union3':chi(unp,unm-mu(bg,unz,unz)),
+                  'desy5':chi(dep,dem-mu(bg,dez,dezh)),
+              }
+
+          s=table('input_cov/desi_cov_00_background.dat')
+          l=table('input_cov/desi_lcdm_00_background.dat')
+          ss=scores(s); ll=scores(l)
+          out={k:{'sdmc':ss[k],'lcdm_reference':ll[k],'delta_vs_reference':ss[k]-ll[k]} for k in ss}
+          print('EXPANSION_BEST_COV_SN',json.dumps(out,sort_keys=True),flush=True)
+          pd.DataFrame([
+              dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm_reference'],delta_chi2=v['delta_vs_reference'])
+              for k,v in out.items()
+          ]).to_csv(OUT/'expansion_best_covariant_sn.csv',index=False)
+          (OUT/'expansion_best_covariant_sn.json').write_text(json.dumps(out,indent=2))
+          PY
+
+      - name: Preserve exact-covariant expansion-best SN
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-local002-expansion-best-covariant-sn-final
+          path: output/expansion_best_cov_sn/*
+          if-no-files-found: warn
