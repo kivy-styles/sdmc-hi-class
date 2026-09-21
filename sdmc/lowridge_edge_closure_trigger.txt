@@ -1,0 +1,1 @@
+Trigger lowridge edge continuation after workflow definition exists.
