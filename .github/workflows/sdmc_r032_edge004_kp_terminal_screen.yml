@@ -1,4 +1,5 @@
 name: SDMC r032 edge004 Kp terminal screen
+# exact edge004 + corrected residual-acoustic Kp runtime gate
 
 on:
   push:
