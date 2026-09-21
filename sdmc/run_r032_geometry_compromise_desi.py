@@ -389,16 +389,33 @@ def profile_model(label,m):
             logl+=-.5*np.linalg.slogdet(-posth)[1]
             logbias=-.5*(x[1]/5.)**2-.5*(x[2]/5.)**2
             return float(logl+logprior+logbias)
-        x0=np.array(starts[b["namespace"]],float)
-        opt=minimize(lambda x:-2*block_logp(x),x0,method="L-BFGS-B",
-                     bounds=[(0.,3.),(-20.,20.),(-20.,20.)],
-                     options={"maxiter":500,"ftol":1e-10,"gtol":1e-6})
+        seeds=[
+            np.array(starts[b["namespace"]],float),
+            np.array([1.0,0.0,0.0]),
+            np.array([0.55,4.0,-4.0]),
+            np.array([1.8,-4.0,4.0]),
+            np.array([2.6,8.0,-8.0]),
+            np.array([1.4,-10.0,-10.0]),
+        ]
+        trials=[]
+        for iseed,seed in enumerate(seeds):
+            opti=minimize(lambda x:-2*block_logp(x),seed,method="L-BFGS-B",
+                          bounds=[(0.,3.),(-20.,20.),(-20.,20.)],
+                          options={"maxiter":800,"ftol":1e-11,"gtol":3e-7,"maxls":50})
+            trials.append(opti)
+            print("GC_DESI_ROBUST_TRIAL",label,b["namespace"],iseed,float(opti.fun),
+                  bool(opti.success),[float(v) for v in opti.x],flush=True)
+        finite=[o for o in trials if np.isfinite(o.fun)]
+        opt=min(finite,key=lambda o:o.fun)
+        vals=np.array([float(o.fun) for o in finite])
         chi=float(opt.fun)
         total+=chi
         info=tables[b["namespace"]]
         row=dict(
             model=label,tracer=b["tracer"],namespace=b["namespace"],
             zeff=b["zeff"],chi2_profile=chi,success=bool(opt.success),
+            start_spread_chi2=float(vals.max()-vals.min()) if len(vals)>1 else 0.,
+            n_success=sum(bool(o.success) for o in trials),
             b1p=float(opt.x[0]),b2p=float(opt.x[1]),bsp=float(opt.x[2]),
             sigma8=info["sigma8"],fsigma8=info["fsigma8"],
             qpar=info["qpar"],qper=info["qper"],Dz=info["Dz"]
