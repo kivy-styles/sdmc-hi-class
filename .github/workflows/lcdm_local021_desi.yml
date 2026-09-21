@@ -175,7 +175,7 @@ jobs:
       - name: Print local021 DESI summary
         if: always()
         run: |
-          test ! -f output/lcdm_local021_desi_summary.csv || cat output/lcdm_control_desi_summary.csv
+          test ! -f output/lcdm_local021_desi_summary.csv || cat output/lcdm_local021_desi_summary.csv
 
       - name: Preserve local021 DESI validation
         if: always()
@@ -184,6 +184,6 @@ jobs:
           name: lcdm-local021-desi
           path: |
             output/lcdm_local021_desi_profile.csv
-            output/lcdm_control_desi_summary.csv
+            output/lcdm_local021_desi_summary.csv
             output/desi_zeff.json
           if-no-files-found: warn
