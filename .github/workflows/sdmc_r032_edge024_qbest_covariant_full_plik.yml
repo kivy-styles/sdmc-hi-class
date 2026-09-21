@@ -3,7 +3,7 @@ name: SDMC r032 edge024_qbest Qbest exact-covariant full Plik
 on:
   push:
     branches:
-      - sdmc-r032-edge024_qbest-qbest-covariant-fullplik
+      - sdmc-r032-edge024-qbest-covariant-fullplik
   workflow_dispatch:
 
 jobs:
