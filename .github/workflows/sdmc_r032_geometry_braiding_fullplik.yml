@@ -1,9 +1,9 @@
-name: SDMC r032 geometry-braiding full Plik validation
+name: SDMC r032 sobol049 braiding full Plik validation
 
 on:
   push:
     branches:
-      - sdmc-r032-geometry-braiding-fullplik
+      - sdmc-r032-sobol049-braiding-fullplik
   workflow_dispatch:
 
 jobs:
@@ -40,24 +40,24 @@ jobs:
 
       - name: Generate candidate spectra
         run: |
-          mkdir -p output/geometry_braid_fullplik
+          mkdir -p output/sobol049_braid_fullplik
           python3 - <<'PY'
           from pathlib import Path
           import math, subprocess, textwrap, json
 
-          OUT=Path("output/geometry_braid_fullplik")
-          H0=70.5659273196888
-          OB=0.022329086486197414
-          OC=0.12479662145108897
-          NS=0.963943012708798
-          TAU=0.0544
-          LNAS=3.060
+          OUT=Path("output/sobol049_braid_fullplik")
+          H0=70.6661848725751
+          OB=0.02213832986768335
+          OC=0.12419066331610083
+          NS=0.9614044621046632
+          TAU=0.05464880801877007
+          LNAS=3.051477308589965
           AS=math.exp(LNAS)/1e10
           OR=4.17998772e-5
           OX=1.-(OB+OC+OR)/(H0/100.)**2
 
           cand=[
-            ("GEOM_ZERO",0.0,1.5,0.8),
+            ("S49_ZERO",0.0,1.5,0.8),
             ("BRAID_044",0.044,1.5,0.8),
             ("BRAID_040W1",0.040,1.5,1.0),
           ]
@@ -81,7 +81,7 @@ jobs:
               use_ppf = no
               Omega_smg = -1
               gravity_model = sdmc_v3_lens_braiding
-              parameters_smg = 0.0573794336710125,3.0902165911160413,0.5979282500222326,0.34231919445927034,1.0,0.045,{A:.17g},{zl:.17g},{sl:.17g}
+              parameters_smg = 0.05709640212077647,2.8532181778922676,0.575869657304138,0.34231919445927034,1.0,0.045,{A:.17g},{zl:.17g},{sl:.17g}
               expansion_model = sdmc_full
               expansion_smg = {OX:.17g},17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
               pert_initial_conditions_smg = zero
@@ -127,8 +127,8 @@ jobs:
 
       - name: Generate LCDM control
         run: |
-          sed 's#root = output/sdmc_planck_lcdm_control_#root = output/geometry_braid_fullplik/lcdm_#'             sdmc/config/planck_lcdm_control.ini > output/geometry_braid_fullplik/lcdm.ini
-          ./class output/geometry_braid_fullplik/lcdm.ini
+          sed 's#root = output/sdmc_planck_lcdm_control_#root = output/sobol049_braid_fullplik/lcdm_#'             sdmc/config/planck_lcdm_control.ini > output/sobol049_braid_fullplik/lcdm.ini
+          ./class output/sobol049_braid_fullplik/lcdm.ini
 
       - name: Install Planck likelihoods
         run: |
@@ -157,7 +157,7 @@ jobs:
           from cobaya.likelihoods.planck_2018_lowl.EE import EE
           from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-          OUT=Path('output/geometry_braid_fullplik')
+          OUT=Path('output/sobol049_braid_fullplik')
           TCMB=2.7255
           high=TTTEEE(packages_path='planck_full')
           lowT=TT(packages_path='planck_packages')
@@ -281,7 +281,7 @@ jobs:
               return row,x
 
           items=[
-            ('GEOM_ZERO',OUT/'geom_zero_00_cl_lensed.dat'),
+            ('S49_ZERO',OUT/'s49_zero_00_cl_lensed.dat'),
             ('BRAID_044',OUT/'braid_044_00_cl_lensed.dat'),
             ('BRAID_040W1',OUT/'braid_040w1_00_cl_lensed.dat'),
             ('LCDM',OUT/'lcdm_00_cl_lensed.dat'),
@@ -295,7 +295,7 @@ jobs:
               r['delta_chi2_vs_LCDM']=r['chi2_profile_total']-base
               print('FULLPLIK_DELTA',r['model'],r['delta_chi2_vs_LCDM'],flush=True)
           pd=None
-          with (OUT/'geometry_braid_fullplik_profile.csv').open('w',newline='') as f:
+          with (OUT/'sobol049_braid_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=list(rows[0].keys())); w.writeheader(); w.writerows(rows)
           PY
 
@@ -305,8 +305,8 @@ jobs:
         with:
           name: sdmc-r032-geometry-braiding-fullplik
           path: |
-            output/geometry_braid_fullplik/*.csv
-            output/geometry_braid_fullplik/*_00_cl_lensed.dat
-            output/geometry_braid_fullplik/*_00_background.dat
-            output/geometry_braid_fullplik/candidate_meta.json
+            output/sobol049_braid_fullplik/*.csv
+            output/sobol049_braid_fullplik/*_00_cl_lensed.dat
+            output/sobol049_braid_fullplik/*_00_background.dat
+            output/sobol049_braid_fullplik/candidate_meta.json
           if-no-files-found: warn
