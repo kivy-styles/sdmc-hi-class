@@ -9,7 +9,8 @@ the higher physical matter density / matter-radiation equality scale.
 Protocol:
   * Fix omega_b and omega_m to the optimized LCDM local021 values.
   * Therefore omega_cdm is fixed to local021 as well.
-  * Fix H0=73.0 km/s/Mpc, selected by the preceding diagnostic to restore the geometry-refined acoustic scale ell_A at the LCDM equality densities.
+  * Fix H0_GEOM=70.5653567390982
+H0_TEST=73.0 km/s/Mpc, selected by the preceding diagnostic to restore the geometry-refined acoustic scale ell_A at the LCDM equality densities.
   * Keep n_s, tau and A_s at the geometry-refined SDMC values.
   * Re-optimize only the SDMC structural sector:
         (A_F, z_c, DeltaN, D_floor, lambda_e, z_t)
@@ -166,7 +167,7 @@ def lcdm_ini(root):
     output_verbose = 0
     """)
 
-def ini(root,ob,oc,af,zc,width,dfloor,lam,zt):
+def ini(root,H0,ob,oc,af,zc,width,dfloor,lam,zt):
     h=H0/100.
     ox=1.-(ob+oc+OR)/(h*h)
     return textwrap.dedent(f"""\
@@ -209,11 +210,11 @@ def ini(root,ob,oc,af,zc,width,dfloor,lam,zt):
     output_verbose = 0
     """)
 
-def run_model(tag,ob,oc,af,zc,width,dfloor,lam,zt):
+def run_model(tag,H0,ob,oc,af,zc,width,dfloor,lam,zt):
     root=str(OUT/(tag+"_")); ip=OUT/(tag+".ini")
-    ip.write_text(ini(root,ob,oc,af,zc,width,dfloor,lam,zt))
+    ip.write_text(ini(root,H0,ob,oc,af,zc,width,dfloor,lam,zt))
     cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
-    rec=dict(id=tag,omega_b=ob,omega_cdm=oc,omega_m=ob+oc,
+    rec=dict(id=tag,H0=H0,omega_b=ob,omega_cdm=oc,omega_m=ob+oc,
              A_F=af,z_c=zc,width=width,D_floor=dfloor,lambda_e=lam,z_t=zt,
              status="FAIL",returncode=cp.returncode)
     bgp=Path(root+"00_background.dat"); clp=Path(root+"00_cl_lensed.dat")
@@ -243,11 +244,11 @@ lbg=table(lr+"00_background.dat"); lp=pscore(lr+"00_cl_lensed.dat"); lsn=sns(lbg
 base=dict(planck=lp["chi2_planck"],pp=lsn[0],u3=lsn[1],dy=lsn[2])
 print("ZEQLOCK_LCDM_REFERENCE",json.dumps(base,sort_keys=True),flush=True)
 
-geom=run_model("geom_current",OB_GEOM,OC_GEOM,AF0,ZC0,W0,DF0,LAM0,ZT0)
+geom=run_model("geom_current",H0_GEOM,OB_GEOM,OC_GEOM,AF0,ZC0,W0,DF0,LAM0,ZT0)
 if geom["status"]!="OK": raise RuntimeError("geometry-refined current center failed")
 print("ZEQLOCK_GEOM_CURRENT",json.dumps(geom,sort_keys=True),flush=True)
 
-eq0=run_model("eqfix_center",OB,OC,AF0,ZC0,W0,DF0,LAM0,ZT0)
+eq0=run_model("eqfix_center",H0_TEST,OB,OC,AF0,ZC0,W0,DF0,LAM0,ZT0)
 print("ZEQLOCK_EQUALITY_CENTER",json.dumps(eq0,sort_keys=True),flush=True)
 
 # 64 deterministic Sobol structural points plus both explicit centers.
@@ -257,7 +258,7 @@ pts=qmc.scale(u,LOW,HIGH)
 rows=[geom,eq0]
 for i,p in enumerate(pts):
     af,zc,w,df,lam,zt=map(float,p)
-    rec=run_model(f"sobol{i:03d}",OB,OC,af,zc,w,df,lam,zt)
+    rec=run_model(f"sobol{i:03d}",H0_TEST,OB,OC,af,zc,w,df,lam,zt)
     rows.append(rec)
     if rec["status"]=="OK":
         rec["delta_planck"]=rec["chi2_planck"]-base["planck"]
