@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality zt-best exact-covariant full Plik
+name: SDMC r032 zt-best Q02 exact-covariant full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-ztbest-covariant-fullplik
+      - sdmc-r032-ztbest-q02-covariant-fullplik
   workflow_dispatch:
 
 jobs:
@@ -74,7 +74,7 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.132477632355162e-9
+          A_s = 2.1229030419949897e-9
           n_s = 0.9625227132590487
           tau_reio = 0.055202901571989066
           Omega_Lambda = 0
@@ -107,7 +107,7 @@ jobs:
           EOF
           ./class output/cov_exact_target.ini
 
-          python3 sdmc/run_r032_partial_zeq_ztbest_covariant.py
+          python3 sdmc/run_r032_ztbest_q02_covariant.py
 
           python3 - <<'PY'
           from pathlib import Path
@@ -146,7 +146,7 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.132477632355162e-9
+          A_s = 2.1229030419949897e-9
           n_s = 0.9625227132590487
           tau_reio = 0.055202901571989066
           Omega_Lambda = 0
@@ -194,7 +194,7 @@ jobs:
           a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
           mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
           slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
-          print('PARTIAL_ZEQ_ZTBEST_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          print('ZTBEST_Q02_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
           if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
           PY
 
@@ -348,7 +348,7 @@ jobs:
                       m.simplex(ncall=2500)
                       m.migrad(ncall=5000)
                   row=(float(m.fval),np.array([m.values[n] for n in names],float),bool(m.fmin.is_valid),int(m.nfcn))
-                  print('COVARIANT_PARTIAL_ZEQ_ZTBEST_FULL_PLIK_SEED',label,iseed,row[0],row[2],row[3],flush=True)
+                  print('COVARIANT_ZTBEST_Q02_FULL_PLIK_SEED',label,iseed,row[0],row[2],row[3],flush=True)
                   if best is None or row[0]<best[0]:
                       best=row
               fval,x,valid,nfcn=best
@@ -358,15 +358,15 @@ jobs:
                    'chi2_nuisance_priors':prior_chi2(p),'A_planck':p['A_planck'],
                    'valid':valid,'nfcn':nfcn}
               row.update({n:p[n] for n in names if n!='A_planck'})
-              print('COVARIANT_PARTIAL_ZEQ_ZTBEST_FULL_PLIK_RESULT',json.dumps(row,sort_keys=True),flush=True)
+              print('COVARIANT_ZTBEST_Q02_FULL_PLIK_RESULT',json.dumps(row,sort_keys=True),flush=True)
               return row,x
 
           default=np.asarray(x0,float)
           displaced=default.copy(); displaced[3]=80.; displaced[5]=5.; displaced[6]=2.
-          cov,cx=run_one('SDMC_COVARIANT_PARTIAL_ZEQ_ZTBEST_EXPANSION_BEST',ROOT/'covariant_observable_00_cl_lensed.dat',[default,displaced])
+          cov,cx=run_one('SDMC_COVARIANT_ZTBEST_Q02_EXPANSION_BEST',ROOT/'covariant_observable_00_cl_lensed.dat',[default,displaced])
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,cx])
           delta=cov['chi2_profile_total']-lcdm['chi2_profile_total']
-          print('COVARIANT_PARTIAL_ZEQ_ZTBEST_FULL_PLIK_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_ZTBEST_Q02_FULL_PLIK_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           fields=list(cov.keys())
           with (OUT/'fast_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows([cov,lcdm])
@@ -377,6 +377,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-partial_zeq_ztbest-covariant-full-plik-profile
+          name: sdmc-r032-ztbest_q02-covariant-full-plik-profile
           path: output/*
           if-no-files-found: warn
