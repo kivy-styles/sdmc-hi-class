@@ -1,0 +1,1 @@
+Trigger a second corrected localref008 exact-covariant DESI validation after the candidate-specific reconstruction fix.
