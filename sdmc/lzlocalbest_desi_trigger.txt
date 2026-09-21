@@ -1,0 +1,1 @@
+Trigger exact-covariant DESI validation for lower-z_t local winner.
