@@ -47,8 +47,8 @@ LAM0=17.7
 ZT0=17.1
 
 # f, A_F, z_c, width, D_floor, lambda_e, z_t
-LOW=np.array([0.05,0.045,2.40,0.45,0.035,17.00,16.50],float)
-HIGH=np.array([0.25,0.075,3.20,0.67,0.060,18.20,17.70],float)
+LOW=np.array([0.00,0.052,2.55,0.52,0.032,17.80,16.85],float)
+HIGH=np.array([0.14,0.067,3.05,0.66,0.052,19.00,17.45],float)
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages")
