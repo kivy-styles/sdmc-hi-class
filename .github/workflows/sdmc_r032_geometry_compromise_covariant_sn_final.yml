@@ -1,0 +1,200 @@
+name: SDMC r032 geometry compromise exact-covariant SN final
+
+on:
+  push:
+    branches:
+      - sdmc-r032-geometry-compromise-covariant-sn-final
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  exact-covariant-sn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Download preserved exact-covariant geometry-compromise artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf input_cov
+          mkdir -p input_cov
+          gh run download 35574458587 \
+            --repo "${{ github.repository }}" \
+            --name sdmc-r032-l18-z195-covariant \
+            --dir input_cov
+          test -f input_cov/covariant_transfer_00_background.dat
+          echo "EXACT_COVARIANT_BACKGROUND_READY"
+
+      - name: Build matched LCDM background
+        run: |
+          make -j2 class
+          mkdir -p output
+          cat > output/lcdm.ini <<'EOF'
+          H0 = 67.36
+          omega_b = 0.02237
+          omega_cdm = 0.1200
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.10e-9
+          n_s = 0.9649
+          tau_reio = 0.0544
+          write background = yes
+          root = output/lcdm_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/lcdm.ini
+          test -f output/lcdm_00_background.dat
+
+      - name: Install SN data
+        run: |
+          rm -rf sn_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+
+      - name: Score exact-covariant SN compilations separately
+        run: |
+          mkdir -p output/covariant_sn_final
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json
+          import numpy as np
+          import pandas as pd
+          from scipy.linalg import cho_factor, cho_solve
+
+          DATA=Path('sn_data')
+          OUT=Path('output/covariant_sn_final')
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values('z')
+
+          def read_cov(path,n):
+              a=np.asarray(np.loadtxt(path),float).reshape(-1)
+              if len(a)==n*n+1 and int(round(a[0]))==n:
+                  a=a[1:]
+              if len(a)!=n*n:
+                  raise RuntimeError(f'covariance size mismatch {path}: {len(a)} vs {n*n}')
+              return a.reshape(n,n)
+
+          def setup(C):
+              cf=cho_factor(C,lower=True,check_finite=False)
+              one=np.ones(C.shape[0])
+              u=cho_solve(cf,one,check_finite=False)
+              return cf,one,float(one.dot(u))
+
+          def chi(pack,r):
+              cf,one,den=pack
+              y=cho_solve(cf,r,check_finite=False)
+              return float(r.dot(y)-(one.dot(y))**2/den)
+
+          def mu(bg,z,zh):
+              DM=np.interp(z,bg.z,bg['comov. dist.'])
+              DA=DM/(1.+z)
+              return 5.*np.log10((1.+zh)*(1.+z)*DA)
+
+          pp=pd.read_csv(DATA/'PantheonPlus/Pantheon+SH0ES.dat',sep=r'\s+',header=0,engine='python')
+          ppm=pp['m_b_corr'].to_numpy(float)
+          ppz=pp['zHD'].to_numpy(float)
+          ppzh=pp['zHEL'].to_numpy(float)
+          C=read_cov(DATA/'PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov',len(ppm))
+          mask=ppz>0.01
+          ppm,ppz,ppzh,C=ppm[mask],ppz[mask],ppzh[mask],C[np.ix_(mask,mask)]
+          ppp=setup(C)
+
+          p=DATA/'Union3/lcparam_full.txt'
+          cols=p.read_text().splitlines()[0].removeprefix('#').split()
+          un=pd.read_csv(p,sep=r'\s+',comment='#',names=cols,engine='python')
+          cm={c.lower():c for c in un.columns}
+          unm=un[cm['mb']].to_numpy(float)
+          unz=un[cm['zcmb']].to_numpy(float)
+          unp=setup(read_cov(DATA/'Union3/mag_covmat.txt',len(unm)))
+
+          de=pd.read_csv(DATA/'DESY5/DES-SN5YR_HD.csv')
+          cm={c.lower():c for c in de.columns}
+          dem=de[cm['mu']].to_numpy(float)
+          dez=de[cm['zhd']].to_numpy(float)
+          dezh=de[cm['zhel']].to_numpy(float)
+          derr=de[cm['muerr_final']].to_numpy(float)
+          dep=setup(read_cov(DATA/'DESY5/covsys_000.txt',len(dem))+np.diag(derr*derr))
+
+          def scores(bg):
+              return {
+                  'pantheonplus':chi(ppp,ppm-mu(bg,ppz,ppzh)),
+                  'union3':chi(unp,unm-mu(bg,unz,unz)),
+                  'desy5':chi(dep,dem-mu(bg,dez,dezh)),
+              }
+
+          s=table('input_cov/covariant_transfer_00_background.dat')
+          l=table('output/lcdm_00_background.dat')
+
+          # Direct background agreement metadata: this is the exact covariant
+          # geometry-compromise solution already used by the DESI replay.
+          ss=scores(s); ll=scores(l)
+          out={k:{'sdmc':ss[k],'lcdm':ll[k],'delta':ss[k]-ll[k]} for k in ss}
+          print('COV_GEOM_SN',json.dumps(out,sort_keys=True),flush=True)
+
+          rows=[
+              dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm'],delta_chi2=v['delta'])
+              for k,v in out.items()
+          ]
+          pd.DataFrame(rows).to_csv(OUT/'covariant_geometry_compromise_sn.csv',index=False)
+          (OUT/'covariant_geometry_compromise_sn.json').write_text(json.dumps(out,indent=2))
+          PY
+
+      - name: Print final exact-covariant likelihood ledger
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          sn=json.loads(Path('output/covariant_sn_final/covariant_geometry_compromise_sn.json').read_text())
+          planck=5.36115841529
+          desi=-11.781497184073828
+          pd=planck+desi
+          out={
+            'delta_planck':planck,
+            'delta_desi':desi,
+            'delta_planck_plus_desi':pd,
+            'pantheonplus':sn['pantheonplus']['delta'],
+            'union3':sn['union3']['delta'],
+            'desy5':sn['desy5']['delta'],
+            'planck_desi_pantheonplus':pd+sn['pantheonplus']['delta'],
+            'planck_desi_union3':pd+sn['union3']['delta'],
+            'planck_desi_desy5':pd+sn['desy5']['delta'],
+          }
+          print('COV_GEOM_FINAL_LEDGER',json.dumps(out,sort_keys=True),flush=True)
+          Path('output/covariant_sn_final/final_likelihood_ledger.json').write_text(json.dumps(out,indent=2))
+          PY
+          cat output/covariant_sn_final/final_likelihood_ledger.json
+
+      - name: Preserve exact-covariant SN final
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-geometry-compromise-covariant-sn-final
+          path: |
+            output/covariant_sn_final/*.csv
+            output/covariant_sn_final/*.json
+          if-no-files-found: warn
