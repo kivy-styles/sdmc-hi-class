@@ -27,12 +27,12 @@ jobs:
 
       - name: Download preserved exact-covariant transfer artifact
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           rm -rf input_cov
           mkdir -p input_cov
           gh run download 35574458587 \
-            --repo "\${{ github.repository }}" \
+            --repo "${{ github.repository }}" \
             --name sdmc-r032-l18-z195-covariant \
             --dir input_cov
           test -f input_cov/covariant_transfer_00_background.dat
