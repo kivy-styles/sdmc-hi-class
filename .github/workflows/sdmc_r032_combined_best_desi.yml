@@ -34,7 +34,7 @@ jobs:
         run: make -j2 class
       - name: Install official DESI DR1 full-shape dependencies
         run: |
-          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw cobaya
           python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
           python3 -m pip install git+https://github.com/adematti/lsstypes.git
           python3 -m pip install git+https://github.com/sfschen/velocileptors.git
