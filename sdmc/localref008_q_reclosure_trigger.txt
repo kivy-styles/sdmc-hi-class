@@ -1,1 +1,3 @@
 Trigger the localref008 Q reclosure workflow now that the workflow definition exists on this branch.
+
+Retrigger after workflow verification.
