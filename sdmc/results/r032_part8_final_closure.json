@@ -1,72 +1,182 @@
 {
-  "model": "SDMC_r032_local002_expansion_best_exact_covariant",
-  "parameters": {
-    "H0": 70.5653567390982,
-    "omega_b": 0.022011983189284802,
-    "omega_cdm": 0.12404331885203719,
-    "n_s": 0.9625227132590487,
-    "tau_reio": 0.055202901571989066,
-    "ln10As": 3.0598696043919773,
-    "A_F": 0.06017362505197525,
-    "z_c": 2.827464461401105,
-    "width": 0.5514493708219379,
-    "D0": 0.34231919445927034,
-    "Dfloor": 0.045,
-    "lambda_e": 17.7,
-    "z_t": 17.1
+  "version": 2,
+  "status": "PLANCK_DESI_GAP_CLOSED",
+  "scope": "Fair Planck full Plik + DESI DR1 raw full-shape comparison versus LCDM local021",
+  "current_pd_closure": {
+    "model": "SDMC_r032_eref015_exact_covariant",
+    "parameters": {
+      "H0": 70.79146512830793,
+      "omega_b": 0.022083219194622913,
+      "omega_cdm": 0.12299536722293603,
+      "n_s": 0.9625227132590487,
+      "tau_reio": 0.055202901571989066,
+      "A_s": 2.1218418557926507e-9,
+      "ln10As": 3.054869604391977,
+      "A_F": 0.03597474167915061,
+      "z_c": 3.580509699881077,
+      "width": 0.3986928062886,
+      "D0": 0.34231919445927034,
+      "Dfloor": 0.04906211170135066,
+      "lambda_e": 18.40625,
+      "z_t": 16.141839363323523
+    },
+    "exact_covariant_stability": {
+      "min_D": 0.04906211167807,
+      "min_cs2": 0.007939174161602,
+      "max_cs2": 0.6674784881772,
+      "max_abs_noslip": 1.0005885009434223e-14
+    },
+    "exact_likelihoods": {
+      "planck": {
+        "chi2_profile_total": 2786.1184593309654,
+        "delta_vs_common_reference": -17.875731750041723
+      },
+      "desi": {
+        "chi2_profile_total": 327.0937584010189,
+        "delta_vs_common_reference": -13.438644991802846
+      },
+      "planck_plus_desi_delta_vs_common_reference": -31.31437674184457
+    },
+    "lcdm_local021": {
+      "planck": {
+        "chi2_profile_total": 2781.4370287015954,
+        "delta_vs_common_reference": -22.557091181603937
+      },
+      "desi": {
+        "chi2_profile_total": 331.93726232610265,
+        "delta_vs_common_reference": -8.59514105435187
+      },
+      "planck_plus_desi_delta_vs_common_reference": -31.152232235955807
+    },
+    "fair_difference_sdmc_minus_lcdm": {
+      "planck_direct": 4.681430629370035,
+      "desi_direct": -4.843503925083752,
+      "planck_plus_desi_direct": -0.162073295713716,
+      "delta_ledger_difference": -0.162144505888762
+    },
+    "interpretation": "Negative SDMC-minus-LCDM means the SDMC eref015 exact-covariant candidate has a lower combined Planck+DESI chi2. The formerly positive gap is therefore closed and surpassed."
   },
-  "stability": {
-    "min_D": 0.04499999923422,
-    "min_cs2": 0.08758419507446,
-    "max_cs2": 0.7349576876011,
-    "max_abs_noslip": 1.0005885009434223e-14
+  "validation_runs": {
+    "eref015_fullplik": {
+      "run_id": 35667433363,
+      "job_id": 106556203694
+    },
+    "eref015_desi": {
+      "run_id": 35667451332,
+      "job_id": 106556258785
+    },
+    "lcdm_local021_fullplik": {
+      "run_id": 35585790426,
+      "job_id": 106288695887
+    },
+    "lcdm_local021_desi": {
+      "run_id": 35587244801,
+      "job_id": 106293308905
+    }
   },
-  "sdmc_delta": {
-    "planck": -9.002764487901459,
-    "desi": -12.517050371798064,
-    "planck_desi": -21.519814859699522,
-    "pantheonplus": 4.375243047717959,
-    "union3": 4.018381844944088,
-    "desy5": 9.245343506336212
+  "stale_reconstruction_audit": {
+    "rule": "Do not cite a promoted exact run unless cov_exact_reconstruction_summary echoes the intended A_F, z_c, width, Dfloor and H0 for that candidate.",
+    "excluded_examples": [
+      {
+        "run_id": 35666650275,
+        "reason": "edge028 full-Plik run reconstructed Dfloor=0.047899333223700526 instead of edge028 Dfloor=0.04570108858030289"
+      },
+      {
+        "run_id": 35666652503,
+        "reason": "edge028 DESI run reconstructed Dfloor=0.047899333223700526 instead of edge028 Dfloor=0.04570108858030289"
+      },
+      {
+        "run_id": 35666724761,
+        "reason": "initial localref008 full-Plik run reconstructed the prior lowridge action"
+      },
+      {
+        "run_id": 35665667528,
+        "reason": "initial lowridge021 DESI run reconstructed Dfloor=0.041875 instead of 0.047899333223700526"
+      },
+      {
+        "run_id": 35666871548,
+        "reason": "edge028-Qbest DESI run reconstructed the prior lowridge action"
+      },
+      {
+        "run_id": 35666851338,
+        "reason": "edge028-Qbest DESI run reconstructed the prior lowridge action"
+      }
+    ]
   },
-  "lcdm_local021_delta": {
-    "planck": -22.557091181603937,
-    "desi": -8.59514105435187,
-    "planck_desi": -31.152232235955807,
-    "pantheonplus": 2.3297537905164063,
-    "union3": 2.236117954074871,
-    "desy5": 5.168786585330963
+  "continuing_checks": {
+    "edge028_o4d030": "Exact full-Plik and DESI promotion queued; may improve the post-closure leader but is not required to establish closure.",
+    "note": "SN likelihoods were not re-promoted for eref015 in this closure record; this version establishes the Planck+DESI gap result only."
   },
-  "fair_gap_sdmc_minus_lcdm": {
-    "planck_desi": 9.632417376256285,
-    "pd_pantheonplus": 11.677906633457837,
-    "pd_union3": 11.414681267125502,
-    "pd_desy5": 13.708974297261534
-  },
-  "planck_component_gap": {
-    "high_l": 9.136206038926503,
-    "lowT": 2.96073065188034,
-    "lowE": 0.2553836016185187,
-    "lensing": 0.5111577737826387,
-    "nuisance_priors": 0.6909198253025965,
-    "total": 13.554397891510234
-  },
-  "cmb_diagnostic": {
-    "ellA_sdmc": 301.6798271349195,
-    "ellA_lcdm": 301.5486238021766,
-    "delta_ellA": 0.13120333274287077,
-    "rs_star_sdmc_Mpc": 142.9566350658675,
-    "rs_star_lcdm_Mpc": 144.94901560720697,
-    "rd_sdmc_Mpc": 145.61046443300566,
-    "rd_lcdm_Mpc": 147.53012524715427
-  },
-  "runs": {
-    "exact_fullplik": 35593253133,
-    "exact_desi": 35593282108,
-    "exact_sn": 35593665183,
-    "ordinary_edge_closure": 35592519217,
-    "cmb_diagnostic": 35593964504,
-    "lcdm_local021_fullplik": 35585790426,
-    "lcdm_local021_desi": 35587244801
+  "superseded_previous_snapshot": {
+    "model": "SDMC_r032_local002_expansion_best_exact_covariant",
+    "parameters": {
+      "H0": 70.5653567390982,
+      "omega_b": 0.022011983189284802,
+      "omega_cdm": 0.12404331885203719,
+      "n_s": 0.9625227132590487,
+      "tau_reio": 0.055202901571989066,
+      "ln10As": 3.0598696043919773,
+      "A_F": 0.06017362505197525,
+      "z_c": 2.827464461401105,
+      "width": 0.5514493708219379,
+      "D0": 0.34231919445927034,
+      "Dfloor": 0.045,
+      "lambda_e": 17.7,
+      "z_t": 17.1
+    },
+    "stability": {
+      "min_D": 0.04499999923422,
+      "min_cs2": 0.08758419507446,
+      "max_cs2": 0.7349576876011,
+      "max_abs_noslip": 1.0005885009434223e-14
+    },
+    "sdmc_delta": {
+      "planck": -9.002764487901459,
+      "desi": -12.517050371798064,
+      "planck_desi": -21.519814859699522,
+      "pantheonplus": 4.375243047717959,
+      "union3": 4.018381844944088,
+      "desy5": 9.245343506336212
+    },
+    "lcdm_local021_delta": {
+      "planck": -22.557091181603937,
+      "desi": -8.59514105435187,
+      "planck_desi": -31.152232235955807,
+      "pantheonplus": 2.3297537905164063,
+      "union3": 2.236117954074871,
+      "desy5": 5.168786585330963
+    },
+    "fair_gap_sdmc_minus_lcdm": {
+      "planck_desi": 9.632417376256285,
+      "pd_pantheonplus": 11.677906633457837,
+      "pd_union3": 11.414681267125502,
+      "pd_desy5": 13.708974297261534
+    },
+    "planck_component_gap": {
+      "high_l": 9.136206038926503,
+      "lowT": 2.96073065188034,
+      "lowE": 0.2553836016185187,
+      "lensing": 0.5111577737826387,
+      "nuisance_priors": 0.6909198253025965,
+      "total": 13.554397891510234
+    },
+    "cmb_diagnostic": {
+      "ellA_sdmc": 301.6798271349195,
+      "ellA_lcdm": 301.5486238021766,
+      "delta_ellA": 0.13120333274287077,
+      "rs_star_sdmc_Mpc": 142.9566350658675,
+      "rs_star_lcdm_Mpc": 144.94901560720697,
+      "rd_sdmc_Mpc": 145.61046443300566,
+      "rd_lcdm_Mpc": 147.53012524715427
+    },
+    "runs": {
+      "exact_fullplik": 35593253133,
+      "exact_desi": 35593282108,
+      "exact_sn": 35593665183,
+      "ordinary_edge_closure": 35592519217,
+      "cmb_diagnostic": 35593964504,
+      "lcdm_local021_fullplik": 35585790426,
+      "lcdm_local021_desi": 35587244801
+    }
   }
 }
