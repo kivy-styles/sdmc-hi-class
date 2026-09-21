@@ -3,7 +3,7 @@ name: SDMC r032 geometry-braiding runner raw DESI validation
 on:
   push:
     branches:
-      - sdmc-r032-geometry-braiding-desi-runner-runner
+      - sdmc-r032-geometry-braiding-desi-runner
   workflow_dispatch:
 
 jobs:
