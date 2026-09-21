@@ -107,7 +107,7 @@ jobs:
           EOF
           ./class output/cov_exact_target.ini
 
-          python3 sdmc/run_r032_ztbest_qbest_covariant.py
+          python3 sdmc/run_r032_partial_zeq_ztbest_covariant.py
 
           python3 - <<'PY'
           from pathlib import Path
