@@ -1,9 +1,9 @@
-name: SDMC r032 zt-best Q02 DESI full-shape
+name: SDMC r032 zt-best Qfine DESI full-shape
 
 on:
   push:
     branches:
-      - sdmc-r032-ztbest-q02-desi
+      - sdmc-r032-ztbest-qfine-desi
   workflow_dispatch:
 
 jobs:
