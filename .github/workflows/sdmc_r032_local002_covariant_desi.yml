@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality best exact-covariant DESI validation
+name: SDMC r032 partial-equality stability-edge exact-covariant DESI validation
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-best-covariant-desi
+      - sdmc-r032-partial-zeq-stability-edge-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -37,9 +37,9 @@ jobs:
           mkdir -p output
 
           cat > output/cov_exact_target.ini <<'EOF'
-          H0 = 70.66324280546841
-          omega_b = 0.022039097239759515
-          omega_cdm = 0.12364444452954193
+          H0 = 70.86830361078158
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
@@ -54,9 +54,9 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.0590625, 2.775, 0.5943750000000001, 0.34231919445927034, 1.0, 0.04203125
+          parameters_smg = 0.0488125, 2.90625, 0.474375, 0.34231919445927034, 1.0, 0.0443125
           expansion_model = sdmc_full
-          expansion_smg = 0.7081578912874815, 18.162499999999998, 17.1375, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.7110489003494973, 18.015625, 17.0109375, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -76,7 +76,7 @@ jobs:
           output_verbose = 0
           EOF
           ./class output/cov_exact_target.ini
-          python3 sdmc/run_r032_partial_zeq_best_covariant.py
+          python3 sdmc/run_r032_partial_zeq_stability_edge_covariant.py
 
           python3 - <<'PY'
           from pathlib import Path
@@ -92,9 +92,9 @@ jobs:
               r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
               r'double tauB\s*=\s*pba->parameters_smg\[7\];'
           )
-          repl='''double Ox = 0.7081578912874815;
-            double lambda_e = 18.162499999999998;
-            double zt = 17.1375;
+          repl='''double Ox = 0.7110489003494973;
+            double lambda_e = 18.015625;
+            double zt = 17.0109375;
             double dNt = 0.5;
             double A = 0.01105624999;
             double tauA = 0.25;
@@ -106,7 +106,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_PARTIAL_ZEQ_BEST_BUILD_READY"
+          echo "COVARIANT_PARTIAL_ZEQ_STABILITY_EDGE_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         run: |
@@ -176,9 +176,9 @@ jobs:
         run: |
           ZPK=$(cat output/desi_zpk.txt)
           cat > output/desi_covariant_transfer.ini <<EOF
-          H0 = 70.66324280546841
-          omega_b = 0.022039097239759515
-          omega_cdm = 0.12364444452954193
+          H0 = 70.86830361078158
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
@@ -196,7 +196,7 @@ jobs:
           gravity_model = sdmc_v3_covariant_exact
           parameters_smg = 0.0
           expansion_model = sdmc_full
-          expansion_smg = 0.7081578912874815, 18.162499999999998, 17.1375, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.7110489003494973, 18.015625, 17.0109375, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
 
@@ -343,7 +343,7 @@ jobs:
 
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
-          cov=model_data('desi_cov',70.66324280546841,0.022039097239759515,0.12364444452954193,0.9625227132590487)
+          cov=model_data('desi_cov',70.86830361078158,0.022083219194622913,0.12299536722293603,0.9625227132590487)
           lcdm=model_data('desi_lcdm',67.36,0.02237,0.1200,0.9649)
 
           # Official likelihood blocks.
@@ -511,10 +511,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_PARTIAL_ZEQ_BEST',cov)
+          covrows,covchi=profile_model('COVARIANT_PARTIAL_ZEQ_STABILITY_EDGE',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_PARTIAL_ZEQ_BEST_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_PARTIAL_ZEQ_STABILITY_EDGE_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -526,7 +526,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-partial_zeq_best-covariant-desi
+          name: sdmc-r032-partial_zeq_stability_edge-covariant-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
