@@ -19,7 +19,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 python3-pip git
           python3 -m pip install --upgrade pip
-          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw cobaya
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw cobaya awscli
           python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
           python3 -m pip install git+https://github.com/adematti/lsstypes.git
           python3 -m pip install git+https://github.com/sfschen/velocileptors.git
@@ -32,6 +32,7 @@ jobs:
           rm -rf desi-kp-cosmological-likelihoods
           git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
           mkdir -p desi_likelihood output
+          S3_PREFIX=s3://desidata/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           for FN in \
@@ -44,21 +45,35 @@ jobs:
           do
             ok=0
             rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
-            for BASE in "$BASE_PRIMARY" "$BASE_MIRROR"
-            do
-              echo "Trying $BASE/$FN"
-              if curl -4 -L --fail --retry 8 --retry-all-errors --retry-delay 5 \
-                   --connect-timeout 30 --max-time 600 \
-                   -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
-                if python3 -c "import h5py,sys; f=h5py.File(sys.argv[1],'r'); list(f.keys()); f.close(); print('VALID_HDF5',sys.argv[1])" "desi_likelihood/$FN.part"; then
-                  mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
-                  ok=1
-                  break
-                fi
+
+            echo "Trying AWS Open Data s3://desidata for $FN"
+            if aws s3 cp --no-sign-request "$S3_PREFIX/$FN" "desi_likelihood/$FN.part"; then
+              if python3 -c "import h5py,sys; f=h5py.File(sys.argv[1],'r'); list(f.keys()); f.close(); print('VALID_HDF5_FROM_S3',sys.argv[1])" "desi_likelihood/$FN.part"; then
+                mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
+                ok=1
               fi
-              rm -f "desi_likelihood/$FN.part"
-            done
+            fi
+            rm -f "desi_likelihood/$FN.part"
+
+            if [ "$ok" -eq 0 ]; then
+              for BASE in "$BASE_PRIMARY" "$BASE_MIRROR"
+              do
+                echo "Trying $BASE/$FN"
+                if curl -4 -L --fail --retry 8 --retry-all-errors --retry-delay 5 \
+                     --connect-timeout 30 --max-time 600 \
+                     -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
+                  if python3 -c "import h5py,sys; f=h5py.File(sys.argv[1],'r'); list(f.keys()); f.close(); print('VALID_HDF5_FROM_HTTP',sys.argv[1])" "desi_likelihood/$FN.part"; then
+                    mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
+                    ok=1
+                    break
+                  fi
+                fi
+                rm -f "desi_likelihood/$FN.part"
+              done
+            fi
+
             test "$ok" -eq 1
+            test -s "desi_likelihood/$FN"
           done
           ls -lh desi_likelihood
 
