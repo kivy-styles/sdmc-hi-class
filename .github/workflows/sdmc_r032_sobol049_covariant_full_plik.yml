@@ -24,18 +24,30 @@ jobs:
 
       - name: Install Planck likelihood data
         run: |
-          python3 - <<'PY'
+          ok=0
+          for attempt in 1 2 3 4
+          do
+            echo "Planck install attempt $attempt"
+            rm -rf planck_full planck_packages
+            if python3 - <<'PY'
           from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
           from cobaya.likelihoods.planck_2018_lowl.TT import TT
           from cobaya.likelihoods.planck_2018_lowl.EE import EE
           from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
           if not TTTEEE.install(path='planck_full',no_progress_bars=True):
-              raise SystemExit('full Plik install failed')
+              raise SystemExit(2)
           for cls in (TT,EE,LensingNative):
               if not cls.install(path='planck_packages',no_progress_bars=True):
-                  raise SystemExit(f'native install failed: {cls}')
+                  raise SystemExit(3)
           print('PLANCK_DATA_READY')
           PY
+            then
+              ok=1
+              break
+            fi
+            sleep $((attempt*6))
+          done
+          test "$ok" -eq 1
 
       - name: Build reconstructed covariant candidate and LCDM spectra
         run: |
