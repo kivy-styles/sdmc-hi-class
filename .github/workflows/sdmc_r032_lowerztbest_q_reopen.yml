@@ -1,13 +1,13 @@
-name: SDMC r032 lowerzt-best Q reopen
+name: SDMC r032 lowerzt-local-best Q refine
 
 on:
   push:
     branches:
-      - sdmc-r032-lowerztbest-q-reopen
+      - sdmc-r032-lzlocalbest-q-refine
   workflow_dispatch:
 
 jobs:
-  lowerzt-q-reopen:
+  lowerzt-local-q-refine:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -65,15 +65,15 @@ jobs:
       - name: Print summary
         if: always()
         run: |
-          test ! -f output/lowerztbest_q_reopen/lowerztbest_q_reopen_summary.json || cat output/lowerztbest_q_reopen/lowerztbest_q_reopen_summary.json
-          test ! -f output/lowerztbest_q_reopen/lowerztbest_q_reopen.csv || cat output/lowerztbest_q_reopen/lowerztbest_q_reopen.csv
+          test ! -f output/lzlocalbest_q_refine/lzlocalbest_q_refine_summary.json || cat output/lzlocalbest_q_refine/lzlocalbest_q_refine_summary.json
+          test ! -f output/lzlocalbest_q_refine/lzlocalbest_q_refine.csv || cat output/lzlocalbest_q_refine/lzlocalbest_q_refine.csv
 
       - name: Preserve fine Q closure
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-lowerztbest-q-reopen
+          name: sdmc-r032-lzlocalbest-q-refine
           path: |
-            output/lowerztbest_q_reopen/*.csv
-            output/lowerztbest_q_reopen/*.json
+            output/lzlocalbest_q_refine/*.csv
+            output/lzlocalbest_q_refine/*.json
           if-no-files-found: warn
