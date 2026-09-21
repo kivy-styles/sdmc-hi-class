@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Re-open Q closure around the lower-z_t / narrow-width structural winner.
+Refine Q around the lower-z_t local structural winner.
 
 All geometry, matter, SDMC structure, n_s and tau are fixed.
 Only Q = ln(10^10 A_s) - 2 tau is varied in a narrow bracket around
@@ -16,26 +16,26 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/lowerztbest_q_reopen"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/lzlocalbest_q_refine"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
-H0=70.77850915257515
-OB=0.02208171050995865
-OC=0.12301756145665546
+H0=70.89156648389351
+OB=0.022098421547981244
+OC=0.12277172566846623
 NS=0.9625227132590487
 TAU=0.055202901571989066
-Q0=2.944463801247999
+Q0=2.942963801247999
 
-AF=0.04855956782167777
-ZC=2.9370467670261857
-WIDTH=0.448451985148713
+AF=0.04818102984447032
+ZC=2.9603643837291744
+WIDTH=0.44650924081914123
 D0=0.34231919445927034
-DF=0.044598941650241614
+DF=0.04514786952827126
 LAM=18.40625
-ZT=15.92094821177423
+ZT=16.075284339487553
 
-OFFSETS=np.array([-0.0030,-0.0025,-0.0020,-0.0015,-0.0010,-0.0005,
-                   0.0,0.0005,0.0010,0.0015,0.0020,0.0025,0.0030])
+OFFSETS=np.array([-0.0020,-0.0015,-0.0010,-0.00075,-0.0005,-0.00025,
+                   0.0,0.00025,0.0005,0.00075,0.0010,0.0015,0.0020])
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages")
@@ -136,7 +136,7 @@ def run(i,dq):
         if stable:
             rec.update(pscore(clp)); rec["status"]="OK"
     if rec["status"]!="OK": rec["error"]=cp.stdout[-800:].replace("\n"," | ")
-    print("LZQ_POINT",json.dumps(rec,sort_keys=True),flush=True)
+    print("LZLOCALQ_POINT",json.dumps(rec,sort_keys=True),flush=True)
     return rec
 
 rows=[run(i,dq) for i,dq in enumerate(OFFSETS)]
@@ -145,12 +145,12 @@ ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
 center=float(ok.loc[np.isclose(ok.dq,0.0),"chi2_planck"].iloc[0])
 ok["delta_vs_current_q"]=ok.chi2_planck-center
 df=pd.DataFrame(rows).merge(ok[["id","delta_vs_current_q"]],on="id",how="left")
-df.to_csv(OUT/"lowerztbest_q_reopen.csv",index=False)
+df.to_csv(OUT/"lzlocalbest_q_refine.csv",index=False)
 best=ok.nsmallest(8,"chi2_planck").to_dict("records")
 summary={"Q0":Q0,"center_chi2":center,"best":best[0],
          "best_delta_vs_current_q":float(ok.chi2_planck.min()-center),
          "left_edge_delta":float(ok.sort_values("Q").iloc[0].chi2_planck-center),
          "right_edge_delta":float(ok.sort_values("Q").iloc[-1].chi2_planck-center)}
-(OUT/"lowerztbest_q_reopen_summary.json").write_text(json.dumps(summary,indent=2))
-print("LZQ_BEST",json.dumps(best,sort_keys=True),flush=True)
-print("LZQ_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"lzlocalbest_q_refine_summary.json").write_text(json.dumps(summary,indent=2))
+print("LZLOCALQ_BEST",json.dumps(best,sort_keys=True),flush=True)
+print("LZLOCALQ_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
