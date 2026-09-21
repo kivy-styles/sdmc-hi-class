@@ -130,7 +130,7 @@ jobs:
 
           planck=-8.190452666955935
           desi=-12.329771730597372
-          pd=planck+desi
+          pd_total=planck+desi
 
           # Fair LCDM local021 benchmark: full Plik + raw DESI plus direct SN
           # geometry values from the matched local hypercube.
@@ -147,13 +147,13 @@ jobs:
           ledger={
               'sdmc_delta_planck':planck,
               'sdmc_delta_desi':desi,
-              'sdmc_delta_planck_plus_desi':pd,
+              'sdmc_delta_planck_plus_desi':pd_total,
               'sdmc_delta_pantheonplus':out['pantheonplus']['delta_vs_reference'],
               'sdmc_delta_union3':out['union3']['delta_vs_reference'],
               'sdmc_delta_desy5':out['desy5']['delta_vs_reference'],
-              'sdmc_pd_pantheonplus':pd+out['pantheonplus']['delta_vs_reference'],
-              'sdmc_pd_union3':pd+out['union3']['delta_vs_reference'],
-              'sdmc_pd_desy5':pd+out['desy5']['delta_vs_reference'],
+              'sdmc_pd_pantheonplus':pd_total+out['pantheonplus']['delta_vs_reference'],
+              'sdmc_pd_union3':pd_total+out['union3']['delta_vs_reference'],
+              'sdmc_pd_desy5':pd_total+out['desy5']['delta_vs_reference'],
               'lcdm_local021_delta_planck':lcdm_local021_planck,
               'lcdm_local021_delta_desi':lcdm_local021_desi,
               'lcdm_local021_delta_planck_plus_desi':fair_lcdm_pd,
@@ -163,10 +163,10 @@ jobs:
               'lcdm_local021_pd_pantheonplus':fair_lcdm_pd+l21_pp,
               'lcdm_local021_pd_union3':fair_lcdm_pd+l21_u3,
               'lcdm_local021_pd_desy5':fair_lcdm_pd+l21_dy,
-              'fair_gap_pd_sdmc_minus_lcdm':pd-fair_lcdm_pd,
-              'fair_gap_pp_sdmc_minus_lcdm':(pd+out['pantheonplus']['delta_vs_reference'])-(fair_lcdm_pd+l21_pp),
-              'fair_gap_union3_sdmc_minus_lcdm':(pd+out['union3']['delta_vs_reference'])-(fair_lcdm_pd+l21_u3),
-              'fair_gap_desy5_sdmc_minus_lcdm':(pd+out['desy5']['delta_vs_reference'])-(fair_lcdm_pd+l21_dy),
+              'fair_gap_pd_sdmc_minus_lcdm':pd_total-fair_lcdm_pd,
+              'fair_gap_pp_sdmc_minus_lcdm':(pd_total+out['pantheonplus']['delta_vs_reference'])-(fair_lcdm_pd+l21_pp),
+              'fair_gap_union3_sdmc_minus_lcdm':(pd_total+out['union3']['delta_vs_reference'])-(fair_lcdm_pd+l21_u3),
+              'fair_gap_desy5_sdmc_minus_lcdm':(pd_total+out['desy5']['delta_vs_reference'])-(fair_lcdm_pd+l21_dy),
           }
           print('LOCAL002_COV_FINAL_LEDGER',json.dumps(ledger,sort_keys=True),flush=True)
           pd.DataFrame([ledger]).to_csv(OUT/'local002_covariant_final_ledger.csv',index=False)
