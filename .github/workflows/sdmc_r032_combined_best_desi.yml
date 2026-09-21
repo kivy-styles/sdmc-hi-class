@@ -1,9 +1,9 @@
-name: SDMC combined best DESI DR1 full-shape gate
+name: SDMC combined best DESI DR1 EFT retry
 
 on:
   push:
     branches:
-      - sdmc-r032-acoustic-braiding-combined-refine
+      - sdmc-r032-combined-best-desi-eft-retry
   workflow_dispatch:
 
 jobs:
@@ -38,38 +38,11 @@ jobs:
           python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
           python3 -m pip install git+https://github.com/adematti/lsstypes.git
           python3 -m pip install git+https://github.com/sfschen/velocileptors.git
-          rm -rf desi-kp-cosmological-likelihoods
+          rm -rf desi-kp-cosmological-likelihoods desi_likelihood
           git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
           mkdir -p desi_likelihood
-          BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
-          BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
-          for FN in \
-            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
-            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
-            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5 \
-            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5 \
-            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
-            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
-          do
-            ok=0
-            for attempt in 1 2 3 4 5 6 7 8
-            do
-              echo "DESI download $FN attempt $attempt"
-              for BASE in "$BASE_PRIMARY" "$BASE_MIRROR"
-              do
-                echo "Trying $BASE/$FN"
-                if curl -L --fail --retry 5 --retry-all-errors --retry-delay 5 \
-                     --connect-timeout 30 --max-time 300 -C - \
-                     -o "desi_likelihood/$FN" "$BASE/$FN"; then
-                  ok=1
-                  break 2
-                fi
-              done
-              sleep $((attempt*10))
-            done
-            test "$ok" -eq 1
-          done
-          ls -lh desi_likelihood
+          python3 desi-kp-cosmological-likelihoods/dr1/cobaya/download.py --data-dir desi_likelihood
+          find desi_likelihood -maxdepth 2 -type f -printf '%p %k KB\n' | sort
 
       - name: Read official DESI effective redshifts
         run: |
@@ -96,10 +69,10 @@ jobs:
           print('DESI_ZPK',zs,flush=True)
           PY
 
-      - name: Run covariant DESI density velocity transfers
+      - name: Run combined EFT DESI density velocity transfers
         run: |
           ZPK=$(cat output/desi_zpk.txt)
-          cat > output/desi_covariant_transfer.ini <<EOF
+          cat > output/desi_combined_transfer.ini <<EOF
           H0 = 69.7095092787552
           omega_b = 0.02211778594478965
           omega_cdm = 0.1258596659367904
@@ -117,8 +90,8 @@ jobs:
           cs2_fld = 0.003
           use_ppf = no
           Omega_smg = -1
-          gravity_model = sdmc_covariant_replay
-          parameters_smg = 0.0
+          gravity_model = sdmc_v3_lens_braiding
+          parameters_smg = 0.0715, 5.0, 1.426, 0.34231919445927034, 1.0, 0.045, 0.024, 1.5, 0.8
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
 
@@ -137,7 +110,7 @@ jobs:
           output_background_smg = 3
           write background = yes
           write thermodynamics = yes
-          root = output/desi_cov_
+          root = output/desi_combined_
           format = class
           input_verbose = 0
           background_verbose = 0
@@ -146,8 +119,8 @@ jobs:
           spectra_verbose = 0
           output_verbose = 0
           EOF
-          ./class output/desi_covariant_transfer.ini
-          echo "DESI_COVARIANT_TRANSFER_RETURNCODE=0"
+          ./class output/desi_combined_transfer.ini
+          echo "DESI_COMBINED_EFT_TRANSFER_RETURNCODE=0"
 
       - name: Run matched LCDM DESI transfers
         run: |
@@ -265,7 +238,7 @@ jobs:
 
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
-          cov=model_data('desi_cov',69.7095092787552,0.02211778594478965,0.1258596659367904,0.9637720508351921)
+          cov=model_data('desi_combined',69.7095092787552,0.02211778594478965,0.1258596659367904,0.9637720508351921)
           lcdm=model_data('desi_lcdm',67.36,0.02237,0.1200,0.9649)
 
           # Official likelihood blocks.
@@ -414,7 +387,7 @@ jobs:
                                     bounds=[(0.,3.),(-20.,20.),(-20.,20.)],
                                     options={'maxiter':800,'ftol':1e-11,'gtol':3e-7,'maxls':50})
                       trials.append(opti)
-                      print('DESI_COV_ROBUST_TRIAL',label,b['namespace'],iseed,float(opti.fun),
+                      print('DESI_EFT_ROBUST_TRIAL',label,b['namespace'],iseed,float(opti.fun),
                             bool(opti.success),[float(v) for v in opti.x],flush=True)
                   finite=[o for o in trials if np.isfinite(o.fun)]
                   opt=min(finite,key=lambda o:o.fun)
@@ -433,14 +406,14 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('SDMC_COMBINED',cov)
+          covrows,covchi=profile_model('SDMC_COMBINED_EFT',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COMBINED_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COMBINED_EFT_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
-          pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
-                             delta_chi2_cov_minus_lcdm=delta)]).to_csv(
+          pd.DataFrame([dict(sdmc_combined_eft_chi2=covchi,lcdm_chi2=lcdmchi,
+                             delta_chi2_sdmc_combined_eft_minus_lcdm=delta)]).to_csv(
                                  OUT/'desi_dr1_fs_summary.csv',index=False)
           PY
 
@@ -452,9 +425,9 @@ jobs:
           path: |
             output/desi_zeff.json
             output/desi_zpk.txt
-            output/desi_covariant_transfer.ini
-            output/desi_cov_00_*
-            output/desi_cov_z*_*
+            output/desi_combined_transfer.ini
+            output/desi_combined_00_*
+            output/desi_combined_z*_*
             output/desi_lcdm_transfer.ini
             output/desi_lcdm_00_*
             output/desi_lcdm_z*_*
