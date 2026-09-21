@@ -3,10 +3,10 @@
 Local positive-braiding screen on the current geometry-compromise leader.
 
 Background/ordinary cosmology is held fixed at t=0.25:
-H0=70.5659273196888, wb=0.022329086486197414,
+H0=70.6661848725751, wb=0.022329086486197414,
 wc=0.12479662145108897, ns=0.963943012708798,
 tau=0.0544, ln(1e10 As)=3.060.
-Structural No-Slip envelope: AF=0.0573794336710125,
+Structural No-Slip envelope: AF=0.05709640212077647,
 zc=3.0902165911160413, width=0.5979282500222326.
 
 Only Delta_B(z)=A exp[-(z-zcB)^2/(2 sigma_B^2)] is varied.
@@ -23,20 +23,20 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/geometry_braid_screen"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/sobol049_braid_screen"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=0.0025
 H0=70.5659273196888
-OB=0.022329086486197414
-OC=0.12479662145108897
-NS=0.963943012708798
-TAU=0.0544
-LNAS=3.060
+OB=0.02213832986768335
+OC=0.12419066331610083
+NS=0.9614044621046632
+TAU=0.05464880801877007
+LNAS=3.051477308589965
 AS=math.exp(LNAS)/1e10
 OR=4.17998772e-5
 OX=1.-(OB+OC+OR)/(H0/100.)**2
 AF=0.0573794336710125
-ZC=3.0902165911160413
-WIDTH=0.5979282500222326
+ZC=2.8532181778922676
+WIDTH=0.575869657304138
 D0=0.34231919445927034
 DFLOOR=0.045
 
@@ -158,15 +158,15 @@ for i,(A,zl,sl) in enumerate(design,1):
             rec.update(score(clp)); rec["status"]="OK"
     if rec["status"]!="OK": rec["error"]=cp.stdout[-1200:].replace("\n"," | ")
     rows.append(rec)
-    print("GEOM_BRAID_POINT",json.dumps(rec,sort_keys=True),flush=True)
+    print("S49_BRAID_POINT",json.dumps(rec,sort_keys=True),flush=True)
 
 df=pd.DataFrame(rows)
 zero=df[(df.status=="OK")&(df.A_lens==0.)].iloc[0]
 for k in ["chi2_total","chi2_high","chi2_lensing","chi2_lowT","chi2_lowE","chi2_cal"]:
     df["delta_"+k+"_vs_zero"]=df[k]-zero[k]
-df.to_csv(OUT/"geometry_braiding_screen.csv",index=False)
+df.to_csv(OUT/"sobol049_braiding_screen.csv",index=False)
 ok=df[(df.status=="OK")&(df.stable_subluminal==True)].copy()
 best=ok.nsmallest(15,"chi2_total")
-best.to_csv(OUT/"geometry_braiding_shortlist.csv",index=False)
-print("GEOM_BRAID_ZERO",json.dumps(zero.to_dict(),default=float,sort_keys=True),flush=True)
-print("GEOM_BRAID_BEST",json.dumps(best.to_dict("records"),default=float,sort_keys=True),flush=True)
+best.to_csv(OUT/"sobol049_braiding_shortlist.csv",index=False)
+print("S49_BRAID_ZERO",json.dumps(zero.to_dict(),default=float,sort_keys=True),flush=True)
+print("S49_BRAID_BEST",json.dumps(best.to_dict("records"),default=float,sort_keys=True),flush=True)
