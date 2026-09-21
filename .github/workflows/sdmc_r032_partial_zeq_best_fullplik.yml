@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality zt-best full Plik
+name: SDMC r032 zt-best Q02 full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-ztbest-fullplik
+      - sdmc-r032-ztbest-q02-fullplik
   workflow_dispatch:
 
 jobs:
