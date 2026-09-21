@@ -113,14 +113,7 @@ jobs:
               if curl -4 -L --fail --retry 5 --retry-all-errors --retry-delay 4 \
                    --connect-timeout 30 --max-time 600 \
                    -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
-                if python3 - "desi_likelihood/$FN.part" <<'PY'
-import sys,h5py
-p=sys.argv[1]
-with h5py.File(p,'r') as f:
-    _=list(f.keys())
-print('VALID_HDF5',p)
-PY
-                then
+                if python3 -c "import h5py,sys; f=h5py.File(sys.argv[1],'r'); list(f.keys()); f.close(); print('VALID_HDF5',sys.argv[1])" "desi_likelihood/$FN.part"; then
                   mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
                   ok=1
                   break
