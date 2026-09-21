@@ -473,7 +473,7 @@ for label,total in totals.items():
     if label=="LCDM":
         continue
     summary[label]=total
-    summary["delta_"+label.toLowerCase()+"_minus_lcdm"]=total-totals["LCDM"]
+    summary["delta_"+label.lower()+"_minus_lcdm"]=total-totals["LCDM"]
 pd.DataFrame(allrows).to_csv(OUT/"geometry_compromise_desi_profile.csv",index=False)
 (OUT/"geometry_compromise_desi_summary.json").write_text(json.dumps(summary,indent=2))
 print("GC_DESI_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
