@@ -27,7 +27,7 @@ import sys
 sys.path.insert(0,"desi-kp-cosmological-likelihoods/dr1/cobaya")
 from desi_fs_bao_all import list_zrange, dataset_fn, get_tracer_label, get_physical_stochastic_settings
 
-OUT=Path("output/partial_zeq_ztbest_desi")
+OUT=Path("output/ztbest_qaxis02_desi")
 OUT.mkdir(parents=True,exist_ok=True)
 DATA=Path("desi_likelihood")
 C=299792.458
@@ -38,12 +38,12 @@ MODELS={
         H0=67.36, ob=0.02237, oc=0.1200,
         As=2.10e-9, ns=0.9649, tau=0.0544,
     ),
-    "PARTIAL_ZEQ_ZTBEST":dict(
+    "ZTBEST_QAXIS02":dict(
         kind="sdmc",
         H0=70.79608815124146,
         ob=0.022083219194622913,
         oc=0.12299536722293603,
-        As=2.132477632355162e-9,
+        As=2.1229030419949897e-9,
         ns=0.9625227132590487,
         tau=0.055202901571989066,
         AF=0.04984375,
@@ -81,7 +81,7 @@ for tracer,iz,zrange in list_zrange:
 (OUT/"desi_zeff.json").write_text(json.dumps(records,indent=2))
 zvals=[0.0]+sorted({float(r["zeff"]) for r in records})
 z_to_i={round(z,8):i+1 for i,z in enumerate(zvals)}
-print("PZEQZTBEST_DESI_Z",zvals,flush=True)
+print("ZTQ02_DESI_Z",zvals,flush=True)
 
 def ini_lcdm(root,m):
     return textwrap.dedent(f"""\
@@ -175,7 +175,7 @@ for label,m in MODELS.items():
     ip=OUT/(prefix+".ini")
     ip.write_text(ini_lcdm(root,m) if m["kind"]=="lcdm" else ini_sdmc(root,m))
     cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=600)
-    print("PZEQZTBEST_DESI_CLASS",label,cp.returncode,flush=True)
+    print("ZTQ02_DESI_CLASS",label,cp.returncode,flush=True)
     if cp.returncode!=0:
         print(cp.stdout[-4000:],flush=True)
         raise SystemExit(f"CLASS failed for {label}")
@@ -245,7 +245,7 @@ def model_data(label,m):
         rec["max_abs_slip_driver"]=float(np.max(np.abs(bg["braiding_smg"]+2*bg["M2_running_smg"])))
         if not (rec["min_D"]>0 and rec["min_cs2"]>0 and rec["max_cs2"]<=1.):
             raise SystemExit(f"stability failed for {label}: {rec}")
-        print("PZEQZTBEST_DESI_STABILITY",json.dumps({k:v for k,v in rec.items() if k not in ("bg","series")},sort_keys=True),flush=True)
+        print("ZTQ02_DESI_STABILITY",json.dumps({k:v for k,v in rec.items() if k not in ("bg","series")},sort_keys=True),flush=True)
     return rec
 
 models={label:model_data(label,m) for label,m in MODELS.items()}
@@ -394,7 +394,7 @@ def profile_model(label,m):
                           bounds=[(0.,3.),(-20.,20.),(-20.,20.)],
                           options={"maxiter":800,"ftol":1e-11,"gtol":3e-7,"maxls":50})
             trials.append(opti)
-            print("PZEQZTBEST_DESI_ROBUST_TRIAL",label,b["namespace"],iseed,float(opti.fun),
+            print("ZTQ02_DESI_ROBUST_TRIAL",label,b["namespace"],iseed,float(opti.fun),
                   bool(opti.success),[float(v) for v in opti.x],flush=True)
         finite=[o for o in trials if np.isfinite(o.fun)]
         opt=min(finite,key=lambda o:o.fun)
@@ -412,8 +412,8 @@ def profile_model(label,m):
             qpar=info["qpar"],qper=info["qper"],Dz=info["Dz"]
         )
         rows.append(row)
-        print("PZEQZTBEST_DESI_BLOCK",json.dumps(row,sort_keys=True),flush=True)
-    print("PZEQZTBEST_DESI_TOTAL",label,total,flush=True)
+        print("ZTQ02_DESI_BLOCK",json.dumps(row,sort_keys=True),flush=True)
+    print("ZTQ02_DESI_TOTAL",label,total,flush=True)
     return rows,total
 
 allrows=[]
@@ -425,9 +425,9 @@ for label,m in models.items():
 
 summary={
     "LCDM":totals["LCDM"],
-    "PARTIAL_ZEQ_ZTBEST":totals["PARTIAL_ZEQ_ZTBEST"],
-    "delta_partial_zeq_ztbest_minus_lcdm":totals["PARTIAL_ZEQ_ZTBEST"]-totals["LCDM"],
+    "ZTBEST_QAXIS02":totals["ZTBEST_QAXIS02"],
+    "delta_ztbest_qaxis02_minus_lcdm":totals["ZTBEST_QAXIS02"]-totals["LCDM"],
 }
-pd.DataFrame(allrows).to_csv(OUT/"partial_zeq_ztbest_desi_profile.csv",index=False)
-(OUT/"partial_zeq_ztbest_desi_summary.json").write_text(json.dumps(summary,indent=2))
-print("PZEQZTBEST_DESI_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+pd.DataFrame(allrows).to_csv(OUT/"ztbest_qaxis02_desi_profile.csv",index=False)
+(OUT/"ztbest_qaxis02_desi_summary.json").write_text(json.dumps(summary,indent=2))
+print("ZTQ02_DESI_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
