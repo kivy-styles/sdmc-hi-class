@@ -23,7 +23,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 python3-pip git curl
           python3 -m pip install --upgrade pip
-          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw cobaya
 
       - name: Download preserved exact-covariant transfer artifact
         env:
@@ -92,9 +92,9 @@ jobs:
       - name: Download official DESI DR1 likelihood blocks from Open Data mirrors
         run: |
           mkdir -p desi_likelihood
+          BASE_LBL=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           BASE_S3=https://desidata.s3.amazonaws.com/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           BASE_S3_PATH=https://s3.amazonaws.com/desidata/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
-          BASE_LBL=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           BASE_EU=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           for FN in \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
@@ -106,15 +106,25 @@ jobs:
           do
             ok=0
             rm -f "desi_likelihood/$FN"
-            for BASE in "$BASE_S3" "$BASE_S3_PATH" "$BASE_LBL" "$BASE_EU"
+            for BASE in "$BASE_LBL" "$BASE_S3" "$BASE_S3_PATH" "$BASE_EU"
             do
               echo "Trying $BASE/$FN"
-              if curl -4 -L --fail --retry 3 --retry-all-errors --retry-delay 3 \
-                   --connect-timeout 20 --max-time 300 \
+              rm -f "desi_likelihood/$FN.part"
+              if curl -4 -L --fail --retry 5 --retry-all-errors --retry-delay 4 \
+                   --connect-timeout 30 --max-time 600 \
                    -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
-                mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
-                ok=1
-                break
+                if python3 - "desi_likelihood/$FN.part" <<'PY'
+import sys,h5py
+p=sys.argv[1]
+with h5py.File(p,'r') as f:
+    _=list(f.keys())
+print('VALID_HDF5',p)
+PY
+                then
+                  mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
+                  ok=1
+                  break
+                fi
               fi
               rm -f "desi_likelihood/$FN.part"
             done
