@@ -170,21 +170,50 @@ print("PZEQ_TARGET",json.dumps({**der0,**stab0,**base},sort_keys=True),flush=Tru
 def candidate(tag,f,af,zc,w,df,lam,zt):
     ob=OBG+f*(OBL-OBG)
     oc=OCG+f*(OCL-OCG)
-    cache={}
-    def g(H0):
-        key=round(float(H0),7)
-        if key not in cache:
-            _,_,d,_=run_class(f"{tag}_root_{str(key).replace('.','p')}",float(H0),ob,oc,af,zc,w,df,lam,zt,False)
-            cache[key]=d["ell_A"]-TARGET
-        return cache[key]
-    lo,hi=69.0,73.0
-    flo,fhi=g(lo),g(hi)
-    if flo*fhi>0:
-        lo,hi=68.0,74.0; flo,fhi=g(lo),g(hi)
-    if flo*fhi>0:
-        return dict(id=tag,f=f,status="NO_ROOT",root_lo=flo,root_hi=fhi)
-    H0=float(brentq(g,lo,hi,xtol=2e-5,rtol=1e-10,maxiter=35))
-    root,bg,der,stab=run_class(tag,H0,ob,oc,af,zc,w,df,lam,zt,True)
+
+    # Robust acoustic lock: sample a short H0 grid, ignore failed/unstable
+    # backgrounds, then interpolate the stable ell_A crossing.
+    vals=[]
+    pred=H0G + f*(73.00356627327847-H0G)
+    grid=np.unique(np.r_[np.linspace(pred-0.8,pred+0.8,9), pred])
+    for H in grid:
+        try:
+            _,_,d,st=run_class(f"{tag}_root_{str(round(float(H),6)).replace('.','p')}",
+                               float(H),ob,oc,af,zc,w,df,lam,zt,False)
+            stable=(st["min_D"]>0 and st["min_cs2"]>0 and st["max_cs2"]<=1)
+            if stable:
+                vals.append((float(H),float(d["ell_A"]-TARGET)))
+        except Exception:
+            pass
+    vals=sorted(vals)
+    if len(vals)<2:
+        rec=dict(id=tag,f=f,status="NO_STABLE_ACOUSTIC_BRACKET")
+        print("PZEQ_POINT",json.dumps(rec,sort_keys=True),flush=True)
+        return rec
+
+    pair=None
+    for a,b in zip(vals[:-1],vals[1:]):
+        if a[1]==0 or a[1]*b[1] <= 0:
+            pair=(a,b); break
+    if pair is None:
+        # If no strict crossing survived, accept only a very close stable point.
+        Hbest,gbest=min(vals,key=lambda q:abs(q[1]))
+        if abs(gbest)>0.03:
+            rec=dict(id=tag,f=f,status="NO_ACOUSTIC_ROOT",
+                     closest_H0=Hbest,closest_delta_ellA=gbest)
+            print("PZEQ_POINT",json.dumps(rec,sort_keys=True),flush=True)
+            return rec
+        H0=Hbest
+    else:
+        (h1,g1),(h2,g2)=pair
+        H0=float(h1 + (0.-g1)*(h2-h1)/(g2-g1))
+
+    try:
+        root,bg,der,stab=run_class(tag,H0,ob,oc,af,zc,w,df,lam,zt,True)
+    except Exception as e:
+        rec=dict(id=tag,f=f,H0=H0,status="FINAL_CLASS_FAIL",error=str(e)[-600:])
+        print("PZEQ_POINT",json.dumps(rec,sort_keys=True),flush=True)
+        return rec
     stable=stab["min_D"]>0 and stab["min_cs2"]>0 and stab["max_cs2"]<=1
     rec=dict(id=tag,f=f,H0=H0,omega_b=ob,omega_cdm=oc,omega_m=ob+oc,
              A_F=af,z_c=zc,width=w,D_floor=df,lambda_e=lam,z_t=zt,
