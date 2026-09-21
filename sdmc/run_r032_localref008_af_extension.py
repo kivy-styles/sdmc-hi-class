@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Local 5D refinement around the exact-validated lowridge021 basin.
+Local 5D extension around the localref008 structural winner.
 
 Motivation:
-  lowridge021 reduced the exact P+D residual to about 1.09 chi2 and remained
-  comfortably stable. The winning point sits near the lower sides of both
-  A_F and z_t in the previous design, so refine A_F, z_c, width, D_floor and
-  z_t jointly around that validated basin.
+  localref008 improves the Planck-lite screen by 1.3078 chi2 relative to
+  lowridge021 and lies near the lower A_F side of the previous design.
+  Extend A_F downward while re-optimizing z_c, width, D_floor and z_t.
 
 For every candidate:
   * omega_b, omega_cdm and the final Qfine primordial solution are fixed,
@@ -199,17 +198,17 @@ def candidate(tag,af,zc,w,df,zt):
     return rec
 
 rows=[]
-base=candidate("lowridge021",AF0,ZC0,W0,DF0,ZT0)
-if base.get("status")!="OK": raise RuntimeError("lowridge021 baseline failed")
+base=candidate("localref008",AF0,ZC0,W0,DF0,ZT0)
+if base.get("status")!="OK": raise RuntimeError("localref008 baseline failed")
 BASE=float(base["chi2_planck"]); rows.append(base)
 
 anchors=[
- ("zt025",AF0,ZC0,W0,DF0,16.25),
- ("zt020",AF0,ZC0,W0,DF0,16.20),
- ("zt015",AF0,ZC0,W0,DF0,16.15),
- ("af039zt020",0.0390,3.43,0.405,0.0495,16.20),
- ("af038zt015",0.0380,3.50,0.400,0.0510,16.15),
- ("af040zt010",0.0400,3.55,0.395,0.0500,16.10),
+ ("af0355",0.0355,3.72,0.4020,0.0465,16.24),
+ ("af0345",0.0345,3.74,0.4000,0.0475,16.22),
+ ("af0335",0.0335,3.78,0.3980,0.0490,16.20),
+ ("af0320",0.0320,3.82,0.3950,0.0510,16.18),
+ ("af0305",0.0305,3.86,0.3920,0.0530,16.16),
+ ("zt0160",0.0355,3.72,0.4000,0.0470,16.10),
 ]
 for a in anchors:
     rows.append(candidate(*a))
@@ -222,12 +221,12 @@ for i,p in enumerate(pts):
 
 for r in rows:
     if r.get("status")=="OK":
-        r["delta_planck_vs_lowridge021"]=r["chi2_planck"]-BASE
-        r["delta_high_vs_lowridge021"]=r["chi2_high"]-base["chi2_high"]
-        r["delta_lowT_vs_lowridge021"]=r["chi2_lowT"]-base["chi2_lowT"]
-        r["delta_lowE_vs_lowridge021"]=r["chi2_lowE"]-base["chi2_lowE"]
-        r["delta_lensing_vs_lowridge021"]=r["chi2_lensing"]-base["chi2_lensing"]
-        r["delta_cal_vs_lowridge021"]=r["chi2_cal"]-base["chi2_cal"]
+        r["delta_planck_vs_localref008"]=r["chi2_planck"]-BASE
+        r["delta_high_vs_localref008"]=r["chi2_high"]-base["chi2_high"]
+        r["delta_lowT_vs_localref008"]=r["chi2_lowT"]-base["chi2_lowT"]
+        r["delta_lowE_vs_localref008"]=r["chi2_lowE"]-base["chi2_lowE"]
+        r["delta_lensing_vs_localref008"]=r["chi2_lensing"]-base["chi2_lensing"]
+        r["delta_cal_vs_localref008"]=r["chi2_cal"]-base["chi2_cal"]
 
 df=pd.DataFrame(rows)
 df.to_csv(OUT/"r032_localref008_af_extension.csv",index=False)
@@ -239,7 +238,7 @@ summary={
  "n_total":int(len(df)),
  "n_stable":int(len(ok)),
  "best":best[0] if best else None,
- "best_delta_vs_lowridge021":float(ok.chi2_planck.min()-BASE) if len(ok) else None,
+ "best_delta_vs_localref008":float(ok.chi2_planck.min()-BASE) if len(ok) else None,
 }
 (OUT/"r032_localref008_af_extension_summary.json").write_text(json.dumps(summary,indent=2))
 print("AFEXT_BEST",json.dumps(best,sort_keys=True),flush=True)
