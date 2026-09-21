@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality local-best full Plik
+name: SDMC r032 partial-equality boundary-best full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-localbest-fullplik
+      - sdmc-r032-partial-zeq-boundbest-fullplik
   workflow_dispatch:
 
 jobs:
@@ -58,20 +58,20 @@ jobs:
       - name: Print summary
         if: always()
         run: |
-          if [ -f output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik_summary.json ]; then
-            cat output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik_summary.json
+          if [ -f output/partial_zeq_boundbest_fullplik/partial_zeq_boundbest_fullplik_summary.json ]; then
+            cat output/partial_zeq_boundbest_fullplik/partial_zeq_boundbest_fullplik_summary.json
           fi
-          if [ -f output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik.csv ]; then
-            cat output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik.csv
+          if [ -f output/partial_zeq_boundbest_fullplik/partial_zeq_boundbest_fullplik.csv ]; then
+            cat output/partial_zeq_boundbest_fullplik/partial_zeq_boundbest_fullplik.csv
           fi
 
       - name: Preserve outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-partial-zeq-localbest-fullplik
+          name: sdmc-r032-partial-zeq-boundbest-fullplik
           path: |
-            output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik_summary.json
-            output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik.csv
-            output/partial_zeq_localbest_fullplik/*.ini
+            output/partial_zeq_boundbest_fullplik/partial_zeq_boundbest_fullplik_summary.json
+            output/partial_zeq_boundbest_fullplik/partial_zeq_boundbest_fullplik.csv
+            output/partial_zeq_boundbest_fullplik/*.ini
           if-no-files-found: warn
