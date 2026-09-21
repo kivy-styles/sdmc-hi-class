@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality zt-best full Plik
+name: SDMC r032 zt-best Q-axis02 full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-ztbest-fullplik
+      - sdmc-r032-ztbest-qaxis02-fullplik
   workflow_dispatch:
 
 jobs:
@@ -70,20 +70,20 @@ jobs:
       - name: Print summary
         if: always()
         run: |
-          if [ -f output/partial_zeq_ztbest_fullplik/partial_zeq_ztbest_fullplik_summary.json ]; then
-            cat output/partial_zeq_ztbest_fullplik/partial_zeq_ztbest_fullplik_summary.json
+          if [ -f output/ztbest_qaxis02_fullplik/ztbest_qaxis02_fullplik_summary.json ]; then
+            cat output/ztbest_qaxis02_fullplik/ztbest_qaxis02_fullplik_summary.json
           fi
-          if [ -f output/partial_zeq_ztbest_fullplik/partial_zeq_ztbest_fullplik.csv ]; then
-            cat output/partial_zeq_ztbest_fullplik/partial_zeq_ztbest_fullplik.csv
+          if [ -f output/ztbest_qaxis02_fullplik/ztbest_qaxis02_fullplik.csv ]; then
+            cat output/ztbest_qaxis02_fullplik/ztbest_qaxis02_fullplik.csv
           fi
 
       - name: Preserve outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-partial-zeq-ztbest-fullplik
+          name: sdmc-r032-ztbest-qaxis02-fullplik
           path: |
-            output/partial_zeq_ztbest_fullplik/partial_zeq_ztbest_fullplik_summary.json
-            output/partial_zeq_ztbest_fullplik/partial_zeq_ztbest_fullplik.csv
-            output/partial_zeq_ztbest_fullplik/*.ini
+            output/ztbest_qaxis02_fullplik/ztbest_qaxis02_fullplik_summary.json
+            output/ztbest_qaxis02_fullplik/ztbest_qaxis02_fullplik.csv
+            output/ztbest_qaxis02_fullplik/*.ini
           if-no-files-found: warn
