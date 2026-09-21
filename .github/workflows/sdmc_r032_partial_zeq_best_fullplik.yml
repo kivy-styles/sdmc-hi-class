@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality best full Plik
+name: SDMC r032 partial-equality local-best full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-best-fullplik
+      - sdmc-r032-partial-zeq-localbest-fullplik
   workflow_dispatch:
 
 jobs:
@@ -52,26 +52,26 @@ jobs:
           print('APHYS_PLANCK_DATA_READY')
           PY
 
-      - name: Run full Plik profiles
-        run: python3 sdmc/run_r032_partial_zeq_best_fullplik.py
+      - name: Run full Plik profile for local-refined winner
+        run: python3 sdmc/run_r032_partial_zeq_localbest_fullplik.py
 
       - name: Print summary
         if: always()
         run: |
-          if [ -f output/partial_zeq_best_fullplik/partial_zeq_best_fullplik_summary.json ]; then
-            cat output/partial_zeq_best_fullplik/partial_zeq_best_fullplik_summary.json
+          if [ -f output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik_summary.json ]; then
+            cat output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik_summary.json
           fi
-          if [ -f output/partial_zeq_best_fullplik/partial_zeq_best_fullplik.csv ]; then
-            cat output/partial_zeq_best_fullplik/partial_zeq_best_fullplik.csv
+          if [ -f output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik.csv ]; then
+            cat output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik.csv
           fi
 
       - name: Preserve outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-partial-zeq-best-fullplik
+          name: sdmc-r032-partial-zeq-localbest-fullplik
           path: |
-            output/partial_zeq_best_fullplik/partial_zeq_best_fullplik_summary.json
-            output/partial_zeq_best_fullplik/partial_zeq_best_fullplik.csv
-            output/partial_zeq_best_fullplik/*.ini
+            output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik_summary.json
+            output/partial_zeq_localbest_fullplik/partial_zeq_localbest_fullplik.csv
+            output/partial_zeq_localbest_fullplik/*.ini
           if-no-files-found: warn
