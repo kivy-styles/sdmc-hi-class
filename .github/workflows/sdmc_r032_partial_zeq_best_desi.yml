@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality zt-best DESI full-shape
+name: SDMC r032 zt-best Q02 DESI full-shape
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-ztbest-desi
+      - sdmc-r032-ztbest-q02-desi
   workflow_dispatch:
 
 jobs:
