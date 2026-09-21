@@ -43,7 +43,7 @@ MODELS={
         H0=70.79608815124146,
         ob=0.022083219194622913,
         oc=0.12299536722293603,
-        As=2.1229030419949897e-9,
+        As=2.1218418557926507e-9,
         ns=0.9625227132590487,
         tau=0.055202901571989066,
         AF=0.04984375,
@@ -81,7 +81,7 @@ for tracer,iz,zrange in list_zrange:
 (OUT/"desi_zeff.json").write_text(json.dumps(records,indent=2))
 zvals=[0.0]+sorted({float(r["zeff"]) for r in records})
 z_to_i={round(z,8):i+1 for i,z in enumerate(zvals)}
-print("ZTBESTQ02_DESI_Z",zvals,flush=True)
+print("ZTBESTQFINE_DESI_Z",zvals,flush=True)
 
 def ini_lcdm(root,m):
     return textwrap.dedent(f"""\
@@ -175,7 +175,7 @@ for label,m in MODELS.items():
     ip=OUT/(prefix+".ini")
     ip.write_text(ini_lcdm(root,m) if m["kind"]=="lcdm" else ini_sdmc(root,m))
     cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=600)
-    print("ZTBESTQ02_DESI_CLASS",label,cp.returncode,flush=True)
+    print("ZTBESTQFINE_DESI_CLASS",label,cp.returncode,flush=True)
     if cp.returncode!=0:
         print(cp.stdout[-4000:],flush=True)
         raise SystemExit(f"CLASS failed for {label}")
@@ -245,7 +245,7 @@ def model_data(label,m):
         rec["max_abs_slip_driver"]=float(np.max(np.abs(bg["braiding_smg"]+2*bg["M2_running_smg"])))
         if not (rec["min_D"]>0 and rec["min_cs2"]>0 and rec["max_cs2"]<=1.):
             raise SystemExit(f"stability failed for {label}: {rec}")
-        print("ZTBESTQ02_DESI_STABILITY",json.dumps({k:v for k,v in rec.items() if k not in ("bg","series")},sort_keys=True),flush=True)
+        print("ZTBESTQFINE_DESI_STABILITY",json.dumps({k:v for k,v in rec.items() if k not in ("bg","series")},sort_keys=True),flush=True)
     return rec
 
 models={label:model_data(label,m) for label,m in MODELS.items()}
@@ -394,7 +394,7 @@ def profile_model(label,m):
                           bounds=[(0.,3.),(-20.,20.),(-20.,20.)],
                           options={"maxiter":800,"ftol":1e-11,"gtol":3e-7,"maxls":50})
             trials.append(opti)
-            print("ZTBESTQ02_DESI_ROBUST_TRIAL",label,b["namespace"],iseed,float(opti.fun),
+            print("ZTBESTQFINE_DESI_ROBUST_TRIAL",label,b["namespace"],iseed,float(opti.fun),
                   bool(opti.success),[float(v) for v in opti.x],flush=True)
         finite=[o for o in trials if np.isfinite(o.fun)]
         opt=min(finite,key=lambda o:o.fun)
@@ -412,8 +412,8 @@ def profile_model(label,m):
             qpar=info["qpar"],qper=info["qper"],Dz=info["Dz"]
         )
         rows.append(row)
-        print("ZTBESTQ02_DESI_BLOCK",json.dumps(row,sort_keys=True),flush=True)
-    print("ZTBESTQ02_DESI_TOTAL",label,total,flush=True)
+        print("ZTBESTQFINE_DESI_BLOCK",json.dumps(row,sort_keys=True),flush=True)
+    print("ZTBESTQFINE_DESI_TOTAL",label,total,flush=True)
     return rows,total
 
 allrows=[]
@@ -428,6 +428,6 @@ summary={
     "PARTIAL_ZEQ_ZTBEST":totals["PARTIAL_ZEQ_ZTBEST"],
     "delta_partial_zeq_ztbest_minus_lcdm":totals["PARTIAL_ZEQ_ZTBEST"]-totals["LCDM"],
 }
-pd.DataFrame(allrows).to_csv(OUT/"ztbest_q02_desi_profile.csv",index=False)
-(OUT/"ztbest_q02_desi_summary.json").write_text(json.dumps(summary,indent=2))
-print("ZTBESTQ02_DESI_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+pd.DataFrame(allrows).to_csv(OUT/"ztbest_qfine_desi_profile.csv",index=False)
+(OUT/"ztbest_qfine_desi_summary.json").write_text(json.dumps(summary,indent=2))
+print("ZTBESTQFINE_DESI_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
