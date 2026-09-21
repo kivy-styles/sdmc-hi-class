@@ -3,7 +3,7 @@ name: SDMC r032 geometry compromise DESI full-shape
 on:
   push:
     branches:
-      - sdmc-r032-geometry-compromise-desi
+      - sdmc-r032-geometry-compromise-desi-refine
   workflow_dispatch:
 
 jobs:
