@@ -1,0 +1,1 @@
+Trigger edge028 Q reclosure workflow after workflow definition exists on branch.
