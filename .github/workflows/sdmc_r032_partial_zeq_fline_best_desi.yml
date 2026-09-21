@@ -1,0 +1,105 @@
+name: SDMC r032 partial-equality f-line best DESI full-shape
+
+on:
+  push:
+    branches:
+      - sdmc-r032-partial-zeq-fline-best-desi
+  workflow_dispatch:
+
+jobs:
+  negative-screen-desi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install base dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw cobaya
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Install official DESI DR1 full-shape dependencies
+        run: |
+          python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
+          python3 -m pip install git+https://github.com/adematti/lsstypes.git
+          python3 -m pip install git+https://github.com/sfschen/velocileptors.git
+          rm -rf desi-kp-cosmological-likelihoods
+          git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
+
+      - name: Download official DESI DR1 likelihood blocks
+        run: |
+          mkdir -p desi_likelihood
+          BASE_LBL=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_EU=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          for FN in \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
+          do
+            ok=0
+            for BASE in "$BASE_LBL" "$BASE_EU"
+            do
+              echo "Trying $BASE/$FN"
+              rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
+              if curl -4 -L --fail --retry 6 --retry-all-errors --retry-delay 4 \
+                   --connect-timeout 45 --max-time 900 \
+                   -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
+                bytes=$(stat -c%s "desi_likelihood/$FN.part")
+                echo "DOWNLOADED_BYTES $FN $bytes"
+                if [ "$bytes" -gt 500000 ] && \
+                   python3 -c "import h5py; f=h5py.File('desi_likelihood/$FN.part','r'); f.close()"; then
+                  mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
+                  ok=1
+                  echo "VALID_HDF5 $FN $bytes"
+                  break
+                fi
+              fi
+              rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
+            done
+            test "$ok" -eq 1
+          done
+          ls -lh desi_likelihood
+
+      - name: Run local002 DESI full-shape validation
+        run: python3 sdmc/run_r032_partial_zeq_fline_best_desi.py
+
+      - name: Print local002 DESI summary
+        if: always()
+        run: |
+          if [ -f output/partial_zeq_fline_best_desi/partial_zeq_fline_best_desi_summary.json ]; then
+            cat output/partial_zeq_fline_best_desi/partial_zeq_fline_best_desi_summary.json
+          fi
+
+      - name: Preserve local002 DESI outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-partial-zeq-fline-best-desi
+          path: |
+            output/partial_zeq_fline_best_desi/partial_zeq_fline_best_desi_summary.json
+            output/partial_zeq_fline_best_desi/partial_zeq_fline_best_desi_profile.csv
+            output/partial_zeq_fline_best_desi/desi_zeff.json
+            output/partial_zeq_fline_best_desi/*.ini
+          if-no-files-found: warn
