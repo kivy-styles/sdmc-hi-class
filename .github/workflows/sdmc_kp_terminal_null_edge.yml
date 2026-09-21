@@ -1,0 +1,71 @@
+name: SDMC retired Kp terminal null-edge closure
+
+on:
+  push:
+    branches:
+      - sdmc-kp-terminal-null-edge
+  workflow_dispatch:
+
+jobs:
+  kp-terminal-physical-refine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya
+
+      - name: Install Planck native likelihood data
+        run: |
+          ok=0
+          for attempt in 1 2 3 4
+          do
+            echo "Planck install attempt $attempt"
+            rm -rf planck_packages
+            if python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              if not cls.install(path='planck_packages',no_progress_bars=True):
+                  raise SystemExit(2)
+          PY
+            then
+              ok=1
+              break
+            fi
+            sleep $((attempt*6))
+          done
+          test "$ok" -eq 1
+
+      - name: Apply frozen Kp tracker and physical terminal operator
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_kp_terminal_operator.py
+          make -j2 class
+
+      - name: Run retired Kp terminal null-edge closure
+        run: python3 sdmc/run_kp_terminal_null_edge.py
+
+      - name: Print summary
+        if: always()
+        run: |
+          test ! -f output/kp_terminal_null_edge/kp_terminal_null_edge_summary.json || cat output/kp_terminal_null_edge/kp_terminal_null_edge_summary.json
+          test ! -f output/kp_terminal_null_edge/kp_terminal_null_edge.csv || head -20 output/kp_terminal_null_edge/kp_terminal_null_edge.csv
+
+      - name: Preserve terminal scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-kp-terminal-null-edge
+          path: |
+            output/kp_terminal_null_edge/*.csv
+            output/kp_terminal_null_edge/*.json
+          if-no-files-found: warn
