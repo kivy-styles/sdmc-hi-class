@@ -1,5 +1,5 @@
-name: SDMC r032 edge004 Kp terminal screen
-# exact edge004 + corrected residual-acoustic Kp runtime gate
+name: SDMC r032 edge004-Qbest Kp terminal screen
+# exact edge004-Qbest + corrected residual-acoustic Kp runtime gate
 
 on:
   push:
@@ -73,7 +73,7 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1218418557926507e-9
+          A_s = 2.115485868972492e-9
           n_s = 0.9625227132590487
           tau_reio = 0.055202901571989066
           Omega_Lambda = 0
@@ -147,7 +147,7 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1218418557926507e-9
+          A_s = 2.115485868972492e-9
           n_s = 0.9625227132590487
           tau_reio = 0.055202901571989066
           Omega_Lambda = 0
