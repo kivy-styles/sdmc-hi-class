@@ -18,7 +18,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 python3-pip git
           python3 -m pip install --upgrade pip
-          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw cobaya
           python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
           python3 -m pip install git+https://github.com/adematti/lsstypes.git
           python3 -m pip install git+https://github.com/sfschen/velocileptors.git
@@ -33,22 +33,33 @@ jobs:
           mkdir -p desi_likelihood output
           BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
-          for FN in             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
+          for FN in \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
           do
             ok=0
-            for attempt in 1 2 3 4 5 6
+            rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
+            for BASE in "$BASE_PRIMARY" "$BASE_MIRROR"
             do
-              for BASE in "$BASE_PRIMARY" "$BASE_MIRROR"
-              do
-                if curl -L --fail --retry 4 --retry-all-errors --retry-delay 5                      --connect-timeout 30 --max-time 300 -C -                      -o "desi_likelihood/$FN" "$BASE/$FN"; then
+              echo "Trying $BASE/$FN"
+              if curl -4 -L --fail --retry 8 --retry-all-errors --retry-delay 5 \
+                   --connect-timeout 30 --max-time 600 \
+                   -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
+                if python3 -c "import h5py,sys; f=h5py.File(sys.argv[1],'r'); list(f.keys()); f.close(); print('VALID_HDF5',sys.argv[1])" "desi_likelihood/$FN.part"; then
+                  mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
                   ok=1
-                  break 2
+                  break
                 fi
-              done
-              sleep $((attempt*8))
+              fi
+              rm -f "desi_likelihood/$FN.part"
             done
             test "$ok" -eq 1
           done
+          ls -lh desi_likelihood
 
       - name: Read DESI effective redshifts
         run: |
