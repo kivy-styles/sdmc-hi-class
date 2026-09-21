@@ -86,7 +86,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.0529375, 2.89375, 0.54625, 0.34231919445927034, 1.0, 0.03825
           expansion_model = sdmc_full
-          expansion_smg = 0.7081578912874815, 18.162499999999998, 17.1375, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          expansion_smg = 0.7088224597577351, 18.475, 16.962500000000002, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -123,9 +123,9 @@ jobs:
               r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
               r'double tauB\s*=\s*pba->parameters_smg\[7\];'
           )
-          repl='''double Ox = 0.7081578912874815;
-            double lambda_e = 18.162499999999998;
-            double zt = 17.1375;
+          repl='''double Ox = 0.7088224597577351;
+            double lambda_e = 18.475;
+            double zt = 16.962500000000002;
             double dNt = 0.5;
             double A = 0.01105624999;
             double tauA = 0.25;
