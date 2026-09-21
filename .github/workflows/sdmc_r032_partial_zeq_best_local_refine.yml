@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality local-best edge closure
+name: SDMC r032 partial-equality edge-best zt closure
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-localbest-edge-closure
+      - sdmc-r032-partial-zeq-edge-best-zt-closure
   workflow_dispatch:
 
 jobs:
@@ -65,15 +65,15 @@ jobs:
       - name: Print summary
         if: always()
         run: |
-          test ! -f output/partial_zeq_localbest_edge_closure/partial_zeq_localbest_edge_closure_summary.json || cat output/partial_zeq_localbest_edge_closure/partial_zeq_localbest_edge_closure_summary.json
-          test ! -f output/partial_zeq_localbest_edge_closure/partial_zeq_localbest_edge_closure.csv || head -12 output/partial_zeq_localbest_edge_closure/partial_zeq_localbest_edge_closure.csv
+          test ! -f output/partial_zeq_edge_best_zt_closure/partial_zeq_edge_best_zt_closure_summary.json || cat output/partial_zeq_edge_best_zt_closure/partial_zeq_edge_best_zt_closure_summary.json
+          test ! -f output/partial_zeq_edge_best_zt_closure/partial_zeq_edge_best_zt_closure.csv || head -12 output/partial_zeq_edge_best_zt_closure/partial_zeq_edge_best_zt_closure.csv
 
       - name: Preserve refinement
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-partial-zeq-localbest-edge-closure
+          name: sdmc-r032-partial-zeq-edge-best-zt-closure
           path: |
-            output/partial_zeq_localbest_edge_closure/*.csv
-            output/partial_zeq_localbest_edge_closure/*.json
+            output/partial_zeq_edge_best_zt_closure/*.csv
+            output/partial_zeq_edge_best_zt_closure/*.json
           if-no-files-found: warn
