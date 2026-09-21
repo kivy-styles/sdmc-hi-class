@@ -1,0 +1,149 @@
+name: SDMC r032 geometry compromise exact-covariant DESI S3 replay
+
+on:
+  push:
+    branches:
+      - sdmc-r032-geometry-compromise-covariant-desi-s3
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  covariant-geometry-desi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install base dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip git curl
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
+
+      - name: Download preserved exact-covariant transfer artifact
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          rm -rf input_cov
+          mkdir -p input_cov
+          gh run download 35574458587 \
+            --repo "\${{ github.repository }}" \
+            --name sdmc-r032-l18-z195-covariant \
+            --dir input_cov
+          test -f input_cov/covariant_transfer_00_background.dat
+          test -f input_cov/covariant_transfer_00_z1_pk.dat
+          test -f input_cov/covariant_transfer_00_z6_tk.dat
+          test -f input_cov/covariant_observable_acoustic.csv
+          echo "EXACT_COVARIANT_ARTIFACT_READY"
+          cat input_cov/covariant_observable_acoustic.csv
+
+      - name: Build hi_class for matched LCDM control
+        run: |
+          make -j2 class
+          mkdir -p output
+
+      - name: Generate matched LCDM at exact DESI effective redshifts
+        run: |
+          cat > output/lcdm.ini <<'EOF'
+          H0 = 67.36
+          omega_b = 0.02237
+          omega_cdm = 0.1200
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.10e-9
+          n_s = 0.9649
+          tau_reio = 0.0544
+          gauge = synchronous
+          modes = s
+          output = mPk,dTk,vTk
+          extra_metric_transfer_functions = yes
+          matter_source_in_current_gauge = no
+          P_k_max_h/Mpc = 2.0
+          z_pk = 0,0.29536404346937617,0.5096288678782911,0.7057956472488681,0.9185851971138159,1.3170658832980264,1.4905017757527006
+          write background = yes
+          write thermodynamics = yes
+          root = output/lcdm_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/lcdm.ini
+          echo "LCDM_DESI_TRANSFER_READY"
+
+      - name: Install official DESI DR1 full-shape dependencies
+        run: |
+          python3 -m pip install git+https://github.com/cosmodesi/cosmoprimo.git
+          python3 -m pip install git+https://github.com/adematti/lsstypes.git
+          python3 -m pip install git+https://github.com/sfschen/velocileptors.git
+          rm -rf desi-kp-cosmological-likelihoods
+          git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git
+
+      - name: Download official DESI DR1 likelihood blocks from Open Data mirrors
+        run: |
+          mkdir -p desi_likelihood
+          BASE_S3=https://desidata.s3.amazonaws.com/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_S3_PATH=https://s3.amazonaws.com/desidata/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_LBL=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_EU=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          for FN in \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
+          do
+            ok=0
+            rm -f "desi_likelihood/$FN"
+            for BASE in "$BASE_S3" "$BASE_S3_PATH" "$BASE_LBL" "$BASE_EU"
+            do
+              echo "Trying $BASE/$FN"
+              if curl -4 -L --fail --retry 3 --retry-all-errors --retry-delay 3 \
+                   --connect-timeout 20 --max-time 300 \
+                   -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
+                mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
+                ok=1
+                break
+              fi
+              rm -f "desi_likelihood/$FN.part"
+            done
+            test "$ok" -eq 1
+            test -s "desi_likelihood/$FN"
+          done
+          ls -lh desi_likelihood
+
+      - name: Evaluate official DESI DR1 full-shape likelihood
+        run: |
+          python3 sdmc/run_r032_geometry_compromise_covariant_desi_artifact.py
+
+      - name: Print decisive summary
+        if: always()
+        run: |
+          if [ -f output/covariant_geometry_desi/covariant_geometry_desi_summary.json ]; then
+            cat output/covariant_geometry_desi/covariant_geometry_desi_summary.json
+          fi
+          if [ -f output/covariant_geometry_desi/covariant_redshift_correction.csv ]; then
+            cat output/covariant_geometry_desi/covariant_redshift_correction.csv
+          fi
+
+      - name: Preserve exact-covariant DESI replay
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-geometry-compromise-covariant-desi-s3
+          path: |
+            output/covariant_geometry_desi/*.json
+            output/covariant_geometry_desi/*.csv
+            output/lcdm.ini
+          if-no-files-found: warn
