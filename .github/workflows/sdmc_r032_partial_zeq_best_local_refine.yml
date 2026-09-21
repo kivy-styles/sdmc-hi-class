@@ -38,7 +38,7 @@ jobs:
       - name: Install Planck native likelihood data
         run: |
           ok=0
-          for attempt in 1 2 3 4
+          for attempt in 1 2 3 4 5 6 7 8
           do
             echo "Planck install attempt $attempt"
             rm -rf planck_packages
@@ -55,7 +55,7 @@ jobs:
               ok=1
               break
             fi
-            sleep $((attempt*5))
+            sleep $((attempt*8))
           done
           test "$ok" -eq 1
 
