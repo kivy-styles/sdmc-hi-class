@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality local-best DESI full-shape
+name: SDMC r032 partial-equality stability-edge DESI full-shape
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-local-best-desi
+      - sdmc-r032-partial-zeq-stability-edge-desi
   workflow_dispatch:
 
 jobs:
@@ -88,18 +88,18 @@ jobs:
       - name: Print local002 DESI summary
         if: always()
         run: |
-          if [ -f output/partial_zeq_local_best_desi/partial_zeq_local_best_desi_summary.json ]; then
-            cat output/partial_zeq_local_best_desi/partial_zeq_local_best_desi_summary.json
+          if [ -f output/partial_zeq_stability_edge_desi/partial_zeq_stability_edge_desi_summary.json ]; then
+            cat output/partial_zeq_stability_edge_desi/partial_zeq_stability_edge_desi_summary.json
           fi
 
       - name: Preserve local002 DESI outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-partial-zeq-local-best-desi
+          name: sdmc-r032-partial-zeq-stability-edge-desi
           path: |
-            output/partial_zeq_local_best_desi/partial_zeq_local_best_desi_summary.json
-            output/partial_zeq_local_best_desi/partial_zeq_local_best_desi_profile.csv
-            output/partial_zeq_local_best_desi/desi_zeff.json
-            output/partial_zeq_local_best_desi/*.ini
+            output/partial_zeq_stability_edge_desi/partial_zeq_stability_edge_desi_summary.json
+            output/partial_zeq_stability_edge_desi/partial_zeq_stability_edge_desi_profile.csv
+            output/partial_zeq_stability_edge_desi/desi_zeff.json
+            output/partial_zeq_stability_edge_desi/*.ini
           if-no-files-found: warn
