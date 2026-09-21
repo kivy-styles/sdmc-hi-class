@@ -449,7 +449,7 @@ jobs:
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
           cov=model_data('desi_cov',70.6661848725751,0.02213832986768335,0.12419066331610083,0.9614044621046632)
-          lcdm=model_data('desi_lcdm',67.36,0.02237,0.1200,0.96140446210466329)
+          lcdm=model_data('desi_lcdm',67.36,0.02237,0.1200,0.9649)
 
           # Official likelihood blocks.
           blocks=[]
