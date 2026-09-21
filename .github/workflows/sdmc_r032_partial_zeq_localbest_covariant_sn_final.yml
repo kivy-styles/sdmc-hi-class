@@ -31,9 +31,9 @@ jobs:
         run: |
           rm -rf input_cov
           mkdir -p input_cov
-          gh run download 35621461266 \
+          gh run download 35621665443 \
             --repo "${{ github.repository }}" \
-            --name sdmc-r032-partial_zeq_local_best-covariant-desi \
+            --name sdmc-r032-partial_zeq_localbest-covariant-desi \
             --dir input_cov
           test -f input_cov/desi_cov_00_background.dat
           test -f input_cov/desi_lcdm_00_background.dat
