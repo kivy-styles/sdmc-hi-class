@@ -23,7 +23,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 python3-pip git curl
           python3 -m pip install --upgrade pip
-          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw cobaya cobaya
+          python3 -m pip install numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
+          python3 -m pip install cobaya
+          python3 - <<'PY'
+          import sys, cobaya
+          print("COBAYA_IMPORT_OK", sys.executable, cobaya.__file__)
+          PY
 
       - name: Download preserved exact-covariant transfer artifact
         env:
@@ -111,38 +116,47 @@ jobs:
             ok=0
             rm -f "desi_likelihood/$FN"
 
-            for KEY in \
-              "dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood/$FN" \
-              "dr1/vac/dr1/full-shape-bao-clustering/data/likelihood/$FN"
+            # The LBL endpoint delivered the validated 740-KiB files in the
+            # successful geometry-compromise DESI run 35574331720, so prefer
+            # that exact source. Reject tiny XML/error responses explicitly.
+            for BASE in "$BASE_LBL" "$BASE_EU"
             do
-              echo "Trying public S3 s3://desidata/$KEY"
-              rm -f "desi_likelihood/$FN"
-              if aws s3 cp "s3://desidata/$KEY" "desi_likelihood/$FN" \
-                   --no-sign-request --only-show-errors; then
-                if python3 -c "import h5py; f=h5py.File('desi_likelihood/$FN','r'); f.close()"; then
+              echo "Trying $BASE/$FN"
+              rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
+              if curl -4 -L --fail --retry 6 --retry-all-errors --retry-delay 4 \
+                   --connect-timeout 45 --max-time 900 \
+                   -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
+                bytes=$(stat -c%s "desi_likelihood/$FN.part")
+                echo "DOWNLOADED_BYTES $FN $bytes"
+                if [ "$bytes" -gt 500000 ] && \
+                   python3 -c "import h5py; f=h5py.File('desi_likelihood/$FN.part','r'); f.close()"; then
+                  mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
                   ok=1
-                  echo "VALID_HDF5_FROM_S3 $FN"
+                  echo "VALID_HDF5_FROM_HTTP $FN $bytes"
                   break
                 fi
               fi
-              rm -f "desi_likelihood/$FN"
+              rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
             done
 
             if [ "$ok" -ne 1 ]; then
-              for BASE in "$BASE_LBL" "$BASE_EU"
+              for KEY in \
+                "dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood/$FN" \
+                "public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood/$FN"
               do
-                echo "Trying $BASE/$FN"
-                rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
-                if curl -4 -L --fail --retry 4 --retry-all-errors --retry-delay 5 \
-                     --connect-timeout 45 --max-time 600 \
-                     -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
-                  mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
-                  if python3 -c "import h5py; f=h5py.File('desi_likelihood/$FN','r'); f.close()"; then
+                echo "Trying public S3 s3://desidata/$KEY"
+                rm -f "desi_likelihood/$FN"
+                if aws s3 cp "s3://desidata/$KEY" "desi_likelihood/$FN" \
+                     --no-sign-request --only-show-errors; then
+                  bytes=$(stat -c%s "desi_likelihood/$FN")
+                  if [ "$bytes" -gt 500000 ] && \
+                     python3 -c "import h5py; f=h5py.File('desi_likelihood/$FN','r'); f.close()"; then
                     ok=1
-                    echo "VALID_HDF5_FROM_HTTP $FN"
+                    echo "VALID_HDF5_FROM_S3 $FN $bytes"
                     break
                   fi
                 fi
+                rm -f "desi_likelihood/$FN"
               done
             fi
 
