@@ -1,9 +1,9 @@
-name: SDMC r032 zt-best Q02 exact-covariant DESI validation
+name: SDMC r032 zt-best Qfine-best exact-covariant DESI validation
 
 on:
   push:
     branches:
-      - sdmc-r032-ztbest-q02-covariant-desi
+      - sdmc-r032-ztbest-qfinebest-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -44,7 +44,7 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1229030419949897e-9
+          A_s = 2.1218418557926507e-9
           n_s = 0.9625227132590487
           tau_reio = 0.055202901571989066
           Omega_Lambda = 0
@@ -106,7 +106,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_ZTBEST_Q02_BUILD_READY"
+          echo "COVARIANT_ZTBEST_QFINEBEST_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         run: |
@@ -183,7 +183,7 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1229030419949897e-9
+          A_s = 2.1218418557926507e-9
           n_s = 0.9625227132590487
           tau_reio = 0.055202901571989066
 
@@ -511,10 +511,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_ZTBEST_Q02',cov)
+          covrows,covchi=profile_model('COVARIANT_ZTBEST_QFINEBEST',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_ZTBEST_Q02_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_ZTBEST_QFINEBEST_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -526,7 +526,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-ztbest_q02-covariant-desi
+          name: sdmc-r032-ztbest_qfinebest-covariant-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
