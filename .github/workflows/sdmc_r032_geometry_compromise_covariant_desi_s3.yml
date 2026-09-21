@@ -97,14 +97,9 @@ jobs:
       - name: Download official DESI DR1 likelihood blocks from Open Data mirrors
         run: |
           mkdir -p desi_likelihood
-          if ! command -v aws >/dev/null 2>&1; then
-            python3 -m pip install awscli
-          fi
-          aws --version
-
+          S3_PREFIX=s3://desidata/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           BASE_LBL=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           BASE_EU=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
-
           for FN in \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
@@ -114,64 +109,38 @@ jobs:
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
           do
             ok=0
-            rm -f "desi_likelihood/$FN"
+            rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
 
-            # The LBL endpoint delivered the validated 740-KiB files in the
-            # successful geometry-compromise DESI run 35574331720, so prefer
-            # that exact source. Reject tiny XML/error responses explicitly.
-            for BASE in "$BASE_LBL" "$BASE_EU"
-            do
-              echo "Trying $BASE/$FN"
-              rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
-              if curl -4 -L --fail --retry 6 --retry-all-errors --retry-delay 4 \
-                   --connect-timeout 45 --max-time 900 \
-                   -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
-                bytes=$(stat -c%s "desi_likelihood/$FN.part")
-                echo "DOWNLOADED_BYTES $FN $bytes"
-                if [ "$bytes" -gt 500000 ] && \
-                   python3 -c "import h5py; f=h5py.File('desi_likelihood/$FN.part','r'); f.close()"; then
-                  mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
-                  ok=1
-                  echo "VALID_HDF5_FROM_HTTP $FN $bytes"
-                  break
-                fi
+            echo "Trying AWS Open Data s3://desidata for $FN"
+            if aws s3 cp --no-sign-request "$S3_PREFIX/$FN" "desi_likelihood/$FN.part"; then
+              if python3 -c "import h5py,sys; f=h5py.File(sys.argv[1],'r'); list(f.keys()); f.close(); print('VALID_HDF5',sys.argv[1])" "desi_likelihood/$FN.part"; then
+                mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
+                ok=1
               fi
-              rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
-            done
+            fi
+            rm -f "desi_likelihood/$FN.part"
 
-            if [ "$ok" -ne 1 ]; then
-              for KEY in \
-                "dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood/$FN" \
-                "public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood/$FN"
+            if [ "$ok" -eq 0 ]; then
+              for BASE in "$BASE_LBL" "$BASE_EU"
               do
-                echo "Trying public S3 s3://desidata/$KEY"
-                rm -f "desi_likelihood/$FN"
-                if aws s3 cp "s3://desidata/$KEY" "desi_likelihood/$FN" \
-                     --no-sign-request --only-show-errors; then
-                  bytes=$(stat -c%s "desi_likelihood/$FN")
-                  if [ "$bytes" -gt 500000 ] && \
-                     python3 -c "import h5py; f=h5py.File('desi_likelihood/$FN','r'); f.close()"; then
+                echo "Trying $BASE/$FN"
+                if curl -4 -L --fail --retry 8 --retry-all-errors --retry-delay 5 \
+                     --connect-timeout 30 --max-time 600 \
+                     -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
+                  if python3 -c "import h5py,sys; f=h5py.File(sys.argv[1],'r'); list(f.keys()); f.close(); print('VALID_HDF5',sys.argv[1])" "desi_likelihood/$FN.part"; then
+                    mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
                     ok=1
-                    echo "VALID_HDF5_FROM_S3 $FN $bytes"
                     break
                   fi
                 fi
-                rm -f "desi_likelihood/$FN"
+                rm -f "desi_likelihood/$FN.part"
               done
             fi
 
             test "$ok" -eq 1
             test -s "desi_likelihood/$FN"
           done
-
           ls -lh desi_likelihood
-          python3 - <<'PY'
-          from pathlib import Path
-          import h5py
-          for p in sorted(Path('desi_likelihood').glob('*.h5')):
-              with h5py.File(p,'r') as f:
-                  print('DESI_HDF5_OK',p.name,p.stat().st_size,list(f.keys())[:8])
-          PY
 
       - name: Evaluate official DESI DR1 full-shape likelihood
         run: |
