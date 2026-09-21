@@ -38,7 +38,7 @@ MODELS={
         H0=67.36, ob=0.02237, oc=0.1200,
         As=2.10e-9, ns=0.9649, tau=0.0544,
     ),
-    "GC_BEST":dict(
+    "GC_T0250":dict(
         kind="sdmc",
         H0=70.5659273196888,
         ob=0.022329086486197414,
@@ -50,13 +50,49 @@ MODELS={
         zc=3.0902165911160413,
         width=0.5979282500222326,
     ),
-    "GC_T0125":dict(
+    "GC_T0375":dict(
         kind="sdmc",
-        H0=70.7086636598444,
-        ob=0.022364303243098706,
-        oc=0.12461944737013873,
+        H0=70.4231909795332,
+        ob=0.022293869729296117,
+        oc=0.12497379553203922,
         As=math.exp(3.060)/1e10,
-        ns=0.963971506354399,
+        ns=0.963914519063197,
+        tau=0.0544,
+        AF=0.0573794336710125,
+        zc=3.0902165911160413,
+        width=0.5979282500222326,
+    ),
+    "GC_T0500":dict(
+        kind="sdmc",
+        H0=70.28045463937761,
+        ob=0.022258652972394825,
+        oc=0.12515096961298944,
+        As=math.exp(3.060)/1e10,
+        ns=0.963886025417596,
+        tau=0.0544,
+        AF=0.0573794336710125,
+        zc=3.0902165911160413,
+        width=0.5979282500222326,
+    ),
+    "GC_T0625":dict(
+        kind="sdmc",
+        H0=70.137718299222,
+        ob=0.022223436215493532,
+        oc=0.1253281436939397,
+        As=math.exp(3.060)/1e10,
+        ns=0.9638575317719951,
+        tau=0.0544,
+        AF=0.0573794336710125,
+        zc=3.0902165911160413,
+        width=0.5979282500222326,
+    ),
+    "GC_T0750":dict(
+        kind="sdmc",
+        H0=69.9949819589108,
+        ob=0.02218821945859224,
+        oc=0.12550531777488995,
+        As=math.exp(3.060)/1e10,
+        ns=0.963829038126394,
         tau=0.0544,
         AF=0.0573794336710125,
         zc=3.0902165911160413,
@@ -432,13 +468,12 @@ for label,m in models.items():
     allrows.extend(rows)
     totals[label]=total
 
-summary={
-    "LCDM":totals["LCDM"],
-    "GC_BEST":totals["GC_BEST"],
-    "GC_T0125":totals["GC_T0125"],
-    "delta_gc_best_minus_lcdm":totals["GC_BEST"]-totals["LCDM"],
-    "delta_gc_t0125_minus_lcdm":totals["GC_T0125"]-totals["LCDM"],
-}
+summary={"LCDM":totals["LCDM"]}
+for label,total in totals.items():
+    if label=="LCDM":
+        continue
+    summary[label]=total
+    summary["delta_"+label.toLowerCase()+"_minus_lcdm"]=total-totals["LCDM"]
 pd.DataFrame(allrows).to_csv(OUT/"geometry_compromise_desi_profile.csv",index=False)
 (OUT/"geometry_compromise_desi_summary.json").write_text(json.dumps(summary,indent=2))
 print("GC_DESI_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
