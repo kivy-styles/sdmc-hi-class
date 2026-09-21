@@ -1,9 +1,9 @@
-name: SDMC r032 local002 full Plik validation
+name: SDMC r032 local002 expansion-best full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-local002-fullplik
+      - sdmc-r032-local002-expansion-best-fullplik
   workflow_dispatch:
 
 jobs:
