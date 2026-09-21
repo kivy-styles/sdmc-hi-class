@@ -542,3 +542,5 @@ jobs:
             output/desi_dr1_fs_profile.csv
             output/desi_dr1_fs_summary.csv
           if-no-files-found: warn
+
+# trigger partial-zeq exact DESI
