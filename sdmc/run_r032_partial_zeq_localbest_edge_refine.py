@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+"""
+Partial-equality, acoustic-locked local structural refinement.
+
+Search variables:
+  f in [0.05, 0.25] along the geometry-refined -> LCDM local021 density axis,
+  plus (A_F, z_c, DeltaN, D_floor, lambda_e, z_t).
+
+For each candidate H0 is solved so that ell_A exactly matches the current
+geometry-refined SDMC acoustic scale. This isolates CMB-shape changes from
+peak-position drift.
+
+Screen:
+  Planck TTTEEE-lite + lowT + lowE + lensing + calibration prior.
+Any winner must later pass full Plik, raw DESI, SN and exact-covariant replay.
+"""
+from pathlib import Path
+import json, math, re, subprocess, textwrap
+import numpy as np, pandas as pd
+from scipy.optimize import brentq, minimize_scalar
+from scipy.stats import qmc
+from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+from cobaya.likelihoods.planck_2018_lowl.TT import TT
+from cobaya.likelihoods.planck_2018_lowl.EE import EE
+from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+
+OUT=Path("output/partial_zeq_localbest_edge_refine"); OUT.mkdir(parents=True,exist_ok=True)
+TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
+
+H0G=70.5653567390982
+OBG=0.022011983189284802
+OCG=0.12404331885203719
+OBL=0.0224063693780079
+OCL=0.1182415105248335
+
+NS=0.9625227132590487
+TAU=0.055202901571989066
+LNAS=3.0598696043919773
+AS=math.exp(LNAS)/1e10
+
+AF0=0.06017362505197525
+ZC0=2.827464461401105
+W0=0.5514493708219379
+D0=0.34231919445927034
+DF0=0.045
+LAM0=17.7
+ZT0=17.1
+
+# f, A_F, z_c, width, D_floor, lambda_e, z_t
+LOW=np.array([0.08,0.044,2.55,0.47,0.028,17.95,16.65],float)
+HIGH=np.array([0.22,0.058,3.15,0.61,0.046,18.65,17.20],float)
+
+high=TTTEEE_lite_native(packages_path="planck_packages")
+lowT=TT(packages_path="planck_packages")
+lowE=EE(packages_path="planck_packages")
+lens=LensingNative(packages_path="planck_packages")
+
+def table(path):
+    lines=Path(path).read_text().splitlines()
+    hdr=[l for l in lines if l.startswith("#") and re.search(r"1\s*:",l)][-1].lstrip("#").strip()
+    ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+    for i,m in enumerate(ms):
+        e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+        names.append(hdr[m.end():e].strip())
+    return pd.DataFrame(np.loadtxt(path),columns=names)
+
+def derived(bg,th):
+    b=bg.sort_values("z")
+    matter=b["(.)rho_b"].to_numpy()+b["(.)rho_cdm"].to_numpy()
+    rad=b["(.)rho_g"].to_numpy()+b["(.)rho_ur"].to_numpy()
+    z=b["z"].to_numpy(); ratio=matter/rad; q=ratio-1.
+    ii=np.where(q[:-1]*q[1:]<=0)[0]
+    zeq=float("nan")
+    if len(ii):
+        i=ii[-1]
+        zeq=float(z[i]+(1-ratio[i])*(z[i+1]-z[i])/(ratio[i+1]-ratio[i]))
+    imax=int(np.argmax(th["g [Mpc^-1]"].to_numpy()))
+    zstar=float(th.iloc[imax]["z"])
+    DM=float(np.interp(zstar,b["z"],b["comov. dist."]))
+    rs=float(np.interp(zstar,b["z"],b["comov.snd.hrz."]))
+    return dict(z_eq_exact=zeq,z_star=zstar,D_M_star=DM,r_s_star=rs,ell_A=float(np.pi*DM/rs))
+
+def ini(root,H0,ob,oc,af,zc,width,dfloor,lam,zt,full):
+    h=H0/100.; ox=1.-(ob+oc+OR)/(h*h)
+    obs="""modes=s
+output=tCl,pCl,lCl
+lensing=yes
+l_max_scalars=3000
+""" if full else ""
+    return textwrap.dedent(f"""\
+H0={H0:.17g}
+omega_b={ob:.17g}
+omega_cdm={oc:.17g}
+N_ncdm=0
+N_ur=3.046
+T_cmb=2.7255
+YHe=0.2453
+A_s={AS:.17e}
+n_s={NS:.17g}
+tau_reio={TAU:.17g}
+Omega_Lambda=0
+Omega_fld=3.1443554e-8
+fluid_equation_of_state=SDMC_TRACKER
+cs2_fld=0.003
+use_ppf=no
+Omega_smg=-1
+gravity_model=sdmc_v3_independent_kinetic
+parameters_smg={af:.17g},{zc:.17g},{width:.17g},{D0:.17g},1.0,{dfloor:.17g}
+expansion_model=sdmc_full
+expansion_smg={ox:.17g},{lam:.17g},{zt:.17g},0.5,0.01105624999,0.25,0.01951933685,1.5
+pert_initial_conditions_smg=zero
+method_qs_smg=fully_dynamic
+output_background_smg=3
+{obs}
+write background=yes
+write thermodynamics=yes
+root={root}
+format=class
+input_verbose=0
+background_verbose=0
+thermodynamics_verbose=0
+perturbations_verbose=0
+spectra_verbose=0
+lensing_verbose=0
+output_verbose=0
+""")
+
+def run_class(tag,H0,ob,oc,af,zc,width,dfloor,lam,zt,full):
+    root=str(OUT/(tag+"_")); ip=OUT/(tag+".ini")
+    ip.write_text(ini(root,H0,ob,oc,af,zc,width,dfloor,lam,zt,full))
+    cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
+    if cp.returncode:
+        raise RuntimeError(f"{tag} failed: {cp.stdout[-1200:]}")
+    bg=table(root+"00_background.dat"); th=table(root+"00_thermodynamics.dat")
+    der=derived(bg,th)
+    stab=dict(min_D=float(bg["kin (D)"].min()),
+              min_cs2=float(bg["c_s^2"].min()),
+              max_cs2=float(bg["c_s^2"].max()),
+              max_abs_noslip=float(np.max(np.abs(bg["braiding_smg"]+2*bg["M2_running_smg"]))))
+    return root,bg,der,stab
+
+def load_cls(path):
+    a=np.loadtxt(path); ell=a[:,0].astype(int); n=int(ell.max())+1; conv=(TCMB*1e6)**2
+    tt=np.zeros(n); ee=np.zeros(n); te=np.zeros(n); pp=np.zeros(n)
+    tt[ell]=a[:,1]*conv; ee[ell]=a[:,2]*conv; te[ell]=a[:,3]*conv
+    L=ell.astype(float); pp[ell]=a[:,5]*L*(L+1.)
+    return np.column_stack([ell,tt[ell],te[ell],ee[ell]]),{"tt":tt,"te":te,"ee":ee,"pp":pp}
+
+def pscore(path):
+    harr,dls=load_cls(path)
+    def pc(A):
+        ch=float(high.chi_squared(harr,A_planck=A))
+        ct=float(-2*lowT.log_likelihood(dls["tt"],calib=A))
+        ce=float(-2*lowE.log_likelihood(dls["ee"],calib=A))
+        lp={lens.calibration_param:A} if getattr(lens,"calibration_param",None) else {}
+        cl=float(-2*lens.log_likelihood(dls,**lp))
+        cp=((A-1.)/CAL_SIGMA)**2
+        return ch,ct,ce,cl,cp,ch+ct+ce+cl+cp
+    op=minimize_scalar(lambda A:pc(float(A))[-1],bounds=(.97,1.03),method="bounded",
+                       options={"xatol":1e-10})
+    A=float(op.x); p=pc(A)
+    return dict(A_planck=A,chi2_high=p[0],chi2_lowT=p[1],chi2_lowE=p[2],
+                chi2_lensing=p[3],chi2_cal=p[4],chi2_planck=p[5])
+
+# Exact baseline target.
+root0,bg0,der0,stab0=run_class("geom_baseline",H0G,OBG,OCG,AF0,ZC0,W0,DF0,LAM0,ZT0,True)
+TARGET=der0["ell_A"]; base=pscore(root0+"00_cl_lensed.dat")
+print("PZEQEDGE_TARGET",json.dumps({**der0,**stab0,**base},sort_keys=True),flush=True)
+
+def candidate(tag,f,af,zc,w,df,lam,zt):
+    ob=OBG+f*(OBL-OBG)
+    oc=OCG+f*(OCL-OCG)
+
+    # Robust acoustic lock: sample a short H0 grid, ignore failed/unstable
+    # backgrounds, then interpolate the stable ell_A crossing.
+    vals=[]
+    pred=H0G + f*(73.00356627327847-H0G)
+    grid=np.unique(np.r_[np.linspace(pred-0.8,pred+0.8,9), pred])
+    for H in grid:
+        try:
+            _,_,d,st=run_class(f"{tag}_root_{str(round(float(H),6)).replace('.','p')}",
+                               float(H),ob,oc,af,zc,w,df,lam,zt,False)
+            stable=(st["min_D"]>0 and st["min_cs2"]>0 and st["max_cs2"]<=1)
+            if stable:
+                vals.append((float(H),float(d["ell_A"]-TARGET)))
+        except Exception:
+            pass
+    vals=sorted(vals)
+    if len(vals)<2:
+        rec=dict(id=tag,f=f,status="NO_STABLE_ACOUSTIC_BRACKET")
+        print("PZEQEDGE_POINT",json.dumps(rec,sort_keys=True),flush=True)
+        return rec
+
+    pair=None
+    for a,b in zip(vals[:-1],vals[1:]):
+        if a[1]==0 or a[1]*b[1] <= 0:
+            pair=(a,b); break
+    if pair is None:
+        # If no strict crossing survived, accept only a very close stable point.
+        Hbest,gbest=min(vals,key=lambda q:abs(q[1]))
+        if abs(gbest)>0.03:
+            rec=dict(id=tag,f=f,status="NO_ACOUSTIC_ROOT",
+                     closest_H0=Hbest,closest_delta_ellA=gbest)
+            print("PZEQEDGE_POINT",json.dumps(rec,sort_keys=True),flush=True)
+            return rec
+        H0=Hbest
+    else:
+        (h1,g1),(h2,g2)=pair
+        H0=float(h1 + (0.-g1)*(h2-h1)/(g2-g1))
+
+    try:
+        root,bg,der,stab=run_class(tag,H0,ob,oc,af,zc,w,df,lam,zt,True)
+    except Exception as e:
+        rec=dict(id=tag,f=f,H0=H0,status="FINAL_CLASS_FAIL",error=str(e)[-600:])
+        print("PZEQEDGE_POINT",json.dumps(rec,sort_keys=True),flush=True)
+        return rec
+    stable=stab["min_D"]>0 and stab["min_cs2"]>0 and stab["max_cs2"]<=1
+    rec=dict(id=tag,f=f,H0=H0,omega_b=ob,omega_cdm=oc,omega_m=ob+oc,
+             A_F=af,z_c=zc,width=w,D_floor=df,lambda_e=lam,z_t=zt,
+             stable_subluminal=bool(stable),**der,**stab,status="UNSTABLE" if not stable else "OK")
+    if stable:
+        sc=pscore(root+"00_cl_lensed.dat"); rec.update(sc)
+        rec.update(delta_planck_vs_geom=sc["chi2_planck"]-base["chi2_planck"],
+                   delta_high_vs_geom=sc["chi2_high"]-base["chi2_high"],
+                   delta_lowT_vs_geom=sc["chi2_lowT"]-base["chi2_lowT"],
+                   delta_lensing_vs_geom=sc["chi2_lensing"]-base["chi2_lensing"],
+                   delta_ellA=der["ell_A"]-TARGET)
+    print("PZEQEDGE_POINT",json.dumps(rec,sort_keys=True),flush=True)
+    return rec
+
+rows=[]
+rows.append(candidate("center_localbest",0.13,0.052875,2.878125,0.54625,0.03825,18.278125,16.962500000000002))
+sam=qmc.Sobol(d=7,scramble=False)
+pts=qmc.scale(sam.random_base2(m=5),LOW,HIGH)
+for i,p in enumerate(pts):
+    f,af,zc,w,df,lam,zt=map(float,p)
+    rows.append(candidate(f"sobol{i:03d}",f,af,zc,w,df,lam,zt))
+
+df=pd.DataFrame(rows); df.to_csv(OUT/"partial_zeq_localbest_edge_refine.csv",index=False)
+ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
+best=ok.nsmallest(10,"chi2_planck").to_dict("records")
+print("PZEQEDGE_BEST_PLANCK",json.dumps(best,sort_keys=True),flush=True)
+summary={"target_ellA":TARGET,"center":rows[0],
+         "best":best[0] if best else None,
+         "best_delta_vs_geom":float(ok.delta_planck_vs_geom.min()) if len(ok) else None}
+(OUT/"partial_zeq_localbest_edge_refine_summary.json").write_text(json.dumps(summary,indent=2))
+print("PZEQEDGE_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
