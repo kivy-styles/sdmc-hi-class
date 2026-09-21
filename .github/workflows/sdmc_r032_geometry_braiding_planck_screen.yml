@@ -50,7 +50,7 @@ jobs:
           PY
 
       - name: Run localized-braiding screen
-        run: python3 sdmc/run_r032_sobol049_braiding_screen.py
+        run: python3 sdmc/run_r032_geometry_braiding_screen.py
 
       - name: Print shortlist
         if: always()
