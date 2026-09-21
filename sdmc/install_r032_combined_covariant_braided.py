@@ -164,14 +164,14 @@ hs=s.index("static void sdmc_tracker_fluid_target")
 he=s.index("static double sdmc_tracker_fluid_w_only",hs)
 block=s[hs:he]
 repls=[
-    (r"double\\s+Ox\\s*=\\s*pba->parameters_smg\\[0\\]\\s*;",f"double Ox = {OX:.17g};"),
-    (r"double\\s+lambda_e\\s*=\\s*pba->parameters_smg\\[1\\]\\s*;",f"double lambda_e = {LAMBDA_E:.17g};"),
-    (r"double\\s+zt\\s*=\\s*pba->parameters_smg\\[2\\]\\s*;",f"double zt = {ZT:.17g};"),
-    (r"double\\s+dNt\\s*=\\s*pba->parameters_smg\\[3\\]\\s*;","double dNt = 0.5;"),
-    (r"double\\s+A\\s*=\\s*pba->parameters_smg\\[4\\]\\s*;","double A = 0.01105624999;"),
-    (r"double\\s+tauA\\s*=\\s*pba->parameters_smg\\[5\\]\\s*;","double tauA = 0.25;"),
-    (r"double\\s+B\\s*=\\s*pba->parameters_smg\\[6\\]\\s*;","double B = 0.01951933685;"),
-    (r"double\\s+tauB\\s*=\\s*pba->parameters_smg\\[7\\]\\s*;","double tauB = 1.5;"),
+    (r"double\s+Ox\s*=\s*pba->parameters_smg\[0\]\s*;",f"double Ox = {OX:.17g};"),
+    (r"double\s+lambda_e\s*=\s*pba->parameters_smg\[1\]\s*;",f"double lambda_e = {LAMBDA_E:.17g};"),
+    (r"double\s+zt\s*=\s*pba->parameters_smg\[2\]\s*;",f"double zt = {ZT:.17g};"),
+    (r"double\s+dNt\s*=\s*pba->parameters_smg\[3\]\s*;","double dNt = 0.5;"),
+    (r"double\s+A\s*=\s*pba->parameters_smg\[4\]\s*;","double A = 0.01105624999;"),
+    (r"double\s+tauA\s*=\s*pba->parameters_smg\[5\]\s*;","double tauA = 0.25;"),
+    (r"double\s+B\s*=\s*pba->parameters_smg\[6\]\s*;","double B = 0.01951933685;"),
+    (r"double\s+tauB\s*=\s*pba->parameters_smg\[7\]\s*;","double tauB = 1.5;"),
 ]
 for pat,val in repls:
     block,n=re.subn(pat,val,block,count=1)
