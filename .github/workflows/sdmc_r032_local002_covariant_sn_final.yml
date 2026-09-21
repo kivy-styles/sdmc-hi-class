@@ -1,9 +1,9 @@
-name: SDMC r032 local002 exact-covariant SN final
+name: SDMC r032 local002 expansion-best exact-covariant SN
 
 on:
   push:
     branches:
-      - sdmc-r032-local002-covariant-sn-final
+      - sdmc-r032-local002-expansion-best-covariant-sn
   workflow_dispatch:
 
 permissions:
@@ -37,7 +37,7 @@ jobs:
             --dir input_cov
           test -f input_cov/desi_cov_00_background.dat
           test -f input_cov/desi_lcdm_00_background.dat
-          echo "LOCAL002_COV_SN_BACKGROUNDS_READY"
+          echo "LOCAL002_EXPANSION_BEST_COV_SN_BACKGROUNDS_READY"
 
       - name: Install SN data
         run: |
@@ -46,7 +46,7 @@ jobs:
 
       - name: Score exact-covariant SN compilations
         run: |
-          mkdir -p output/local002_cov_sn
+          mkdir -p output/local002_expansion_best_cov_sn
           python3 - <<'PY'
           from pathlib import Path
           import re, json
@@ -55,7 +55,7 @@ jobs:
           from scipy.linalg import cho_factor, cho_solve
 
           DATA=Path('sn_data')
-          OUT=Path('output/local002_cov_sn')
+          OUT=Path('output/local002_expansion_best_cov_sn')
 
           def table(path):
               lines=Path(path).read_text().splitlines()
@@ -126,7 +126,7 @@ jobs:
           l=table('input_cov/desi_lcdm_00_background.dat')
           ss=scores(s); ll=scores(l)
           out={k:{'sdmc':ss[k],'lcdm_reference':ll[k],'delta_vs_reference':ss[k]-ll[k]} for k in ss}
-          print('LOCAL002_COV_SN',json.dumps(out,sort_keys=True),flush=True)
+          print('LOCAL002_EXPANSION_BEST_COV_SN',json.dumps(out,sort_keys=True),flush=True)
 
           planck=-8.190452666955935
           desi=-12.329771730597372
@@ -168,16 +168,16 @@ jobs:
               'fair_gap_union3_sdmc_minus_lcdm':(pd_total+out['union3']['delta_vs_reference'])-(fair_lcdm_pd+l21_u3),
               'fair_gap_desy5_sdmc_minus_lcdm':(pd_total+out['desy5']['delta_vs_reference'])-(fair_lcdm_pd+l21_dy),
           }
-          print('LOCAL002_COV_FINAL_LEDGER',json.dumps(ledger,sort_keys=True),flush=True)
-          pd.DataFrame([ledger]).to_csv(OUT/'local002_covariant_final_ledger.csv',index=False)
-          (OUT/'local002_covariant_final_ledger.json').write_text(json.dumps(ledger,indent=2))
-          (OUT/'local002_covariant_sn.json').write_text(json.dumps(out,indent=2))
+          print('LOCAL002_EXPANSION_BEST_COV_FINAL_LEDGER',json.dumps(ledger,sort_keys=True),flush=True)
+          pd.DataFrame([ledger]).to_csv(OUT/'local002_expansion_best_covariant_final_ledger.csv',index=False)
+          (OUT/'local002_expansion_best_covariant_final_ledger.json').write_text(json.dumps(ledger,indent=2))
+          (OUT/'local002_expansion_best_covariant_sn.json').write_text(json.dumps(out,indent=2))
           PY
 
       - name: Preserve final ledger
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-local002-covariant-sn-final
-          path: output/local002_cov_sn/*
+          name: sdmc-r032-local002-expansion-best-covariant-sn
+          path: output/local002_expansion_best_cov_sn/*
           if-no-files-found: warn
