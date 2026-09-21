@@ -48,10 +48,35 @@ jobs:
       - name: Download official DESI DR1 likelihood blocks
         run: |
           mkdir -p desi_likelihood
-          BASE=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
-          for FN in             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
+          BASE_LBL=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_EU=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          for FN in \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
           do
-            curl -L --fail --retry 3 -o "desi_likelihood/$FN" "$BASE/$FN"
+            ok=0
+            for BASE in "$BASE_LBL" "$BASE_EU"
+            do
+              rm -f "desi_likelihood/$FN" "desi_likelihood/$FN.part"
+              echo "Trying $BASE/$FN"
+              if curl -4 -L --fail --retry 5 --retry-all-errors --retry-delay 3 \
+                   --connect-timeout 30 --max-time 180 \
+                   -o "desi_likelihood/$FN.part" "$BASE/$FN"; then
+                bytes=$(stat -c%s "desi_likelihood/$FN.part")
+                if [ "$bytes" -gt 500000 ] && \
+                   python3 -c "import h5py; f=h5py.File('desi_likelihood/$FN.part','r'); f.close()"; then
+                  mv "desi_likelihood/$FN.part" "desi_likelihood/$FN"
+                  echo "VALID_DESI_HDF5 $FN $bytes"
+                  ok=1
+                  break
+                fi
+              fi
+            done
+            test "$ok" -eq 1
           done
           ls -lh desi_likelihood
 
