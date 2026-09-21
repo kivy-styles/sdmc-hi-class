@@ -1,5 +1,80 @@
 # SDMC r032 — Part VIII final validation / closure ledger
 
+## Current superseding Planck + DESI closure
+
+The previous fair-control stopping statement below is retained as a historical snapshot, but it is superseded for the Planck + DESI question by the exact-covariant **eref015** result.
+
+### Exact-covariant SDMC eref015
+
+- H0 = 70.79146512830793
+- omega_b = 0.022083219194622913
+- omega_cdm = 0.12299536722293603
+- n_s = 0.9625227132590487
+- tau_reio = 0.055202901571989066
+- A_s = 2.1218418557926507e-9
+- ln(10^10 A_s) = 3.054869604391977
+- A_F = 0.03597474167915061
+- z_c = 3.580509699881077
+- width = 0.3986928062886
+- D0 = 0.34231919445927034
+- D_floor = 0.04906211170135066
+- lambda_e = 18.40625
+- z_t = 16.141839363323523
+
+Exact-covariant stability:
+- min D = 0.04906211167807
+- min c_s^2 = 0.007939174161602
+- max c_s^2 = 0.6674784881772
+- max |alpha_B + 2 alpha_M| = 1.0005885009434223e-14
+
+### Exact likelihood comparison
+
+eref015:
+- full Plik chi2 total = 2786.1184593309654
+- full Plik delta vs common LCDM reference = -17.875731750041723
+- DESI DR1 raw full-shape chi2 total = 327.0937584010189
+- DESI delta vs common LCDM reference = -13.438644991802846
+- P+D delta vs common reference = **-31.31437674184457**
+
+LCDM local021:
+- full Plik chi2 total = 2781.4370287015954
+- full Plik delta vs common LCDM reference = -22.557091181603937
+- DESI DR1 raw full-shape chi2 total = 331.93726232610265
+- DESI delta vs common LCDM reference = -8.59514105435187
+- P+D delta vs common reference = **-31.152232235955807**
+
+Direct fair comparison:
+- Planck: eref015 is +4.681430629370035 chi2 above local021
+- DESI: eref015 is -4.843503925083752 chi2 below local021
+- Planck + DESI: eref015 is **-0.162073295713716 chi2** relative to local021
+
+Using each run's stored delta-to-reference values gives -0.162144505888762; the ~7e-5 difference is only the tiny independent Planck reference-profile optimizer offset. The direct absolute likelihood comparison is the clean fair number.
+
+**Conclusion: the formerly positive Planck+DESI gap is closed and surpassed.**
+
+Primary exact runs:
+- eref015 full Plik: run 35667433363, job 106556203694
+- eref015 DESI: run 35667451332, job 106556258785
+- LCDM local021 full Plik: run 35585790426, job 106288695887
+- LCDM local021 DESI: run 35587244801, job 106293308905
+
+### Reconstruction audit rule
+
+A promoted exact run is admissible only when its covariant reconstruction summary echoes the intended A_F, z_c, width, D_floor and H0 of the promoted candidate.
+
+Runs excluded from the closure ledger because they reconstructed an older action include:
+- 35666650275: stale edge028 full-Plik reconstruction
+- 35666652503: stale edge028 DESI reconstruction
+- 35666724761: initial localref008 full-Plik run using the prior lowridge action
+- 35665667528: initial lowridge021 DESI run using D_floor=0.041875
+- 35666871548 and 35666851338: stale edge028-Qbest DESI reconstructions
+
+The exact O4D030 promotion is still queued and may improve the post-closure leader; it is not required to establish the closure above. SN likelihoods have not yet been re-promoted for eref015, so this superseding statement is specifically the fair Planck + DESI result.
+
+---
+
+## Superseded historical snapshot
+
 This file records the terminal result of the r032 fair-control investigation.
 All deltas below are relative to the common original fixed LCDM reference unless explicitly stated otherwise.
 
