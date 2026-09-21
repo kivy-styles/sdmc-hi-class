@@ -137,7 +137,7 @@ def ini_sdmc(root,m):
     gravity_model = sdmc_v3_independent_kinetic
     parameters_smg = {m['AF']:.17g},{m['zc']:.17g},{m['width']:.17g},0.34231919445927034,1.0,0.045
     expansion_model = sdmc_full
-    expansion_smg = {OX:.17g},17.925,17.775,0.5,0.01105624999,0.25,0.01951933685,1.5
+    expansion_smg = {OX:.17g},17.7,17.1,0.5,0.01105624999,0.25,0.01951933685,1.5
     pert_initial_conditions_smg = zero
     method_qs_smg = fully_dynamic
     a_ini_over_a_today_default = 1.e-8
