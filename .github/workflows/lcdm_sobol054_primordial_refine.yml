@@ -1,0 +1,108 @@
+name: LCDM SOBOL054 primordial refinement
+
+on:
+  push:
+    branches:
+      - lcdm-sobol054-primordial-refine
+  workflow_dispatch:
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya iminuit
+      - name: Build CLASS
+        run: make -j2 class
+      - name: Install Planck likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          assert TTTEEE.install(path='planck_full',no_progress_bars=True)
+          for cls in (TT,EE,LensingNative):
+              assert cls.install(path='planck_packages',no_progress_bars=True)
+          PY
+      - name: Generate local spectra
+        run: |
+          mkdir -p output
+          python3 - <<'PY'
+          from pathlib import Path
+          import math, subprocess, json, textwrap
+          OUT=Path('output')
+          base=dict(H0=68.78113517636451,ob=0.022678412813829034,oc=0.11795410220236471)
+          cands=[
+            ('base',0.9621755753970704,0.0451812363281846,3.0204865057301538),
+            ('ns9612',0.9612,0.0451812363281846,3.0204865057301538),
+            ('ns9632',0.9632,0.0451812363281846,3.0204865057301538),
+            ('tau0430',0.9621755753970704,0.0430,3.0161240330737846),
+            ('tau0475',0.9621755753970704,0.0475,3.0251240330737846),
+            ('qminus004',0.9621755753970704,0.0451812363281846,3.0164865057301538),
+            ('qplus004',0.9621755753970704,0.0451812363281846,3.0244865057301538),
+            ('combo1',0.9632,0.0435,3.0171240330737846),
+            ('combo2',0.9622,0.0435,3.0151240330737846),
+          ]
+          def ini(root,H0,ob,oc,ns,tau,lnAs):
+              As=math.exp(lnAs)/1e10
+              return textwrap.dedent(f'''\
+              H0 = {H0}
+              omega_b = {ob}
+              omega_cdm = {oc}
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = {As:.17e}
+              n_s = {ns}
+              tau_reio = {tau}
+              modes = s
+              output = tCl,pCl,lCl,mPk
+              lensing = yes
+              l_max_scalars = 3000
+              P_k_max_h/Mpc = 1.0
+              z_pk = 0
+              root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              lensing_verbose = 0
+              output_verbose = 0
+              ''')
+          ref=OUT/'lcdm_reference.ini'
+          ref.write_text(ini('output/lcdm_reference_',67.36,0.02237,0.1200,0.9649,0.0544,math.log(1e10*2.10e-9)))
+          subprocess.run(['./class',str(ref)],check=True)
+          meta=[]
+          for tag,ns,tau,lnAs in cands:
+              root=f'output/lcdm_s54_{tag}_'
+              ip=OUT/f'lcdm_s54_{tag}.ini'
+              ip.write_text(ini(root,base['H0'],base['ob'],base['oc'],ns,tau,lnAs))
+              subprocess.run(['./class',str(ip)],check=True)
+              meta.append(dict(tag=tag,ns=ns,tau=tau,lnAs=lnAs,A_s=math.exp(lnAs)/1e10))
+          (OUT/'lcdm_s54_design.json').write_text(json.dumps(meta,indent=2))
+          PY
+      - name: Profile full Plik
+        run: python3 sdmc/run_lcdm_sobol054_primordial_profile.py
+      - name: Show result
+        if: always()
+        run: |
+          test ! -f output/lcdm_sobol054_primordial_refine.csv || cat output/lcdm_sobol054_primordial_refine.csv
+      - name: Preserve
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcdm-sobol054-primordial-refine
+          path: |
+            output/lcdm_sobol054_primordial_refine.csv
+            output/lcdm_s54_design.json
+          if-no-files-found: warn
