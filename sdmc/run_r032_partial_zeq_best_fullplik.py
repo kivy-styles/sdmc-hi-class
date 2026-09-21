@@ -33,7 +33,7 @@ OX=1.-(OB+OC+OR)/(H0/100.)**2
 CANDIDATES=[
     dict(id="partial_zeq_ztbest",H0=70.79608815124146,ob=0.022083219194622913,
          oc=0.12299536722293603,ns=0.9625227132590487,tau=0.055202901571989066,
-         lnAs=3.0598696043919773,AF=0.04984375,
+         lnAs=3.055369604391977,AF=0.04984375,
          zc=2.98625,width=0.515,dfloor=0.041875,
          lam=18.40625,zt=16.496875),
 ]
@@ -102,7 +102,7 @@ for c in CANDIDATES:
     ip.write_text(ini(root,c))
     cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
     if cp.returncode:
-        print("PZEQZTBEST_CLASS_FAIL",c["id"],cp.stdout[-3000:],flush=True)
+        print("ZTBESTQ02_CLASS_FAIL",c["id"],cp.stdout[-3000:],flush=True)
         raise SystemExit(f"CLASS failed {c['id']}")
     bg=table(root+"00_background.dat")
     rec=dict(c)
@@ -114,7 +114,7 @@ for c in CANDIDATES:
         F0=float(bg.iloc[np.argmin(np.abs(bg.z.to_numpy()))]["M*^2_smg"]),
     )
     rec["stable_subluminal"]=bool(rec["min_D"]>0 and rec["min_cs2"]>0 and rec["max_cs2"]<=1.)
-    print("PZEQZTBEST_STABILITY",json.dumps(rec,sort_keys=True),flush=True)
+    print("ZTBESTQ02_STABILITY",json.dumps(rec,sort_keys=True),flush=True)
     if not rec["stable_subluminal"]:
         raise SystemExit(f"stability failed {c['id']}")
     meta[c["id"]]=rec
@@ -240,7 +240,7 @@ def run_one(label,path,seeds):
         if not m.fmin.is_valid:
             m.simplex(ncall=3000); m.migrad(ncall=7000)
         row=(float(m.fval),np.array([m.values[n] for n in names]),bool(m.fmin.is_valid),int(m.nfcn))
-        print("PZEQZTBEST_FULLPLIK_SEED",label,i,row[0],row[2],row[3],flush=True)
+        print("ZTBESTQ02_FULLPLIK_SEED",label,i,row[0],row[2],row[3],flush=True)
         if best is None or row[0]<best[0]: best=row
     fval,x,valid,nfcn=best
     p,lh,lt,le,ll=pieces(x)
@@ -248,7 +248,7 @@ def run_one(label,path,seeds):
              chi2_lowE=-2*le,chi2_lensing=-2*ll,chi2_nuisance_priors=prior_chi2(p),
              A_planck=p["A_planck"],valid=valid,nfcn=nfcn)
     row.update({n:p[n] for n in names if n!="A_planck"})
-    print("PZEQZTBEST_FULLPLIK_RESULT",json.dumps(row,sort_keys=True),flush=True)
+    print("ZTBESTQ02_FULLPLIK_RESULT",json.dumps(row,sort_keys=True),flush=True)
     return row,x
 
 lcdm,lx=run_one("LCDM",OUT/"lcdm_00_cl_lensed.dat",[default,old_cov])
@@ -260,11 +260,11 @@ for c in CANDIDATES:
     row.update(meta[c["id"]])
     row["delta_chi2_vs_lcdm"]=row["chi2_profile_total"]-lcdm["chi2_profile_total"]
     rows.append(row)
-    print("PZEQZTBEST_FULLPLIK_DELTA",c["id"],row["delta_chi2_vs_lcdm"],flush=True)
+    print("ZTBESTQ02_FULLPLIK_DELTA",c["id"],row["delta_chi2_vs_lcdm"],flush=True)
 
-pd.DataFrame(rows).to_csv(OUT/"partial_zeq_ztbest_fullplik.csv",index=False)
+pd.DataFrame(rows).to_csv(OUT/"ztbest_q02_fullplik.csv",index=False)
 best=min(rows[1:],key=lambda r:r["chi2_profile_total"])
 summary=dict(lcdm_chi2=lcdm["chi2_profile_total"],best_model=best["model"],
              best_delta_vs_lcdm=best["chi2_profile_total"]-lcdm["chi2_profile_total"])
-(OUT/"partial_zeq_ztbest_fullplik_summary.json").write_text(json.dumps(summary,indent=2))
-print("PZEQZTBEST_FULLPLIK_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"ztbest_q02_fullplik_summary.json").write_text(json.dumps(summary,indent=2))
+print("ZTBESTQ02_FULLPLIK_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
