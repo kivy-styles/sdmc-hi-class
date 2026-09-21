@@ -1,9 +1,9 @@
-name: SDMC r032 local002 DESI full-shape
+name: SDMC r032 local002 expansion-best DESI full-shape
 
 on:
   push:
     branches:
-      - sdmc-r032-local002-desi
+      - sdmc-r032-local002-expansion-best-desi
   workflow_dispatch:
 
 jobs:
