@@ -422,10 +422,8 @@ for label,m in models.items():
 
 summary={
     "LCDM":totals["LCDM"],
-    "SOBOL049":totals["SOBOL049"],
-    "SOBOL009":totals["SOBOL009"],
-    "delta_sobol049_minus_lcdm":totals["SOBOL049"]-totals["LCDM"],
-    "delta_sobol009_minus_lcdm":totals["SOBOL009"]-totals["LCDM"],
+    "LOCAL002":totals["LOCAL002"],
+    "delta_local002_minus_lcdm":totals["LOCAL002"]-totals["LCDM"],
 }
 pd.DataFrame(allrows).to_csv(OUT/"local002_desi_profile.csv",index=False)
 (OUT/"local002_desi_summary.json").write_text(json.dumps(summary,indent=2))
