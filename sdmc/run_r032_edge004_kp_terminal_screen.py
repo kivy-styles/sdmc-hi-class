@@ -107,10 +107,10 @@ if "null" in spectra:
         for L in [200,500,1000,1500,2000,2500]:
             i=int(np.argmin(np.abs(ell-L)))
             rec[f"TT_ratio_{L}"]=float(a[i,1]/b[i,1])
-            rec[f"TE_ratio_{L}"]=float(a[i,2]/b[i,2]) if b[i,2]!=0 else float("nan")
-            rec[f"EE_ratio_{L}"]=float(a[i,3]/b[i,3])
+            rec[f"EE_ratio_{L}"]=float(a[i,2]/b[i,2])
+            rec[f"TE_ratio_{L}"]=float(a[i,3]/b[i,3]) if b[i,3]!=0 else float("nan")
         m=(ell>=30)&(ell<=2500)
-        for name,col in [("TT",1),("TE",2),("EE",3)]:
+        for name,col in [("TT",1),("EE",2),("TE",3)]:
             den=np.maximum(np.abs(b[m,col]),1e-30)
             rec[f"{name}_max_abs_frac"]=float(np.max(np.abs(a[m,col]-b[m,col])/den))
 
