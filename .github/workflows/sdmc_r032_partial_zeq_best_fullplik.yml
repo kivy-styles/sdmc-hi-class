@@ -1,9 +1,9 @@
-name: SDMC r032 partial-equality local-best full Plik
+name: SDMC r032 partial-equality stability-edge full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-partial-zeq-local-best-fullplik
+      - sdmc-r032-partial-zeq-stability-edge-fullplik
   workflow_dispatch:
 
 jobs:
@@ -70,20 +70,20 @@ jobs:
       - name: Print summary
         if: always()
         run: |
-          if [ -f output/partial_zeq_local_best_fullplik/partial_zeq_local_best_fullplik_summary.json ]; then
-            cat output/partial_zeq_local_best_fullplik/partial_zeq_local_best_fullplik_summary.json
+          if [ -f output/partial_zeq_stability_edge_fullplik/partial_zeq_stability_edge_fullplik_summary.json ]; then
+            cat output/partial_zeq_stability_edge_fullplik/partial_zeq_stability_edge_fullplik_summary.json
           fi
-          if [ -f output/partial_zeq_local_best_fullplik/partial_zeq_local_best_fullplik.csv ]; then
-            cat output/partial_zeq_local_best_fullplik/partial_zeq_local_best_fullplik.csv
+          if [ -f output/partial_zeq_stability_edge_fullplik/partial_zeq_stability_edge_fullplik.csv ]; then
+            cat output/partial_zeq_stability_edge_fullplik/partial_zeq_stability_edge_fullplik.csv
           fi
 
       - name: Preserve outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-partial-zeq-local-best-fullplik
+          name: sdmc-r032-partial-zeq-stability-edge-fullplik
           path: |
-            output/partial_zeq_local_best_fullplik/partial_zeq_local_best_fullplik_summary.json
-            output/partial_zeq_local_best_fullplik/partial_zeq_local_best_fullplik.csv
-            output/partial_zeq_local_best_fullplik/*.ini
+            output/partial_zeq_stability_edge_fullplik/partial_zeq_stability_edge_fullplik_summary.json
+            output/partial_zeq_stability_edge_fullplik/partial_zeq_stability_edge_fullplik.csv
+            output/partial_zeq_stability_edge_fullplik/*.ini
           if-no-files-found: warn
