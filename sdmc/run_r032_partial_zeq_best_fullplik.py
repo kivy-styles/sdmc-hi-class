@@ -9,7 +9,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/partial_zeq_localbest_fullplik")
+OUT=Path("output/partial_zeq_boundbest_fullplik")
 OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255
 
@@ -31,11 +31,11 @@ OR=4.17998772e-5
 OX=1.-(OB+OC+OR)/(H0/100.)**2
 
 CANDIDATES=[
-    dict(id="partial_zeq_localbest",H0=70.69065645344024,ob=0.022063253393818805,
-         oc=0.1232890837695007,ns=0.9625227132590487,tau=0.055202901571989066,
-         lnAs=3.0598696043919773,AF=0.052875,
-         zc=2.878125,width=0.54625,dfloor=0.03825,
-         lam=18.278125,zt=16.962500000000002),
+    dict(id="partial_zeq_boundbest",H0=70.77503249553342,ob=0.02207015515212146,
+         oc=0.12318755212377465,ns=0.9625227132590487,tau=0.055202901571989066,
+         lnAs=3.0598696043919773,AF=0.051437500000000004,
+         zc=2.9078125,width=0.503125,dfloor=0.04378125,
+         lam=18.05625,zt=17.045312499999998),
 ]
 def table(path):
     import re
@@ -102,7 +102,7 @@ for c in CANDIDATES:
     ip.write_text(ini(root,c))
     cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
     if cp.returncode:
-        print("PZEQLOCALBEST_CLASS_FAIL",c["id"],cp.stdout[-3000:],flush=True)
+        print("PZEQBOUNDBEST_CLASS_FAIL",c["id"],cp.stdout[-3000:],flush=True)
         raise SystemExit(f"CLASS failed {c['id']}")
     bg=table(root+"00_background.dat")
     rec=dict(c)
@@ -114,7 +114,7 @@ for c in CANDIDATES:
         F0=float(bg.iloc[np.argmin(np.abs(bg.z.to_numpy()))]["M*^2_smg"]),
     )
     rec["stable_subluminal"]=bool(rec["min_D"]>0 and rec["min_cs2"]>0 and rec["max_cs2"]<=1.)
-    print("PZEQLOCALBEST_STABILITY",json.dumps(rec,sort_keys=True),flush=True)
+    print("PZEQBOUNDBEST_STABILITY",json.dumps(rec,sort_keys=True),flush=True)
     if not rec["stable_subluminal"]:
         raise SystemExit(f"stability failed {c['id']}")
     meta[c["id"]]=rec
@@ -240,7 +240,7 @@ def run_one(label,path,seeds):
         if not m.fmin.is_valid:
             m.simplex(ncall=3000); m.migrad(ncall=7000)
         row=(float(m.fval),np.array([m.values[n] for n in names]),bool(m.fmin.is_valid),int(m.nfcn))
-        print("PZEQLOCALBEST_FULLPLIK_SEED",label,i,row[0],row[2],row[3],flush=True)
+        print("PZEQBOUNDBEST_FULLPLIK_SEED",label,i,row[0],row[2],row[3],flush=True)
         if best is None or row[0]<best[0]: best=row
     fval,x,valid,nfcn=best
     p,lh,lt,le,ll=pieces(x)
@@ -248,7 +248,7 @@ def run_one(label,path,seeds):
              chi2_lowE=-2*le,chi2_lensing=-2*ll,chi2_nuisance_priors=prior_chi2(p),
              A_planck=p["A_planck"],valid=valid,nfcn=nfcn)
     row.update({n:p[n] for n in names if n!="A_planck"})
-    print("PZEQLOCALBEST_FULLPLIK_RESULT",json.dumps(row,sort_keys=True),flush=True)
+    print("PZEQBOUNDBEST_FULLPLIK_RESULT",json.dumps(row,sort_keys=True),flush=True)
     return row,x
 
 lcdm,lx=run_one("LCDM",OUT/"lcdm_00_cl_lensed.dat",[default,old_cov])
@@ -260,11 +260,11 @@ for c in CANDIDATES:
     row.update(meta[c["id"]])
     row["delta_chi2_vs_lcdm"]=row["chi2_profile_total"]-lcdm["chi2_profile_total"]
     rows.append(row)
-    print("PZEQLOCALBEST_FULLPLIK_DELTA",c["id"],row["delta_chi2_vs_lcdm"],flush=True)
+    print("PZEQBOUNDBEST_FULLPLIK_DELTA",c["id"],row["delta_chi2_vs_lcdm"],flush=True)
 
-pd.DataFrame(rows).to_csv(OUT/"partial_zeq_localbest_fullplik.csv",index=False)
+pd.DataFrame(rows).to_csv(OUT/"partial_zeq_boundbest_fullplik.csv",index=False)
 best=min(rows[1:],key=lambda r:r["chi2_profile_total"])
 summary=dict(lcdm_chi2=lcdm["chi2_profile_total"],best_model=best["model"],
              best_delta_vs_lcdm=best["chi2_profile_total"]-lcdm["chi2_profile_total"])
-(OUT/"partial_zeq_localbest_fullplik_summary.json").write_text(json.dumps(summary,indent=2))
-print("PZEQLOCALBEST_FULLPLIK_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"partial_zeq_boundbest_fullplik_summary.json").write_text(json.dumps(summary,indent=2))
+print("PZEQBOUNDBEST_FULLPLIK_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
