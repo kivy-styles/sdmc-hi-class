@@ -24,7 +24,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/partial_zeq_best_local_refine"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/partial_zeq_localbest_edge_closure"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
 H0G=70.5653567390982
@@ -47,8 +47,8 @@ LAM0=17.7
 ZT0=17.1
 
 # f, A_F, z_c, width, D_floor, lambda_e, z_t
-LOW=np.array([-0.02,0.052,2.50,0.52,0.032,17.80,16.85],float)
-HIGH=np.array([0.14,0.066,3.05,0.66,0.052,18.65,17.45],float)
+LOW=np.array([0.08,0.046,2.68,0.48,0.030,18.00,16.65],float)
+HIGH=np.array([0.24,0.058,3.08,0.60,0.047,18.60,17.15],float)
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages")
@@ -165,7 +165,7 @@ def pscore(path):
 # Exact baseline target.
 root0,bg0,der0,stab0=run_class("geom_baseline",H0G,OBG,OCG,AF0,ZC0,W0,DF0,LAM0,ZT0,True)
 TARGET=der0["ell_A"]; base=pscore(root0+"00_cl_lensed.dat")
-print("PZEQLOCAL_TARGET",json.dumps({**der0,**stab0,**base},sort_keys=True),flush=True)
+print("PZEQEDGE_TARGET",json.dumps({**der0,**stab0,**base},sort_keys=True),flush=True)
 
 def candidate(tag,f,af,zc,w,df,lam,zt):
     ob=OBG+f*(OBL-OBG)
@@ -188,7 +188,7 @@ def candidate(tag,f,af,zc,w,df,lam,zt):
     vals=sorted(vals)
     if len(vals)<2:
         rec=dict(id=tag,f=f,status="NO_STABLE_ACOUSTIC_BRACKET")
-        print("PZEQLOCAL_POINT",json.dumps(rec,sort_keys=True),flush=True)
+        print("PZEQEDGE_POINT",json.dumps(rec,sort_keys=True),flush=True)
         return rec
 
     pair=None
@@ -201,7 +201,7 @@ def candidate(tag,f,af,zc,w,df,lam,zt):
         if abs(gbest)>0.03:
             rec=dict(id=tag,f=f,status="NO_ACOUSTIC_ROOT",
                      closest_H0=Hbest,closest_delta_ellA=gbest)
-            print("PZEQLOCAL_POINT",json.dumps(rec,sort_keys=True),flush=True)
+            print("PZEQEDGE_POINT",json.dumps(rec,sort_keys=True),flush=True)
             return rec
         H0=Hbest
     else:
@@ -212,7 +212,7 @@ def candidate(tag,f,af,zc,w,df,lam,zt):
         root,bg,der,stab=run_class(tag,H0,ob,oc,af,zc,w,df,lam,zt,True)
     except Exception as e:
         rec=dict(id=tag,f=f,H0=H0,status="FINAL_CLASS_FAIL",error=str(e)[-600:])
-        print("PZEQLOCAL_POINT",json.dumps(rec,sort_keys=True),flush=True)
+        print("PZEQEDGE_POINT",json.dumps(rec,sort_keys=True),flush=True)
         return rec
     stable=stab["min_D"]>0 and stab["min_cs2"]>0 and stab["max_cs2"]<=1
     rec=dict(id=tag,f=f,H0=H0,omega_b=ob,omega_cdm=oc,omega_m=ob+oc,
@@ -225,23 +225,23 @@ def candidate(tag,f,af,zc,w,df,lam,zt):
                    delta_lowT_vs_geom=sc["chi2_lowT"]-base["chi2_lowT"],
                    delta_lensing_vs_geom=sc["chi2_lensing"]-base["chi2_lensing"],
                    delta_ellA=der["ell_A"]-TARGET)
-    print("PZEQLOCAL_POINT",json.dumps(rec,sort_keys=True),flush=True)
+    print("PZEQEDGE_POINT",json.dumps(rec,sort_keys=True),flush=True)
     return rec
 
 rows=[]
-rows.append(candidate("center_sobol016",0.06875,0.0590625,2.775,0.5943750000000001,0.04203125,18.162499999999998,17.1375))
+rows.append(candidate("center_localbest",0.13,0.052875,2.878125,0.54625,0.03825,18.278125,16.962500000000002))
 sam=qmc.Sobol(d=7,scramble=False)
-pts=qmc.scale(sam.random_base2(m=5),LOW,HIGH)
+pts=qmc.scale(sam.random_base2(m=6),LOW,HIGH)
 for i,p in enumerate(pts):
     f,af,zc,w,df,lam,zt=map(float,p)
     rows.append(candidate(f"sobol{i:03d}",f,af,zc,w,df,lam,zt))
 
-df=pd.DataFrame(rows); df.to_csv(OUT/"partial_zeq_best_local_refine.csv",index=False)
+df=pd.DataFrame(rows); df.to_csv(OUT/"partial_zeq_localbest_edge_closure.csv",index=False)
 ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
 best=ok.nsmallest(10,"chi2_planck").to_dict("records")
-print("PZEQLOCAL_BEST_PLANCK",json.dumps(best,sort_keys=True),flush=True)
+print("PZEQEDGE_BEST_PLANCK",json.dumps(best,sort_keys=True),flush=True)
 summary={"target_ellA":TARGET,"center":rows[0],
          "best":best[0] if best else None,
          "best_delta_vs_geom":float(ok.delta_planck_vs_geom.min()) if len(ok) else None}
-(OUT/"partial_zeq_best_local_refine_summary.json").write_text(json.dumps(summary,indent=2))
-print("PZEQLOCAL_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"partial_zeq_localbest_edge_closure_summary.json").write_text(json.dumps(summary,indent=2))
+print("PZEQEDGE_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
