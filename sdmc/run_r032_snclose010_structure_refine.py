@@ -168,9 +168,9 @@ anchors=[
  ("dfm",AF0,ZC0,W0,DF0-0.002),("dfp",AF0,ZC0,W0,DF0+0.003)]
 for a in anchors: rows.append(run(*a))
 
-sam=qmc.Sobol(d=4,scramble=True,seed=10066)
-pts=qmc.scale(sam.random_base2(m=7),LOW,HIGH)
-for i,p in enumerate(pts): rows.append(run(f"sobol{i:03d}",*map(float,p)))
+# Fast axis probe: explicit center/axis points only.
+# The parent branch runs the full 128-point Sobol map in parallel.
+pts=[]
 
 for r in rows:
     if r.get("status")=="OK":
