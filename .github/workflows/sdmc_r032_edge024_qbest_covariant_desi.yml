@@ -1,5 +1,9 @@
 name: SDMC r032 SN-closure132 sobol009 exact-covariant DESI
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
