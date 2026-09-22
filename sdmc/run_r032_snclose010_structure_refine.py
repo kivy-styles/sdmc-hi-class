@@ -162,10 +162,16 @@ if base.get("status")!="OK": raise RuntimeError(f"center failed {base}")
 BASE=float(base["chi2_planck"]); rows.append(base)
 
 anchors=[
- ("afm",AF0-0.002,ZC0,W0,DF0),("afp",AF0+0.002,ZC0,W0,DF0),
- ("zcm",AF0,ZC0-0.12,W0,DF0),("zcp",AF0,ZC0+0.12,W0,DF0),
- ("wm",AF0,ZC0,W0-0.025,DF0),("wp",AF0,ZC0,W0+0.025,DF0),
- ("dfm",AF0,ZC0,W0,DF0-0.002),("dfp",AF0,ZC0,W0,DF0+0.003)]
+ ("zc400",AF0,4.00,W0,DF0),
+ ("zc392",AF0,3.92,W0,DF0),
+ ("zc384",AF0,3.84,W0,DF0),
+ ("zc376",AF0,3.76,W0,DF0),
+ ("zc368",AF0,3.68,W0,DF0),
+ ("zc360",AF0,3.60,W0,DF0),
+ ("zc352",AF0,3.52,W0,DF0),
+ ("zc344",AF0,3.44,W0,DF0),
+ ("zc336",AF0,3.36,W0,DF0),
+ ("zc328",AF0,3.28,W0,DF0)]
 for a in anchors: rows.append(run(*a))
 
 # Fast axis probe: explicit center/axis points only.
