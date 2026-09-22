@@ -1,9 +1,9 @@
-name: SDMC r032 SNclosure009 low-AF structural refine
+name: SDMC r032 SNclosure009 focused AF line
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure009-lowaf-refine
+      - sdmc-r032-snclosure009-afline
   workflow_dispatch:
 
 permissions:
@@ -78,6 +78,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure009-lowaf-refine
+          name: sdmc-r032-snclosure009-afline
           path: output/snclosure223_structural/*.*
           if-no-files-found: warn
