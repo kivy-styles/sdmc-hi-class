@@ -7,7 +7,7 @@ from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_
 from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
-OUT=Path("output/snclosure029_aflow"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure029_afthreshold"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL=.0025; OR=4.17998772e-5
 H0=69.71482083084993; AL=0.024822032167576252; BL=0.01264704344701022
 OB=0.022083219194622913; OC=0.12299536722293603
@@ -72,7 +72,7 @@ lensing_verbose=0
 output_verbose=0
 """)
 rows=[]
-for i,AF in enumerate(np.linspace(0.016,0.024,17)):
+for i,AF in enumerate(np.linspace(0.0205,0.0210,11)):
  root=str(OUT/f"a{i:02d}_"); ip=OUT/f"a{i:02d}.ini"; ip.write_text(ini(root,AF))
  cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
  r={"id":f"a{i:02d}","A_F":float(AF),"status":"FAIL"}
@@ -81,8 +81,8 @@ for i,AF in enumerate(np.linspace(0.016,0.024,17)):
   bg=table(bgp); r.update(min_D=float(bg["kin (D)"].min()),min_cs2=float(bg["c_s^2"].min()),max_cs2=float(bg["c_s^2"].max()))
   if r["min_D"]>0 and r["min_cs2"]>0 and r["max_cs2"]<=1:
    r["chi2_planck"],r["A_planck"]=score(clp);r["status"]="OK"
- rows.append(r); print("SN029AFLOW_POINT",json.dumps(r,sort_keys=True),flush=True)
+ rows.append(r); print("SN029AFTH_POINT",json.dumps(r,sort_keys=True),flush=True)
 df=pd.DataFrame(rows); center=float(df.iloc[np.argmin(abs(df.A_F-AF0))].chi2_planck)
-df["delta_vs_nearest_center"]=df.chi2_planck-center; df.to_csv(OUT/"snclosure029_aflow.csv",index=False)
+df["delta_vs_nearest_center"]=df.chi2_planck-center; df.to_csv(OUT/"snclosure029_afthreshold.csv",index=False)
 ok=df[df.status=="OK"].sort_values("chi2_planck"); best=ok.head(8).to_dict("records")
-print("SN029AFLOW_BEST",json.dumps(best,sort_keys=True),flush=True)
+print("SN029AFTH_BEST",json.dumps(best,sort_keys=True),flush=True)
