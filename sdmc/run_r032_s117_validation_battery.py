@@ -52,7 +52,7 @@ def sigma8_from_pk(path):
     W[m]=3*(np.sin(x[m])-x[m]*np.cos(x[m]))/x[m]**3
     # integrate in ln k for numerical stability: sigma^2=1/(2pi^2) int dlnk k^3 P W^2
     y=k**3*P*W**2/(2*np.pi**2)
-    s2=np.trapz(y,np.log(k))
+    s2=np.trapezoid(y,np.log(k))
     return float(np.sqrt(s2))
 
 def read_pk(prefix):
@@ -175,13 +175,13 @@ ledger={
  "age_chronometer_screen":age_screen,
  "closure_ledger":{
    "delta_planck_s117":-20.194391439610172,
-   "delta_desi_s117":-11.01153007793846,
-   "delta_pd_s117":-31.20592151754863,
+   "delta_desi_s117":-11.011405347307004,
+   "delta_pd_s117":-31.205796786917176,
    "delta_pd_local021":-31.152232235955807,
-   "fair_gap_pd":-0.053689281592824045,
-   "fair_gap_pd_pantheonplus":-0.1400889900016864,
-   "fair_gap_pd_union3":-0.04413438997858066,
-   "fair_gap_pd_desy5":-0.12071862364814478
+   "fair_gap_pd":-0.053564550961368695,
+   "fair_gap_pd_pantheonplus":-0.13996425937023105,
+   "fair_gap_pd_union3":-0.04400965934712531,
+   "fair_gap_pd_desy5":-0.12059389301668944
  }
 }
 (OUT/"s117_validation_ledger.json").write_text(json.dumps(ledger,indent=2))
