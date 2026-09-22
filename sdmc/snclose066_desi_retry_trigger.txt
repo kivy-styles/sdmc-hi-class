@@ -1,1 +1,3 @@
 Retry exact raw DESI promotion for SN-close066; physics inputs unchanged.
+
+Retry exact raw DESI after prolonged external likelihood install stall.
