@@ -29,14 +29,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          rm -rf input_e004 input_e024
-          mkdir -p input_e004 input_e024
+          rm -rf input_e004 input_e024 input_o4d030
+          mkdir -p input_e004 input_e024 input_o4d030
           gh run download 35668374700             --repo "${{ github.repository }}"             --name sdmc-r032-edge004-qbest-covariant-desi             --dir input_e004
           gh run download 35666938621             --repo "${{ github.repository }}"             --name sdmc-r032-edge024-qbest-covariant-desi             --dir input_e024
+          gh run download 35668282532             --repo "${{ github.repository }}"             --name sdmc-r032-edge028-o4d030-covariant-desi             --dir input_o4d030
           test -f input_e004/desi_cov_00_background.dat
           test -f input_e004/desi_lcdm_00_background.dat
           test -f input_e024/desi_cov_00_background.dat
           test -f input_e024/desi_lcdm_00_background.dat
+          test -f input_o4d030/desi_cov_00_background.dat
+          test -f input_o4d030/desi_lcdm_00_background.dat
           echo "PARTX_SHOES_BACKGROUNDS_READY"
 
       - name: Install Pantheon+SH0ES data
@@ -48,7 +51,7 @@ jobs:
 
       - name: Run calibrated local-distance-ladder likelihood
         run: |
-          python3 sdmc/run_partx_shoes_calibrated_hubble.py             EDGE004_QBEST=input_e004/desi_cov_00_background.dat             EDGE024_QBEST=input_e024/desi_cov_00_background.dat             LCDM_E004_CONTROL=input_e004/desi_lcdm_00_background.dat             LCDM_E024_CONTROL=input_e024/desi_lcdm_00_background.dat
+          python3 sdmc/run_partx_shoes_calibrated_hubble.py             EDGE004_QBEST=input_e004/desi_cov_00_background.dat             EDGE024_QBEST=input_e024/desi_cov_00_background.dat             LCDM_E004_CONTROL=input_e004/desi_lcdm_00_background.dat             LCDM_E024_CONTROL=input_e024/desi_lcdm_00_background.dat             O4D030=input_o4d030/desi_cov_00_background.dat             LCDM_O4D030_CONTROL=input_o4d030/desi_lcdm_00_background.dat
 
       - name: Print summary
         if: always()
