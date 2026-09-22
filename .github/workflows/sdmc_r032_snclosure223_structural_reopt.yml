@@ -3,7 +3,7 @@ name: SDMC r032 SNclosure223 structural recovery
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-structural-reopt
+      - sdmc-r032-snclosure072-structural-reopt
   workflow_dispatch:
 
 permissions:
@@ -59,15 +59,15 @@ jobs:
           test "$ok" -eq 1
 
       - name: Run structural recovery
-        run: python3 sdmc/run_r032_snclosure223_structural_reopt.py
+        run: python3 sdmc/run_r032_snclosure072_structural_reopt.py
 
       - name: Print summary
         if: always()
         run: |
-          cat output/snclosure223_structural/snclosure223_structural_summary.json || true
+          cat output/snclosure072_structural/snclosure072_structural_summary.json || true
           python3 - <<'PY'
           import pandas as pd
-          p='output/snclosure223_structural/snclosure223_structural.csv'
+          p='output/snclosure072_structural/snclosure072_structural.csv'
           try:
               d=pd.read_csv(p)
               print(d[d.status.eq('OK')].sort_values(['goal_score','second_joint_proxy','pd_proxy']).head(15).to_string(index=False))
@@ -78,6 +78,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure223-structural-reopt
-          path: output/snclosure223_structural/*.*
+          name: sdmc-r032-snclosure072-structural-reopt
+          path: output/snclosure072_structural/*.*
           if-no-files-found: warn
