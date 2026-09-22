@@ -62,13 +62,14 @@ def model_data(prefix,H0,ob,oc,ns):
         vc=-theta_c_gi/Hc
         vcb=fb*vb+fc*vc
         ratio_v=np.divide(vcb,dm,out=np.zeros_like(vcb),where=np.abs(dm)>1e-300)
-         kpk=pk[:,0]
+
+        kpk=pk[:,0]
         Pdd=pk[:,1]
         rv=np.interp(kpk,kh,ratio_v)
         Ptt=Pdd*rv**2
         series[z]=(kpk,Pdd,Ptt)
-     return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
-  # Official likelihood blocks.
+    return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
+# Official likelihood blocks.
 blocks=[]
 for tracer,iz,zrange in list_zrange:
     if 'lya' in tracer.lower(): continue
@@ -117,7 +118,7 @@ def prepare_basis(m):
     sig8=np.asarray(pki.sigma8())
     ptti=PowerSpectrumInterpolator1D(kin,Ptt)
     fs8=np.asarray(ptti.sigma8())
-     extk=None; pcb=None; pnw=None; ptt=None; pt=None
+    extk=None; pcb=None; pnw=None; ptt=None; pt=None
     pt=REPT(kin,Pdd[:,0],pnw=Pnw[:,0],kmin=kobs[0],kmax=kobs[-1],
             nk=200,rbao=110,sbao=None,beyond_gauss=True,one_loop=True,
             shear=True,cutoff=20,jn=5,N=4000,threads=2,
