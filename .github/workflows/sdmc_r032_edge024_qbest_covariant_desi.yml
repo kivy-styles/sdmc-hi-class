@@ -3,7 +3,7 @@ name: SDMC r032 SN-closure223 L029S009 exact-covariant DESI
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-l029s009-covariant-desi
+      - sdmc-r032-snclosure-l029-s009-desi
   workflow_dispatch:
 
 jobs:
@@ -546,7 +546,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure223-l029s009-covariant-desi
+          name: sdmc-r032-snclosure-l029-s009-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
