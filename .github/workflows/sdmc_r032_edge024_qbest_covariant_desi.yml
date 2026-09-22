@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure029 S117 exact-covariant DESI
+name: SDMC r032 SN-closure029 S117 exact-covariant DESI final audit
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure029-s117-covariant-desi-rerun
+      - sdmc-r032-snclosure029-s117-covariant-desi-final-audit
   workflow_dispatch:
 
 jobs:
@@ -546,7 +546,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure223-af11-covariant-desi
+          name: sdmc-r032-snclosure029-s117-covariant-desi-final-audit
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
