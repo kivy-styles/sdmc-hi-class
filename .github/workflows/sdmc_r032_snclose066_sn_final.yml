@@ -30,7 +30,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh run watch 35786672924 --repo "${{ github.repository }}" --exit-status
-          gh run watch 35786672906 --repo "${{ github.repository }}" --exit-status
+          gh run watch 35787451123 --repo "${{ github.repository }}" --exit-status
 
       - name: Download exact promotion artifacts
         env:
@@ -40,7 +40,7 @@ jobs:
           mkdir -p input_full input_desi
           gh run download 35786672924 --repo "${{ github.repository }}" \
             --name sdmc-r032-snclose066-covariant-full-plik-profile --dir input_full
-          gh run download 35786672906 --repo "${{ github.repository }}" \
+          gh run download 35787451123 --repo "${{ github.repository }}" \
             --name sdmc-r032-snclose066-exact --dir input_desi
           test -f input_full/fast_fullplik_delta.txt
           test -f input_desi/desi_dr1_fs_summary.csv
