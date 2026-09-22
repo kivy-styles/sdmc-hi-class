@@ -32,18 +32,8 @@ OUT = Path("output/uniform_battery")
 OUT.mkdir(parents=True, exist_ok=True)
 
 CANDS = {
- "eref015": dict(dir="eref015", omega_b=0.022083219194622913, lambda_e=18.40625,
-                 pd_fair=-0.162144505888763),
- "localref008_qbest": dict(dir="localref008_qbest", omega_b=0.022083219194622913, lambda_e=18.40625,
-                 pd_fair=-0.213207575713910),
- "afext_zt0160": dict(dir="afext_zt0160", omega_b=0.022083219194622913, lambda_e=18.40625,
-                 pd_fair=-0.320147966560739),
- "edge004_qbest": dict(dir="edge004_qbest", omega_b=0.022083219194622913, lambda_e=18.40625,
-                 pd_fair=-0.923017522102669),
- "edge024_qbest": dict(dir="edge024_qbest", omega_b=0.022083219194622913, lambda_e=18.40625,
-                 pd_fair=-1.016724593277559),
- "o4d030": dict(dir="o4d030", omega_b=0.022215084896497428, lambda_e=18.40625,
-                 pd_fair=-1.623360614408343),
+ "af11": dict(dir="af11", omega_b=0.022083219194622913, lambda_e=18.40625,
+              pd_fair=-0.612097859299809),
 }
 LOCAL021 = dict(H0=68.56858744695782,
                 omega_b=0.022406369378007947,
