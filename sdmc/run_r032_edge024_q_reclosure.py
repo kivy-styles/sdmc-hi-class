@@ -15,15 +15,15 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/edge024_q_reclosure"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure223_qfast"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
-H0=70.79187943335671
+H0=69.85635133907199
 OB=0.022083219194622913
 OC=0.12299536722293603
 NS=0.9625227132590487
 TAU=0.055202901571989066
-Q0=2.944463801247999
+Q0=2.942463801247999
 
 AF=0.03200255395658314
 ZC=4.007449422683567
@@ -33,8 +33,8 @@ DF=0.04607192634791136
 LAM=18.40625
 ZT=16.173189924377947
 
-OFFSETS=np.array([-0.0030,-0.0025,-0.0020,-0.0015,-0.0010,-0.0005,
-                   0.0,0.0005,0.0010,0.0015,0.0020,0.0025,0.0030])
+OFFSETS=np.array([-0.0040,-0.0035,-0.0030,-0.0025,-0.0020,-0.0015,-0.0010,-0.0005,
+                   0.0,0.0005,0.0010,0.0015,0.0020,0.0025,0.0030,0.0035,0.0040])
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages")
@@ -97,7 +97,7 @@ Omega_smg=-1
 gravity_model=sdmc_v3_independent_kinetic
 parameters_smg={AF},{ZC},{WIDTH},{D0},1.0,{DF}
 expansion_model=sdmc_full
-expansion_smg={ox:.17g},{LAM},{ZT},0.5,0.01105624999,0.25,0.01951933685,1.5
+expansion_smg={ox:.17g},{LAM},{ZT},0.5,0.018589897081255913,0.25,0.013815921754576268,1.5
 pert_initial_conditions_smg=zero
 method_qs_smg=fully_dynamic
 output_background_smg=3
@@ -135,7 +135,7 @@ def run(i,dq):
         if stable:
             rec.update(pscore(clp)); rec["status"]="OK"
     if rec["status"]!="OK": rec["error"]=cp.stdout[-800:].replace("\n"," | ")
-    print("E24Q_POINT",json.dumps(rec,sort_keys=True),flush=True)
+    print("SN223Q_POINT",json.dumps(rec,sort_keys=True),flush=True)
     return rec
 
 rows=[run(i,dq) for i,dq in enumerate(OFFSETS)]
@@ -144,12 +144,12 @@ ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
 center=float(ok.loc[np.isclose(ok.dq,0.0),"chi2_planck"].iloc[0])
 ok["delta_vs_edge024"]=ok.chi2_planck-center
 df=pd.DataFrame(rows).merge(ok[["id","delta_vs_edge024"]],on="id",how="left")
-df.to_csv(OUT/"edge024_q_reclosure.csv",index=False)
+df.to_csv(OUT/"snclosure223_qfast.csv",index=False)
 best=ok.nsmallest(8,"chi2_planck").to_dict("records")
 summary={"Q0":Q0,"center_chi2":center,"best":best[0],
          "best_delta_vs_edge024":float(ok.chi2_planck.min()-center),
          "left_edge_delta":float(ok.sort_values("Q").iloc[0].chi2_planck-center),
          "right_edge_delta":float(ok.sort_values("Q").iloc[-1].chi2_planck-center)}
-(OUT/"edge024_q_reclosure_summary.json").write_text(json.dumps(summary,indent=2))
-print("E24Q_BEST",json.dumps(best,sort_keys=True),flush=True)
-print("E24Q_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"snclosure223_qfast_summary.json").write_text(json.dumps(summary,indent=2))
+print("SN223Q_BEST",json.dumps(best,sort_keys=True),flush=True)
+print("SN223Q_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
