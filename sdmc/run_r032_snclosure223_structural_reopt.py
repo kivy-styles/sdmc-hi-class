@@ -27,11 +27,11 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure223_structural"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure107_structural"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
 # Frozen SN-friendly background + ordinary sector
-H0=69.85232012766193
+H0=70.09917331933976
 OB=0.022083219194622913; OC=0.12299536722293603
 NS=0.9625227132590487; TAU=0.055202901571989066
 Q=2.943463801247999; AS=math.exp(Q+2*TAU)/1e10
@@ -44,16 +44,16 @@ AF0=0.024221895329654217; ZC0=4.145109392143786
 W0=0.3370092310383916; DF0=0.04453643597662449
 
 # Fair-ledger constants used only for promotion ranking.
-EDGE_P_LITE=1022.3837030216768
-EDGE_PD_FAIR=-1.016724593277559
-EDGE_BAO=15.5323571850153
-NEW_BAO=13.276510156572252
-SN_PP=0.4361945469863713
-SN_U3=0.4546830153412884
-SN_D5=0.9867902025580406
+EDGE_P_LITE=1023.801347
+EDGE_PD_FAIR=-0.123919
+EDGE_BAO=13.433001
+NEW_BAO=13.433001
+SN_PP=1.631268
+SN_U3=1.395445
+SN_D5=3.275618
 
-LOW=np.array([0.0235,3.70,0.285,0.040])
-HIGH=np.array([0.0360,4.45,0.425,0.060])
+LOW=np.array([0.022,3.55,0.28,0.044])
+HIGH=np.array([0.044,4.40,0.43,0.070])
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages"); lowE=EE(packages_path="planck_packages")
@@ -170,13 +170,13 @@ pts += [
  ("wm",AF0,ZC0,W0-.035,DF0),("wp",AF0,ZC0,W0+.035,DF0),
  ("dfm",AF0,ZC0,W0,DF0-.004),("dfp",AF0,ZC0,W0,DF0+.004)]
 sam=qmc.Sobol(d=4,scramble=True,seed=22341)
-for i,p in enumerate(qmc.scale(sam.random_base2(m=6),LOW,HIGH)):
+for i,p in enumerate(qmc.scale(sam.random_base2(m=7),LOW,HIGH)):
     pts.append((f"sobol{i:03d}",*map(float,p)))
 rows=[cand(*p) for p in pts]
-df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure223_structural.csv",index=False)
+df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure107_structural.csv",index=False)
 ok=df[df.status=="OK"].sort_values(["chi2_planck","min_cs2"],ascending=[True,False])
 best=ok.head(12).to_dict("records")
 summary={"background":{"H0":H0,"A":AL,"B":BL},"Q":Q,"n_ok":int(len(ok)),
          "best":best,"target":"minimize Planck-lite at fixed late107 SN-friendly background; exact raw DESI/full-Plik promotion required"}
-(OUT/"snclosure223_structural_summary.json").write_text(json.dumps(summary,indent=2))
+(OUT/"snclosure107_structural_summary.json").write_text(json.dumps(summary,indent=2))
 print("SN107S_BEST",json.dumps(summary,sort_keys=True),flush=True)
