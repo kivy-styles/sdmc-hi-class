@@ -162,16 +162,8 @@ def cand(tag,AF,ZC,W,DF):
     print("SN223S_POINT",json.dumps(r,sort_keys=True),flush=True)
     return r
 
-pts=[("center",AF0,ZC0,W0,DF0)]
-# coordinate anchors
-pts += [
- ("afm",AF0-.004,ZC0,W0,DF0),("afp",AF0+.004,ZC0,W0,DF0),
- ("zcm",AF0,ZC0-.20,W0,DF0),("zcp",AF0,ZC0+.20,W0,DF0),
- ("wm",AF0,ZC0,W0-.035,DF0),("wp",AF0,ZC0,W0+.035,DF0),
- ("dfm",AF0,ZC0,W0,DF0-.004),("dfp",AF0,ZC0,W0,DF0+.004)]
-sam=qmc.Sobol(d=4,scramble=True,seed=9009)
-for i,p in enumerate(qmc.scale(sam.random_base2(m=6),LOW,HIGH)):
-    pts.append((f"sobol{i:03d}",*map(float,p)))
+AF_GRID=np.linspace(0.0155,0.0250,20)
+pts=[(f"afline{i:02d}",float(a),ZC0,W0,DF0) for i,a in enumerate(AF_GRID)]
 rows=[cand(*p) for p in pts]
 df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure223_structural.csv",index=False)
 ok=df[df.status=="OK"].sort_values(["goal_score","second_joint_proxy","pd_proxy"])
