@@ -3,13 +3,13 @@ from pathlib import Path
 import numpy as np, re
 from scipy.interpolate import CubicSpline
 
-AF=0.026252536563202738
-ZC=3.79610941009596
-WIDTH=0.3229390993900597
+AF=0.0251739854011684
+ZC=3.9881226181983935
+WIDTH=0.4083985047414898
 D0=0.34231919445927034
 POWER=1.0
-DFLOOR=0.046828035046346486
-H0=69.85635133907199/299792.458
+DFLOOR=0.0402008359506726
+H0=69.85232012766193/299792.458
 XSTAR=H0*H0
 
 def replace_once(path, old, new):
@@ -130,7 +130,7 @@ Path("output/cov_exact_reconstruction_summary.txt").write_text(
     f"K=[{K.min():.9g},{K.max():.9g}]\n"
     f"LX=[{Y.min():.9g},{Y.max():.9g}]\n"
     f"V_H2=[{U.min():.9g},{U.max():.9g}]\n"
-    f"D_independent=0.046828035046346486+0.34231919445927034*S\\n"
+    f"D_independent=0.0402008359506726+0.34231919445927034*S\\n"
     f"alphaK_z0={alphaK[-1]:.12g}\n"
 )
 
