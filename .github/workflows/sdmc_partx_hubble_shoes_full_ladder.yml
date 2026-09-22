@@ -28,8 +28,9 @@ jobs:
       - name: Download official SH0ES high-level ladder
         run: |
           rm -rf official_shoes
-          GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/PantheonPlusSH0ES/DataRelease.git official_shoes_repo
-          git -C official_shoes_repo lfs pull --include="SH0ES_Data/all*_shoes_ceph_topantheonwt6.0_112221.fits"
+          git clone --depth 1 https://github.com/PantheonPlusSH0ES/DataRelease.git official_shoes_repo
+          git -C official_shoes_repo lfs pull --include="SH0ES_Data/*"
+          git -C official_shoes_repo lfs checkout
           mkdir -p official_shoes
           cp -a official_shoes_repo/SH0ES_Data/. official_shoes/
           ls -lh official_shoes/all*_shoes_ceph_topantheonwt6.0_112221.fits
