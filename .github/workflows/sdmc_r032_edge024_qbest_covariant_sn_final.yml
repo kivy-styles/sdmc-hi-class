@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure029 S117 exact-covariant SN
+name: SDMC r032 SN-closure029 S117 direct exact-covariant SN
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure029-s117-covariant-sn
+      - sdmc-r032-snclosure029-s117-direct-sn
   workflow_dispatch:
 
 permissions:
@@ -21,36 +21,145 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3 python3-pip git
+          sudo apt-get install -y build-essential python3 python3-pip git
           python3 -m pip install --upgrade pip
           python3 -m pip install numpy scipy pandas
 
-      - name: Download expansion-best exact-covariant DESI artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Build matched S117 exact background
         run: |
-          rm -rf input_cov
-          mkdir -p input_cov
-          ok=0
-          for attempt in $(seq 1 30)
-          do
-            rm -rf input_cov
-            mkdir -p input_cov
-            if gh run download 35794560784 \
-              --repo "${{ github.repository }}" \
-              --name sdmc-r032-snclosure223-af11-covariant-desi \
-              --dir input_cov
-            then
-              ok=1
-              break
-            fi
-            echo "S117_DESI_ARTIFACT_WAIT attempt=${attempt}"
-            sleep 20
-          done
-          test "$ok" -eq 1
-          test -f input_cov/desi_cov_00_background.dat
-          test -f input_cov/desi_lcdm_00_background.dat
-          echo "SNCLOSURE029_S117_COV_SN_BACKGROUNDS_READY"
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+          mkdir -p output
+
+          cat > output/s117_seed.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.117602412937069e-9
+          n_s = 0.9625227132590487
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.02114389337040484, 3.715736017236486, 0.35696151830255984, 0.34231919445927034, 1.0, 0.052829781055450435
+          expansion_model = sdmc_full
+          expansion_smg = 0.7014079815036496, 18.40625, 16.19317622240633, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = no
+          root = output/s117_seed_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/s117_seed.ini
+          python3 sdmc/run_r032_partial_zeq_ztbest_covariant.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('source/background.c'); s=p.read_text()
+          pat=re.compile(
+              r'double Ox\s*=\s*pba->parameters_smg\[0\];\s*'
+              r'double lambda_e\s*=\s*pba->parameters_smg\[1\];\s*'
+              r'double zt\s*=\s*pba->parameters_smg\[2\];\s*'
+              r'double dNt\s*=\s*pba->parameters_smg\[3\];\s*'
+              r'double A\s*=\s*pba->parameters_smg\[4\];\s*'
+              r'double tauA\s*=\s*pba->parameters_smg\[5\];\s*'
+              r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
+              r'double tauB\s*=\s*pba->parameters_smg\[7\];'
+          )
+          repl='''double Ox = 0.7014079815036496;
+            double lambda_e = 18.40625;
+            double zt = 16.19317622240633;
+            double dNt = 0.5;
+            double A = 0.024822032167576252;
+            double tauA = 0.25;
+            double B = 0.01264704344701022;
+            double tauB = 1.5;'''
+          s2,n=pat.subn(repl,s,count=1)
+          if n != 1: raise RuntimeError(f'tracker helper replacement count={n}')
+          p.write_text(s2)
+          PY
+          make clean && make -j2 class
+
+          cat > output/s117_sn.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.117602412937069e-9
+          n_s = 0.9625227132590487
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_exact
+          parameters_smg = 0.0
+          expansion_model = sdmc_full
+          expansion_smg = 0.7014079815036496, 18.40625, 16.19317622240633, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = no
+          root = output/s117_sn_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/s117_sn.ini
+
+          python3 - <<'PY'
+          import numpy as np
+          a=np.loadtxt('output/s117_sn_00_background.dat')
+          mncs=float(a[:,31].min()); mxcs=float(a[:,31].max()); mnD=float(a[:,32].min())
+          print('SNCLOSURE029_S117_DIRECT_STABILITY',mnD,mncs,mxcs,flush=True)
+          if abs(mnD-0.052829781055450435)>1e-6: raise SystemExit('S117 D_floor mismatch')
+          if mncs <= 0: raise SystemExit('S117 scalar instability')
+          PY
+          echo "SNCLOSURE029_S117_DIRECT_BACKGROUND_READY"
 
       - name: Install SN data
         run: |
@@ -134,10 +243,8 @@ jobs:
                   'desy5':chi(dep,dem-mu(bg,dez,dezh)),
               }
 
-          s=table('input_cov/desi_cov_00_background.dat')
-          l=table('input_cov/desi_lcdm_00_background.dat')
-          ss=scores(s); ll=scores(l)
-          out={k:{'sdmc':ss[k],'lcdm_reference':ll[k],'delta_vs_reference':ss[k]-ll[k]} for k in ss}
+          s=table('output/s117_sn_00_background.dat')
+          ss=scores(s)
           local021={'pantheonplus':1406.2147033223882,
                     'union3':28.783140002196888,
                     'desy5':1650.6353947147727}
@@ -148,18 +255,17 @@ jobs:
           } for k in ss}
           print('SNCLOSURE029_S117_SN_VS_LOCAL021',json.dumps(local_ledger,sort_keys=True),flush=True)
           (OUT/'snclosure029_s117_sn_vs_local021.json').write_text(json.dumps(local_ledger,indent=2))
-          print('SNCLOSURE029_S117_COV_SN',json.dumps(out,sort_keys=True),flush=True)
           pd.DataFrame([
-              dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm_reference'],delta_chi2=v['delta_vs_reference'])
-              for k,v in out.items()
+              dict(compilation=k,sdmc_chi2=v['sdmc_chi2'],local021_chi2=v['local021_chi2'],
+                   delta_sdmc_minus_local021=v['delta_sdmc_minus_local021'])
+              for k,v in local_ledger.items()
           ]).to_csv(OUT/'snclosure029_s117_covariant_sn.csv',index=False)
-          (OUT/'snclosure029_s117_covariant_sn.json').write_text(json.dumps(out,indent=2))
           PY
 
       - name: Preserve exact-covariant Q-best SN
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure029-s117-covariant-sn
+          name: sdmc-r032-snclosure029-s117-direct-sn
           path: output/snclosure029_s117_cov_sn/*
           if-no-files-found: warn
