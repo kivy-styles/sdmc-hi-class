@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np, re
 from scipy.interpolate import CubicSpline
 
-AF=0.026252536563202738
+AF=0.021666666666666667
 ZC=3.79610941009596
 WIDTH=0.3229390993900597
 D0=0.34231919445927034
