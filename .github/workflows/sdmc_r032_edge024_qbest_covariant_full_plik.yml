@@ -3,7 +3,7 @@ name: SDMC r032 SN-closure223 L029S009 exact-covariant full Plik
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-l029s009-covariant-fullplik
+      - sdmc-r032-snclosure-l029-s009-fullplik
   workflow_dispatch:
 
 jobs:
