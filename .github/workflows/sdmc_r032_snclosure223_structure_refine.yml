@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure sobol223 structure refine
+name: SDMC r032 SN-closure s110 A_F line scan
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-structure-refine
+      - sdmc-r032-snclosure223-s110-afline
   workflow_dispatch:
 
 permissions:
@@ -60,19 +60,19 @@ jobs:
           test "$ok" -eq 1
 
       - name: Run structural refinement
-        run: python3 sdmc/run_r032_snclosure223_structure_refine.py
+        run: python3 sdmc/run_r032_snclosure223_s110_afline.py
 
       - name: Print summary
         if: always()
         run: |
-          cat output/snclosure223_structure_refine/snclosure223_structure_refine_summary.json || true
+          cat output/snclosure223_s110_afline/snclosure223_s110_afline_summary.json || true
 
       - name: Preserve structural refinement
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure223-structure-refine
+          name: sdmc-r032-snclosure223-s110-afline
           path: |
-            output/snclosure223_structure_refine/*.csv
-            output/snclosure223_structure_refine/*.json
+            output/snclosure223_s110_afline/*.csv
+            output/snclosure223_s110_afline/*.json
           if-no-files-found: warn
