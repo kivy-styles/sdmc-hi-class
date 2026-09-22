@@ -1,9 +1,9 @@
-name: SDMC Part IX successful candidates uniform downstream battery
+name: SDMC r032 SN-closure223 AF11 uniform downstream battery
 
 on:
   push:
     branches:
-      - sdmc-partix-successful-candidates-uniform-battery
+      - sdmc-r032-snclosure223-af11-uniform-battery
   workflow_dispatch:
 
 permissions:
@@ -31,17 +31,10 @@ jobs:
         run: |
           rm -rf inputs
           mkdir -p inputs
-          gh run download 35667451332 --repo "${{ github.repository }}" --name sdmc-r032-eref015-covariant-desi --dir inputs/eref015
-          gh run download 35667677948 --repo "${{ github.repository }}" --name sdmc-r032-localref008-qbest-covariant-desi --dir inputs/localref008_qbest
-          gh run download 35667804000 --repo "${{ github.repository }}" --name sdmc-r032-afext-zt0160-covariant-desi --dir inputs/afext_zt0160
-          gh run download 35668374700 --repo "${{ github.repository }}" --name sdmc-r032-edge004-qbest-covariant-desi --dir inputs/edge004_qbest
-          gh run download 35666938621 --repo "${{ github.repository }}" --name sdmc-r032-edge024-qbest-covariant-desi --dir inputs/edge024_qbest
-          gh run download 35668282532 --repo "${{ github.repository }}" --name sdmc-r032-edge028-o4d030-covariant-desi --dir inputs/o4d030
-          for D in inputs/*; do
-            test -f "$D/desi_cov_00_background.dat"
-            test -f "$D/desi_cov_00_thermodynamics.dat"
-            test -f "$D/desi_cov_00_z1_pk.dat"
-          done
+          gh run download 35791508625 --repo "${{ github.repository }}" --name sdmc-r032-snclosure223-af11-covariant-desi --dir inputs/af11
+          test -f inputs/af11/desi_cov_00_background.dat
+          test -f inputs/af11/desi_cov_00_thermodynamics.dat
+          test -f inputs/af11/desi_cov_00_z1_pk.dat
 
       - name: Install SN and BAO data
         run: |
@@ -67,6 +60,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-partix-successful-candidates-uniform-battery
+          name: sdmc-r032-snclosure223-af11-uniform-battery
           path: output/uniform_battery/*
           if-no-files-found: warn
