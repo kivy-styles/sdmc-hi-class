@@ -3,7 +3,7 @@ name: SDMC r032 SN-closure223 bo054xbo002 t150 exact-covariant DESI
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-bo054xbo002 t150-t150-covariant-desi
+      - sdmc-r032-snclosure223-bo054xbo002-t150-covariant-desi
   workflow_dispatch:
 
 jobs:
