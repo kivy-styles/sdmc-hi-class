@@ -1,0 +1,1 @@
+Trigger exact S117 SN scoring bound to corrected DESI artifact.
