@@ -40,8 +40,8 @@ LAM=18.40625; ZT=16.173189924377947; DN=.5; TAUA=.25; TAUB=1.5
 D0=0.34231919445927034
 
 # edge024 structural center
-AF0=0.03200255395658314; ZC0=4.007449422683567
-W0=0.34799921004101636; DF0=0.04607192634791136
+AF0=0.024221895329654217; ZC0=4.145109392143786
+W0=0.3370092310383916; DF0=0.04453643597662449
 
 # Fair-ledger constants used only for promotion ranking.
 EDGE_P_LITE=1022.3837030216768
@@ -52,8 +52,8 @@ SN_PP=0.4361945469863713
 SN_U3=0.4546830153412884
 SN_D5=0.9867902025580406
 
-LOW=np.array([0.024,3.60,0.285,0.040])
-HIGH=np.array([0.042,4.35,0.425,0.060])
+LOW=np.array([0.015,3.80,0.290,0.038])
+HIGH=np.array([0.0275,4.42,0.395,0.055])
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages"); lowE=EE(packages_path="planck_packages")
@@ -169,7 +169,7 @@ pts += [
  ("zcm",AF0,ZC0-.20,W0,DF0),("zcp",AF0,ZC0+.20,W0,DF0),
  ("wm",AF0,ZC0,W0-.035,DF0),("wp",AF0,ZC0,W0+.035,DF0),
  ("dfm",AF0,ZC0,W0,DF0-.004),("dfp",AF0,ZC0,W0,DF0+.004)]
-sam=qmc.Sobol(d=4,scramble=True,seed=22341)
+sam=qmc.Sobol(d=4,scramble=True,seed=9009)
 for i,p in enumerate(qmc.scale(sam.random_base2(m=6),LOW,HIGH)):
     pts.append((f"sobol{i:03d}",*map(float,p)))
 rows=[cand(*p) for p in pts]
