@@ -3,7 +3,7 @@ name: SDMC r032 SN-close010-zc360 exact-covariant full Plik
 on:
   push:
     branches:
-      - sdmc-r032-snclose010_zc360-exact
+      - sdmc-r032-snclose010-zc360-exact
   workflow_dispatch:
 
 jobs:
