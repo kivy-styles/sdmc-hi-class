@@ -1,0 +1,72 @@
+name: SDMC Part IX successful candidates uniform downstream battery
+
+on:
+  push:
+    branches:
+      - sdmc-partix-successful-candidates-uniform-battery
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  battery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip git unzip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas camb
+
+      - name: Download successful exact-candidate artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf inputs
+          mkdir -p inputs
+          gh run download 35667451332 --repo "${{ github.repository }}" --name sdmc-r032-eref015-covariant-desi --dir inputs/eref015
+          gh run download 35667677948 --repo "${{ github.repository }}" --name sdmc-r032-localref008-qbest-covariant-desi --dir inputs/localref008_qbest
+          gh run download 35667804000 --repo "${{ github.repository }}" --name sdmc-r032-afext-zt0160-covariant-desi --dir inputs/afext_zt0160
+          gh run download 35668374700 --repo "${{ github.repository }}" --name sdmc-r032-edge004-qbest-covariant-desi --dir inputs/edge004_qbest
+          gh run download 35666938621 --repo "${{ github.repository }}" --name sdmc-r032-edge024-qbest-covariant-desi --dir inputs/edge024_qbest
+          gh run download 35668282532 --repo "${{ github.repository }}" --name sdmc-r032-edge028-o4d030-covariant-desi --dir inputs/o4d030
+          for D in inputs/*; do
+            test -f "$D/desi_cov_00_background.dat"
+            test -f "$D/desi_cov_00_thermodynamics.dat"
+            test -f "$D/desi_cov_00_z1_pk.dat"
+          done
+
+      - name: Install SN and BAO data
+        run: |
+          rm -rf sn_data bao_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          git clone --depth 1 https://github.com/CobayaSampler/bao_data.git bao_data
+          test -f sn_data/PantheonPlus/Pantheon+SH0ES.dat
+          test -f bao_data/desi_2024_gaussian_bao_ALL_GCcomb_mean.txt
+          test -f bao_data/desi_2024_gaussian_bao_ALL_GCcomb_cov.txt
+
+      - name: Run uniform downstream battery
+        run: |
+          python3 sdmc/run_successful_candidates_uniform_battery.py
+
+      - name: Print key result ledger
+        if: always()
+        run: |
+          cat output/uniform_battery/successful_candidates_uniform_battery.csv || true
+          echo "--- VERDICT ---"
+          cat output/uniform_battery/uniform_gate_verdict.csv || true
+
+      - name: Preserve uniform battery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-partix-successful-candidates-uniform-battery
+          path: output/uniform_battery/*
+          if-no-files-found: warn
