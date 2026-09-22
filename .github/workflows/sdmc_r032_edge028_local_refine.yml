@@ -1,13 +1,13 @@
-name: SDMC r032 edge028 local refine
+name: SDMC r032 SN-closure t25 structural refine
 
 on:
   push:
     branches:
-      - sdmc-r032-edge028-local-refine
+      - sdmc-r032-snclosure-t25-structural-sn-refine
   workflow_dispatch:
 
 jobs:
-  edge028-local-refine:
+  t25-structural-refine:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
@@ -65,15 +65,15 @@ jobs:
       - name: Print summary
         if: always()
         run: |
-          test ! -f output/r032_edge028_local_refine/r032_edge028_local_refine_summary.json || cat output/r032_edge028_local_refine/r032_edge028_local_refine_summary.json
-          test ! -f output/r032_edge028_local_refine/r032_edge028_local_refine.csv || cat output/r032_edge028_local_refine/r032_edge028_local_refine.csv
+          test ! -f output/snclosure_t25_structural_refine/snclosure_t25_structural_refine_summary.json || cat output/snclosure_t25_structural_refine/snclosure_t25_structural_refine_summary.json
+          test ! -f output/snclosure_t25_structural_refine/snclosure_t25_structural_refine.csv || cat output/snclosure_t25_structural_refine/snclosure_t25_structural_refine.csv
 
       - name: Preserve closure
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-edge028-local-refine
+          name: sdmc-r032-snclosure-t25-structural-sn-refine
           path: |
-            output/r032_edge028_local_refine/*.csv
-            output/r032_edge028_local_refine/*.json
+            output/snclosure_t25_structural_refine/*.csv
+            output/snclosure_t25_structural_refine/*.json
           if-no-files-found: warn
