@@ -130,7 +130,7 @@ Path("output/cov_exact_reconstruction_summary.txt").write_text(
     f"K=[{K.min():.9g},{K.max():.9g}]\n"
     f"LX=[{Y.min():.9g},{Y.max():.9g}]\n"
     f"V_H2=[{U.min():.9g},{U.max():.9g}]\n"
-    f"D_independent=0.046828035046346486+0.34231919445927034*S\\n"
+    f"D_independent={DFLOOR:.17g}+{D0:.17g}*S\\n"
     f"alphaK_z0={alphaK[-1]:.12g}\n"
 )
 
