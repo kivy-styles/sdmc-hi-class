@@ -22,6 +22,9 @@ import json,math,re,subprocess,textwrap
 import numpy as np,pandas as pd
 from scipy.optimize import minimize_scalar
 from scipy.stats import qmc
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import Matern, ConstantKernel, WhiteKernel
+from sklearn.preprocessing import StandardScaler
 from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
 from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
@@ -169,14 +172,52 @@ pts += [
  ("zcm",AF0,ZC0-.20,W0,DF0),("zcp",AF0,ZC0+.20,W0,DF0),
  ("wm",AF0,ZC0,W0-.035,DF0),("wp",AF0,ZC0,W0+.035,DF0),
  ("dfm",AF0,ZC0,W0,DF0-.004),("dfp",AF0,ZC0,W0,DF0+.004)]
+# Stage A: stable Sobol design.
 sam=qmc.Sobol(d=4,scramble=True,seed=22341)
-for i,p in enumerate(qmc.scale(sam.random_base2(m=7),LOW,HIGH)):
+for i,p in enumerate(qmc.scale(sam.random_base2(m=6),LOW,HIGH)):
     pts.append((f"sobol{i:03d}",*map(float,p)))
 rows=[cand(*p) for p in pts]
+
+# Stage B: sequential Gaussian-process Bayesian optimization.
+# At fixed late background the SN terms are constants, so the expensive
+# structural objective is Planck-lite, with stability enforced by cand().
+rng=np.random.default_rng(72009)
+for it in range(32):
+    odf=pd.DataFrame(rows)
+    train=odf[(odf.status=="OK") & np.isfinite(odf.chi2_planck)].copy()
+    if len(train)<8:
+        break
+    X=train[["AF","ZC","width","D_floor"]].to_numpy(float)
+    y=train["chi2_planck"].to_numpy(float)
+    muX=X.mean(axis=0); sdX=X.std(axis=0); sdX=np.where(sdX>0,sdX,1.0)
+    Xn=(X-muX)/sdX
+    ker=ConstantKernel(1.0,(1e-2,1e3))*Matern(length_scale=np.ones(4),nu=2.5)+WhiteKernel(1e-6,(1e-9,1e-2))
+    gp=GaussianProcessRegressor(kernel=ker,alpha=1e-7,normalize_y=True,n_restarts_optimizer=2,random_state=72009+it)
+    gp.fit(Xn,y)
+    prop=rng.uniform(LOW,HIGH,size=(4096,4))
+    pn=(prop-muX)/sdX
+    pm,ps=gp.predict(pn,return_std=True)
+    # Lower-confidence bound: exploitation with enough uncertainty reward
+    # to avoid collapsing onto one previously sampled point.
+    acq=pm-1.25*ps
+    # exclude near-duplicates
+    order=np.argsort(acq)
+    pick=None
+    for k in order:
+        q=prop[k]
+        span=HIGH-LOW
+        dist=np.sqrt(np.sum(((X-q)/span)**2,axis=1))
+        if np.min(dist)>0.015:
+            pick=q; break
+    if pick is None:
+        pick=prop[order[0]]
+    rows.append(cand(f"bo{it:03d}",*map(float,pick)))
+
 df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure072_structural.csv",index=False)
-ok=df[df.status=="OK"].sort_values(["goal_score","second_joint_proxy","pd_proxy"])
-best=ok.head(12).to_dict("records")
+ok=df[df.status=="OK"].sort_values(["chi2_planck","goal_score","second_joint_proxy","pd_proxy"])
+best=ok.head(16).to_dict("records")
 summary={"background":{"H0":H0,"A":AL,"B":BL},"Q":Q,"n_ok":int(len(ok)),
-         "best":best,"target":"pd_proxy<0 and second_joint_proxy<0"}
+         "n_total":int(len(df)),"optimizer":"Sobol64 + GP-Matern BO32",
+         "best":best,"target":"exact promotion: fair P+D plus >=2 SN below zero"}
 (OUT/"snclosure072_structural_summary.json").write_text(json.dumps(summary,indent=2))
 print("SN072S_BEST",json.dumps(summary,sort_keys=True),flush=True)
