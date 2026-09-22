@@ -17,7 +17,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure029_structure_refine"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure029_lowaf_structural_rescue"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
 H0=69.71482083084993
@@ -34,7 +34,7 @@ DNT=0.5
 TAUA=0.25
 TAUB=1.5
 
-AF0=0.03200255395658314
+AF0=0.021
 ZC0=4.007449422683567
 W0=0.34799921004101636
 DF0=0.04607192634791136
@@ -148,27 +148,27 @@ def run(label,AF,ZC,W,DF,ZT):
         except:pass
     try:ip.unlink()
     except:pass
-    print("SN029STRUCT_POINT",json.dumps(rec,sort_keys=True),flush=True)
+    print("SN029LOWAF_POINT",json.dumps(rec,sort_keys=True),flush=True)
     return rec
 
 center=run("center",AF0,ZC0,W0,DF0,ZT0)
 if center["status"]!="OK": raise RuntimeError(center)
 C0=center["chi2_planck"]
 
-sob=qmc.Sobol(d=5,scramble=True,seed=94229)
-u=sob.random_base2(m=6) # 64
+sob=qmc.Sobol(d=5,scramble=True,seed=94231)
+u=sob.random_base2(m=7) # 128
 rows=[]
 for i,x in enumerate(u):
-    AF=0.0260+(0.0390-0.0260)*x[0]
-    ZC=3.60 +(4.45-3.60)*x[1]
-    W =0.295+(0.425-0.295)*x[2]
-    DF=0.0400+(0.0565-0.0400)*x[3]
-    ZT=15.90+(16.48-15.90)*x[4]
+    AF=0.0175+(0.0235-0.0175)*x[0]
+    ZC=3.65 +(4.30-3.65)*x[1]
+    W =0.300+(0.420-0.300)*x[2]
+    DF=0.0440+(0.0600-0.0440)*x[3]
+    ZT=15.85+(16.35-15.85)*x[4]
     rows.append(run(f"s{i:03d}",AF,ZC,W,DF,ZT))
 
 df=pd.DataFrame([center]+rows)
 df["delta_vs_center"]=df.chi2_planck-C0
-df.to_csv(OUT/"snclosure029_structure_refine.csv",index=False)
+df.to_csv(OUT/"snclosure029_lowaf_structural_rescue.csv",index=False)
 ok=df[df.status=="OK"].sort_values("chi2_planck")
 best=ok.head(16).to_dict("records")
 summary={
@@ -179,6 +179,6 @@ summary={
  "best_delta_vs_center":float(best[0]["chi2_planck"]-C0),
  "top16":best
 }
-(OUT/"snclosure029_structure_refine_summary.json").write_text(json.dumps(summary,indent=2))
-print("SN029STRUCT_BEST",json.dumps(best,sort_keys=True),flush=True)
-print("SN029STRUCT_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"snclosure029_lowaf_structural_rescue_summary.json").write_text(json.dumps(summary,indent=2))
+print("SN029LOWAF_BEST",json.dumps(best,sort_keys=True),flush=True)
+print("SN029LOWAF_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
