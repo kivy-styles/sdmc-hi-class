@@ -1,9 +1,9 @@
-name: SDMC r032 SN-aware late A-B closure screen
+name: SDMC r032 SN-closure223 local late refinement
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure-lateab-screen
+      - sdmc-r032-snclosure223-local-late-refine
   workflow_dispatch:
 
 permissions:
@@ -75,16 +75,16 @@ jobs:
       - name: Print closure summary
         if: always()
         run: |
-          cat output/snclosure_lateab_screen/snclosure_summary.json || true
+          cat output/snclosure223_local_late_refine/snclosure223_local_summary.json || true
           echo "--- TOP PLANCK SHORTLIST ---"
-          head -12 output/snclosure_lateab_screen/snclosure_planck_shortlist.csv || true
+          head -12 output/snclosure223_local_late_refine/snclosure223_local_planck_shortlist.csv || true
 
       - name: Preserve closure screen
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure-lateab-screen
+          name: sdmc-r032-snclosure223-local-late-refine
           path: |
-            output/snclosure_lateab_screen/*.csv
-            output/snclosure_lateab_screen/*.json
+            output/snclosure223_local_late_refine/*.csv
+            output/snclosure223_local_late_refine/*.json
           if-no-files-found: warn
