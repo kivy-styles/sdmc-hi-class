@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Structural Planck recovery around the SN-friendly sobol223 late background.
+Structural Planck recovery around the SN-friendly sobol072 late background.
 
 Low-z geometry is frozen at the SN-friendly point:
   A_late=0.018589897081255913
   B_late=0.013815921754576268
-  H0=69.85232012766193
+  H0=70.60292498096824
 
 Primordial amplitude uses the tiny Q improvement found in the preceding
 ordinary pass:
@@ -27,15 +27,15 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure223_structural"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure072_structural"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
 # Frozen SN-friendly background + ordinary sector
-H0=69.85232012766193
+H0=70.60292498096824
 OB=0.022083219194622913; OC=0.12299536722293603
 NS=0.9625227132590487; TAU=0.055202901571989066
 Q=2.943463801247999; AS=math.exp(Q+2*TAU)/1e10
-AL=0.018589897081255913; BL=0.013815921754576268
+AL=0.0134815868735313; BL=0.0181835683900862
 LAM=18.40625; ZT=16.173189924377947; DN=.5; TAUA=.25; TAUB=1.5
 D0=0.34231919445927034
 
@@ -44,16 +44,16 @@ AF0=0.03200255395658314; ZC0=4.007449422683567
 W0=0.34799921004101636; DF0=0.04607192634791136
 
 # Fair-ledger constants used only for promotion ranking.
-EDGE_P_LITE=1022.3837030216768
-EDGE_PD_FAIR=-1.016724593277559
-EDGE_BAO=15.5323571850153
-NEW_BAO=13.276510156572252
-SN_PP=0.4361945469863713
-SN_U3=0.4546830153412884
-SN_D5=0.9867902025580406
+EDGE_P_LITE=1022.567626
+EDGE_PD_FAIR=-1.015963
+EDGE_BAO=14.7997
+NEW_BAO=14.7997
+SN_PP=2.501431
+SN_U3=2.144542
+SN_D5=4.895315
 
-LOW=np.array([0.024,3.60,0.285,0.040])
-HIGH=np.array([0.042,4.35,0.425,0.060])
+LOW=np.array([0.022,3.55,0.28,0.045])
+HIGH=np.array([0.044,4.40,0.43,0.070])
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages"); lowE=EE(packages_path="planck_packages")
@@ -159,7 +159,7 @@ def cand(tag,AF,ZC,W,DF):
             r["n_sn_closed_proxy"]=sum(x<0 for x in js)
             r["goal_score"]=max(r["pd_proxy"],r["second_joint_proxy"])
     if r["status"]!="OK": r["error"]=cp.stdout[-500:].replace("\n"," | ")
-    print("SN223S_POINT",json.dumps(r,sort_keys=True),flush=True)
+    print("SN072S_POINT",json.dumps(r,sort_keys=True),flush=True)
     return r
 
 pts=[("center",AF0,ZC0,W0,DF0)]
@@ -170,13 +170,13 @@ pts += [
  ("wm",AF0,ZC0,W0-.035,DF0),("wp",AF0,ZC0,W0+.035,DF0),
  ("dfm",AF0,ZC0,W0,DF0-.004),("dfp",AF0,ZC0,W0,DF0+.004)]
 sam=qmc.Sobol(d=4,scramble=True,seed=22341)
-for i,p in enumerate(qmc.scale(sam.random_base2(m=6),LOW,HIGH)):
+for i,p in enumerate(qmc.scale(sam.random_base2(m=7),LOW,HIGH)):
     pts.append((f"sobol{i:03d}",*map(float,p)))
 rows=[cand(*p) for p in pts]
-df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure223_structural.csv",index=False)
+df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure072_structural.csv",index=False)
 ok=df[df.status=="OK"].sort_values(["goal_score","second_joint_proxy","pd_proxy"])
 best=ok.head(12).to_dict("records")
 summary={"background":{"H0":H0,"A":AL,"B":BL},"Q":Q,"n_ok":int(len(ok)),
          "best":best,"target":"pd_proxy<0 and second_joint_proxy<0"}
-(OUT/"snclosure223_structural_summary.json").write_text(json.dumps(summary,indent=2))
-print("SN223S_BEST",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"snclosure072_structural_summary.json").write_text(json.dumps(summary,indent=2))
+print("SN072S_BEST",json.dumps(summary,sort_keys=True),flush=True)
