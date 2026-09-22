@@ -1,9 +1,9 @@
-name: SDMC r032 SNclosure009 low-AF structural refine
+name: SDMC r032 SNclosure042 tight local 6D refine
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure009-lowaf-refine
+      - sdmc-r032-snclosure042-local6d
   workflow_dispatch:
 
 permissions:
@@ -64,10 +64,10 @@ jobs:
       - name: Print summary
         if: always()
         run: |
-          cat output/snclosure223_structural/snclosure223_structural_summary.json || true
+          cat output/snclosure042_local6d/snclosure042_local6d_summary.json || true
           python3 - <<'PY'
           import pandas as pd
-          p='output/snclosure223_structural/snclosure223_structural.csv'
+          p='output/snclosure042_local6d/snclosure042_local6d.csv'
           try:
               d=pd.read_csv(p)
               print(d[d.status.eq('OK')].sort_values(['goal_score','second_joint_proxy','pd_proxy']).head(15).to_string(index=False))
@@ -78,6 +78,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure009-lowaf-refine
-          path: output/snclosure223_structural/*.*
+          name: sdmc-r032-snclosure042-local6d
+          path: output/snclosure042_local6d/*.*
           if-no-files-found: warn
