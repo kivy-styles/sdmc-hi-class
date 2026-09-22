@@ -56,7 +56,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.021, 4.007449422683567, 0.34799921004101636, 0.34231919445927034, 1.0, 0.04607192634791136
           expansion_model = sdmc_full
-          expansion_smg = 0.7014079815036496, 18.40625, 16.173189924377947, 0.5, 0.021822032167576252, 0.25, 0.01264704344701022, 1.5
+          expansion_smg = 0.7014079815036496, 18.40625, 16.173189924377947, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -96,7 +96,7 @@ jobs:
             double lambda_e = 18.40625;
             double zt = 16.173189924377947;
             double dNt = 0.5;
-            double A = 0.021822032167576252;
+            double A = 0.024822032167576252;
             double tauA = 0.25;
             double B = 0.01264704344701022;
             double tauB = 1.5;'''
@@ -216,7 +216,7 @@ jobs:
           gravity_model = sdmc_v3_covariant_exact
           parameters_smg = 0.0
           expansion_model = sdmc_full
-          expansion_smg = 0.7014079815036496, 18.40625, 16.173189924377947, 0.5, 0.021822032167576252, 0.25, 0.01264704344701022, 1.5
+          expansion_smg = 0.7014079815036496, 18.40625, 16.173189924377947, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
 
