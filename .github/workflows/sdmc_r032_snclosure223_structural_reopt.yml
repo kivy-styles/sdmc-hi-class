@@ -1,9 +1,9 @@
-name: SDMC r032 SNclosure223 structural recovery
+name: SDMC r032 SNclosure009 low-AF structural refine
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-structural-reopt
+      - sdmc-r032-snclosure009-lowaf-refine
   workflow_dispatch:
 
 permissions:
@@ -78,6 +78,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure223-structural-reopt
+          name: sdmc-r032-snclosure009-lowaf-refine
           path: output/snclosure223_structural/*.*
           if-no-files-found: warn
