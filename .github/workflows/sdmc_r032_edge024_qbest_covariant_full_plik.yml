@@ -1,9 +1,9 @@
-name: SDMC r032 snclosure029_af021 Qbest exact-covariant full Plik
+name: SDMC r032 snclosure029_af02075 Qbest exact-covariant full Plik
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure029-af021-covariant-fullplik
+      - sdmc-r032-snclosure029-af02075-covariant-fullplik
   workflow_dispatch:
 
 jobs:
@@ -84,7 +84,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.021, 4.007449422683567, 0.34799921004101636, 0.34231919445927034, 1.0, 0.04607192634791136
+          parameters_smg = 0.02075, 4.007449422683567, 0.34799921004101636, 0.34231919445927034, 1.0, 0.04607192634791136
           expansion_model = sdmc_full
           expansion_smg = 0.7014079815036496, 18.40625, 16.173189924377947, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
           pert_initial_conditions_smg = zero
@@ -194,7 +194,7 @@ jobs:
           a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
           mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
           slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
-          print('SNCLOSURE029_AF021_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          print('SNCLOSURE029_AF02075_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
           if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
           PY
 
@@ -348,7 +348,7 @@ jobs:
                       m.simplex(ncall=2500)
                       m.migrad(ncall=5000)
                   row=(float(m.fval),np.array([m.values[n] for n in names],float),bool(m.fmin.is_valid),int(m.nfcn))
-                  print('COVARIANT_SNCLOSURE029_AF021_FULL_PLIK_SEED',label,iseed,row[0],row[2],row[3],flush=True)
+                  print('COVARIANT_SNCLOSURE029_AF02075_FULL_PLIK_SEED',label,iseed,row[0],row[2],row[3],flush=True)
                   if best is None or row[0]<best[0]:
                       best=row
               fval,x,valid,nfcn=best
@@ -358,15 +358,15 @@ jobs:
                    'chi2_nuisance_priors':prior_chi2(p),'A_planck':p['A_planck'],
                    'valid':valid,'nfcn':nfcn}
               row.update({n:p[n] for n in names if n!='A_planck'})
-              print('COVARIANT_SNCLOSURE029_AF021_FULL_PLIK_RESULT',json.dumps(row,sort_keys=True),flush=True)
+              print('COVARIANT_SNCLOSURE029_AF02075_FULL_PLIK_RESULT',json.dumps(row,sort_keys=True),flush=True)
               return row,x
 
           default=np.asarray(x0,float)
           displaced=default.copy(); displaced[3]=80.; displaced[5]=5.; displaced[6]=2.
-          cov,cx=run_one('SDMC_COVARIANT_SNCLOSURE029_AF021',ROOT/'covariant_observable_00_cl_lensed.dat',[default,displaced])
+          cov,cx=run_one('SDMC_COVARIANT_SNCLOSURE029_AF02075',ROOT/'covariant_observable_00_cl_lensed.dat',[default,displaced])
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,cx])
           delta=cov['chi2_profile_total']-lcdm['chi2_profile_total']
-          print('COVARIANT_SNCLOSURE029_AF021_FULL_PLIK_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_SNCLOSURE029_AF02075_FULL_PLIK_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           fields=list(cov.keys())
           with (OUT/'fast_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows([cov,lcdm])
@@ -377,6 +377,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure029_af021-covariant-full-plik-profile
+          name: sdmc-r032-snclosure029_af02075-covariant-full-plik-profile
           path: output/*
           if-no-files-found: warn
