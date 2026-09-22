@@ -131,6 +131,34 @@ bbn=dict(z_screen=zmax,H_ratio_to_same_ordinary_GR=speed,equivalent_delta_Neff=d
          delta_D_over_H_times_1e5=yD-yD0,
          note="Differential analytic BBN screen using radiation-era H ratio; not a full nuclear-network likelihood.")
 
+# Weak-lensing summary-statistic screens. These are NOT substitutes for
+# a full modified-gravity cosmic-shear likelihood.
+wl_refs={
+  "DES_Y3":{"S8":0.776,"sigma":0.017},
+  "KiDSLegacy_DESY3_plus_external":{"S8":0.814,"sigma":0.0115}
+}
+wl={}
+for name,r in wl_refs.items():
+    zs=(s117["S8"]-r["S8"])/r["sigma"]
+    zl=(local["S8"]-r["S8"])/r["sigma"]
+    wl[name]={
+      "reference_S8":r["S8"],"reference_sigma":r["sigma"],
+      "s117_z":zs,"local021_z":zl,
+      "s117_gaussian_chi2":zs*zs,"local021_gaussian_chi2":zl*zl,
+      "delta_chi2_s117_minus_local021":zs*zs-zl*zl
+    }
+wl["note"]="Summary-level S8 diagnostic only; full weak-lensing shear likelihood in SDMC requires model-consistent lensing kernels/nonlinear modeling."
+
+age_screen={
+  "oldest_GC_population_2026_Gyr":13.61,
+  "oldest_GC_combined_sigma_Gyr":math.sqrt(0.25**2+0.23**2),
+  "GC_inferred_universe_age_2026_Gyr":13.81,
+  "GC_inferred_universe_combined_sigma_Gyr":math.sqrt(0.25**2+0.23**2),
+  "s117_minus_GC_population_Gyr":s117["age_Gyr"]-13.61,
+  "s117_minus_GC_inferred_universe_Gyr":s117["age_Gyr"]-13.81,
+  "note":"Chronometer comparison screen; stellar-system ages have model/systematic uncertainties and are not a direct cosmological likelihood."
+}
+
 ledger={
  "s117":s117,
  "local021":local,
@@ -143,6 +171,8 @@ ledger={
    "fsigma8_0_s117_minus_local021":s117["fsigma8_0"]-local["fsigma8_0"],
  },
  "bbn_screen":bbn,
+ "weak_lensing_S8_screen":wl,
+ "age_chronometer_screen":age_screen,
  "closure_ledger":{
    "delta_planck_s117":-20.194391439610172,
    "delta_desi_s117":-11.01153007793846,
