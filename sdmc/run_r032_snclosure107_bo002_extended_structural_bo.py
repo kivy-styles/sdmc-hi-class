@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Six-dimensional Bayesian structural refinement around exact SN-aware bo002.
+Six-dimensional Bayesian structural refinement around exact late-local006 + bo002.
 
-Frozen low-z/SN background: sobol107
-  H0=70.09917331933976
+Frozen low-z/SN background: late-local006
+  H0=69.71275747716427
   A_late=0.0013601897284388
   B_late=0.0147392870020121
 
@@ -41,23 +41,23 @@ from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 OUT=Path("output/snclosure107_bo002_extended_structural_bo"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
-H0=70.09917331933976
+H0=69.71275747716427
 OB=0.022083219194622913; OC=0.12299536722293603
 NS=0.9625227132590487; TAU=0.055202901571989066
 Q=2.943463801247999; AS=math.exp(Q+2*TAU)/1e10
-AL=0.0013601897284388; BL=0.0147392870020121
+AL=0.00792232021316886; BL=0.012283301661722363
 LAM=18.40625; DN=.5; TAUA=.25; TAUB=1.5
 
 # exact bo002 center
 X0=np.array([0.024290704212870225,3.6096407580714724,0.3631213944496205,
              0.04602317962943721,0.34231919445927034,16.173189924377947])
-BO002_LITE=1021.2107551326036
-BO002_EXACT_PD_FAIR=-0.675202390114676
-SN_PP=1.631268; SN_U3=1.395445; SN_D5=3.275618
+BO002_LITE=1021.7161397407683
+BO002_EXACT_PD_FAIR=0.0
+SN_PP=0.45564042031764984; SN_U3=0.4392293671844527; SN_D5=1.022321954369545
 
 # [AF, ZC, width, D_floor, D0, z_t]
-LOW=np.array([0.0210,3.30,0.315,0.0420,0.285,14.0])
-HIGH=np.array([0.0290,4.00,0.420,0.0540,0.405,18.5])
+LOW=np.array([0.0185,3.20,0.285,0.0360,0.260,13.5])
+HIGH=np.array([0.0315,4.35,0.470,0.0600,0.430,19.0])
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages"); lowE=EE(packages_path="planck_packages")
@@ -156,7 +156,7 @@ def evaluate(tag,x):
             pc,Ap=pscore(clp); r.update(status="OK",chi2_planck=pc,A_planck=Ap)
             dl=pc-BO002_LITE
             pred=BO002_EXACT_PD_FAIR+dl
-            r.update(delta_lite_vs_bo002=dl,pred_exact_pd_fair=pred,
+            r.update(delta_lite_vs_bo002=dl,pred_screen_shift=pred,
                      pred_joint_pp=pred+SN_PP,pred_joint_u3=pred+SN_U3,pred_joint_d5=pred+SN_D5)
             js=[r["pred_joint_pp"],r["pred_joint_u3"],r["pred_joint_d5"]]
             r["pred_second_joint"]=sorted(js)[1]
@@ -226,9 +226,9 @@ df=pd.DataFrame(rows)
 df.to_csv(OUT/"snclosure107_bo002_extended_structural_bo.csv",index=False)
 ok=df[df.status=="OK"].sort_values(["goal_score","chi2_planck"])
 best=ok.head(20).to_dict("records")
-summary={"background":{"H0":H0,"A":AL,"B":BL},"bo002_exact_pd_fair":BO002_EXACT_PD_FAIR,
-         "target_pd_fair_for_two_sn":-SN_PP,
+summary={"background":{"H0":H0,"A":AL,"B":BL},"screen_zero_point_note":"P+D zero point intentionally unset; ranking is by Planck-lite improvement on fixed late-local006 background",
+         "planck_lite_center":BO002_LITE,
          "n_total":int(len(df)),"n_ok":int(len(ok)),"best":best,
-         "note":"pred_exact_pd_fair assumes raw DESI remains locally similar to bo002; exact promotion is mandatory."}
+         "note":"Ranking only. Exact full-Plik + raw DESI promotion is mandatory; no raw-DESI proxy is used for the final result."}
 (OUT/"snclosure107_bo002_extended_structural_bo_summary.json").write_text(json.dumps(summary,indent=2))
 print("SN107EXT_BEST",json.dumps(summary,sort_keys=True),flush=True)
