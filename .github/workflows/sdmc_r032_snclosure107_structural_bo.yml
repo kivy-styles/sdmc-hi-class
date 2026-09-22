@@ -1,4 +1,4 @@
-name: SDMC r032 SNclosure107 Bayesian structural recovery
+name: SDMC r032 edge024-Q Bayesian structural recovery
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-structural-bo
+      - sdmc-r032-edge024-qbest-structural-bo
   workflow_dispatch:
 
 permissions:
@@ -63,15 +63,15 @@ jobs:
           test "$ok" -eq 1
 
       - name: Run structural recovery
-        run: python3 sdmc/run_r032_snclosure107_structural_bo.py
+        run: python3 sdmc/run_r032_edge024_qbest_structural_bo.py
 
       - name: Print summary
         if: always()
         run: |
-          cat output/snclosure107_structural_bo/snclosure107_structural_bo_summary.json || true
+          cat output/edge024_qbest_structural_bo/snclosure107_structural_bo_summary.json || true
           python3 - <<'PY'
           import pandas as pd
-          p='output/snclosure107_structural_bo/snclosure107_structural_bo.csv'
+          p='output/edge024_qbest_structural_bo/snclosure107_structural_bo.csv'
           try:
               d=pd.read_csv(p)
               print(d[d.status.eq('OK')].sort_values(['goal_score','second_joint_proxy','pd_proxy']).head(15).to_string(index=False))
@@ -82,6 +82,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-structural-bo
-          path: output/snclosure107_structural_bo/*.*
+          name: sdmc-r032-edge024-qbest-structural-bo
+          path: output/edge024_qbest_structural_bo/*.*
           if-no-files-found: warn
