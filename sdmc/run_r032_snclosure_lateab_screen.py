@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SN-aware late-background closure screen around the successful edge024-Q basin.
+Local SN-aware late-background closure screen around sobol107 with bo002 structure frozen.
 
 Stage 1: 256 Sobol backgrounds in (A_late, B_late, H0), exact SN covariances,
          acoustic-scale proxy, DESI DR1 Gaussian BAO, exact stability columns.
@@ -27,7 +27,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure_lateab_screen"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure107_bo002_late_local"); OUT.mkdir(parents=True,exist_ok=True)
 TMP=OUT/"tmp"; TMP.mkdir(exist_ok=True)
 SNROOT=Path("sn_data")
 BAOROOT=Path("bao_data")
@@ -35,14 +35,14 @@ BAOROOT=Path("bao_data")
 # Successful edge024-Q structural / primordial anchor.
 OB=0.022083219194622913
 OC=0.12299536722293603
-AS=2.117602412937069e-9
+AS=2.119721074504234e-9
 NS=0.9625227132590487
 TAU=0.055202901571989066
-AF=0.03200255395658314
-ZC=4.007449422683567
-WIDTH=0.34799921004101636
+AF=0.024290704212870225
+ZC=3.6096407580714724
+WIDTH=0.3631213944496205
 D0=0.34231919445927034
-DF=0.04607192634791136
+DF=0.04602317962943721
 LAM=18.40625
 ZT=16.173189924377947
 DNT=0.5
@@ -50,11 +50,11 @@ TAUA=0.25
 TAUB=1.5
 OR=4.17998772e-5
 
-A0=0.01105624999
-B0=0.01951933685
-H00=70.79187943335671
-EDGE024_PD_FAIR=-1.016724593277559
-EDGE024_BAO_CHI=15.532356198763537
+A0=0.0013601897284388
+B0=0.0147392870020121
+H00=70.09917331933976
+EDGE024_PD_FAIR=-0.675200032792783
+EDGE024_BAO_CHI=13.433004949
 LOCAL_BAO_CHI=13.400290718544086
 LOCAL_SN={"pantheonplus":1406.2147033223882,
           "union3":28.783140002196888,
@@ -238,12 +238,12 @@ if center["status"]!="OK": raise RuntimeError(f"center failed: {center}")
 ELL0=center["ellA_proxy"]
 print("SNCLOSE_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
 
-sob=qmc.Sobol(d=3,scramble=True,seed=240924)
-u=sob.random_base2(m=8)  # 256
+sob=qmc.Sobol(d=3,scramble=True,seed=1072002)
+u=sob.random_base2(m=7)  # 128
 # Broad but physically conservative low-z box.
-Alo,Ahi=0.0000,0.0400
-Blo,Bhi=0.0000,0.0350
-Hlo,Hhi=69.70,71.70
+Alo,Ahi=0.0000,0.0120
+Blo,Bhi=0.0100,0.0190
+Hlo,Hhi=69.70,70.50
 rows=[]
 for i,x in enumerate(u):
     A=Alo+(Ahi-Alo)*x[0]
