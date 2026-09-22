@@ -9,7 +9,7 @@ WIDTH=0.3631213944496205
 D0=0.34231919445927034
 POWER=1.0
 DFLOOR=0.04602317962943721
-H0=69.85635133907199/299792.458
+H0=69.85836694477703/299792.458
 XSTAR=H0*H0
 
 def replace_once(path, old, new):
@@ -130,7 +130,7 @@ Path("output/cov_exact_reconstruction_summary.txt").write_text(
     f"K=[{K.min():.9g},{K.max():.9g}]\n"
     f"LX=[{Y.min():.9g},{Y.max():.9g}]\n"
     f"V_H2=[{U.min():.9g},{U.max():.9g}]\n"
-    f"D_independent=0.050103020845420496+0.34231919445927034*S\\n"
+    f"D_independent={DFLOOR:.17g}+{D0:.17g}*S\\n"
     f"alphaK_z0={alphaK[-1]:.12g}\n"
 )
 
