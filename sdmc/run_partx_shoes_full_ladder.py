@@ -69,14 +69,20 @@ if L.shape[1] != Y.size:
 if C.shape != (Y.size,Y.size):
     raise RuntimeError(f"C/Y mismatch: C={C.shape}, Y={Y.shape}")
 
-cf=cho_factor(C,lower=True,check_finite=False)
-CiLt=cho_solve(cf,L.T,check_finite=False)
-N=L@CiLt
-rhs=L@cho_solve(cf,Y,check_finite=False)
-cov_theta=np.linalg.inv(N)
-theta=cov_theta@rhs
+# Stable generalized least-squares solve.  Avoid forming the normal
+# equations directly because the distance-ladder design matrix spans very
+# different nuisance scales and can be ill-conditioned.
+from scipy.linalg import cholesky, solve_triangular
+Lc=cholesky(C,lower=True,check_finite=False)
+yw=solve_triangular(Lc,Y,lower=True,check_finite=False)
+Aw=solve_triangular(Lc,L.T,lower=True,check_finite=False)  # (nobs,npar)
+Q,R=np.linalg.qr(Aw,mode="reduced")
+theta=np.linalg.solve(R,Q.T@yw)
+Rinv=solve_triangular(R,np.eye(R.shape[0]),lower=False,check_finite=False)
+cov_theta=Rinv@Rinv.T
+rw=yw-Aw@theta
+chi2=float(rw@rw)
 res=Y-theta@L
-chi2=float(res@cho_solve(cf,res,check_finite=False))
 
 p=float(theta[-1])           # official code: final parameter = 5 log10 H0
 sp=float(math.sqrt(cov_theta[-1,-1]))
