@@ -39,7 +39,7 @@ jobs:
           make clean && make -j2 class
           mkdir -p output
 
-          cat > output/s117_bootstrap.ini <<'EOF'
+          cat > output/cov_exact_target.ini <<'EOF'
           H0 = 69.71482083084993
           omega_b = 0.022083219194622913
           omega_cdm = 0.12299536722293603
@@ -68,7 +68,7 @@ jobs:
           a_min_stability_test_smg = 1.e-8
           output_background_smg = 3
           write background = yes
-          root = output/s117_bootstrap_
+          root = output/cov_exact_target_
           format = class
           input_verbose = 0
           background_verbose = 0
@@ -77,7 +77,7 @@ jobs:
           spectra_verbose = 0
           output_verbose = 0
           EOF
-          ./class output/s117_bootstrap.ini
+          ./class output/cov_exact_target.ini
 
           python3 sdmc/run_r032_partial_zeq_ztbest_covariant.py
 
