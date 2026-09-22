@@ -1,13 +1,14 @@
-name: SDMC r032 SNclosure223 structural recovery
+name: SDMC r032 SNclosure223 Bayesian structural refinement
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-structural-reopt
+      - sdmc-r032-snclosure223-structural-bo
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   structural:
@@ -22,7 +23,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 python3-pip
           python3 -m pip install --upgrade pip
-          python3 -m pip install numpy scipy pandas cobaya
+          python3 -m pip install numpy scipy pandas cobaya scikit-learn
+
+      - name: Download seed structural scan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf seed_artifact
+          mkdir -p seed_artifact
+          gh run download 35786378017 --repo "${{ github.repository }}" --name sdmc-r032-snclosure223-structural-reopt --dir seed_artifact
+          test -f seed_artifact/snclosure223_structural.csv
 
       - name: Apply SDMC patches and build
         run: |
@@ -58,19 +68,19 @@ jobs:
           done
           test "$ok" -eq 1
 
-      - name: Run structural recovery
+      - name: Run Bayesian structural refinement
         run: python3 sdmc/run_r032_snclosure223_structural_reopt.py
 
       - name: Print summary
         if: always()
         run: |
-          cat output/snclosure223_structural/snclosure223_structural_summary.json || true
+          cat output/snclosure223_structural/snclosure223_structural_bo_summary.json || true
           python3 - <<'PY'
           import pandas as pd
-          p='output/snclosure223_structural/snclosure223_structural.csv'
+          p='output/snclosure223_structural/snclosure223_structural_bo_new.csv'
           try:
               d=pd.read_csv(p)
-              print(d[d.status.eq('OK')].sort_values(['goal_score','second_joint_proxy','pd_proxy']).head(15).to_string(index=False))
+              print(d[d.status.eq('OK')].sort_values('chi2_planck').head(15).to_string(index=False))
           except Exception as e: print(e)
           PY
 
@@ -78,6 +88,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure223-structural-reopt
+          name: sdmc-r032-snclosure223-structural-bo
           path: output/snclosure223_structural/*.*
           if-no-files-found: warn
