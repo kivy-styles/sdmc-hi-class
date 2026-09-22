@@ -31,7 +31,7 @@ jobs:
         run: |
           rm -rf inputs
           mkdir -p inputs
-          gh run download 35794556835 --repo "${{ github.repository }}" --name sdmc-r032-snclosure223-s117-covariant-desi --dir inputs/s117
+          gh run download 35794556835 --repo "${{ github.repository }}" --name sdmc-r032-snclosure223-af11-covariant-desi --dir inputs/s117
           test -f inputs/s117/desi_cov_00_background.dat
           test -f inputs/s117/desi_cov_00_thermodynamics.dat
           test -f inputs/s117/desi_cov_00_z1_pk.dat
