@@ -3,7 +3,7 @@ name: SDMC r032 SN-closure223 AF11 exact-covariant DESI
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-af11-covariant-desi
+      - sdmc-r032-snclosure223-af11-covariant-desi-rerun
   workflow_dispatch:
 
 jobs:
