@@ -21,7 +21,10 @@ from pathlib import Path
 import json,math,re,subprocess,textwrap
 import numpy as np,pandas as pd
 from scipy.optimize import minimize_scalar
-from scipy.stats import qmc
+from scipy.stats import qmc, norm
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import ConstantKernel, Matern, WhiteKernel
+from sklearn.preprocessing import StandardScaler
 from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
 from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
@@ -162,21 +165,78 @@ def cand(tag,AF,ZC,W,DF):
     print("SN223S_POINT",json.dumps(r,sort_keys=True),flush=True)
     return r
 
-pts=[("center",AF0,ZC0,W0,DF0)]
-# coordinate anchors
-pts += [
- ("afm",AF0-.004,ZC0,W0,DF0),("afp",AF0+.004,ZC0,W0,DF0),
- ("zcm",AF0,ZC0-.20,W0,DF0),("zcp",AF0,ZC0+.20,W0,DF0),
- ("wm",AF0,ZC0,W0-.035,DF0),("wp",AF0,ZC0,W0+.035,DF0),
- ("dfm",AF0,ZC0,W0,DF0-.004),("dfp",AF0,ZC0,W0,DF0+.004)]
-sam=qmc.Sobol(d=4,scramble=True,seed=22341)
-for i,p in enumerate(qmc.scale(sam.random_base2(m=6),LOW,HIGH)):
-    pts.append((f"sobol{i:03d}",*map(float,p)))
-rows=[cand(*p) for p in pts]
-df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure223_structural.csv",index=False)
-ok=df[df.status=="OK"].sort_values(["goal_score","second_joint_proxy","pd_proxy"])
-best=ok.head(12).to_dict("records")
-summary={"background":{"H0":H0,"A":AL,"B":BL},"Q":Q,"n_ok":int(len(ok)),
-         "best":best,"target":"pd_proxy<0 and second_joint_proxy<0"}
-(OUT/"snclosure223_structural_summary.json").write_text(json.dumps(summary,indent=2))
-print("SN223S_BEST",json.dumps(summary,sort_keys=True),flush=True)
+
+# Sequential Bayesian optimization seeded by the completed structural scan.
+# The objective is Planck-lite chi2 with hard stability/subluminality gates.
+# SN geometry is frozen, so SN penalties remain those of the sobol223 late background.
+seed_path=Path("seed_artifact/snclosure223_structural.csv")
+seed=pd.read_csv(seed_path)
+seed=seed[(seed.status=="OK") & (seed.stable_subluminal==True)].copy()
+features=["AF","ZC","width","D_floor"]
+
+# Slightly extend the original Sobol box on the low-AF side because the
+# best seed point lies close to that boundary.
+BO_LOW=np.array([0.0200,3.50,0.280,0.036])
+BO_HIGH=np.array([0.0360,4.45,0.440,0.062])
+
+newrows=[]
+rng=np.random.default_rng(22377)
+
+def propose(train):
+    X=train[features].to_numpy(float)
+    y=train["chi2_planck"].to_numpy(float)
+    sx=StandardScaler().fit(X)
+    Xz=sx.transform(X)
+    ym=float(y.mean()); ys=float(y.std() if y.std()>0 else 1.)
+    yz=(y-ym)/ys
+    ker=ConstantKernel(1.0,(1e-3,1e3))*Matern(length_scale=np.ones(4),
+          length_scale_bounds=(1e-2,1e2),nu=2.5)+WhiteKernel(1e-6,(1e-9,1e-2))
+    gp=GaussianProcessRegressor(kernel=ker,normalize_y=False,n_restarts_optimizer=4,random_state=223)
+    gp.fit(Xz,yz)
+
+    # Sobol acquisition pool plus local jitter around the current best.
+    sob=qmc.Sobol(d=4,scramble=True,seed=int(rng.integers(1,2**30)))
+    pool=qmc.scale(sob.random_base2(m=15),BO_LOW,BO_HIGH)
+    bestrow=train.nsmallest(1,"chi2_planck").iloc[0]
+    xb=bestrow[features].to_numpy(float)
+    jit=xb + rng.normal(size=(8000,4))*np.array([0.0015,0.08,0.018,0.0025])
+    jit=np.clip(jit,BO_LOW,BO_HIGH)
+    pool=np.vstack([pool,jit])
+
+    mu0,sd0=gp.predict(sx.transform(pool),return_std=True)
+    mu=mu0*ys+ym; sd=sd0*ys
+    ybest=float(y.min())
+    imp=ybest-mu-0.005
+    z=np.divide(imp,sd,out=np.zeros_like(imp),where=sd>1e-12)
+    ei=imp*norm.cdf(z)+sd*norm.pdf(z)
+    # Prevent exact repeats.
+    for x in X:
+        dist=np.max(np.abs((pool-x)/(BO_HIGH-BO_LOW)),axis=1)
+        ei[dist<1e-5]=-np.inf
+    k=int(np.argmax(ei))
+    return pool[k],float(mu[k]),float(sd[k]),float(ei[k]),str(gp.kernel_)
+
+for it in range(24):
+    train=pd.concat([seed,pd.DataFrame(newrows)],ignore_index=True,sort=False)
+    x,pm,ps,ei,kernel=propose(train)
+    r=cand(f"bo{it:02d}",*map(float,x))
+    r["bo_pred_mean"]=pm; r["bo_pred_sigma"]=ps; r["bo_EI"]=ei; r["bo_kernel"]=kernel
+    newrows.append(r)
+    print("SN223BO_STEP",json.dumps(r,sort_keys=True),flush=True)
+
+allnew=pd.DataFrame(newrows)
+allnew.to_csv(OUT/"snclosure223_structural_bo_new.csv",index=False)
+combined=pd.concat([seed,allnew],ignore_index=True,sort=False)
+ok=combined[combined.status=="OK"].sort_values("chi2_planck")
+top=ok.head(20).to_dict("records")
+summary={
+ "n_seed":int(len(seed)),
+ "n_new":int(len(allnew)),
+ "n_new_ok":int((allnew.status=="OK").sum()),
+ "best_overall":top[0],
+ "top20":top,
+ "sn_penalties":{"PantheonPlus":SN_PP,"Union3":SN_U3,"DESY5":SN_D5},
+ "promotion_rule":"exact full-Plik + raw DESI required; Planck-lite BO is only a proposal engine"
+}
+(OUT/"snclosure223_structural_bo_summary.json").write_text(json.dumps(summary,indent=2))
+print("SN223BO_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
