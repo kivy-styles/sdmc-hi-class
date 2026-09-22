@@ -1,4 +1,4 @@
-name: SDMC r032 SN-closure107 sobol009 exact-covariant DESI
+name: SDMC r032 SN-closure107 sobol086 exact-covariant DESI
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-sobol009-covariant-desi
+      - sdmc-r032-snclosure107-sobol086-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -58,7 +58,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.024221895329654217, 4.145109392143786, 0.3370092310383916, 0.34231919445927034, 1.0, 0.04453643597662449
+          parameters_smg = 0.023127739302814004, 3.7897771822754294, 0.33896292659454047, 0.34231919445927034, 1.0, 0.045225077727809544
           expansion_model = sdmc_full
           expansion_smg = 0.7046733540856334, 18.40625, 16.173189924377947, 0.5, 0.0013601897284388, 0.25, 0.0147392870020121, 1.5
           pert_initial_conditions_smg = zero
@@ -110,7 +110,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_SNCLOSURE107_SOBOL009_BUILD_READY"
+          echo "COVARIANT_SNCLOSURE107_SOBOL086_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         env:
@@ -535,10 +535,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_SNCLOSURE107_SOBOL009',cov)
+          covrows,covchi=profile_model('COVARIANT_SNCLOSURE107_SOBOL086',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_SNCLOSURE107_SOBOL009_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_SNCLOSURE107_SOBOL086_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -550,7 +550,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-sobol009-covariant-desi
+          name: sdmc-r032-snclosure107-sobol086-covariant-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
