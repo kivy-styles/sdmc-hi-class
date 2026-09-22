@@ -1,0 +1,53 @@
+name: SDMC Part X official SH0ES full-ladder verification
+
+on:
+  push:
+    branches:
+      - sdmc-partx-hubble-shoes-full-ladder
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-ladder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+
+      - name: Download official SH0ES high-level ladder
+        run: |
+          rm -rf official_shoes
+          GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/PantheonPlusSH0ES/DataRelease.git official_shoes_repo
+          git -C official_shoes_repo lfs pull --include="SH0ES_Data/all*_shoes_ceph_topantheonwt6.0_112221.fits"
+          mkdir -p official_shoes
+          cp -a official_shoes_repo/SH0ES_Data/. official_shoes/
+          ls -lh official_shoes/all*_shoes_ceph_topantheonwt6.0_112221.fits
+          test -f official_shoes/lstsq_results.txt
+
+      - name: Run full-ladder GLS verification
+        run: |
+          python3 sdmc/run_partx_shoes_full_ladder.py official_shoes
+
+      - name: Print summary
+        if: always()
+        run: |
+          cat output/partx_shoes_full_ladder/partx_shoes_full_ladder_summary.json || true
+
+      - name: Preserve Part X full-ladder result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-partx-shoes-full-ladder
+          path: output/partx_shoes_full_ladder/*
+          if-no-files-found: warn
