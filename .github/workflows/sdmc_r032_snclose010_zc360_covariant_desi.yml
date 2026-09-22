@@ -3,7 +3,7 @@ name: SDMC r032 SN-close010-zc360 exact-covariant DESI + SN
 on:
   push:
     branches:
-      - sdmc-r032-snclose010_zc360-exact
+      - sdmc-r032-snclose010-zc360-exact
   workflow_dispatch:
 
 jobs:
@@ -546,7 +546,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclose010_zc360-exact
+          name: sdmc-r032-snclose010-zc360-exact
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
