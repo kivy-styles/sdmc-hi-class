@@ -10,12 +10,12 @@ from cosmoprimo import PowerSpectrumInterpolator1D,PowerSpectrumBAOFilter,Cosmol
 from cosmoprimo.fiducial import DESI
 from velocileptors.EPT.ept_fullresum_varyDz_nu_fftw import REPT
 from desi_fs_bao_all import list_zrange,dataset_fn,get_tracer_label,get_physical_stochastic_settings
- OUT=Path('output')
+OUT=Path('output')
 C=299792.458
 records=json.loads((OUT/'desi_zeff.json').read_text())
 zvals=[0.0]+sorted({float(r['zeff']) for r in records})
 z_to_i={round(z,8):i+1 for i,z in enumerate(zvals)}
- def tab(path):
+def tab(path):
     lines=Path(path).read_text().splitlines()
     hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
     ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
@@ -23,7 +23,7 @@ z_to_i={round(z,8):i+1 for i,z in enumerate(zvals)}
         e=ms[i+1].start() if i+1<len(ms) else len(hdr)
         names.append(hdr[m.end():e].strip())
     return pd.DataFrame(np.loadtxt(path),columns=names)
- def rd_from(prefix,bg):
+def rd_from(prefix,bg):
     th=tab(OUT/f'{prefix}_00_thermodynamics.dat').sort_values('z')
     zz=th.z.to_numpy(); kb=th.kappa_b.to_numpy()
     cross=[]
@@ -34,7 +34,7 @@ z_to_i={round(z,8):i+1 for i,z in enumerate(zvals)}
     if not cross: raise RuntimeError(f'no drag crossing for {prefix}')
     zd=float(cross[0])
     return float(np.interp(zd,bg.z,bg['comov.snd.hrz.'])),zd
- def model_data(prefix,H0,ob,oc,ns):
+def model_data(prefix,H0,ob,oc,ns):
     h=H0/100.; fb=ob/(ob+oc); fc=1.-fb
     bg=tab(OUT/f'{prefix}_00_background.dat').sort_values('z')
     rd,zd=rd_from(prefix,bg)
@@ -88,7 +88,7 @@ for tracer,iz,zrange in list_zrange:
 kobs=blocks[0]['kin']
 for b in blocks:
     if not np.allclose(b['kin'],kobs): raise RuntimeError('DESI theory k grids differ')
- starts={
+starts={
   'BGS_z0':(1.11348,0.660148,-0.223088),
   'LRG_z0':(1.1351,-0.139101,-0.910397),
   'LRG_z1':(1.22446,-0.671727,-0.22624),
@@ -96,13 +96,13 @@ for b in blocks:
   'ELG_z1':(0.127936,-0.578801,-1.45356),
   'QSO_z0':(0.780983,0.353843,0.135725),
 }
- fid=DESI(engine='camb')
+fid=DESI(engine='camb')
 all_marg=['alpha0p','alpha2p','alpha4p','alpha6p','sn0p','sn2p','sn4p']
 scales=np.array([12.5]*4+[2.]+[5.]*2)
 marg=['alpha0p','alpha2p','sn0p','sn2p']
 gi=np.array([all_marg.index(x) for x in marg])
 prior_hess=-np.diag(scales[gi]**-2)
- def prepare_basis(m):
+def prepare_basis(m):
     kin=np.geomspace(min(5e-4,kobs[0]/2),max(1.0,kobs[-1]*2),500)
     zs=np.array(zvals)
     Pdd=np.stack([np.interp(kin,*m['series'][z][:2]) for z in zs],axis=-1)
@@ -149,7 +149,7 @@ prior_hess=-np.diag(scales[gi]**-2)
                                      fsigma8=float(fs8[iz]),qpar=qpar,qper=qper,
                                      Dz=Dz)
     return tables
- def get_poles(info,pars,settings,sn,return_gradient=False):
+def get_poles(info,pars,settings,sn,return_gradient=False):
     pktable=info['basis']; sigma8=info['sigma8']; f=info['fsigma8']/sigma8
     b1p,b2p,bsp=pars; b3p=0.
     b1L=b1p/sigma8-1.; b2L=b2p/sigma8**2
@@ -171,7 +171,7 @@ prior_hess=-np.diag(scales[gi]**-2)
     if return_gradient:
         return poles,pktable[...,-7:].dot(gradient)
     return poles
- def profile_model(label,m):
+def profile_model(label,m):
     tables=prepare_basis(m)
     rows=[]; total=0.
     for b in blocks:
