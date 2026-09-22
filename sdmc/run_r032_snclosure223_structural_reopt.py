@@ -27,21 +27,21 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure223_structural"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure042_local6d"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
 # Frozen SN-friendly background + ordinary sector
 H0=69.85232012766193
 OB=0.022083219194622913; OC=0.12299536722293603
-NS=0.9625227132590487; TAU=0.055202901571989066
-Q=2.943463801247999; AS=math.exp(Q+2*TAU)/1e10
+NS0=0.9625227132590487; TAU=0.055202901571989066
+Q0=2.943463801247999
 AL=0.018589897081255913; BL=0.013815921754576268
 LAM=18.40625; ZT=16.173189924377947; DN=.5; TAUA=.25; TAUB=1.5
 D0=0.34231919445927034
 
 # edge024 structural center
-AF0=0.024221895329654217; ZC0=4.145109392143786
-W0=0.3370092310383916; DF0=0.04453643597662449
+AF0=0.022606260641478002; ZC0=3.995254244338721
+W0=0.3117605205904692; DF0=0.044849701307713985
 
 # Fair-ledger constants used only for promotion ranking.
 EDGE_P_LITE=1022.3837030216768
@@ -52,8 +52,8 @@ SN_PP=0.4361945469863713
 SN_U3=0.4546830153412884
 SN_D5=0.9867902025580406
 
-LOW=np.array([0.015,3.80,0.290,0.038])
-HIGH=np.array([0.0275,4.42,0.395,0.055])
+LOW=np.array([0.0216,3.84,0.285,0.0405,0.9608,2.9418])
+HIGH=np.array([0.0238,4.14,0.340,0.0495,0.9650,2.9455])
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages"); lowE=EE(packages_path="planck_packages")
@@ -88,7 +88,8 @@ def pscore(path):
     op=minimize_scalar(f,bounds=(.97,1.03),method="bounded",options={"xatol":1e-9})
     return float(op.fun),float(op.x)
 
-def ini(root,AF,ZC,W,DF):
+def ini(root,AF,ZC,W,DF,NS,Q):
+    AS=math.exp(Q+2*TAU)/1e10
     h=H0/100.; ox=1.-(OB+OC+OR)/(h*h)
     return textwrap.dedent(f"""\
 H0={H0:.17g}
@@ -134,10 +135,10 @@ lensing_verbose=0
 output_verbose=0
 """)
 
-def cand(tag,AF,ZC,W,DF):
-    root=str(OUT/(tag+"_")); ip=OUT/(tag+".ini"); ip.write_text(ini(root,AF,ZC,W,DF))
+def cand(tag,AF,ZC,W,DF,NS,Q):
+    root=str(OUT/(tag+"_")); ip=OUT/(tag+".ini"); ip.write_text(ini(root,AF,ZC,W,DF,NS,Q))
     cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
-    r={"id":tag,"AF":float(AF),"ZC":float(ZC),"width":float(W),"D_floor":float(DF),"status":"FAIL"}
+    r={"id":tag,"AF":float(AF),"ZC":float(ZC),"width":float(W),"D_floor":float(DF),"n_s":float(NS),"Q":float(Q),"status":"FAIL"}
     bgp=Path(root+"00_background.dat"); clp=Path(root+"00_cl_lensed.dat")
     if cp.returncode==0 and bgp.exists() and clp.exists():
         bg=table(bgp)
@@ -159,24 +160,18 @@ def cand(tag,AF,ZC,W,DF):
             r["n_sn_closed_proxy"]=sum(x<0 for x in js)
             r["goal_score"]=max(r["pd_proxy"],r["second_joint_proxy"])
     if r["status"]!="OK": r["error"]=cp.stdout[-500:].replace("\n"," | ")
-    print("SN223S_POINT",json.dumps(r,sort_keys=True),flush=True)
+    print("SN0426D_POINT",json.dumps(r,sort_keys=True),flush=True)
     return r
 
-pts=[("center",AF0,ZC0,W0,DF0)]
-# coordinate anchors
-pts += [
- ("afm",AF0-.004,ZC0,W0,DF0),("afp",AF0+.004,ZC0,W0,DF0),
- ("zcm",AF0,ZC0-.20,W0,DF0),("zcp",AF0,ZC0+.20,W0,DF0),
- ("wm",AF0,ZC0,W0-.035,DF0),("wp",AF0,ZC0,W0+.035,DF0),
- ("dfm",AF0,ZC0,W0,DF0-.004),("dfp",AF0,ZC0,W0,DF0+.004)]
-sam=qmc.Sobol(d=4,scramble=True,seed=9009)
-for i,p in enumerate(qmc.scale(sam.random_base2(m=6),LOW,HIGH)):
+pts=[("center",AF0,ZC0,W0,DF0,NS0,Q0)]
+sam=qmc.Sobol(d=6,scramble=True,seed=4206)
+for i,p in enumerate(qmc.scale(sam.random_base2(m=7),LOW,HIGH)):
     pts.append((f"sobol{i:03d}",*map(float,p)))
 rows=[cand(*p) for p in pts]
-df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure223_structural.csv",index=False)
+df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure042_local6d.csv",index=False)
 ok=df[df.status=="OK"].sort_values(["goal_score","second_joint_proxy","pd_proxy"])
 best=ok.head(12).to_dict("records")
-summary={"background":{"H0":H0,"A":AL,"B":BL},"Q":Q,"n_ok":int(len(ok)),
+summary={"background":{"H0":H0,"A":AL,"B":BL},"center_Q":Q0,"center_ns":NS0,"n_ok":int(len(ok)),
          "best":best,"target":"pd_proxy<0 and second_joint_proxy<0"}
-(OUT/"snclosure223_structural_summary.json").write_text(json.dumps(summary,indent=2))
-print("SN223S_BEST",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"snclosure042_local6d_summary.json").write_text(json.dumps(summary,indent=2))
+print("SN0426D_BEST",json.dumps(summary,sort_keys=True),flush=True)
