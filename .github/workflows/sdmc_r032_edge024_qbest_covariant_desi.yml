@@ -1,9 +1,9 @@
-name: SDMC r032 SN-neutral021 exact-covariant DESI
+name: SDMC r032 SN-neutral021 BO004 exact-covariant DESI
 
 on:
   push:
     branches:
-      - sdmc-r032-snneutral021-covariant-desi
+      - sdmc-r032-snneutral021-bo004-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -54,7 +54,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.03200255395658314, 4.007449422683567, 0.34799921004101636, 0.34231919445927034, 1.0, 0.04607192634791136
+          parameters_smg = 0.024, 3.6, 0.40996637082067666, 0.34231919445927034, 1.0, 0.044373715069432405
           expansion_model = sdmc_full
           expansion_smg = 0.7012791354289403, 18.40625, 16.173189924377947, 0.5, 0.022918577727396, 0.25, 0.0129271923275664, 1.5
           pert_initial_conditions_smg = zero
@@ -106,7 +106,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_SNNEUTRAL021_BUILD_READY"
+          echo "COVARIANT_SNNEUTRAL021_BO004_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         env:
@@ -531,10 +531,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_SNNEUTRAL021',cov)
+          covrows,covchi=profile_model('COVARIANT_SNNEUTRAL021_BO004',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_SNNEUTRAL021_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_SNNEUTRAL021_BO004_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -546,7 +546,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snneutral021-covariant-desi
+          name: sdmc-r032-snneutral021-bo004-covariant-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
