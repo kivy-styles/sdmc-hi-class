@@ -50,10 +50,11 @@ TAUA=0.25
 TAUB=1.5
 OR=4.17998772e-5
 
-A0=0.01105624999
-B0=0.01951933685
-H00=70.79187943335671
-EDGE024_PD_FAIR=-1.016724593277559\nBASE_PLANCK_PENALTY=1.7495898459018235
+A0=0.018589897081255913
+B0=0.013815921754576268
+H00=69.85635133907199
+EDGE024_PD_FAIR=-1.016724593277559
+BASE_PLANCK_PENALTY=1.7495898459018235
 EDGE024_BAO_CHI=15.532356198763537
 LOCAL_BAO_CHI=13.400290718544086
 LOCAL_SN={"pantheonplus":1406.2147033223882,
@@ -238,12 +239,12 @@ if center["status"]!="OK": raise RuntimeError(f"center failed: {center}")
 ELL0=center["ellA_proxy"]
 print("SN223LATE_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
 
-sob=qmc.Sobol(d=3,scramble=True,seed=240924)
-u=sob.random_base2(m=8)  # 256
+sob=qmc.Sobol(d=3,scramble=True,seed=240925)
+u=sob.random_base2(m=6)  # 64 local points
 # Broad but physically conservative low-z box.
-Alo,Ahi=0.0000,0.0400
-Blo,Bhi=0.0000,0.0350
-Hlo,Hhi=69.70,71.70
+Alo,Ahi=0.0120,0.0255
+Blo,Bhi=0.0105,0.0175
+Hlo,Hhi=69.50,70.25
 rows=[]
 for i,x in enumerate(u):
     A=Alo+(Ahi-Alo)*x[0]
@@ -267,8 +268,8 @@ df.to_csv(OUT/"snclosure223_late_stage1_all.csv",index=False)
 ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
 # Acoustic/BAO guard; relax only if too few.
 guard=ok[(ok.ellA_frac.abs()<0.0020) & (ok.bao_chi2<20.0)].copy()
-if len(guard)<24: guard=ok.copy()
-short=guard.nsmallest(24,"stage1_score").copy()
+if len(guard)<48: guard=ok.copy()
+short=guard.nsmallest(min(64,len(guard)),"stage1_score").copy()
 # Always include exact center for consistent Planck-lite normalization.
 centerrow=pd.DataFrame([{**center,"ellA_frac":0.0,
                          "sn_delta_pantheonplus":center["sn_pantheonplus"]-LOCAL_SN["pantheonplus"],
@@ -345,7 +346,8 @@ pdf=pdf.sort_values(["goal_score","second_best_sn_joint_proxy","pd_proxy"])
 pdf.to_csv(OUT/"snclosure223_late_planck.csv",index=False)
 best=pdf.head(8).to_dict("records")
 summary={
- "edge024_pd_fair":EDGE024_PD_FAIR,\n "sobol223_base_planck_penalty":BASE_PLANCK_PENALTY,
+ "edge024_pd_fair":EDGE024_PD_FAIR,
+ "sobol223_base_planck_penalty":BASE_PLANCK_PENALTY,
  "center_planck_lite":centerP,
  "center_ellA_proxy":ELL0,
  "n_stage1_ok":int(len(ok)),
