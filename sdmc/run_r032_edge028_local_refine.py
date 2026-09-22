@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Local five-parameter refinement around the edge028 structural winner.
+Local five-parameter structural refinement at the SN-closure t25 late geometry.
 
 Motivation:
   The lowridge edge extension found edge028 with a 0.9149 chi2 Planck-lite
@@ -27,30 +27,30 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/r032_edge028_local_refine"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure_t25_structural_refine"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 TARGET=301.6798271349195
 
-H00=70.79120830851635
+H00=70.55799740978553
 OB=0.022083219194622913
 OC=0.12299536722293603
 NS=0.9625227132590487
 TAU=0.055202901571989066
-Q=2.944463801247999
+Q=2.942463801247999
 LNAS=Q+2.*TAU
 AS=math.exp(LNAS)/1e10
 
-AF0=0.03773318954370916
-ZC0=3.6879637566395105
-W0=0.4136390263400972
+AF0=0.03200255395658314
+ZC0=4.007449422683567
+W0=0.34799921004101636
 D0=0.34231919445927034
-DF0=0.04570108858030289
+DF0=0.04607192634791136
 LAM=18.40625
-ZT0=16.12245249159634
+ZT0=16.173189924377947
 
 # A_F, z_c, width, D_floor, z_t
-LOW=np.array([0.0355,3.50,0.395,0.0435,15.98],float)
-HIGH=np.array([0.0400,3.84,0.435,0.0520,16.25],float)
+LOW=np.array([0.0285,3.75,0.320,0.0435,15.95],float)
+HIGH=np.array([0.0360,4.25,0.390,0.0525,16.38],float)
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages")
@@ -174,12 +174,12 @@ def candidate(tag,af,zc,w,df,zt):
     if pair is None:
         if not vals:
             rec=dict(id=tag,A_F=af,z_c=zc,width=w,D_floor=df,z_t=zt,status="NO_STABLE_ACOUSTIC_POINTS")
-            print("EREF_POINT",json.dumps(rec,sort_keys=True),flush=True); return rec
+            print("T25SREF_POINT",json.dumps(rec,sort_keys=True),flush=True); return rec
         Hbest,gbest=min(vals,key=lambda q:abs(q[1]))
         if abs(gbest)>0.04:
             rec=dict(id=tag,A_F=af,z_c=zc,width=w,D_floor=df,z_t=zt,status="NO_ACOUSTIC_ROOT",
                      closest_H0=Hbest,closest_delta_ellA=gbest)
-            print("EREF_POINT",json.dumps(rec,sort_keys=True),flush=True); return rec
+            print("T25SREF_POINT",json.dumps(rec,sort_keys=True),flush=True); return rec
         H0=Hbest
     else:
         (h1,g1),(h2,g2)=pair
@@ -189,13 +189,13 @@ def candidate(tag,af,zc,w,df,zt):
     except Exception as e:
         rec=dict(id=tag,A_F=af,z_c=zc,width=w,D_floor=df,z_t=zt,H0=H0,
                  status="FINAL_CLASS_FAIL",error=str(e)[-600:])
-        print("EREF_POINT",json.dumps(rec,sort_keys=True),flush=True); return rec
+        print("T25SREF_POINT",json.dumps(rec,sort_keys=True),flush=True); return rec
     stable=st["min_D"]>0 and st["min_cs2"]>0 and st["max_cs2"]<=1.
     rec=dict(id=tag,A_F=float(af),z_c=float(zc),width=float(w),D_floor=float(df),z_t=float(zt),
              H0=H0,delta_ellA=der["ell_A"]-TARGET,stable_subluminal=bool(stable),
              **der,**st,status="OK" if stable else "UNSTABLE")
     if stable: rec.update(pscore(root+"00_cl_lensed.dat"))
-    print("EREF_POINT",json.dumps(rec,sort_keys=True),flush=True)
+    print("T25SREF_POINT",json.dumps(rec,sort_keys=True),flush=True)
     return rec
 
 rows=[]
@@ -236,7 +236,7 @@ for r in rows:
         r["delta_cal_vs_current"]=r["chi2_cal"]-base["chi2_cal"]
 
 df=pd.DataFrame(rows)
-df.to_csv(OUT/"r032_edge028_local_refine.csv",index=False)
+df.to_csv(OUT/"snclosure_t25_structural_refine.csv",index=False)
 ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
 best=ok.nsmallest(12,"chi2_planck").to_dict("records")
 summary={
@@ -247,6 +247,6 @@ summary={
  "best":best[0] if best else None,
  "best_delta_vs_current":float(ok.chi2_planck.min()-BASE) if len(ok) else None,
 }
-(OUT/"r032_edge028_local_refine_summary.json").write_text(json.dumps(summary,indent=2))
-print("EREF_BEST",json.dumps(best,sort_keys=True),flush=True)
-print("EREF_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"snclosure_t25_structural_refine_summary.json").write_text(json.dumps(summary,indent=2))
+print("T25SREF_BEST",json.dumps(best,sort_keys=True),flush=True)
+print("T25SREF_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
