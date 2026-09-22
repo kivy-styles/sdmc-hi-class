@@ -17,12 +17,12 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure223_structure_refine"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure029_structure_refine"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
-H0=69.85635133907199
-A_LATE=0.018589897081255913
-B_LATE=0.013815921754576268
+H0=69.71482083084993
+A_LATE=0.024822032167576252
+B_LATE=0.01264704344701022
 OB=0.022083219194622913
 OC=0.12299536722293603
 AS=2.117602412937069e-9
@@ -148,15 +148,15 @@ def run(label,AF,ZC,W,DF,ZT):
         except:pass
     try:ip.unlink()
     except:pass
-    print("SN223STRUCT_POINT",json.dumps(rec,sort_keys=True),flush=True)
+    print("SN029STRUCT_POINT",json.dumps(rec,sort_keys=True),flush=True)
     return rec
 
 center=run("center",AF0,ZC0,W0,DF0,ZT0)
 if center["status"]!="OK": raise RuntimeError(center)
 C0=center["chi2_planck"]
 
-sob=qmc.Sobol(d=5,scramble=True,seed=94226)
-u=sob.random_base2(m=7) # 128
+sob=qmc.Sobol(d=5,scramble=True,seed=94229)
+u=sob.random_base2(m=6) # 64
 rows=[]
 for i,x in enumerate(u):
     AF=0.0260+(0.0390-0.0260)*x[0]
@@ -168,7 +168,7 @@ for i,x in enumerate(u):
 
 df=pd.DataFrame([center]+rows)
 df["delta_vs_center"]=df.chi2_planck-C0
-df.to_csv(OUT/"snclosure223_structure_refine.csv",index=False)
+df.to_csv(OUT/"snclosure029_structure_refine.csv",index=False)
 ok=df[df.status=="OK"].sort_values("chi2_planck")
 best=ok.head(16).to_dict("records")
 summary={
@@ -179,6 +179,6 @@ summary={
  "best_delta_vs_center":float(best[0]["chi2_planck"]-C0),
  "top16":best
 }
-(OUT/"snclosure223_structure_refine_summary.json").write_text(json.dumps(summary,indent=2))
-print("SN223STRUCT_BEST",json.dumps(best,sort_keys=True),flush=True)
-print("SN223STRUCT_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"snclosure029_structure_refine_summary.json").write_text(json.dumps(summary,indent=2))
+print("SN029STRUCT_BEST",json.dumps(best,sort_keys=True),flush=True)
+print("SN029STRUCT_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
