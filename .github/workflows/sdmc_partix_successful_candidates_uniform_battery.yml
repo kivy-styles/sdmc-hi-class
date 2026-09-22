@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure223 AF11 uniform downstream battery
+name: SDMC r032 SN-closure029 S117 uniform downstream battery
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-af11-uniform-battery
+      - sdmc-r032-snclosure029-s117-uniform-battery
   workflow_dispatch:
 
 permissions:
@@ -25,16 +25,16 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install numpy scipy pandas camb
 
-      - name: Download successful exact-candidate artifacts
+      - name: Download exact S117 artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           rm -rf inputs
           mkdir -p inputs
-          gh run download 35791508625 --repo "${{ github.repository }}" --name sdmc-r032-snclosure223-af11-covariant-desi --dir inputs/af11
-          test -f inputs/af11/desi_cov_00_background.dat
-          test -f inputs/af11/desi_cov_00_thermodynamics.dat
-          test -f inputs/af11/desi_cov_00_z1_pk.dat
+          gh run download 35794556835 --repo "${{ github.repository }}" --name sdmc-r032-snclosure223-s117-covariant-desi --dir inputs/s117
+          test -f inputs/s117/desi_cov_00_background.dat
+          test -f inputs/s117/desi_cov_00_thermodynamics.dat
+          test -f inputs/s117/desi_cov_00_z1_pk.dat
 
       - name: Install SN and BAO data
         run: |
@@ -60,6 +60,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure223-af11-uniform-battery
+          name: sdmc-r032-snclosure029-s117-uniform-battery
           path: output/uniform_battery/*
           if-no-files-found: warn
