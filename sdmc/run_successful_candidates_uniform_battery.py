@@ -256,8 +256,15 @@ Om=local_Om
 Ol=1-Om-Or
 H0_s=LOCAL021["H0"]/MPC_KM
 def local_age(z):
-    f=lambda zp: 1.0/((1+zp)*H0_s*math.sqrt(Or*(1+zp)**4+Om*(1+zp)**3+Ol))
-    sec=quad(f,z,1e8,epsabs=0,epsrel=2e-8,limit=500)[0]
+    # Integrate in ln(a), not directly to an enormous z upper bound.
+    # dt = d ln(a) / H(a); this is numerically stable through radiation era.
+    xmax=math.log(1.0/(1.0+z))
+    xmin=-32.0
+    def fx(x):
+        a=math.exp(x)
+        E=math.sqrt(Or*a**-4+Om*a**-3+Ol)
+        return 1.0/(H0_s*E)
+    sec=quad(fx,xmin,xmax,epsabs=0,epsrel=2e-9,limit=500)[0]
     return sec/SEC_GYR
 
 AGE_Z=[0.0,0.5,1.0,1.432,1.552,2.0,3.0,6.0,10.0,20.0]
