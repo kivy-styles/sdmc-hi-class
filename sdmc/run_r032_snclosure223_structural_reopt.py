@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Structural Planck recovery around the SN-friendly sobol223 late background.
+Structural Planck recovery around the SN-friendly late107 late background.
 
 Low-z geometry is frozen at the SN-friendly point:
   A_late=0.018589897081255913
   B_late=0.013815921754576268
-  H0=69.85232012766193
+  H0=70.09917331933976
 
 Primordial amplitude uses the tiny Q improvement found in the preceding
 ordinary pass:
@@ -35,13 +35,13 @@ H0=69.85232012766193
 OB=0.022083219194622913; OC=0.12299536722293603
 NS=0.9625227132590487; TAU=0.055202901571989066
 Q=2.943463801247999; AS=math.exp(Q+2*TAU)/1e10
-AL=0.018589897081255913; BL=0.013815921754576268
+AL=0.0013601897284388; BL=0.0147392870020121
 LAM=18.40625; ZT=16.173189924377947; DN=.5; TAUA=.25; TAUB=1.5
 D0=0.34231919445927034
 
 # edge024 structural center
-AF0=0.03200255395658314; ZC0=4.007449422683567
-W0=0.34799921004101636; DF0=0.04607192634791136
+AF0=0.024221895329654217; ZC0=4.145109392143786
+W0=0.3370092310383916; DF0=0.04453643597662449
 
 # Fair-ledger constants used only for promotion ranking.
 EDGE_P_LITE=1022.3837030216768
@@ -52,8 +52,8 @@ SN_PP=0.4361945469863713
 SN_U3=0.4546830153412884
 SN_D5=0.9867902025580406
 
-LOW=np.array([0.024,3.60,0.285,0.040])
-HIGH=np.array([0.042,4.35,0.425,0.060])
+LOW=np.array([0.0235,3.70,0.285,0.040])
+HIGH=np.array([0.0360,4.45,0.425,0.060])
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages"); lowE=EE(packages_path="planck_packages")
@@ -157,9 +157,9 @@ def cand(tag,AF,ZC,W,DF):
             js=[r["joint_pp_proxy"],r["joint_u3_proxy"],r["joint_d5_proxy"]]
             r["second_joint_proxy"]=sorted(js)[1]
             r["n_sn_closed_proxy"]=sum(x<0 for x in js)
-            r["goal_score"]=max(r["pd_proxy"],r["second_joint_proxy"])
+            r["goal_score"]=pc
     if r["status"]!="OK": r["error"]=cp.stdout[-500:].replace("\n"," | ")
-    print("SN223S_POINT",json.dumps(r,sort_keys=True),flush=True)
+    print("SN107S_POINT",json.dumps(r,sort_keys=True),flush=True)
     return r
 
 pts=[("center",AF0,ZC0,W0,DF0)]
@@ -174,9 +174,9 @@ for i,p in enumerate(qmc.scale(sam.random_base2(m=6),LOW,HIGH)):
     pts.append((f"sobol{i:03d}",*map(float,p)))
 rows=[cand(*p) for p in pts]
 df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure223_structural.csv",index=False)
-ok=df[df.status=="OK"].sort_values(["goal_score","second_joint_proxy","pd_proxy"])
+ok=df[df.status=="OK"].sort_values(["chi2_planck","min_cs2"],ascending=[True,False])
 best=ok.head(12).to_dict("records")
 summary={"background":{"H0":H0,"A":AL,"B":BL},"Q":Q,"n_ok":int(len(ok)),
-         "best":best,"target":"pd_proxy<0 and second_joint_proxy<0"}
+         "best":best,"target":"minimize Planck-lite at fixed late107 SN-friendly background; exact raw DESI/full-Plik promotion required"}
 (OUT/"snclosure223_structural_summary.json").write_text(json.dumps(summary,indent=2))
-print("SN223S_BEST",json.dumps(summary,sort_keys=True),flush=True)
+print("SN107S_BEST",json.dumps(summary,sort_keys=True),flush=True)
