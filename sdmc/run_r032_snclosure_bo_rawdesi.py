@@ -3,7 +3,7 @@
 Bayesian optimization of the late SDMC deformation using the actual target
 likelihoods needed for the Part IX closure criterion.
 
-Frozen structure: SN-closure structural-reopt sobol009.
+Frozen structure: exact edge024-Q structural basin.
 Varied late geometry: (A_late, tau_A, B_late, tau_B, H0).
 
 Each evaluation computes:
@@ -41,13 +41,13 @@ OB=0.022083219194622913
 OC=0.12299536722293603
 NS=0.9625227132590487
 TAU=0.055202901571989066
-Q=2.943463801247999
+Q=2.942463801247999
 AS=math.exp(Q+2*TAU)/1e10
-AF=0.024221895329654217
-ZC=4.145109392143786
-WIDTH=0.3370092310383916
+AF=0.03200255395658314
+ZC=4.007449422683567
+WIDTH=0.34799921004101636
 D0=0.34231919445927034
-DF=0.04453643597662449
+DF=0.04607192634791136
 LAM=18.40625
 ZT=16.173189924377947
 DNT=0.5
