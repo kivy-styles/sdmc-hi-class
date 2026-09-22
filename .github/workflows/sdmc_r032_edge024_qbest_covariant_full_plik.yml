@@ -3,7 +3,7 @@ name: SDMC r032 SN-closure223 S110 exact-covariant full Plik
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223_s110-s110-covariant-fullplik
+      - sdmc-r032-snclosure223-s110-covariant-fullplik
   workflow_dispatch:
 
 jobs:
@@ -377,6 +377,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure223_s110-covariant-full-plik-profile
+          name: sdmc-r032-snclosure223-s110-covariant-full-plik-profile
           path: output/*
           if-no-files-found: warn
