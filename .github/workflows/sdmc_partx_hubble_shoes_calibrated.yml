@@ -1,0 +1,65 @@
+name: SDMC Part X calibrated SH0ES Hubble verdict
+
+on:
+  push:
+    branches:
+      - sdmc-partx-hubble-shoes-calibrated
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  shoes-calibrated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Download exact-covariant background artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf input_e004 input_e024
+          mkdir -p input_e004 input_e024
+          gh run download 35668374700             --repo "${{ github.repository }}"             --name sdmc-r032-edge004-qbest-covariant-desi             --dir input_e004
+          gh run download 35666938621             --repo "${{ github.repository }}"             --name sdmc-r032-edge024-qbest-covariant-desi             --dir input_e024
+          test -f input_e004/desi_cov_00_background.dat
+          test -f input_e004/desi_lcdm_00_background.dat
+          test -f input_e024/desi_cov_00_background.dat
+          test -f input_e024/desi_lcdm_00_background.dat
+          echo "PARTX_SHOES_BACKGROUNDS_READY"
+
+      - name: Install Pantheon+SH0ES data
+        run: |
+          rm -rf sn_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          test -f sn_data/PantheonPlus/Pantheon+SH0ES.dat
+          test -f sn_data/PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov
+
+      - name: Run calibrated local-distance-ladder likelihood
+        run: |
+          python3 sdmc/run_partx_shoes_calibrated_hubble.py             EDGE004_QBEST=input_e004/desi_cov_00_background.dat             EDGE024_QBEST=input_e024/desi_cov_00_background.dat             LCDM_E004_CONTROL=input_e004/desi_lcdm_00_background.dat             LCDM_E024_CONTROL=input_e024/desi_lcdm_00_background.dat
+
+      - name: Print summary
+        if: always()
+        run: |
+          test ! -f output/partx_shoes_calibrated/partx_shoes_calibrated_summary.json || cat output/partx_shoes_calibrated/partx_shoes_calibrated_summary.json
+          test ! -f output/partx_shoes_calibrated/partx_shoes_calibrated_summary.csv || cat output/partx_shoes_calibrated/partx_shoes_calibrated_summary.csv
+
+      - name: Preserve Part X SH0ES verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-partx-hubble-shoes-calibrated
+          path: output/partx_shoes_calibrated/*
+          if-no-files-found: warn
