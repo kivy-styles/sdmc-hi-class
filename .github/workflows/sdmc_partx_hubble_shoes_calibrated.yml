@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure223 AF11 calibrated SH0ES
+name: SDMC r032 SN-closure029 S117 calibrated SH0ES
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-af11-shoes-calibrated
+      - sdmc-r032-snclosure029-s117-shoes-calibrated
   workflow_dispatch:
 
 permissions:
@@ -25,19 +25,19 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install numpy scipy pandas
 
-      - name: Download AF11 exact-covariant background artifact
+      - name: Download S117 exact-covariant background artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          rm -rf input_af11
-          mkdir -p input_af11
-          gh run download 35791508625 \
+          rm -rf input_s117
+          mkdir -p input_s117
+          gh run download 35794556835 \
             --repo "${{ github.repository }}" \
             --name sdmc-r032-snclosure223-af11-covariant-desi \
-            --dir input_af11
-          test -f input_af11/desi_cov_00_background.dat
-          test -f input_af11/desi_lcdm_00_background.dat
-          echo "AF11_SHOES_BACKGROUNDS_READY"
+            --dir input_s117
+          test -f input_s117/desi_cov_00_background.dat
+          test -f input_s117/desi_lcdm_00_background.dat
+          echo "S117_SHOES_BACKGROUNDS_READY"
 
       - name: Install Pantheon+SH0ES data
         run: |
@@ -49,8 +49,8 @@ jobs:
       - name: Run calibrated local-distance-ladder likelihood
         run: |
           python3 sdmc/run_partx_shoes_calibrated_hubble.py \
-            AF11=input_af11/desi_cov_00_background.dat \
-            LCDM_CONTROL=input_af11/desi_lcdm_00_background.dat
+            S117=input_s117/desi_cov_00_background.dat \
+            LCDM_CONTROL=input_s117/desi_lcdm_00_background.dat
 
       - name: Print summary
         if: always()
@@ -62,6 +62,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure223-af11-shoes-calibrated
+          name: sdmc-r032-snclosure029-s117-shoes-calibrated
           path: output/partx_shoes_calibrated/*
           if-no-files-found: warn
