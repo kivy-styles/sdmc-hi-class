@@ -1,5 +1,9 @@
 name: SDMC r032 SNclosure107-072 interpolation screen
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
