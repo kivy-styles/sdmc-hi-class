@@ -176,8 +176,8 @@ features=["AF","ZC","width","D_floor"]
 
 # Slightly extend the original Sobol box on the low-AF side because the
 # best seed point lies close to that boundary.
-BO_LOW=np.array([0.0200,3.50,0.280,0.036])
-BO_HIGH=np.array([0.0360,4.45,0.440,0.062])
+BO_LOW=np.array([0.0235,3.60,0.285,0.040])
+BO_HIGH=np.array([0.0360,4.35,0.425,0.060])
 
 newrows=[]
 rng=np.random.default_rng(22377)
@@ -217,7 +217,11 @@ def propose(train):
     return pool[k],float(mu[k]),float(sd[k]),float(ei[k]),str(gp.kernel_)
 
 for it in range(24):
-    train=pd.concat([seed,pd.DataFrame(newrows)],ignore_index=True,sort=False)
+    extra=pd.DataFrame(newrows)
+    if len(extra):
+        extra=extra[extra.status=="OK"].copy()
+    train=pd.concat([seed,extra],ignore_index=True,sort=False)
+    train=train[np.isfinite(train["chi2_planck"])].copy()
     x,pm,ps,ei,kernel=propose(train)
     r=cand(f"bo{it:02d}",*map(float,x))
     r["bo_pred_mean"]=pm; r["bo_pred_sigma"]=ps; r["bo_EI"]=ei; r["bo_kernel"]=kernel
