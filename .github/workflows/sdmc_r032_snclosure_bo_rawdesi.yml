@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure Bayesian raw-DESI search
+name: SDMC r032 SN-closure Bayesian edge024 raw-DESI search
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure-bo-rawdesi
+      - sdmc-r032-snclosure-bo-edge024-rawdesi
   workflow_dispatch:
 
 permissions:
@@ -153,7 +153,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure-bo-rawdesi
+          name: sdmc-r032-snclosure-bo-edge024-rawdesi
           path: |
             output/snclosure_bo_rawdesi/*.csv
             output/snclosure_bo_rawdesi/*.json
