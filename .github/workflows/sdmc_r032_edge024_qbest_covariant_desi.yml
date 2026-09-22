@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure223 exact-covariant DESI
+name: SDMC r032 SN-closure223 S110 exact-covariant DESI
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure223-covariant-desi
+      - sdmc-r032-snclosure223_s110-s110-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -54,9 +54,9 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.03200255395658314, 4.007449422683567, 0.34799921004101636, 0.34231919445927034, 1.0, 0.04607192634791136
+          parameters_smg = 0.026252536563202738, 3.79610941009596, 0.3229390993900597, 0.34231919445927034, 1.0, 0.046828035046346486
           expansion_model = sdmc_full
-          expansion_smg = 0.7026166638809874, 18.40625, 16.173189924377947, 0.5, 0.018589897081255913, 0.25, 0.013815921754576268, 1.5
+          expansion_smg = 0.7026166638809874, 18.40625, 15.982883202601224, 0.5, 0.018589897081255913, 0.25, 0.013815921754576268, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -94,7 +94,7 @@ jobs:
           )
           repl='''double Ox = 0.7026166638809874;
             double lambda_e = 18.40625;
-            double zt = 16.173189924377947;
+            double zt = 15.982883202601224;
             double dNt = 0.5;
             double A = 0.018589897081255913;
             double tauA = 0.25;
@@ -106,7 +106,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_SNCLOSURE223_BUILD_READY"
+          echo "COVARIANT_SNCLOSURE223_S110_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         env:
@@ -216,7 +216,7 @@ jobs:
           gravity_model = sdmc_v3_covariant_exact
           parameters_smg = 0.0
           expansion_model = sdmc_full
-          expansion_smg = 0.7026166638809874, 18.40625, 16.173189924377947, 0.5, 0.018589897081255913, 0.25, 0.013815921754576268, 1.5
+          expansion_smg = 0.7026166638809874, 18.40625, 15.982883202601224, 0.5, 0.018589897081255913, 0.25, 0.013815921754576268, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
 
@@ -531,10 +531,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_SNCLOSURE223',cov)
+          covrows,covchi=profile_model('COVARIANT_SNCLOSURE223_S110',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_SNCLOSURE223_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_SNCLOSURE223_S110_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -546,7 +546,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure223-covariant-desi
+          name: sdmc-r032-snclosure223_s110-s110-covariant-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
