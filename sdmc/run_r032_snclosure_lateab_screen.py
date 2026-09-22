@@ -27,7 +27,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure_lateab_screen"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure223_local_late_refine"); OUT.mkdir(parents=True,exist_ok=True)
 TMP=OUT/"tmp"; TMP.mkdir(exist_ok=True)
 SNROOT=Path("sn_data")
 BAOROOT=Path("bao_data")
@@ -50,11 +50,11 @@ TAUA=0.25
 TAUB=1.5
 OR=4.17998772e-5
 
-A0=0.01105624999
-B0=0.01951933685
-H00=70.79187943335671
-EDGE024_PD_FAIR=-1.016724593277559
-EDGE024_BAO_CHI=15.532356198763537
+A0=0.018589897081255913
+B0=0.013815921754576268
+H00=69.85635133907199
+EDGE024_PD_FAIR=0.16860184395905575
+EDGE024_BAO_CHI=13.275302564102702
 LOCAL_BAO_CHI=13.400290718544086
 LOCAL_SN={"pantheonplus":1406.2147033223882,
           "union3":28.783140002196888,
@@ -236,14 +236,14 @@ def run_background(label,A,B,H0):
 center=run_background("center",A0,B0,H00)
 if center["status"]!="OK": raise RuntimeError(f"center failed: {center}")
 ELL0=center["ellA_proxy"]
-print("SNCLOSE_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
+print("SNCLOSE223LOCAL_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
 
-sob=qmc.Sobol(d=3,scramble=True,seed=240924)
+sob=qmc.Sobol(d=3,scramble=True,seed=223240)
 u=sob.random_base2(m=8)  # 256
 # Broad but physically conservative low-z box.
-Alo,Ahi=0.0000,0.0400
-Blo,Bhi=0.0000,0.0350
-Hlo,Hhi=69.70,71.70
+Alo,Ahi=0.0140,0.0235
+Blo,Bhi=0.0105,0.0175
+Hlo,Hhi=69.45,70.25
 rows=[]
 for i,x in enumerate(u):
     A=Alo+(Ahi-Alo)*x[0]
@@ -260,10 +260,10 @@ for i,x in enumerate(u):
         # Rank SN closure, while strongly preferring acoustic and BAO continuity.
         r["stage1_score"]=sn2 + 1600*abs(r["ellA_frac"]) + 0.10*max(0,r["bao_chi2"]-EDGE024_BAO_CHI)
     rows.append(r)
-    if i%16==0: print("SNCLOSE_PROGRESS",i,json.dumps(r,sort_keys=True),flush=True)
+    if i%16==0: print("SNCLOSE223LOCAL_PROGRESS",i,json.dumps(r,sort_keys=True),flush=True)
 
 df=pd.DataFrame(rows)
-df.to_csv(OUT/"snclosure_stage1_all.csv",index=False)
+df.to_csv(OUT/"snclosure223_local_stage1_all.csv",index=False)
 ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
 # Acoustic/BAO guard; relax only if too few.
 guard=ok[(ok.ellA_frac.abs()<0.0020) & (ok.bao_chi2<20.0)].copy()
@@ -280,7 +280,7 @@ centerrow=pd.DataFrame([{**center,"ellA_frac":0.0,
                          "joint0_d5":EDGE024_PD_FAIR+center["sn_desy5"]-LOCAL_SN["desy5"],
                          "stage1_score":999.}])
 short=pd.concat([centerrow,short],ignore_index=True)
-short.to_csv(OUT/"snclosure_stage1_shortlist.csv",index=False)
+short.to_csv(OUT/"snclosure223_local_stage1_shortlist.csv",index=False)
 
 # Planck native-lite stage
 high=TTTEEE_lite_native(packages_path="planck_packages")
@@ -326,7 +326,7 @@ def planck_for(row):
         except:pass
     try:ip.unlink()
     except:pass
-    print("SNCLOSE_PLANCK_POINT",json.dumps(rec,sort_keys=True),flush=True)
+    print("SNCLOSE223LOCAL_PLANCK_POINT",json.dumps(rec,sort_keys=True),flush=True)
     return rec
 
 p_rows=[planck_for(r) for _,r in short.iterrows()]
@@ -342,7 +342,7 @@ pdf["second_best_sn_joint_proxy"]=pdf[["joint_pp_proxy","joint_u3_proxy","joint_
     lambda r: sorted(map(float,r))[1],axis=1)
 pdf["goal_score"]=np.maximum(pdf.pd_proxy,pdf.second_best_sn_joint_proxy)
 pdf=pdf.sort_values(["goal_score","second_best_sn_joint_proxy","pd_proxy"])
-pdf.to_csv(OUT/"snclosure_planck_shortlist.csv",index=False)
+pdf.to_csv(OUT/"snclosure223_local_planck_shortlist.csv",index=False)
 best=pdf.head(8).to_dict("records")
 summary={
  "edge024_pd_fair":EDGE024_PD_FAIR,
@@ -353,6 +353,6 @@ summary={
  "best":best,
  "goal":"pd_proxy<0 and second_best_sn_joint_proxy<0; then exact promotion required"
 }
-(OUT/"snclosure_summary.json").write_text(json.dumps(summary,indent=2))
-print("SNCLOSE_BEST",json.dumps(best,sort_keys=True),flush=True)
-print("SNCLOSE_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"snclosure223_local_summary.json").write_text(json.dumps(summary,indent=2))
+print("SNCLOSE223LOCAL_BEST",json.dumps(best,sort_keys=True),flush=True)
+print("SNCLOSE223LOCAL_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
