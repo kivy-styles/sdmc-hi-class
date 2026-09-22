@@ -5,11 +5,11 @@ Bayesian structural recovery around the SN-aware sobol072 late background.
 Low-z geometry is frozen at the SN-friendly point:
   A_late=0.0013601897284388
   B_late=0.0147392870020121
-  H0=70.09917331933976
+  H0=70.79187943335671
 
 Primordial amplitude uses the tiny Q improvement found in the preceding
 ordinary pass:
-  Q=2.943463801247999
+  Q=2.942463801247999
 
 Reopen only perturbation/kinetic structure:
   A_F, z_c, width, D_floor
@@ -29,15 +29,15 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure107_structural_bo"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/edge024_qbest_structural_bo"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
 # Frozen SN-friendly background + ordinary sector
-H0=70.09917331933976
+H0=70.79187943335671
 OB=0.022083219194622913; OC=0.12299536722293603
 NS=0.9625227132590487; TAU=0.055202901571989066
-Q=2.943463801247999; AS=math.exp(Q+2*TAU)/1e10
-AL=0.0013601897284388; BL=0.0147392870020121
+Q=2.942463801247999; AS=math.exp(Q+2*TAU)/1e10
+AL=0.01105624999; BL=0.01951933685
 LAM=18.40625; ZT=16.173189924377947; DN=.5; TAUA=.25; TAUB=1.5
 D0=0.34231919445927034
 
@@ -49,10 +49,10 @@ W0=0.34799921004101636; DF0=0.04607192634791136
 EDGE_P_LITE=1022.3837030216768
 EDGE_PD_FAIR=-1.016724593277559
 EDGE_BAO=15.5323571850153
-NEW_BAO=13.433005
-SN_PP=1.631268
-SN_U3=1.395445
-SN_D5=3.275618
+NEW_BAO=15.5323571850153
+SN_PP=3.148303038906306
+SN_U3=2.645893599372357
+SN_D5=6.069521598517895
 
 LOW=np.array([0.024,3.60,0.285,0.040])
 HIGH=np.array([0.042,4.35,0.425,0.060])
@@ -161,7 +161,7 @@ def cand(tag,AF,ZC,W,DF):
             r["n_sn_closed_proxy"]=sum(x<0 for x in js)
             r["goal_score"]=max(r["pd_proxy"],r["second_joint_proxy"])
     if r["status"]!="OK": r["error"]=cp.stdout[-500:].replace("\n"," | ")
-    print("SN107BO_POINT",json.dumps(r,sort_keys=True),flush=True)
+    print("E024BO_POINT",json.dumps(r,sort_keys=True),flush=True)
     return r
 
 # Seed the GP with the center, known successful structures, coordinate anchors,
@@ -220,10 +220,10 @@ for it in range(20):
             x=pool[j]; break
     rows.append(cand(f"bo{it:03d}",*map(float,x)))
 
-df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure107_structural_bo.csv",index=False)
+df=pd.DataFrame(rows); df.to_csv(OUT/"edge024_qbest_structural_bo.csv",index=False)
 ok=df[df.status=="OK"].sort_values(["chi2_planck","goal_score"])
 best=ok.head(15).to_dict("records")
 summary={"background":{"H0":H0,"A":AL,"B":BL},"Q":Q,"n_ok":int(len(ok)),
          "best":best,"target":"exact promotion should achieve P+D fair < -1.63127 for Pantheon+ and Union3 closure; BO optimizes Planck-lite while raw DESI is checked on promoted points"}
-(OUT/"snclosure107_structural_bo_summary.json").write_text(json.dumps(summary,indent=2))
-print("SN107BO_BEST",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"edge024_qbest_structural_bo_summary.json").write_text(json.dumps(summary,indent=2))
+print("E024BO_BEST",json.dumps(summary,sort_keys=True),flush=True)
