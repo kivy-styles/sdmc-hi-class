@@ -1,4 +1,4 @@
-name: SDMC r032 SNclosure223 structural recovery
+name: SDMC r032 SNclosure072 structural Bayesian recovery
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 python3-pip
           python3 -m pip install --upgrade pip
-          python3 -m pip install numpy scipy pandas cobaya
+          python3 -m pip install numpy scipy pandas scikit-learn cobaya
 
       - name: Apply SDMC patches and build
         run: |
