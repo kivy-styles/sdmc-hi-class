@@ -233,13 +233,13 @@ def evaluate(x,tag):
                 rec["desi_chi2"]=float(desi_total); rec["desi_delta"]=desi_delta
                 rec["delta_planck_vs_edge"]=pchi-EDGE_PLANCK_LITE
                 rec["delta_desi_vs_edge"]=desi_delta-EDGE_DESI_DELTA
-                pd=EDGE_PD_FAIR+rec["delta_planck_vs_edge"]+rec["delta_desi_vs_edge"]
-                rec["pd_fair_est"]=float(pd)
-                joints=[pd+rec["sn_delta_pantheonplus"],pd+rec["sn_delta_union3"],pd+rec["sn_delta_desy5"]]
+                pdfair=EDGE_PD_FAIR+rec["delta_planck_vs_edge"]+rec["delta_desi_vs_edge"]
+                rec["pd_fair_est"]=float(pdfair)
+                joints=[pdfair+rec["sn_delta_pantheonplus"],pdfair+rec["sn_delta_union3"],pdfair+rec["sn_delta_desy5"]]
                 rec["joint_pp_est"],rec["joint_u3_est"],rec["joint_d5_est"]=map(float,joints)
                 rec["second_joint_est"]=float(sorted(joints)[1])
                 rec["n_sn_closed_est"]=int(sum(v<0 for v in joints))
-                rec["objective"]=float(max(pd,rec["second_joint_est"]))
+                rec["objective"]=float(max(pdfair,rec["second_joint_est"]))
                 rec["status"]="OK"
         except Exception as e:
             rec["error"]=repr(e)
