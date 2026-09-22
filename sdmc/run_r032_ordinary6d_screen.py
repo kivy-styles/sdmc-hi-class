@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stage-1 six-dimensional ordinary-cosmology screen for the frozen r032 SDMC
+SN-aware local six-dimensional ordinary-cosmology screen for sobol107+bo002 SDMC
 structural point (lambda_e,z_t,Dfloor)=(17.925,17.775,0.045).
 
 This is a deterministic screening surrogate:
@@ -25,44 +25,44 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/ordinary6d")
+OUT=Path("output/snclosure107_bo002_ordinary6d")
 OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255
 CAL_SIGMA=0.0025
 
 # Frozen SDMC structural point.
-AF=0.0715
-ZC=5.00
-WIDTH=1.426
+AF=0.024290704212870225
+ZC=3.6096407580714724
+WIDTH=0.3631213944496205
 D0=0.34231919445927034
 POWER=1.0
-DFLOOR=0.045
-LAMBDA_E=17.925
-ZT=17.775
+DFLOOR=0.04602317962943721
+LAMBDA_E=18.40625
+ZT=16.173189924377947
 OMEGA_R_PHYS=4.17998772e-5
 
 # Current exact-leader ordinary cosmology and the Planck-control reference.
 CURRENT=np.array([
-    70.8514,
-    0.02239952,
-    0.12444227328918850,
-    0.964,
-    3.076,
-    0.0544,
+    70.09917331933976,
+    0.022083219194622913,
+    0.12299536722293603,
+    0.9625227132590487,
+    3.053869604391977,
+    0.055202901571989066,
 ],float)
 REFERENCE=np.array([
-    67.36,
-    0.02237,
-    0.1200,
-    0.9649,
-    math.log(1e10*2.10e-9),
-    0.0544,
+    70.09917331933976,
+    0.022215084896497428,
+    0.12228109714277088,
+    0.9647922897702084,
+    3.0543567698681726,
+    0.055202901571989066,
 ],float)
 NAMES=["H0","omega_b","omega_cdm","n_s","ln10As","tau_reio"]
 
 # Conservative local envelope around the union of current and Planck-control
 # coordinates. These are search bounds, not priors or inferred intervals.
-MARGIN=np.array([0.55,0.00050,0.0040,0.015,0.040,0.012],float)
+MARGIN=np.array([0.45,0.00030,0.0018,0.0070,0.022,0.0080],float)
 LOW=np.minimum(CURRENT,REFERENCE)-MARGIN
 HIGH=np.maximum(CURRENT,REFERENCE)+MARGIN
 
@@ -228,7 +228,7 @@ def sdmc_ini(x,root):
     gravity_model = sdmc_v3_independent_kinetic
     parameters_smg = {AF}, {ZC}, {WIDTH}, {D0:.17g}, {POWER}, {DFLOOR}
     expansion_model = sdmc_full
-    expansion_smg = {Ox:.17g}, {LAMBDA_E}, {ZT}, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+    expansion_smg = {Ox:.17g}, {LAMBDA_E}, {ZT}, 0.5, 0.0013601897284388, 0.25, 0.0147392870020121, 1.5
     pert_initial_conditions_smg = zero
     method_qs_smg = fully_dynamic
 
@@ -294,7 +294,7 @@ lp=planck_score(Path(lroot+"00_cl_lensed.dat"))
 lbg=table(Path(lroot+"00_background.dat"))
 lsn=sn_scores(lbg)
 lcdm={"planck":lp[-1],"pantheonplus":lsn[0],"union3":lsn[1],"desy5":lsn[2]}
-print("ORD6D_LCDM_REFERENCE",lcdm,flush=True)
+print("SN107ORD6D_LCDM_REFERENCE",lcdm,flush=True)
 
 # Deterministic design: exact current, Planck-reference ordinary coordinates,
 # three points on the connecting line, plus a 64-point Sobol space-filling set.
@@ -305,8 +305,8 @@ anchors=[
     ("line50",CURRENT+0.50*(REFERENCE-CURRENT)),
     ("line75",CURRENT+0.75*(REFERENCE-CURRENT)),
 ]
-sob=qmc.Sobol(d=6,scramble=True,seed=20260920)
-u=sob.random_base2(m=6)
+sob=qmc.Sobol(d=6,scramble=True,seed=107002)
+u=sob.random_base2(m=7)
 xs=qmc.scale(u,LOW,HIGH)
 design=anchors+[(f"sobol{i+1:03d}",x) for i,x in enumerate(xs)]
 
@@ -321,7 +321,7 @@ meta={
     "n_design":len(design),
     "note":"screen only; final points require exact covariant replay + full Plik + raw DESI FS",
 }
-(OUT/"ordinary6d_design.json").write_text(json.dumps(meta,indent=2))
+(OUT/"snclosure107_bo002_ordinary6d_design.json").write_text(json.dumps(meta,indent=2))
 
 rows=[]
 for ic,(tag,x) in enumerate(design,1):
@@ -381,7 +381,7 @@ for ic,(tag,x) in enumerate(design,1):
     rows.append(rec)
 
 df=pd.DataFrame(rows)
-df.to_csv(OUT/"ordinary6d_screen.csv",index=False)
+df.to_csv(OUT/"snclosure107_bo002_ordinary6d_screen.csv",index=False)
 ok=df[(df.status=="OK") & (df.get("stable_subluminal",False)==True)].copy()
 if ok.empty:
     raise SystemExit("No stable subluminal candidates in 6D screen")
@@ -397,7 +397,7 @@ short["screen_best_any"]=short[
     ["delta_planck","screen_planck_pp","screen_planck_union3","screen_planck_desy5"]
 ].min(axis=1)
 short=short.sort_values("screen_best_any")
-short.to_csv(OUT/"ordinary6d_shortlist.csv",index=False)
+short.to_csv(OUT/"snclosure107_bo002_ordinary6d_shortlist.csv",index=False)
 
 print("ORD6D_BEST_PLANCK",ok.nsmallest(10,"delta_planck")[NAMES+["id","delta_planck","delta_pantheonplus","delta_union3","delta_desy5","sigma8","min_cs2_all","max_cs2_all"]].to_dict("records"),flush=True)
 print("ORD6D_BEST_PP",ok.nsmallest(10,"screen_planck_pp")[NAMES+["id","screen_planck_pp","delta_planck","delta_pantheonplus"]].to_dict("records"),flush=True)
