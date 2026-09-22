@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Six-dimensional Bayesian structural refinement around exact late-local006 + bo002.
+Six-dimensional Bayesian structural refinement around exact late-local037 + bo002.
 
-Frozen low-z/SN background: late-local006
-  H0=69.71275747716427
+Frozen low-z/SN background: late-local037
+  H0=70.06860801801086
   A_late=0.0013601897284388
   B_late=0.0147392870020121
 
@@ -41,19 +41,19 @@ from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 OUT=Path("output/snclosure107_bo002_extended_structural_bo"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
-H0=69.71275747716427
+H0=70.06860801801086
 OB=0.022083219194622913; OC=0.12299536722293603
 NS=0.9625227132590487; TAU=0.055202901571989066
 Q=2.943463801247999; AS=math.exp(Q+2*TAU)/1e10
-AL=0.00792232021316886; BL=0.012283301661722363
+AL=0.010396217755973339; BL=0.014501856951974333
 LAM=18.40625; DN=.5; TAUA=.25; TAUB=1.5
 
 # exact bo002 center
 X0=np.array([0.024290704212870225,3.6096407580714724,0.3631213944496205,
              0.04602317962943721,0.34231919445927034,16.173189924377947])
-BO002_LITE=1021.7161397407683
+BO002_LITE=1021.1922532051412
 BO002_EXACT_PD_FAIR=0.0
-SN_PP=0.45564042031764984; SN_U3=0.4392293671844527; SN_D5=1.022321954369545
+SN_PP=1.2053321185521781; SN_U3=1.0781517983123194; SN_D5=2.4748550802469254
 
 # [AF, ZC, width, D_floor, D0, z_t]
 LOW=np.array([0.0185,3.20,0.285,0.0360,0.260,13.5])
@@ -226,7 +226,7 @@ df=pd.DataFrame(rows)
 df.to_csv(OUT/"snclosure107_bo002_extended_structural_bo.csv",index=False)
 ok=df[df.status=="OK"].sort_values(["goal_score","chi2_planck"])
 best=ok.head(20).to_dict("records")
-summary={"background":{"H0":H0,"A":AL,"B":BL},"screen_zero_point_note":"P+D zero point intentionally unset; ranking is by Planck-lite improvement on fixed late-local006 background",
+summary={"background":{"H0":H0,"A":AL,"B":BL},"screen_zero_point_note":"P+D zero point intentionally unset; ranking is by Planck-lite improvement on fixed late-local037 background",
          "planck_lite_center":BO002_LITE,
          "n_total":int(len(df)),"n_ok":int(len(ok)),"best":best,
          "note":"Ranking only. Exact full-Plik + raw DESI promotion is mandatory; no raw-DESI proxy is used for the final result."}
