@@ -1,0 +1,252 @@
+name: SDMC r032 fulljoint hybrid043 exact-covariant SN
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - sdmc-r032-fulljoint-hybrid043-covariant-sn
+  workflow_dispatch:
+
+jobs:
+  fast-full-plik:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Build reconstructed exact candidate and LCDM backgrounds
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+          mkdir -p output input_artifact/unpacked
+
+          cat > output/cov_exact_target.ini <<'EOF'
+          H0 = 69.486625116691
+          omega_b = 0.02208511574370519
+          omega_cdm = 0.12298509428428875
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1197359302086e-9
+          n_s = 0.962555355281866
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.023604633340554453, 3.4328776987879466, 0.36879721635160295, 0.34231919445927034, 1.0, 0.050275813910968366
+          expansion_model = sdmc_full
+          expansion_smg = 0.6994609429969774, 18.40625, 16.173189924377947, 0.5, 0.007934502487070859, 0.25, 0.01100946151232347, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = no
+          root = output/cov_exact_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/cov_exact_target.ini
+
+          python3 sdmc/run_r032_partial_zeq_ztbest_covariant.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('source/background.c'); s=p.read_text()
+          pat=re.compile(
+              r'double Ox\s*=\s*pba->parameters_smg\[0\];\s*'
+              r'double lambda_e\s*=\s*pba->parameters_smg\[1\];\s*'
+              r'double zt\s*=\s*pba->parameters_smg\[2\];\s*'
+              r'double dNt\s*=\s*pba->parameters_smg\[3\];\s*'
+              r'double A\s*=\s*pba->parameters_smg\[4\];\s*'
+              r'double tauA\s*=\s*pba->parameters_smg\[5\];\s*'
+              r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
+              r'double tauB\s*=\s*pba->parameters_smg\[7\];'
+          )
+          repl='''double Ox = 0.6994609429969774;
+            double lambda_e = 18.40625;
+            double zt = 16.173189924377947;
+            double dNt = 0.5;
+            double A = 0.007934502487070859;
+            double tauA = 0.25;
+            double B = 0.01100946151232347;
+            double tauB = 1.5;'''
+          s2,n=pat.subn(repl,s,count=1)
+          if n != 1: raise RuntimeError(f'tracker helper replacement count={n}')
+          p.write_text(s2)
+          PY
+
+          make clean && make -j2 class
+
+          cat > input_artifact/unpacked/candidate.ini <<'EOF'
+          H0 = 69.486625116691
+          omega_b = 0.02208511574370519
+          omega_cdm = 0.12298509428428875
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1197359302086e-9
+          n_s = 0.962555355281866
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_exact
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl
+          lensing = yes
+          l_max_scalars = 3000
+          write background = yes
+          root = input_artifact/unpacked/covariant_observable_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class input_artifact/unpacked/candidate.ini
+
+          python3 - <<'PY'
+          import re, numpy as np
+          from pathlib import Path
+          p=Path('input_artifact/unpacked/covariant_observable_00_background.dat')
+          lines=p.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith('#') and re.search(r'1\s*:',x)][-1].lstrip('#').strip()
+          ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
+          mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
+          slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
+          print('FULLJOINT_HYBRID043_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
+          PY
+
+          sed 's#root = output/sdmc_planck_lcdm_control_#root = input_artifact/unpacked/fullplik_lcdm_#' \
+            sdmc/config/planck_lcdm_control.ini > input_artifact/unpacked/lcdm.ini
+          echo 'write background = yes' >> input_artifact/unpacked/lcdm.ini
+          ./class input_artifact/unpacked/lcdm.ini
+          test -f input_artifact/unpacked/covariant_observable_00_cl_lensed.dat
+          test -f input_artifact/unpacked/fullplik_lcdm_00_cl_lensed.dat
+
+      - name: Install SN data
+        run: |
+          rm -rf sn_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+
+      - name: Score exact SN covariance likelihoods
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json
+          import numpy as np
+          import pandas as pd
+          from scipy.linalg import cho_factor, cho_solve
+          DATA=Path('sn_data'); ROOT=Path('input_artifact/unpacked'); OUT=Path('output'); OUT.mkdir(exist_ok=True)
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values('z')
+          def read_cov(path,n):
+              a=np.asarray(np.loadtxt(path),float).reshape(-1)
+              if len(a)==n*n+1 and int(round(a[0]))==n: a=a[1:]
+              if len(a)!=n*n: raise RuntimeError(f'covariance size mismatch {path}')
+              return a.reshape(n,n)
+          def setup(C):
+              cf=cho_factor(C,lower=True,check_finite=False)
+              one=np.ones(C.shape[0]); u=cho_solve(cf,one,check_finite=False)
+              return cf,one,float(one.dot(u))
+          def chi(pack,r):
+              cf,one,den=pack; y=cho_solve(cf,r,check_finite=False)
+              return float(r.dot(y)-(one.dot(y))**2/den)
+          def mu(bg,z,zh):
+              DM=np.interp(z,bg.z,bg['comov. dist.']); DA=DM/(1.+z)
+              return 5*np.log10((1.+zh)*(1.+z)*DA)
+          pp=pd.read_csv(DATA/'PantheonPlus/Pantheon+SH0ES.dat',sep='\\s+',header=0,engine='python')
+          print('PANTHEON_COLUMNS',list(pp.columns),flush=True); ppm=pp['m_b_corr'].to_numpy(float); ppz=pp['zHD'].to_numpy(float); ppzh=pp['zHEL'].to_numpy(float)
+          C=read_cov(DATA/'PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov',len(ppm)); m=ppz>0.01
+          ppm,ppz,ppzh,C=ppm[m],ppz[m],ppzh[m],C[np.ix_(m,m)]; ppp=setup(C)
+          p=DATA/'Union3/lcparam_full.txt'
+          cols=p.read_text().splitlines()[0].removeprefix('#').split()
+          un=pd.read_csv(p,sep='\\s+',comment='#',names=cols,engine='python'); cm={c.lower():c for c in un.columns}
+          unm=un[cm['mb']].to_numpy(float); unz=un[cm['zcmb']].to_numpy(float); unp=setup(read_cov(DATA/'Union3/mag_covmat.txt',len(unm)))
+          de=pd.read_csv(DATA/'DESY5/DES-SN5YR_HD.csv'); cm={c.lower():c for c in de.columns}
+          dem=de[cm['mu']].to_numpy(float); dez=de[cm['zhd']].to_numpy(float); dezh=de[cm['zhel']].to_numpy(float)
+          derr=de[cm['muerr_final']].to_numpy(float); dep=setup(read_cov(DATA/'DESY5/covsys_000.txt',len(dem))+np.diag(derr*derr))
+          def scores(bg):
+              return {'pantheonplus':chi(ppp,ppm-mu(bg,ppz,ppzh)),
+                      'union3':chi(unp,unm-mu(bg,unz,unz)),
+                      'desy5':chi(dep,dem-mu(bg,dez,dezh))}
+          s=table(ROOT/'covariant_observable_00_background.dat'); l=table(ROOT/'fullplik_lcdm_00_background.dat')
+          ss=scores(s); ll=scores(l); local021={'pantheonplus':1406.2147033223882,'union3':28.783140002196888,'desy5':1650.6353947147727}; out={k:{'sdmc':ss[k],'lcdm':ll[k],'delta':ss[k]-ll[k],'local021':local021[k],'delta_vs_local021':ss[k]-local021[k]} for k in ss}
+          print('FULLJOINT_HYBRID043_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
+          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm'],delta_chi2=v['delta']) for k,v in out.items()]).to_csv(OUT/'fulljoint_hybrid043_exact_sn.csv',index=False)
+          PY
+
+      - name: Preserve exact SN result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fulljoint-hybrid043-exact-sn
+          path: |
+            output/fulljoint_hybrid043_exact_sn.csv
+            input_artifact/unpacked/covariant_observable_00_background.dat
+            input_artifact/unpacked/fullplik_lcdm_00_background.dat
+          if-no-files-found: warn
