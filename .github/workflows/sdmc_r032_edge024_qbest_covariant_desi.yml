@@ -1,4 +1,4 @@
-name: SDMC r032 bridge6796 exact-covariant DESI
+name: SDMC r032 bridge6796-ordbo013 exact-covariant DESI
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-bridge6796-covariant-desi
+      - sdmc-r032-bridge6796-ordbo013-ordbo013-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -42,15 +42,15 @@ jobs:
 
           cat > output/cov_exact_target.ini <<'EOF'
           H0 = 67.96
-          omega_b = 0.022083219194622913
-          omega_cdm = 0.12299536722293603
+          omega_b = 0.021902642840171727
+          omega_cdm = 0.12657681485141645
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.119721074504234e-9
-          n_s = 0.9625227132590487
-          tau_reio = 0.055202901571989066
+          A_s = 2.0976039420869155e-9
+          n_s = 0.9556123887279615
+          tau_reio = 0.049394406260748286
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -60,7 +60,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.024290704212870225, 3.6096407580714724, 0.3631213944496205, 0.34231919445927034, 1.0, 0.04602317962943721
           expansion_model = sdmc_full
-          expansion_smg = 0.6857887826054784, 18.40625, 16.173189924377947, 0.5, 0.011061627057101114, 0.25, 0.010557478912554592, 1.5
+          expansion_smg = 0.6784252968093178, 18.40625, 16.173189924377947, 0.5, 0.011061627057101114, 0.25, 0.010557478912554592, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -96,7 +96,7 @@ jobs:
               r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
               r'double tauB\s*=\s*pba->parameters_smg\[7\];'
           )
-          repl='''double Ox = 0.6857887826054784;
+          repl='''double Ox = 0.6784252968093178;
             double lambda_e = 18.40625;
             double zt = 16.173189924377947;
             double dNt = 0.5;
@@ -110,7 +110,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_BRIDGE6796_BUILD_READY"
+          echo "COVARIANT_BRIDGE6796_ORDBO013_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         env:
@@ -201,15 +201,15 @@ jobs:
           ZPK=$(cat output/desi_zpk.txt)
           cat > output/desi_covariant_transfer.ini <<EOF
           H0 = 67.96
-          omega_b = 0.022083219194622913
-          omega_cdm = 0.12299536722293603
+          omega_b = 0.021902642840171727
+          omega_cdm = 0.12657681485141645
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.119721074504234e-9
-          n_s = 0.9625227132590487
-          tau_reio = 0.055202901571989066
+          A_s = 2.0976039420869155e-9
+          n_s = 0.9556123887279615
+          tau_reio = 0.049394406260748286
 
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -220,7 +220,7 @@ jobs:
           gravity_model = sdmc_v3_covariant_exact
           parameters_smg = 0.0
           expansion_model = sdmc_full
-          expansion_smg = 0.6857887826054784, 18.40625, 16.173189924377947, 0.5, 0.011061627057101114, 0.25, 0.010557478912554592, 1.5
+          expansion_smg = 0.6784252968093178, 18.40625, 16.173189924377947, 0.5, 0.011061627057101114, 0.25, 0.010557478912554592, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
 
@@ -367,7 +367,7 @@ jobs:
 
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
-          cov=model_data('desi_cov',67.96,0.022083219194622913,0.12299536722293603,0.9625227132590487)
+          cov=model_data('desi_cov',67.96,0.021902642840171727,0.12657681485141645,0.9556123887279615)
           lcdm=model_data('desi_lcdm',67.36,0.02237,0.1200,0.9649)
 
           # Official likelihood blocks.
@@ -535,10 +535,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_BRIDGE6796',cov)
+          covrows,covchi=profile_model('COVARIANT_BRIDGE6796_ORDBO013',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_BRIDGE6796_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_BRIDGE6796_ORDBO013_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -550,7 +550,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-bridge6796-covariant-desi
+          name: sdmc-r032-bridge6796-ordbo013-ordbo013-covariant-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
