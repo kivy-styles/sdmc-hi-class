@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Transition-width Bayesian refinement around the exact SN-aware BO002 solution.
+Transition-width Bayesian refinement around exact sobol076 + BO002.
 
 This stage reopens three expansion-shape coordinates that were held fixed
 through the historical lambda_e-z_t scans:
@@ -35,13 +35,13 @@ from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
 warnings.filterwarnings("ignore")
-OUT=Path("output/snclosure107_bo002_transitionwidth"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure107_bo002_sobol076_transitionwidth"); OUT.mkdir(parents=True,exist_ok=True)
 TMP=OUT/"tmp"; TMP.mkdir(exist_ok=True)
 DATA=Path("sn_data")
 TCMB=2.7255; CAL_SIGMA=0.0025; OR=4.17998772e-5
 
 # Frozen exact BO002 solution.
-H0=70.09917331933976
+H0=70.00876109628007
 OB=0.022083219194622913
 OC=0.12299536722293603
 AS=2.119721074504234e-9
@@ -54,8 +54,8 @@ D0=0.34231919445927034
 DF=0.04602317962943721
 LAM=18.40625
 ZT=16.173189924377947
-ALATE=0.0013601897284388
-BLATE=0.0147392870020121
+ALATE=0.01686786537989974
+BLATE=0.014543195590376853
 
 # Historically fixed transition-shape center.
 X0=np.array([0.5,0.25,1.5],float)  # DeltaN_bg, tau_A, tau_B
@@ -64,7 +64,7 @@ LOW=np.array([0.32,0.14,0.90],float)
 HIGH=np.array([0.72,0.42,2.20],float)
 
 # Exact BO002 baseline.
-BO002_PD_FAIR=-0.675202390114676
+BO002_PD_FAIR=-0.659891015199548
 
 # local021 SN reference cosmology.
 LOCAL021=dict(H0=68.56858744695782,omega_b=0.022406369378007947,
@@ -184,7 +184,7 @@ lroot=str(OUT/"local021_"); lip=OUT/"local021.ini"; lip.write_text(lcdm_ini(lroo
 cp=subprocess.run(["./class",str(lip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=240)
 if cp.returncode: raise RuntimeError(cp.stdout[-3000:])
 LOCAL_SN=sn_scores(table(lroot+"00_background.dat"))
-print("TW_LOCAL021_SN",json.dumps(LOCAL_SN,sort_keys=True),flush=True)
+print("S076TW_LOCAL021_SN",json.dumps(LOCAL_SN,sort_keys=True),flush=True)
 
 def sdmc_ini(x,root):
     DN,TAUA,TAUB=map(float,x)
@@ -264,7 +264,7 @@ def evaluate(tag,x):
 center=evaluate("center",X0)
 if center["status"]!="OK": raise RuntimeError(center)
 CENTER_LITE=center["chi2_planck"]
-print("TW_CENTER",json.dumps(center,sort_keys=True),flush=True)
+print("S076TW_CENTER",json.dumps(center,sort_keys=True),flush=True)
 
 def finish(rec):
     if rec["status"]!="OK":
@@ -289,12 +289,12 @@ anchors=[
  ("tb_lo",[0.5,0.25,1.20]),("tb_hi",[0.5,0.25,1.85])
 ]
 for tag,x in anchors:
-    r=finish(evaluate(tag,x)); rows.append(r); print("TW_POINT",json.dumps(r,sort_keys=True),flush=True)
+    r=finish(evaluate(tag,x)); rows.append(r); print("S076TW_POINT",json.dumps(r,sort_keys=True),flush=True)
 
 sam=qmc.Sobol(d=3,scramble=True,seed=107803)
 for i,x in enumerate(qmc.scale(sam.random_base2(m=5),LOW,HIGH)):
     r=finish(evaluate(f"seed{i:03d}",x)); rows.append(r)
-    print("TW_POINT",json.dumps(r,sort_keys=True),flush=True)
+    print("S076TW_POINT",json.dumps(r,sort_keys=True),flush=True)
 
 def fit_gp(rows):
     ok=[r for r in rows if r.get("status")=="OK"]
@@ -329,16 +329,16 @@ for it in range(14):
             pick=j; break
     if pick is None: pick=int(np.argmax(ei))
     r=finish(evaluate(f"bo{it:03d}",pool[pick])); rows.append(r)
-    print("TW_BO_POINT",json.dumps(r,sort_keys=True),flush=True)
+    print("S076TW_BO_POINT",json.dumps(r,sort_keys=True),flush=True)
 
 df=pd.DataFrame(rows)
-df.to_csv(OUT/"snclosure107_bo002_transitionwidth.csv",index=False)
+df.to_csv(OUT/"snclosure107_bo002_sobol076_transitionwidth.csv",index=False)
 ok=df[df.status=="OK"].sort_values(["goal_score","second_joint_proxy","pd_fair_proxy"])
 top=ok.head(15)
-top.to_csv(OUT/"snclosure107_bo002_transitionwidth_top15.csv",index=False)
+top.to_csv(OUT/"snclosure107_bo002_sobol076_transitionwidth_top15.csv",index=False)
 summary=dict(center=X0.tolist(),bounds=dict(low=LOW.tolist(),high=HIGH.tolist()),
              bo002_exact_pd_fair=BO002_PD_FAIR,n_total=int(len(df)),n_ok=int(len(ok)),
              best=top.to_dict("records"),
              promotion_rule="exact full-Plik + official raw DESI full-shape + all three SN datasets")
-(OUT/"snclosure107_bo002_transitionwidth_summary.json").write_text(json.dumps(summary,indent=2))
-print("TW_BEST",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"snclosure107_bo002_sobol076_transitionwidth_summary.json").write_text(json.dumps(summary,indent=2))
+print("S076TW_BEST",json.dumps(summary,sort_keys=True),flush=True)
