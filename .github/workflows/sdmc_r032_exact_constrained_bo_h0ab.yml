@@ -1,0 +1,25 @@
+name: SDMC r032 exact constrained Planck DESI SN Bayesian search
+
+on:
+  push:
+    branches:
+      - sdmc-r032-exact-constrained-bo-h0ab
+  workflow_dispatch:
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bayesian dependencies
+        run: python3 -m pip install --upgrade numpy scipy pandas scikit-learn
+      - name: Run exact constrained Bayesian controller
+        run: python3 sdmc/run_r032_exact_constrained_bo_h0ab.py
+      - name: Show proposal summary
+        run: cat output/exact_constrained_bo_h0ab/summary.json
+      - name: Preserve proposals
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-exact-constrained-bo-h0ab
+          path: output/exact_constrained_bo_h0ab/*
