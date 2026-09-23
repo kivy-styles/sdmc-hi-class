@@ -1,4 +1,4 @@
-name: SDMC r032 SN-closure107 bo002 lowh-sobol063 exact-covariant DESI
+name: SDMC r032 SN-closure107 bo002 exactsn-e0231 exact-covariant DESI
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-bo002-lowh-sobol063-covariant-desi
+      - sdmc-r032-exactsn-e0231-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
           mkdir -p output
 
           cat > output/cov_exact_target.ini <<'EOF'
-          H0 = 69.44595765553416
+          H0 = 69.35292106793452
           omega_b = 0.022083219194622913
           omega_cdm = 0.12299536722293603
           N_ncdm = 0
@@ -60,7 +60,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.024290704212870225, 3.6096407580714724, 0.3631213944496205, 0.34231919445927034, 1.0, 0.04602317962943721
           expansion_model = sdmc_full
-          expansion_smg = 0.6990914808595784, 18.40625, 16.173189924377947, 0.5, 0.010335846113041045, 0.25, 0.010714279787614942, 1.5
+          expansion_smg = 0.6982836048745417, 18.40625, 16.173189924377947, 0.5, 0.011241707768261, 0.25, 0.0102705562927805, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -96,13 +96,13 @@ jobs:
               r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
               r'double tauB\s*=\s*pba->parameters_smg\[7\];'
           )
-          repl='''double Ox = 0.6990914808595784;
+          repl='''double Ox = 0.6982836048745417;
             double lambda_e = 18.40625;
             double zt = 16.173189924377947;
             double dNt = 0.5;
-            double A = 0.010335846113041045;
+            double A = 0.011241707768261;
             double tauA = 0.25;
-            double B = 0.010714279787614942;
+            double B = 0.0102705562927805;
             double tauB = 1.5;'''
           s2,n=pat.subn(repl,s,count=1)
           if n != 1: raise RuntimeError(f'tracker helper replacement count={n}')
@@ -110,7 +110,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_SNCLOSURE107_BO002_LOWH_SOBOL063_BUILD_READY"
+          echo "COVARIANT_SNCLOSURE107_BO002_EXACTSN_E0231_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         env:
@@ -200,7 +200,7 @@ jobs:
         run: |
           ZPK=$(cat output/desi_zpk.txt)
           cat > output/desi_covariant_transfer.ini <<EOF
-          H0 = 69.44595765553416
+          H0 = 69.35292106793452
           omega_b = 0.022083219194622913
           omega_cdm = 0.12299536722293603
           N_ncdm = 0
@@ -220,7 +220,7 @@ jobs:
           gravity_model = sdmc_v3_covariant_exact
           parameters_smg = 0.0
           expansion_model = sdmc_full
-          expansion_smg = 0.6990914808595784, 18.40625, 16.173189924377947, 0.5, 0.010335846113041045, 0.25, 0.010714279787614942, 1.5
+          expansion_smg = 0.6982836048745417, 18.40625, 16.173189924377947, 0.5, 0.011241707768261, 0.25, 0.0102705562927805, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
 
@@ -367,7 +367,7 @@ jobs:
 
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
-          cov=model_data('desi_cov',69.44595765553416,0.022083219194622913,0.12299536722293603,0.9625227132590487)
+          cov=model_data('desi_cov',69.35292106793452,0.022083219194622913,0.12299536722293603,0.9625227132590487)
           lcdm=model_data('desi_lcdm',67.36,0.02237,0.1200,0.9649)
 
           # Official likelihood blocks.
@@ -535,10 +535,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_SNCLOSURE107_BO002_LOWH_SOBOL063',cov)
+          covrows,covchi=profile_model('COVARIANT_SNCLOSURE107_BO002_EXACTSN_E0231',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_SNCLOSURE107_BO002_LOWH_SOBOL063_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_SNCLOSURE107_BO002_EXACTSN_E0231_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -550,7 +550,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-bo002-lowh-sobol063-covariant-desi
+          name: sdmc-r032-exactsn-e0231-covariant-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
