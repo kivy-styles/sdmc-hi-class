@@ -43,18 +43,16 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import subprocess, re, json, math
+          import subprocess, re, json
           import numpy as np
           import pandas as pd
           from scipy.linalg import cho_factor, cho_solve
           from scipy.optimize import differential_evolution, minimize
 
-          ROOT=Path('.')
           DATA=Path('sn_data')
           OUT=Path('output/exactsn_localopt')
           OUT.mkdir(parents=True,exist_ok=True)
 
-          # Fixed ordinary/kinetic sector from exact sobol006 promotion.
           OB=0.022083219194622913
           OC=0.12299536722293603
           AS=2.119721074504234e-9
@@ -62,145 +60,186 @@ jobs:
           TAU=0.055202901571989066
           OMEGA_NONX=0.14512038629475895
           KIN="0.024290704212870225, 3.6096407580714724, 0.3631213944496205, 0.34231919445927034, 1.0, 0.04602317962943721"
-          LAMBDA_E=18.40625
-          ZT=16.173189924377947
-          DNT=0.5
-          TAUA=0.25
-          TAUB=1.5
-
-          LOCAL={'pantheonplus':1406.2147033223882,
-                 'union3':28.783140002196888,
-                 'desy5':1650.6353947147727}
+          LOCAL={'pantheonplus':1406.2147033223882,'union3':28.783140002196888,'desy5':1650.6353947147727}
 
           def read_cov(path,n):
               a=np.asarray(np.loadtxt(path),float).reshape(-1)
-              if len(a)==n*n+1 and int(round(a[0]))==n: a=a[1:]
-              if len(a)!=n*n: raise RuntimeError(f'covariance size mismatch {path}')
+              if len(a)==n*n+1 and int(round(a[0]))==n:
+                  a=a[1:]
+              if len(a)!=n*n:
+                  raise RuntimeError(f'covariance size mismatch {path}')
               return a.reshape(n,n)
+
           def setup(C):
               cf=cho_factor(C,lower=True,check_finite=False)
-              one=np.ones(C.shape[0]); u=cho_solve(cf,one,check_finite=False)
+              one=np.ones(C.shape[0])
+              u=cho_solve(cf,one,check_finite=False)
               return cf,one,float(one.dot(u))
+
           def chi(pack,r):
-              cf,one,den=pack; y=cho_solve(cf,r,check_finite=False)
+              cf,one,den=pack
+              y=cho_solve(cf,r,check_finite=False)
               return float(r.dot(y)-(one.dot(y))**2/den)
+
           def parse_bg(path):
               lines=Path(path).read_text().splitlines()
               hdr=[x for x in lines if x.startswith('#') and re.search(r'1\s*:',x)][-1].lstrip('#').strip()
-              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr))
+              names=[]
               for i,m in enumerate(ms):
                   e=ms[i+1].start() if i+1<len(ms) else len(hdr)
                   names.append(hdr[m.end():e].strip())
               return pd.DataFrame(np.loadtxt(path),columns=names).sort_values('z')
+
           def mu(bg,z,zh):
-              DM=np.interp(z,bg.z,bg['comov. dist.']); DA=DM/(1.+z)
+              DM=np.interp(z,bg.z,bg['comov. dist.'])
+              DA=DM/(1.+z)
               return 5*np.log10((1.+zh)*(1.+z)*DA)
 
           pp=pd.read_csv(DATA/'PantheonPlus/Pantheon+SH0ES.dat',sep='\\s+',header=0,engine='python')
-          ppm=pp['m_b_corr'].to_numpy(float); ppz=pp['zHD'].to_numpy(float); ppzh=pp['zHEL'].to_numpy(float)
-          C=read_cov(DATA/'PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov',len(ppm)); m=ppz>0.01
-          ppm,ppz,ppzh,C=ppm[m],ppz[m],ppzh[m],C[np.ix_(m,m)]; ppp=setup(C)
+          ppm=pp['m_b_corr'].to_numpy(float)
+          ppz=pp['zHD'].to_numpy(float)
+          ppzh=pp['zHEL'].to_numpy(float)
+          C=read_cov(DATA/'PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov',len(ppm))
+          m=ppz>0.01
+          ppm,ppz,ppzh,C=ppm[m],ppz[m],ppzh[m],C[np.ix_(m,m)]
+          ppp=setup(C)
+
           p=DATA/'Union3/lcparam_full.txt'
           cols=p.read_text().splitlines()[0].removeprefix('#').split()
-          un=pd.read_csv(p,sep='\\s+',comment='#',names=cols,engine='python'); cm={c.lower():c for c in un.columns}
-          unm=un[cm['mb']].to_numpy(float); unz=un[cm['zcmb']].to_numpy(float); unp=setup(read_cov(DATA/'Union3/mag_covmat.txt',len(unm)))
-          de=pd.read_csv(DATA/'DESY5/DES-SN5YR_HD.csv'); cm={c.lower():c for c in de.columns}
-          dem=de[cm['mu']].to_numpy(float); dez=de[cm['zhd']].to_numpy(float); dezh=de[cm['zhel']].to_numpy(float)
-          derr=de[cm['muerr_final']].to_numpy(float); dep=setup(read_cov(DATA/'DESY5/covsys_000.txt',len(dem))+np.diag(derr*derr))
+          un=pd.read_csv(p,sep='\\s+',comment='#',names=cols,engine='python')
+          cm={c.lower():c for c in un.columns}
+          unm=un[cm['mb']].to_numpy(float)
+          unz=un[cm['zcmb']].to_numpy(float)
+          unp=setup(read_cov(DATA/'Union3/mag_covmat.txt',len(unm)))
+
+          de=pd.read_csv(DATA/'DESY5/DES-SN5YR_HD.csv')
+          cm={c.lower():c for c in de.columns}
+          dem=de[cm['mu']].to_numpy(float)
+          dez=de[cm['zhd']].to_numpy(float)
+          dezh=de[cm['zhel']].to_numpy(float)
+          derr=de[cm['muerr_final']].to_numpy(float)
+          dep=setup(read_cov(DATA/'DESY5/covsys_000.txt',len(dem))+np.diag(derr*derr))
 
           def scores(bg):
-              return {'pantheonplus':chi(ppp,ppm-mu(bg,ppz,ppzh)),
-                      'union3':chi(unp,unm-mu(bg,unz,unz)),
-                      'desy5':chi(dep,dem-mu(bg,dez,dezh))}
+              return {
+                  'pantheonplus':chi(ppp,ppm-mu(bg,ppz,ppzh)),
+                  'union3':chi(unp,unm-mu(bg,unz,unz)),
+                  'desy5':chi(dep,dem-mu(bg,dez,dezh))
+              }
 
           cache={}
           rows=[]
           counter=[0]
+
           def evaluate(x):
               H0,A,B=map(float,x)
               key=(round(H0,9),round(A,10),round(B,10))
-              if key in cache: return cache[key]
+              if key in cache:
+                  return cache[key]
               counter[0]+=1
               h=H0/100.0
               Ox=1.0-OMEGA_NONX/(h*h)
               tag=f"e{counter[0]:04d}"
               ini=OUT/f'{tag}.ini'
               root=OUT/f'{tag}_'
-              ini.write_text(f"""H0 = {H0:.15g}
-omega_b = {OB:.15g}
-omega_cdm = {OC:.15g}
-N_ncdm = 0
-N_ur = 3.046
-T_cmb = 2.7255
-YHe = 0.2453
-A_s = {AS:.15g}
-n_s = {NS:.15g}
-tau_reio = {TAU:.15g}
-Omega_Lambda = 0
-Omega_fld = 3.1443554e-8
-fluid_equation_of_state = SDMC_TRACKER
-cs2_fld = 0.003
-use_ppf = no
-Omega_smg = -1
-gravity_model = sdmc_v3_independent_kinetic
-parameters_smg = {KIN}
-expansion_model = sdmc_full
-expansion_smg = {Ox:.15g}, {LAMBDA_E}, {ZT}, {DNT}, {A:.15g}, {TAUA}, {B:.15g}, {TAUB}
-pert_initial_conditions_smg = zero
-method_qs_smg = fully_dynamic
-a_ini_over_a_today_default = 1.e-8
-a_ini_test_qs_smg = 1.e-8
-pert_ic_ini_z_ref_smg = 1.e7
-a_min_stability_test_smg = 1.e-8
-output_background_smg = 3
-write background = yes
-write thermodynamics = no
-root = {root.as_posix()}
-format = class
-input_verbose = 0
-background_verbose = 0
-thermodynamics_verbose = 0
-perturbations_verbose = 0
-spectra_verbose = 0
-output_verbose = 0
-""")
+              lines=[
+                  f'H0 = {H0:.15g}',
+                  f'omega_b = {OB:.15g}',
+                  f'omega_cdm = {OC:.15g}',
+                  'N_ncdm = 0',
+                  'N_ur = 3.046',
+                  'T_cmb = 2.7255',
+                  'YHe = 0.2453',
+                  f'A_s = {AS:.15g}',
+                  f'n_s = {NS:.15g}',
+                  f'tau_reio = {TAU:.15g}',
+                  'Omega_Lambda = 0',
+                  'Omega_fld = 3.1443554e-8',
+                  'fluid_equation_of_state = SDMC_TRACKER',
+                  'cs2_fld = 0.003',
+                  'use_ppf = no',
+                  'Omega_smg = -1',
+                  'gravity_model = sdmc_v3_independent_kinetic',
+                  f'parameters_smg = {KIN}',
+                  'expansion_model = sdmc_full',
+                  f'expansion_smg = {Ox:.15g}, 18.40625, 16.173189924377947, 0.5, {A:.15g}, 0.25, {B:.15g}, 1.5',
+                  'pert_initial_conditions_smg = zero',
+                  'method_qs_smg = fully_dynamic',
+                  'a_ini_over_a_today_default = 1.e-8',
+                  'a_ini_test_qs_smg = 1.e-8',
+                  'pert_ic_ini_z_ref_smg = 1.e7',
+                  'a_min_stability_test_smg = 1.e-8',
+                  'output_background_smg = 3',
+                  'write background = yes',
+                  'write thermodynamics = no',
+                  f'root = {root.as_posix()}',
+                  'format = class',
+                  'input_verbose = 0',
+                  'background_verbose = 0',
+                  'thermodynamics_verbose = 0',
+                  'perturbations_verbose = 0',
+                  'spectra_verbose = 0',
+                  'output_verbose = 0'
+              ]
+              ini.write_text('\n'.join(lines)+'\n')
               cp=subprocess.run(['./class',str(ini)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
               bgfile=Path(str(root)+'00_background.dat')
               if cp.returncode!=0 or not bgfile.exists():
                   row=dict(id=tag,H0=H0,Ox=Ox,A=A,B=B,status='CLASS_FAIL',objective=1e6)
-                  rows.append(row); cache[key]=row; return row
+                  rows.append(row)
+                  cache[key]=row
+                  return row
               try:
                   bg=parse_bg(bgfile)
-                  D=np.asarray(bg['kin (D)'],float); cs=np.asarray(bg['c_s^2'],float)
-                  mnD=float(np.nanmin(D)); mncs=float(np.nanmin(cs)); mxcs=float(np.nanmax(cs))
+                  D=np.asarray(bg['kin (D)'],float)
+                  cs=np.asarray(bg['c_s^2'],float)
+                  mnD=float(np.nanmin(D))
+                  mncs=float(np.nanmin(cs))
+                  mxcs=float(np.nanmax(cs))
                   if not (mnD>0 and mncs>0 and mxcs<=1):
-                      row=dict(id=tag,H0=H0,Ox=Ox,A=A,B=B,status='UNSTABLE',min_D=mnD,min_cs2=mncs,max_cs2=mxcs,objective=1e5+1000*abs(min(mncs,0)))
-                      rows.append(row); cache[key]=row; return row
-                  ss=scores(bg)
-                  ds={k:ss[k]-LOCAL[k] for k in ss}
-                  second=sorted(ds.values())[1]
-                  positive=sum(max(v,0.0) for v in ds.values())
-                  objective=float(second+0.03*positive)
-                  row=dict(id=tag,H0=H0,Ox=Ox,A=A,B=B,status='OK',min_D=mnD,min_cs2=mncs,max_cs2=mxcs,
-                           sn_pantheonplus=ss['pantheonplus'],sn_union3=ss['union3'],sn_desy5=ss['desy5'],
-                           delta_local_pantheonplus=ds['pantheonplus'],delta_local_union3=ds['union3'],delta_local_desy5=ds['desy5'],
-                           second_best_delta=second,objective=objective)
+                      row=dict(id=tag,H0=H0,Ox=Ox,A=A,B=B,status='UNSTABLE',
+                               min_D=mnD,min_cs2=mncs,max_cs2=mxcs,
+                               objective=1e5+1000*abs(min(mncs,0)))
+                  else:
+                      ss=scores(bg)
+                      ds={k:ss[k]-LOCAL[k] for k in ss}
+                      second=sorted(ds.values())[1]
+                      positive=sum(max(v,0.0) for v in ds.values())
+                      objective=float(second+0.03*positive)
+                      row=dict(id=tag,H0=H0,Ox=Ox,A=A,B=B,status='OK',
+                               min_D=mnD,min_cs2=mncs,max_cs2=mxcs,
+                               sn_pantheonplus=ss['pantheonplus'],
+                               sn_union3=ss['union3'],
+                               sn_desy5=ss['desy5'],
+                               delta_local_pantheonplus=ds['pantheonplus'],
+                               delta_local_union3=ds['union3'],
+                               delta_local_desy5=ds['desy5'],
+                               second_best_delta=second,
+                               objective=objective)
               except Exception as e:
                   row=dict(id=tag,H0=H0,Ox=Ox,A=A,B=B,status='PARSE_FAIL',error=str(e),objective=1e6)
-              rows.append(row); cache[key]=row
-              if counter[0]%10==0 and row.get('status')=='OK':
+              rows.append(row)
+              cache[key]=row
+              if counter[0]%10==0:
                   print('EXACTSN_OPT_PROGRESS',counter[0],json.dumps(row,sort_keys=True),flush=True)
               return row
 
-          def fun(x): return evaluate(x)['objective']
+          def fun(x):
+              return evaluate(x)['objective']
 
           bounds=[(69.35,70.05),(0.0020,0.0115),(0.0100,0.0142)]
-          result=differential_evolution(fun,bounds,seed=107,popsize=10,maxiter=10,tol=2e-4,
-                                        polish=False,updating='immediate',workers=1)
-          # Local polishing from DE winner and from exact sobol006.
-          starts=[np.asarray(result.x,float),np.array([69.71275747716427,0.00792232021316886,0.012283301661722363])]
+          result=differential_evolution(
+              fun,bounds,seed=107,popsize=10,maxiter=10,tol=2e-4,
+              polish=False,updating='immediate',workers=1
+          )
+          starts=[
+              np.asarray(result.x,float),
+              np.array([69.71275747716427,0.00792232021316886,0.012283301661722363])
+          ]
           for st in starts:
-              minimize(fun,st,method='Nelder-Mead',options={'maxiter':70,'xatol':2e-5,'fatol':2e-4})
+              minimize(fun,st,method='Nelder-Mead',
+                       options={'maxiter':70,'xatol':2e-5,'fatol':2e-4})
 
           df=pd.DataFrame(rows)
           df.to_csv(OUT/'exactsn_localopt_all.csv',index=False)
@@ -208,11 +247,15 @@ output_verbose = 0
           top=ok.drop_duplicates(subset=['H0','A','B']).head(30)
           top.to_csv(OUT/'exactsn_localopt_top30.csv',index=False)
           best=top.iloc[0].to_dict() if len(top) else {}
-          summary={'n_eval':int(len(df)),'n_ok':int((df.status=='OK').sum()),'best':best,
-                   'goal':'at least two delta_local SN values < 0 while preserving stability; exact Planck and DESI promotion required'}
+          summary={
+              'n_eval':int(len(df)),
+              'n_ok':int((df.status=='OK').sum()),
+              'best':best,
+              'goal':'at least two delta_local SN values < 0 while preserving stability; exact Planck and DESI promotion required'
+          }
           (OUT/'exactsn_localopt_summary.json').write_text(json.dumps(summary,indent=2,default=float))
           print('EXACTSN_LOCALOPT_BEST',json.dumps(best,sort_keys=True,default=float),flush=True)
-          print('EXACTSN_LOCALOPT_TOP10')
+          print('EXACTSN_LOCALOPT_TOP10',flush=True)
           print(top.head(10).to_csv(index=False),flush=True)
           PY
 
