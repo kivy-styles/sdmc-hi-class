@@ -1,4 +1,5 @@
 name: SDMC r032 SN-closure107 bo002 bo008joint234 exact-covariant DESI
+# retry exact DESI for bo008joint234
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
