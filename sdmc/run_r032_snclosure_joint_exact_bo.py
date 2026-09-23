@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Exact-informed joint Bayesian search for the SDMC SN-closure problem.
+Exact-informed joint Bayesian search round 2 for the SDMC SN-closure problem.
 
 Search manifold:
   s_bg    : interpolation/extrapolation bo002 -> sobol036 late background
@@ -24,7 +24,7 @@ from scipy.stats import qmc
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ConstantKernel, Matern, WhiteKernel
 
-OUT=Path("output/snclosure_joint_exact_bo"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure_joint_exact_bo_r2"); OUT.mkdir(parents=True,exist_ok=True)
 TMP=OUT/"tmp"; TMP.mkdir(exist_ok=True)
 SNROOT=Path("sn_data")
 OR=4.17998772e-5
@@ -217,10 +217,10 @@ X=np.asarray(X,float); y=np.asarray(y,float)
 Xn=(X-LOW)/(HIGH-LOW)
 kernel=ConstantKernel(1.0,(1e-3,1e3))*Matern(length_scale=np.ones(3)*0.35,
         length_scale_bounds=(0.05,5.0),nu=2.5)+WhiteKernel(1e-5,(1e-9,1e-1))
-gp=GaussianProcessRegressor(kernel=kernel,normalize_y=True,n_restarts_optimizer=8,random_state=1503601)
+gp=GaussianProcessRegressor(kernel=kernel,normalize_y=True,n_restarts_optimizer=8,random_state=1503611)
 gp.fit(Xn,y)
 
-sob=qmc.Sobol(d=3,scramble=True,seed=1503602)
+sob=qmc.Sobol(d=3,scramble=True,seed=1503612)
 pool=qmc.scale(sob.random_base2(m=8),LOW,HIGH)  # 256 exact-SN/stability proposals
 rows=[]
 for i,(s,t,u) in enumerate(pool):
