@@ -1,4 +1,4 @@
-name: SDMC r032 bridge680 exact-covariant SN
+name: SDMC r032 bridge6794 exact-covariant SN
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-bridge680-covariant-sn
+      - sdmc-r032-bridge6794-covariant-sn
   workflow_dispatch:
 
 jobs:
@@ -44,7 +44,7 @@ jobs:
           mkdir -p output input_artifact/unpacked
 
           cat > output/cov_exact_target.ini <<'EOF'
-          H0 = 68.0
+          H0 = 67.94
           omega_b = 0.022083219194622913
           omega_cdm = 0.12299536722293603
           N_ncdm = 0
@@ -63,7 +63,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.024290704212870225, 3.6096407580714724, 0.3631213944496205, 0.34231919445927034, 1.0, 0.04602317962943721
           expansion_model = sdmc_full
-          expansion_smg = 0.686158334137632, 18.40625, 16.173189924377947, 0.5, 0.011042090001213764, 0.25, 0.0105616994174227, 1.5
+          expansion_smg = 0.6856037620192353, 18.40625, 16.173189924377947, 0.5, 0.011071395585044788, 0.25, 0.010555368660120537, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -100,13 +100,13 @@ jobs:
               r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
               r'double tauB\s*=\s*pba->parameters_smg\[7\];'
           )
-          repl='''double Ox = 0.686158334137632;
+          repl='''double Ox = 0.6856037620192353;
             double lambda_e = 18.40625;
             double zt = 16.173189924377947;
             double dNt = 0.5;
-            double A = 0.011042090001213764;
+            double A = 0.011071395585044788;
             double tauA = 0.25;
-            double B = 0.0105616994174227;
+            double B = 0.010555368660120537;
             double tauB = 1.5;'''
           s2,n=pat.subn(repl,s,count=1)
           if n != 1: raise RuntimeError(f'tracker helper replacement count={n}')
@@ -116,7 +116,7 @@ jobs:
           make clean && make -j2 class
 
           cat > input_artifact/unpacked/candidate.ini <<'EOF'
-          H0 = 68.0
+          H0 = 67.94
           omega_b = 0.022083219194622913
           omega_cdm = 0.12299536722293603
           N_ncdm = 0
@@ -171,7 +171,7 @@ jobs:
           a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
           mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
           slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
-          print('BRIDGE680_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          print('BRIDGE6794_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
           if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
           PY
 
@@ -236,17 +236,17 @@ jobs:
                       'desy5':chi(dep,dem-mu(bg,dez,dezh))}
           s=table(ROOT/'covariant_observable_00_background.dat'); l=table(ROOT/'fullplik_lcdm_00_background.dat')
           ss=scores(s); ll=scores(l); local021={'pantheonplus':1406.2147033223882,'union3':28.783140002196888,'desy5':1650.6353947147727}; out={k:{'sdmc':ss[k],'lcdm':ll[k],'delta':ss[k]-ll[k],'local021':local021[k],'delta_vs_local021':ss[k]-local021[k]} for k in ss}
-          print('BRIDGE680_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
-          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm'],delta_chi2=v['delta']) for k,v in out.items()]).to_csv(OUT/'bridge680_exact_sn.csv',index=False)
+          print('BRIDGE6794_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
+          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm'],delta_chi2=v['delta']) for k,v in out.items()]).to_csv(OUT/'bridge6794_exact_sn.csv',index=False)
           PY
 
       - name: Preserve exact SN result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bridge680-exact-sn
+          name: bridge6794-exact-sn
           path: |
-            output/bridge680_exact_sn.csv
+            output/bridge6794_exact_sn.csv
             input_artifact/unpacked/covariant_observable_00_background.dat
             input_artifact/unpacked/fullplik_lcdm_00_background.dat
           if-no-files-found: warn
