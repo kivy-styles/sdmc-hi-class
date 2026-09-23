@@ -1,9 +1,9 @@
-name: SDMC r032 sobol006 low-H SN closure screen
+name: SDMC r032 SN-DESI bridge screen
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-bo002-sobol006-lowh-screen
+      - sdmc-r032-snclosure107-bo002-sn-desi-bridge-screen
   workflow_dispatch:
 
 permissions:
@@ -65,22 +65,22 @@ jobs:
           git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
           git clone --depth 1 https://github.com/CobayaSampler/bao_data.git bao_data
 
-      - name: Run focused low-H closure screen
+      - name: Run SN-DESI bridge screen
         run: python3 sdmc/run_r032_snclosure_sobol006_lowh_screen.py
 
       - name: Print closure summary
         if: always()
         run: |
-          cat output/snclosure107_bo002_sobol006_lowh/snclosure_summary.json || true
+          cat output/snclosure107_bo002_sn_desi_bridge/snclosure_summary.json || true
           echo "--- TOP PLANCK SHORTLIST ---"
-          head -16 output/snclosure107_bo002_sobol006_lowh/snclosure_planck_shortlist.csv || true
+          head -16 output/snclosure107_bo002_sn_desi_bridge/snclosure_planck_shortlist.csv || true
 
       - name: Preserve closure screen
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-bo002-sobol006-lowh
+          name: sdmc-r032-snclosure107-bo002-sn-desi-bridge
           path: |
-            output/snclosure107_bo002_sobol006_lowh/*.csv
-            output/snclosure107_bo002_sobol006_lowh/*.json
+            output/snclosure107_bo002_sn_desi_bridge/*.csv
+            output/snclosure107_bo002_sn_desi_bridge/*.json
           if-no-files-found: warn
