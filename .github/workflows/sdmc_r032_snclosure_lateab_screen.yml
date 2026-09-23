@@ -76,17 +76,8 @@ jobs:
         if: always()
         run: |
           cat output/trilikelihood_mfbo_seed015/trilikelihood_mfbo_summary.json || true
-          echo "--- TOP JOINT BAYESIAN CANDIDATES ---"
-          python3 - <<'PY'
-import pandas as pd
-p='output/trilikelihood_mfbo_seed015/trilikelihood_mfbo.csv'
-try:
-    d=pd.read_csv(p)
-    cols=['id','A','B','H0','ZC','D_floor','pd_exact_pred','sn_delta_pantheonplus','sn_delta_union3','sn_delta_desy5','second_joint_pred','goal_pred','exact_corr_std']
-    print(d[d.status.eq('OK')].sort_values(['goal_pred','second_joint_pred'])[cols].head(15).to_string(index=False))
-except Exception as e:
-    print(e)
-PY
+          echo "--- RAW JOINT BAYESIAN TABLE ---"
+          head -20 output/trilikelihood_mfbo_seed015/trilikelihood_mfbo.csv || true
 
       - name: Preserve tri-likelihood search
         if: always()
