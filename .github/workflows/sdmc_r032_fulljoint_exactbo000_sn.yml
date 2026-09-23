@@ -218,13 +218,13 @@ jobs:
           def mu(bg,z,zh):
               DM=np.interp(z,bg.z,bg['comov. dist.']); DA=DM/(1.+z)
               return 5*np.log10((1.+zh)*(1.+z)*DA)
-          pp=pd.read_csv(DATA/'PantheonPlus/Pantheon+SH0ES.dat',sep=r'\\s+',header=0,engine='python')
+          pp=pd.read_csv(DATA/'PantheonPlus/Pantheon+SH0ES.dat',sep=r'\s+',header=0,engine='python')
           ppm=pp['m_b_corr'].to_numpy(float); ppz=pp['zHD'].to_numpy(float); ppzh=pp['zHEL'].to_numpy(float)
           C=read_cov(DATA/'PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov',len(ppm)); m=ppz>0.01
           ppm,ppz,ppzh,C=ppm[m],ppz[m],ppzh[m],C[np.ix_(m,m)]; ppp=setup(C)
           p=DATA/'Union3/lcparam_full.txt'
           cols=p.read_text().splitlines()[0].removeprefix('#').split()
-          un=pd.read_csv(p,sep=r'\\s+',comment='#',names=cols,engine='python'); cm={c.lower():c for c in un.columns}
+          un=pd.read_csv(p,sep=r'\s+',comment='#',names=cols,engine='python'); cm={c.lower():c for c in un.columns}
           unm=un[cm['mb']].to_numpy(float); unz=un[cm['zcmb']].to_numpy(float); unp=setup(read_cov(DATA/'Union3/mag_covmat.txt',len(unm)))
           de=pd.read_csv(DATA/'DESY5/DES-SN5YR_HD.csv'); cm={c.lower():c for c in de.columns}
           dem=de[cm['mu']].to_numpy(float); dez=de[cm['zhd']].to_numpy(float); dezh=de[cm['zhel']].to_numpy(float)
