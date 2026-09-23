@@ -1,4 +1,4 @@
-name: SDMC r032 late266 exact-covariant SN
+name: SDMC r032 cbo001 exact-covariant SN
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-late266-covariant-sn
+      - sdmc-r032-cbo001-covariant-sn
   workflow_dispatch:
 
 jobs:
@@ -44,7 +44,7 @@ jobs:
           mkdir -p output input_artifact/unpacked
 
           cat > output/cov_exact_target.ini <<'EOF'
-          H0 = 69.45160505326464
+          H0 = 69.56462288685142
           omega_b = 0.02208511574370519
           omega_cdm = 0.12298509428428875
           N_ncdm = 0
@@ -63,7 +63,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.023604633340554453, 3.4328776987879466, 0.36879721635160295, 0.34231919445927034, 1.0, 0.050275813910968366
           expansion_model = sdmc_full
-          expansion_smg = 0.6991577808065268, 18.40625, 16.173189924377947, 0.5, 0.013036667098291217, 0.25, 0.010544837576337158, 1.5
+          expansion_smg = 0.7001345105018932, 18.40625, 16.173189924377947, 0.5, 0.014108653761632742, 0.25, 0.01090169192692265, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -100,13 +100,13 @@ jobs:
               r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
               r'double tauB\s*=\s*pba->parameters_smg\[7\];'
           )
-          repl='''double Ox = 0.6991577808065268;
+          repl='''double Ox = 0.7001345105018932;
             double lambda_e = 18.40625;
             double zt = 16.173189924377947;
             double dNt = 0.5;
-            double A = 0.013036667098291217;
+            double A = 0.014108653761632742;
             double tauA = 0.25;
-            double B = 0.010544837576337158;
+            double B = 0.01090169192692265;
             double tauB = 1.5;'''
           s2,n=pat.subn(repl,s,count=1)
           if n != 1: raise RuntimeError(f'tracker helper replacement count={n}')
@@ -116,7 +116,7 @@ jobs:
           make clean && make -j2 class
 
           cat > input_artifact/unpacked/candidate.ini <<'EOF'
-          H0 = 69.45160505326464
+          H0 = 69.56462288685142
           omega_b = 0.02208511574370519
           omega_cdm = 0.12298509428428875
           N_ncdm = 0
@@ -171,7 +171,7 @@ jobs:
           a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
           mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
           slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
-          print('LATE266_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          print('CBO001_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
           if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
           PY
 
@@ -236,17 +236,17 @@ jobs:
                       'desy5':chi(dep,dem-mu(bg,dez,dezh))}
           s=table(ROOT/'covariant_observable_00_background.dat'); l=table(ROOT/'fullplik_lcdm_00_background.dat')
           ss=scores(s); ll=scores(l); out={k:{'sdmc':ss[k],'lcdm':ll[k],'delta':ss[k]-ll[k]} for k in ss}
-          print('LATE266_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
-          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm'],delta_chi2=v['delta']) for k,v in out.items()]).to_csv(OUT/'fulljoint_late266_exact_sn.csv',index=False)
+          print('CBO001_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
+          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm'],delta_chi2=v['delta']) for k,v in out.items()]).to_csv(OUT/'fulljoint_cbo001_exact_sn.csv',index=False)
           PY
 
       - name: Preserve exact SN result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: fulljoint-late266-exact-sn
+          name: fulljoint-cbo001-exact-sn
           path: |
-            output/fulljoint_late266_exact_sn.csv
+            output/fulljoint_cbo001_exact_sn.csv
             input_artifact/unpacked/covariant_observable_00_background.dat
             input_artifact/unpacked/fullplik_lcdm_00_background.dat
           if-no-files-found: warn
