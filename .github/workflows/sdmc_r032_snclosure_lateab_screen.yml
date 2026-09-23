@@ -1,9 +1,9 @@
-name: SDMC r032 sobol107 bo002 coupled-local closure screen
+name: SDMC r032 tri-likelihood MFBO seed015
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-bo002-coupled-local
+      - sdmc-r032-trilikelihood-mfbo-seed015
   workflow_dispatch:
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 python3-pip git
           python3 -m pip install --upgrade pip
-          python3 -m pip install numpy scipy pandas cobaya
+          python3 -m pip install numpy scipy pandas cobaya scikit-learn
 
       - name: Apply SDMC patches and build
         run: |
@@ -69,22 +69,31 @@ jobs:
           test -f sn_data/DESY5/DES-SN5YR_HD.csv
           test -f bao_data/desi_2024_gaussian_bao_ALL_GCcomb_mean.txt
 
-      - name: Run SN-aware closure screen
-        run: python3 sdmc/run_r032_snclosure_lateab_screen.py
+      - name: Run tri-likelihood Bayesian search
+        run: python3 sdmc/run_r032_trilikelihood_mfbo_seed015.py
 
-      - name: Print closure summary
+      - name: Print tri-likelihood summary
         if: always()
         run: |
-          cat output/snclosure107_bo002_coupled_local/snclosure_summary.json || true
-          echo "--- TOP PLANCK SHORTLIST ---"
-          head -12 output/snclosure107_bo002_coupled_local/snclosure_planck_shortlist.csv || true
+          cat output/trilikelihood_mfbo_seed015/trilikelihood_mfbo_summary.json || true
+          echo "--- TOP JOINT BAYESIAN CANDIDATES ---"
+          python3 - <<'PY'
+import pandas as pd
+p='output/trilikelihood_mfbo_seed015/trilikelihood_mfbo.csv'
+try:
+    d=pd.read_csv(p)
+    cols=['id','A','B','H0','ZC','D_floor','pd_exact_pred','sn_delta_pantheonplus','sn_delta_union3','sn_delta_desy5','second_joint_pred','goal_pred','exact_corr_std']
+    print(d[d.status.eq('OK')].sort_values(['goal_pred','second_joint_pred'])[cols].head(15).to_string(index=False))
+except Exception as e:
+    print(e)
+PY
 
-      - name: Preserve closure screen
+      - name: Preserve tri-likelihood search
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-bo002-coupled-local
+          name: sdmc-r032-trilikelihood-mfbo-seed015
           path: |
-            output/snclosure107_bo002_coupled_local/*.csv
-            output/snclosure107_bo002_coupled_local/*.json
+            output/trilikelihood_mfbo_seed015/*.csv
+            output/trilikelihood_mfbo_seed015/*.json
           if-no-files-found: warn
