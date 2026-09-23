@@ -5,11 +5,11 @@ Bayesian structural recovery around the coupled sobol036 SN-improved background.
 Low-z geometry is frozen at the SN-friendly point:
   A_late=0.0013601897284388
   B_late=0.0147392870020121
-  H0=69.80878993044607
+  H0=69.83619736097754
 
 Primordial amplitude uses the tiny Q improvement found in the preceding
 ordinary pass:
-  Q=2.94347100773082
+  Q=2.9434975776090635
 
 Reopen only perturbation/kinetic structure:
   A_F, z_c, width, D_floor
@@ -29,15 +29,15 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure107_bo002_sobol036_seed015_edge_refine"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure107_seed015_sobol127_structural_bo"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
 # Frozen SN-friendly background + ordinary sector
-H0=69.80878993044607
-OB=0.02208516937362783; OC=0.12298480378987971
-NS=0.9625562783210716; TAU=0.055202901571989066
-Q=2.94347100773082; AS=math.exp(Q+2*TAU)/1e10
-AL=0.011249459300190211; BL=0.01280436261370778
+H0=69.83619736097754
+OB=0.022092359690331246; OC=0.12294585637584288
+NS=0.9626800328202773; TAU=0.055202901571989066
+Q=2.9434975776090635; AS=math.exp(Q+2*TAU)/1e10
+AL=0.01264600746287033; BL=0.012972991137765347
 LAM=18.40625; ZT=16.173189924377947; DN=.5; TAUA=.25; TAUB=1.5
 D0=0.34231919445927034
 
@@ -46,13 +46,13 @@ AF0=0.0235834146537818; ZC0=3.4274108000472188
 W0=0.3689727572351694; DF0=0.050407338682562114
 
 # Fair-ledger constants used only for promotion ranking.
-EDGE_P_LITE=1021.6070095999479
-EDGE_PD_FAIR=-0.33605484141273223
-EDGE_BAO=13.204567845148436
-NEW_BAO=13.204567845148436
-SN_PP=0.5575426062569022
-SN_U3=0.5355814192298567
-SN_D5=1.2224958017468452
+EDGE_P_LITE=1021.0852360745247
+EDGE_PD_FAIR=-0.21418646229219362
+EDGE_BAO=13.215120771731913
+NEW_BAO=13.215120771731913
+SN_PP=0.5864693196490407
+SN_U3=0.5641153095639311
+SN_D5=1.278687983751297
 
 LOW=np.array([0.0226,3.36,0.345,0.048])
 HIGH=np.array([0.0245,3.48,0.395,0.056])
@@ -161,7 +161,7 @@ def cand(tag,AF,ZC,W,DF):
             r["n_sn_closed_proxy"]=sum(x<0 for x in js)
             r["goal_score"]=max(r["pd_proxy"],r["second_joint_proxy"])
     if r["status"]!="OK": r["error"]=cp.stdout[-500:].replace("\n"," | ")
-    print("SN015EDGE_POINT",json.dumps(r,sort_keys=True),flush=True)
+    print("SN127BO_POINT",json.dumps(r,sort_keys=True),flush=True)
     return r
 
 # Seed the GP with the center, known successful structures, coordinate anchors,
@@ -179,7 +179,7 @@ pts=[
  ("wm",AF0,ZC0,W0-.035,DF0),("wp",AF0,ZC0,W0+.035,DF0),
  ("dfm",AF0,ZC0,W0,DF0-.004),("dfp",AF0,ZC0,W0,DF0+.004)
 ]
-sam=qmc.Sobol(d=4,scramble=True,seed=150411)
+sam=qmc.Sobol(d=4,scramble=True,seed=127411)
 for i,p in enumerate(qmc.scale(sam.random_base2(m=4),LOW,HIGH)):
     pts.append((f"seed{i:03d}",*map(float,p)))
 
@@ -191,12 +191,12 @@ def fit_gp(rows):
     y=np.array([r["chi2_planck"] for r in ok],float)
     Xn=(X-LOW)/(HIGH-LOW)
     ker=ConstantKernel(1.0,(1e-3,1e3))*Matern(length_scale=np.ones(4)*0.25,length_scale_bounds=(0.03,3.0),nu=2.5)+WhiteKernel(1e-6,(1e-9,1e-2))
-    gp=GaussianProcessRegressor(kernel=ker,normalize_y=True,n_restarts_optimizer=3,random_state=150412)
+    gp=GaussianProcessRegressor(kernel=ker,normalize_y=True,n_restarts_optimizer=3,random_state=127412)
     gp.fit(Xn,y)
     return gp,float(y.min())
 
 # Sequential expected-improvement Bayesian optimization.
-rng=np.random.default_rng(150413)
+rng=np.random.default_rng(127413)
 for it in range(20):
     gp,ybest=fit_gp(rows)
     pool=rng.uniform(LOW,HIGH,size=(6000,4))
@@ -220,10 +220,10 @@ for it in range(20):
             x=pool[j]; break
     rows.append(cand(f"bo{it:03d}",*map(float,x)))
 
-df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure107_bo002_sobol036_seed015_edge_refine.csv",index=False)
+df=pd.DataFrame(rows); df.to_csv(OUT/"snclosure107_seed015_sobol127_structural_bo.csv",index=False)
 ok=df[df.status=="OK"].sort_values(["chi2_planck","goal_score"])
 best=ok.head(15).to_dict("records")
 summary={"background":{"H0":H0,"A":AL,"B":BL},"Q":Q,"n_ok":int(len(ok)),
-         "best":best,"target":"fine constrained refinement around exact seed015; seek >=0.61 Planck gain while preserving stability"}
-(OUT/"snclosure107_bo002_sobol036_seed015_edge_refine_summary.json").write_text(json.dumps(summary,indent=2))
-print("SN015EDGE_BEST",json.dumps(summary,sort_keys=True),flush=True)
+         "best":best,"target":"sobol127 structural refinement; seek >=0.38 exact-equivalent Planck gain while preserving stability"}
+(OUT/"snclosure107_seed015_sobol127_structural_bo_summary.json").write_text(json.dumps(summary,indent=2))
+print("SN127BO_BEST",json.dumps(summary,sort_keys=True),flush=True)
