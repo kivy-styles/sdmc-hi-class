@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure029 S117 direct exact-covariant SN
+name: SDMC r032 SN-closure029 S117 matched direct exact-covariant SN
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure029-s117-direct-sn
+      - sdmc-r032-snclosure029-s117-direct-sn-fixed
   workflow_dispatch:
 
 permissions:
@@ -70,7 +70,7 @@ jobs:
           output_background_smg = 3
           write background = yes
           write thermodynamics = no
-          root = output/s117_seed_
+          root = output/cov_exact_target_
           format = class
           input_verbose = 0
           background_verbose = 0
@@ -266,6 +266,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure029-s117-direct-sn
+          name: sdmc-r032-snclosure029-s117-direct-sn-fixed
           path: output/snclosure029_s117_cov_sn/*
           if-no-files-found: warn
