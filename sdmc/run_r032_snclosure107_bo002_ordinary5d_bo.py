@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Local 5D ordinary-sector Bayesian optimization around exact SN-aware BO002.
+Local 5D ordinary-sector Bayesian optimization around exact sobol076 + BO002.
 
 Frozen:
   H0 and late background = sobol107
@@ -38,14 +38,14 @@ from sklearn.preprocessing import StandardScaler
 from scipy.stats import norm
 
 warnings.filterwarnings("ignore")
-OUT=Path("output/snclosure107_bo002_ordinary5d")
+OUT=Path("output/snclosure107_bo002_sobol076_ordinary5d")
 OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255
 CAL_SIGMA=0.0025
 OR=4.17998772e-5
 
 # Frozen exact BO002 geometry.
-H0=70.09917331933976
+H0=70.00876109628007
 AF=0.024290704212870225
 ZC=3.6096407580714724
 WIDTH=0.3631213944496205
@@ -53,8 +53,8 @@ D0=0.34231919445927034
 DF=0.04602317962943721
 LAM=18.40625
 ZT=16.173189924377947
-ALATE=0.0013601897284388
-BLATE=0.0147392870020121
+ALATE=0.01686786537989974
+BLATE=0.014543195590376853
 TAUA=0.25
 TAUB=1.5
 DNT=0.5
@@ -75,8 +75,8 @@ HIGH=np.array([OB0+0.00045,OC0+0.0030,NS0+0.0090,Q0+0.0140,min(0.078,TAU0+0.0120
 
 # Exact baseline already established on bo002.
 LOCAL021_PD=-31.152232235955807
-BO002_PLANCK=-19.92492142113997
-BO002_DESI=-11.902513204929505
+BO002_PLANCK=-20.01668130266853
+BO002_DESI=-11.795441948486825
 BO002_PD_FAIR=BO002_PLANCK+BO002_DESI-LOCAL021_PD
 
 # local021 parameters for SN reference only.
@@ -191,7 +191,7 @@ lroot=str(OUT/"local021_"); lip=OUT/"local021.ini"; lip.write_text(lcdm_ini(lroo
 cp=subprocess.run(["./class",str(lip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=240)
 if cp.returncode: raise RuntimeError(cp.stdout[-3000:])
 LOCAL_SN=sn_scores(table(lroot+"00_background.dat"))
-print("ORD5_LOCAL021_SN",json.dumps(LOCAL_SN,sort_keys=True),flush=True)
+print("S076ORD5_LOCAL021_SN",json.dumps(LOCAL_SN,sort_keys=True),flush=True)
 
 def sdmc_ini(x,root):
     ob,oc,ns,Q,tau=map(float,x)
@@ -273,7 +273,7 @@ def evaluate(tag,x):
 center=evaluate("center",X0)
 if center["status"]!="OK": raise RuntimeError(center)
 CPL=center["chi2_planck"]
-print("ORD5_CENTER",json.dumps(center,sort_keys=True),flush=True)
+print("S076ORD5_CENTER",json.dumps(center,sort_keys=True),flush=True)
 
 def finish(rec):
     if rec["status"]!="OK":
@@ -301,7 +301,7 @@ U=sob.random_base2(m=6)[:48]
 X=qmc.scale(U,LOW,HIGH)
 for i,x in enumerate(X):
     r=finish(evaluate(f"seed{i:03d}",x)); rows.append(r)
-    print("ORD5_POINT",json.dumps(r,sort_keys=True),flush=True)
+    print("S076ORD5_POINT",json.dumps(r,sort_keys=True),flush=True)
 
 # Bayesian refinement: 18 sequential EI steps.
 for it in range(18):
@@ -323,20 +323,20 @@ for it in range(18):
         if np.min(np.linalg.norm((Xa-c)/(HIGH-LOW),axis=1))<0.015: ei[j]=-1
     x=cand[int(np.argmax(ei))]
     r=finish(evaluate(f"bo{it:03d}",x)); rows.append(r)
-    print("ORD5_BO_POINT",json.dumps(r,sort_keys=True),flush=True)
+    print("S076ORD5_BO_POINT",json.dumps(r,sort_keys=True),flush=True)
 
 df=pd.DataFrame(rows)
-df.to_csv(OUT/"snclosure107_bo002_ordinary5d_bo.csv",index=False)
+df.to_csv(OUT/"snclosure107_bo002_sobol076_ordinary5d_bo.csv",index=False)
 ok=df[(df.status=="OK") & (df.stable_subluminal==True)].sort_values("goal_score")
 top=ok.head(12)
-top.to_csv(OUT/"snclosure107_bo002_ordinary5d_top12.csv",index=False)
+top.to_csv(OUT/"snclosure107_bo002_sobol076_ordinary5d_top12.csv",index=False)
 summary=dict(
   baseline_exact_pd_fair=BO002_PD_FAIR,
   center_planck_lite=CPL,
   bounds={k:[float(LOW[i]),float(HIGH[i])] for i,k in enumerate(NAMES)},
   best=top.iloc[0].to_dict(),
   top12=top.to_dict("records"),
-  note="Screen objective holds raw-DESI contribution fixed at exact bo002; promoted points require exact raw-DESI + full-Plik."
+  note="Screen objective holds raw-DESI contribution fixed at exact sobol076; promoted points require exact raw-DESI + full-Plik."
 )
-(OUT/"snclosure107_bo002_ordinary5d_summary.json").write_text(json.dumps(summary,indent=2))
-print("ORD5_BEST",json.dumps(top.to_dict("records"),sort_keys=True),flush=True)
+(OUT/"snclosure107_bo002_sobol076_ordinary5d_summary.json").write_text(json.dumps(summary,indent=2))
+print("S076ORD5_BEST",json.dumps(top.to_dict("records"),sort_keys=True),flush=True)
