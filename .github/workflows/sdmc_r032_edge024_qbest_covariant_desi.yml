@@ -1,4 +1,4 @@
-name: SDMC r032 SN-closure107 bo002 sobol036 seed015 exact-covariant DESI
+name: SDMC r032 tri-likelihood bo013 exact-covariant DESI
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-bo002-sobol036-seed015-covariant-desi
+      - sdmc-r032-trilikelihood-bo013-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
           mkdir -p output
 
           cat > output/cov_exact_target.ini <<'EOF'
-          H0 = 69.80878993044607
+          H0 = 69.843314529265
           omega_b = 0.02208516937362783
           omega_cdm = 0.12298480378987971
           N_ncdm = 0
@@ -58,9 +58,9 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.0235834146537818, 3.4274108000472188, 0.3689727572351694, 0.34231919445927034, 1.0, 0.050407338682562114
+          parameters_smg = 0.0235834146537818, 3.46672461489358, 0.3689727572351694, 0.34231919445927034, 1.0, 0.047383152344018756
           expansion_model = sdmc_full
-          expansion_smg = 0.7022289800089059, 18.40625, 16.173189924377947, 0.5, 0.011249459300190211, 0.25, 0.01280436261370778, 1.5
+          expansion_smg = 0.702523292619645, 18.40625, 16.173189924377947, 0.5, 0.012, 0.25, 0.013142681136458209, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -110,7 +110,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_SNCLOSURE107_BO002_SOBOL036_SEED015_BUILD_READY"
+          echo "COVARIANT_TRILIKELIHOOD_BO013_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         env:
@@ -200,7 +200,7 @@ jobs:
         run: |
           ZPK=$(cat output/desi_zpk.txt)
           cat > output/desi_covariant_transfer.ini <<EOF
-          H0 = 69.80878993044607
+          H0 = 69.843314529265
           omega_b = 0.02208516937362783
           omega_cdm = 0.12298480378987971
           N_ncdm = 0
@@ -220,7 +220,7 @@ jobs:
           gravity_model = sdmc_v3_covariant_exact
           parameters_smg = 0.0
           expansion_model = sdmc_full
-          expansion_smg = 0.7022289800089059, 18.40625, 16.173189924377947, 0.5, 0.011249459300190211, 0.25, 0.01280436261370778, 1.5
+          expansion_smg = 0.702523292619645, 18.40625, 16.173189924377947, 0.5, 0.012, 0.25, 0.013142681136458209, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
 
@@ -367,7 +367,7 @@ jobs:
 
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
-          cov=model_data('desi_cov',69.80878993044607,0.02208516937362783,0.12298480378987971,0.9625562783210716)
+          cov=model_data('desi_cov',69.843314529265,0.02208516937362783,0.12298480378987971,0.9625562783210716)
           lcdm=model_data('desi_lcdm',67.36,0.02237,0.1200,0.9649)
 
           # Official likelihood blocks.
@@ -535,10 +535,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_SNCLOSURE107_BO002_SOBOL036_SEED015',cov)
+          covrows,covchi=profile_model('COVARIANT_TRILIKELIHOOD_BO013',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_SNCLOSURE107_BO002_SOBOL036_SEED015_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_TRILIKELIHOOD_BO013_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -550,7 +550,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-bo002-sobol036-seed015-covariant-desi
+          name: sdmc-r032-trilikelihood-bo013-covariant-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
