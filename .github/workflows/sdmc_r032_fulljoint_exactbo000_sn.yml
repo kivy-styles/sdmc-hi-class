@@ -177,6 +177,7 @@ jobs:
 
           sed 's#root = output/sdmc_planck_lcdm_control_#root = input_artifact/unpacked/fullplik_lcdm_#' \
             sdmc/config/planck_lcdm_control.ini > input_artifact/unpacked/lcdm.ini
+          echo 'write background = yes' >> input_artifact/unpacked/lcdm.ini
           ./class input_artifact/unpacked/lcdm.ini
           test -f input_artifact/unpacked/covariant_observable_00_cl_lensed.dat
           test -f input_artifact/unpacked/fullplik_lcdm_00_cl_lensed.dat
@@ -197,8 +198,8 @@ jobs:
           DATA=Path('sn_data'); ROOT=Path('input_artifact/unpacked'); OUT=Path('output'); OUT.mkdir(exist_ok=True)
           def table(path):
               lines=Path(path).read_text().splitlines()
-              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\\s*:',l)][-1].lstrip('#').strip()
-              ms=list(re.finditer(r'(\\d+)\\s*:\\s*',hdr)); names=[]
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
               for i,m in enumerate(ms):
                   e=ms[i+1].start() if i+1<len(ms) else len(hdr)
                   names.append(hdr[m.end():e].strip())
