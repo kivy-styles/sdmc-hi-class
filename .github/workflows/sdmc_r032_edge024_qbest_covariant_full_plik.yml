@@ -1,4 +1,4 @@
-name: SDMC r032 SN-closure107 seed015 sobol127 exact-covariant full Plik
+name: SDMC r032 SN-closure107 seed015 sobol124 exact-covariant full Plik
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-seed015-sobol127-covariant-fullplik
+      - sdmc-r032-snclosure107-seed015-sobol124-covariant-fullplik
   workflow_dispatch:
 
 jobs:
@@ -71,15 +71,15 @@ jobs:
           mkdir -p output input_artifact/unpacked
 
           cat > output/cov_exact_target.ini <<'EOF'
-          H0 = 69.83619736097754
-          omega_b = 0.022092359690331246
-          omega_cdm = 0.12294585637584288
+          H0 = 69.75876239486038
+          omega_b = 0.022091916920706035
+          omega_cdm = 0.12294825470301363
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1197926721777505e-9
-          n_s = 0.9626800328202773
+          A_s = 2.1197892039550106e-9
+          n_s = 0.9626724121916608
           tau_reio = 0.055202901571989066
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -90,7 +90,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.0235834146537818, 3.4274108000472188, 0.3689727572351694, 0.34231919445927034, 1.0, 0.050407338682562114
           expansion_model = sdmc_full
-          expansion_smg = 0.7025277712406715, 18.40625, 16.173189924377947, 0.5, 0.01264600746287033, 0.25, 0.012972991137765347, 1.5
+          expansion_smg = 0.7018629744000568, 18.40625, 16.173189924377947, 0.5, 0.01325173877850175, 0.25, 0.012495734941214323, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -127,13 +127,13 @@ jobs:
               r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
               r'double tauB\s*=\s*pba->parameters_smg\[7\];'
           )
-          repl='''double Ox = 0.7025277712406715;
+          repl='''double Ox = 0.7018629744000568;
             double lambda_e = 18.40625;
             double zt = 16.173189924377947;
             double dNt = 0.5;
-            double A = 0.01264600746287033;
+            double A = 0.01325173877850175;
             double tauA = 0.25;
-            double B = 0.012972991137765347;
+            double B = 0.012495734941214323;
             double tauB = 1.5;'''
           s2,n=pat.subn(repl,s,count=1)
           if n != 1: raise RuntimeError(f'tracker helper replacement count={n}')
@@ -143,15 +143,15 @@ jobs:
           make clean && make -j2 class
 
           cat > input_artifact/unpacked/candidate.ini <<'EOF'
-          H0 = 69.83619736097754
-          omega_b = 0.022092359690331246
-          omega_cdm = 0.12294585637584288
+          H0 = 69.75876239486038
+          omega_b = 0.022091916920706035
+          omega_cdm = 0.12294825470301363
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1197926721777505e-9
-          n_s = 0.9626800328202773
+          A_s = 2.1197892039550106e-9
+          n_s = 0.9626724121916608
           tau_reio = 0.055202901571989066
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -198,7 +198,7 @@ jobs:
           a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
           mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
           slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
-          print('SNCLOSURE107_SEED015_SOBOL127_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          print('SNCLOSURE107_SEED015_SOBOL124_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
           if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
           PY
 
@@ -352,7 +352,7 @@ jobs:
                       m.simplex(ncall=2500)
                       m.migrad(ncall=5000)
                   row=(float(m.fval),np.array([m.values[n] for n in names],float),bool(m.fmin.is_valid),int(m.nfcn))
-                  print('COVARIANT_SNCLOSURE107_SEED015_SOBOL127_FULL_PLIK_SEED',label,iseed,row[0],row[2],row[3],flush=True)
+                  print('COVARIANT_SNCLOSURE107_SEED015_SOBOL124_FULL_PLIK_SEED',label,iseed,row[0],row[2],row[3],flush=True)
                   if best is None or row[0]<best[0]:
                       best=row
               fval,x,valid,nfcn=best
@@ -362,15 +362,15 @@ jobs:
                    'chi2_nuisance_priors':prior_chi2(p),'A_planck':p['A_planck'],
                    'valid':valid,'nfcn':nfcn}
               row.update({n:p[n] for n in names if n!='A_planck'})
-              print('COVARIANT_SNCLOSURE107_SEED015_SOBOL127_FULL_PLIK_RESULT',json.dumps(row,sort_keys=True),flush=True)
+              print('COVARIANT_SNCLOSURE107_SEED015_SOBOL124_FULL_PLIK_RESULT',json.dumps(row,sort_keys=True),flush=True)
               return row,x
 
           default=np.asarray(x0,float)
           displaced=default.copy(); displaced[3]=80.; displaced[5]=5.; displaced[6]=2.
-          cov,cx=run_one('SDMC_COVARIANT_SNCLOSURE107_SEED015_SOBOL127',ROOT/'covariant_observable_00_cl_lensed.dat',[default,displaced])
+          cov,cx=run_one('SDMC_COVARIANT_SNCLOSURE107_SEED015_SOBOL124',ROOT/'covariant_observable_00_cl_lensed.dat',[default,displaced])
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,cx])
           delta=cov['chi2_profile_total']-lcdm['chi2_profile_total']
-          print('COVARIANT_SNCLOSURE107_SEED015_SOBOL127_FULL_PLIK_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_SNCLOSURE107_SEED015_SOBOL124_FULL_PLIK_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           fields=list(cov.keys())
           with (OUT/'fast_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows([cov,lcdm])
