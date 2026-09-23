@@ -233,10 +233,12 @@ jobs:
               return {'pantheonplus':chi(ppp,ppm-mu(bg,ppz,ppzh)),
                       'union3':chi(unp,unm-mu(bg,unz,unz)),
                       'desy5':chi(dep,dem-mu(bg,dez,dezh))}
-          s=table(ROOT/'covariant_observable_00_background.dat'); l=table(ROOT/'fullplik_lcdm_00_background.dat')
-          ss=scores(s); ll=scores(l); out={k:{'sdmc':ss[k],'lcdm':ll[k],'delta':ss[k]-ll[k]} for k in ss}
+          s=table(ROOT/'covariant_observable_00_background.dat')
+          ss=scores(s)
+          LOCAL={'pantheonplus':1406.2147033223882,'union3':28.783140002196888,'desy5':1650.6353947147727}
+          out={k:{'sdmc':ss[k],'local021':LOCAL[k],'delta_local021':ss[k]-LOCAL[k]} for k in ss}
           print('FULLJOINT_EXACTBO004_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
-          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm'],delta_chi2=v['delta']) for k,v in out.items()]).to_csv(OUT/'fulljoint_exactbo004_exact_sn.csv',index=False)
+          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],local021_chi2=v['local021'],delta_local021=v['delta_local021']) for k,v in out.items()]).to_csv(OUT/'fulljoint_exactbo004_exact_sn.csv',index=False)
           PY
 
       - name: Preserve exact SN result
@@ -247,5 +249,4 @@ jobs:
           path: |
             output/fulljoint_exactbo004_exact_sn.csv
             input_artifact/unpacked/covariant_observable_00_background.dat
-            input_artifact/unpacked/fullplik_lcdm_00_background.dat
           if-no-files-found: warn
