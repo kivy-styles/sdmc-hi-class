@@ -1,0 +1,28 @@
+name: SDMC r032 hard-gate exact tri-likelihood Bayesian controller
+
+on:
+  push:
+    branches:
+      - sdmc-r032-hardgate-trilikelihood-bo-round1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bayesian dependencies
+        run: python3 -m pip install --upgrade numpy scipy pandas scikit-learn
+      - name: Propose hard-gate exact candidates
+        run: python3 sdmc/run_r032_hardgate_trilikelihood_bo.py
+      - name: Show proposal
+        run: cat output/hardgate_trilikelihood_bo_round1/summary.json
+      - name: Preserve proposal
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardgate-trilikelihood-bo-round1
+          path: output/hardgate_trilikelihood_bo_round1/*
