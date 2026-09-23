@@ -127,13 +127,13 @@ jobs:
               r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
               r'double tauB\s*=\s*pba->parameters_smg\[7\];'
           )
-          repl='''double Ox = 0.7022289800089059;
+          repl='''double Ox = 0.7022966074249449;
             double lambda_e = 18.40625;
             double zt = 16.173189924377947;
             double dNt = 0.5;
-            double A = 0.011249459300190211;
+            double A = 0.010977504386967048;
             double tauA = 0.25;
-            double B = 0.01280436261370778;
+            double B = 0.012857573034386149;
             double tauB = 1.5;'''
           s2,n=pat.subn(repl,s,count=1)
           if n != 1: raise RuntimeError(f'tracker helper replacement count={n}')
