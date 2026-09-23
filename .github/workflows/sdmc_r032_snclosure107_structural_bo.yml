@@ -1,4 +1,4 @@
-name: SDMC r032 sobol036 zedge Bayesian recovery
+name: SDMC r032 seed015 fine edge refinement
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-bo002-sobol036-zedge-bo
+      - sdmc-r032-snclosure107-bo002-sobol036-seed015-edge-refine
   workflow_dispatch:
 
 permissions:
@@ -68,10 +68,10 @@ jobs:
       - name: Print summary
         if: always()
         run: |
-          cat output/snclosure107_bo002_sobol036_zedge_bo/snclosure107_bo002_sobol036_zedge_bo_summary.json || true
+          cat output/snclosure107_bo002_sobol036_seed015_edge_refine/snclosure107_bo002_sobol036_seed015_edge_refine_summary.json || true
           python3 - <<'PY'
           import pandas as pd
-          p='output/snclosure107_bo002_sobol036_zedge_bo/snclosure107_bo002_sobol036_zedge_bo.csv'
+          p='output/snclosure107_bo002_sobol036_seed015_edge_refine/snclosure107_bo002_sobol036_seed015_edge_refine.csv'
           try:
               d=pd.read_csv(p)
               print(d[d.status.eq('OK')].sort_values(['goal_score','second_joint_proxy','pd_proxy']).head(15).to_string(index=False))
@@ -82,6 +82,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-bo002-sobol036-zedge-bo
-          path: output/snclosure107_bo002_sobol036_zedge_bo/*.*
+          name: sdmc-r032-snclosure107-bo002-sobol036-seed015-edge-refine
+          path: output/snclosure107_bo002_sobol036_seed015_edge_refine/*.*
           if-no-files-found: warn
