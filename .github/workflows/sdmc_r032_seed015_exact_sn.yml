@@ -177,6 +177,7 @@ jobs:
 
           sed 's#root = output/sdmc_planck_lcdm_control_#root = input_artifact/unpacked/fullplik_lcdm_#' \
             sdmc/config/planck_lcdm_control.ini > input_artifact/unpacked/lcdm.ini
+          echo 'write background = yes' >> input_artifact/unpacked/lcdm.ini
           ./class input_artifact/unpacked/lcdm.ini
           test -f input_artifact/unpacked/covariant_observable_00_cl_lensed.dat
           test -f input_artifact/unpacked/fullplik_lcdm_00_cl_lensed.dat
