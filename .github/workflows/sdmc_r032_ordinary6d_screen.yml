@@ -1,9 +1,9 @@
-name: SDMC r032 SNclosure107 bo002 ordinary 6D local screen
+name: SDMC r032 sobol036 seed015 ordinary 6D local screen
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-bo002-ordinary6d-local
+      - sdmc-r032-snclosure107-sobol036-seed015-ordinary6d-local
   workflow_dispatch:
 
 jobs:
@@ -58,18 +58,18 @@ jobs:
       - name: Print shortlist
         if: always()
         run: |
-          if [ -f output/snclosure107_bo002_ordinary6d/snclosure107_bo002_ordinary6d_shortlist.csv ]; then
-            echo "===== SNCLOSURE107 BO002 ORDINARY 6D SHORTLIST ====="
-            cat output/snclosure107_bo002_ordinary6d/snclosure107_bo002_ordinary6d_shortlist.csv
+          if [ -f output/snclosure107_sobol036_seed015_ordinary6d/snclosure107_bo002_ordinary6d_shortlist.csv ]; then
+            echo "===== SOBOL036 SEED015 ORDINARY 6D SHORTLIST ====="
+            cat output/snclosure107_sobol036_seed015_ordinary6d/snclosure107_bo002_ordinary6d_shortlist.csv
           fi
 
       - name: Preserve screen
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-bo002-ordinary6d-local
+          name: sdmc-r032-snclosure107-sobol036-seed015-ordinary6d-local
           path: |
-            output/snclosure107_bo002_ordinary6d/snclosure107_bo002_ordinary6d_design.json
-            output/snclosure107_bo002_ordinary6d/snclosure107_bo002_ordinary6d_screen.csv
-            output/snclosure107_bo002_ordinary6d/snclosure107_bo002_ordinary6d_shortlist.csv
+            output/snclosure107_sobol036_seed015_ordinary6d/snclosure107_bo002_ordinary6d_design.json
+            output/snclosure107_sobol036_seed015_ordinary6d/snclosure107_bo002_ordinary6d_screen.csv
+            output/snclosure107_sobol036_seed015_ordinary6d/snclosure107_bo002_ordinary6d_shortlist.csv
           if-no-files-found: warn
