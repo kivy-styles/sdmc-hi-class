@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-bridge6796-lam10-lam10-covariant-desi
+      - sdmc-r032-bridge6796-lam10-covariant-desi
   workflow_dispatch:
 
 jobs:
@@ -550,7 +550,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-bridge6796-lam10-lam10-covariant-desi
+          name: sdmc-r032-bridge6796-lam10-covariant-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
