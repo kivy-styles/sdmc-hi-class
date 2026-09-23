@@ -26,12 +26,13 @@ from scipy.optimize import minimize_scalar
 from scipy.stats import qmc, norm
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern, WhiteKernel, ConstantKernel
+from sklearn.ensemble import RandomForestClassifier
 from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
 from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/trilikelihood_mfbo_seed015"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/trilikelihood_mfbo2_seed015"); OUT.mkdir(parents=True,exist_ok=True)
 TMP=OUT/"tmp"; TMP.mkdir(exist_ok=True)
 SNROOT=Path("sn_data"); BAOROOT=Path("bao_data")
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
@@ -72,8 +73,8 @@ ZSTAR=1089.9
 
 # Five-dimensional local search box: late A,B,H0 plus the two strongest
 # structural edge directions from seed015.
-LOW=np.array([0.0065,0.0115,69.68,3.38,0.045])
-HIGH=np.array([0.0120,0.0145,69.98,3.52,0.056])
+LOW=np.array([0.0070,0.0118,69.68,3.395,0.046])
+HIGH=np.array([0.0120,0.01345,69.91,3.495,0.0555])
 
 def table(path):
     lines=Path(path).read_text().splitlines()
@@ -246,6 +247,19 @@ corr_gp=GaussianProcessRegressor(
  normalize_y=True,n_restarts_optimizer=2,random_state=1501)
 corr_gp.fit(Xan,ya)
 
+# Round-1 stability history: [A,B,H0,ZC,D_floor, stable].
+HIST=np.array([[0.0112494593001902,0.0128043626137077,69.80878993044607,3.4274108000472188,0.0504073386825621,1],[0.0112494593001902,0.0128043626137077,69.80878993044607,3.609640758071472,0.0460231796294372,1],[0.0112494593001902,0.0128043626137077,69.80878993044607,3.4096407580714723,0.0460231796294372,1],[0.0079223202131688,0.0122833016617223,69.71275747716427,3.609640758071472,0.0460231796294372,1],[0.0110659532146528,0.0143686364581808,69.81384082112461,3.4813643765635787,0.0540717088896781,0],[0.0086047073854133,0.0115263615995645,69.90507338579745,3.445190073568374,0.046044697465375,1],[0.0069317394010722,0.0133307380080223,69.74302567822859,3.5061207441426814,0.0487613314120098,1],[0.0099677656125277,0.0127515552183613,69.83929192891345,3.402388957832009,0.051736503961496,1],[0.0098722945512272,0.0134105372410267,69.97451351659373,3.39148508220911,0.0521794043779373,0],[0.0073922599744983,0.012507715892978,69.76608025321738,3.5000010067224503,0.0496557518541812,1],[0.0084853976494632,0.0138904001386836,69.90110285311938,3.42088882021606,0.0465259503768756,0],[0.0115080071906559,0.0122155145537108,69.69703494079411,3.4525525226444005,0.0550031351195648,1],[0.0117757007060572,0.0131189143648371,69.88545576661825,3.4905693718791007,0.0450084006730467,1],[0.0078964442880824,0.0129626479595899,69.71453166075051,3.382327164411545,0.0537437244299799,0],[0.0076401074435561,0.0141582789719104,69.95267918186262,3.461988346502185,0.0506995375854894,0],[0.0092582069076597,0.0117359908660873,69.78610211202876,3.430050960406661,0.0484340214533731,1],[0.0105818952587433,0.0141004513781517,69.72478280348705,3.4360318762250244,0.049993783019483,0],[0.0066838499293662,0.0120047322334721,69.85352452566848,3.4719330212660133,0.0532270919606089,1],[0.0091936189080588,0.013622054872103,69.79460173819214,3.411551344189793,0.055341840785928,0],[0.0107983015379868,0.0122954702209681,69.92835883136839,3.515556321833283,0.047572968375869,1],[0.0115619631799198,0.0141949913331789,69.97293882755483,3.4300358079331863,0.0488388489952871,0],[0.0118424801314618,0.0141406937462623,69.97663331871634,3.4321967762697905,0.0496801011620326,0],[0.0118439965472806,0.014178522980302,69.97143808467887,3.4117494335936622,0.0505490494667229,0],[0.0118870470300663,0.014133070753291,69.97499259339308,3.437690994821039,0.0492379432216636,0],[0.0119848932344994,0.0141024528545133,69.97577221651424,3.4003803529911947,0.0524035621550077,0],[0.0112959824901893,0.014090772193043,69.97320990943449,3.405817132250717,0.0456741030943847,0],[0.0118433358348739,0.0141586827922226,69.96916476924349,3.408215058568314,0.045605641493532,0],[0.0119068113255283,0.0142317512174881,69.97728869983874,3.3928533594938983,0.0465798601914475,0],[0.0113731056022988,0.0142289211231325,69.9754413886551,3.499005312829658,0.0452985738490399,0],[0.011972082948859,0.0142487902744051,69.96789991283832,3.400357208161963,0.0472854752544787,0],[0.0118201874281677,0.0142354016892636,69.96568699568114,3.389522563712795,0.0457304320634619,0],[0.0118921400972553,0.0141956291983205,69.97428651310635,3.400652180837891,0.0488894051018448,0],[0.0111187864829616,0.0141746255292266,69.97654104845004,3.402696854899076,0.0455089920067978,0],[0.0119763533555847,0.0141138615570043,69.97037042836236,3.4094626162945483,0.0504627198422989,0],[0.0117813135747636,0.0141781433782624,69.96929439221792,3.380547319525156,0.0450689979786087,0],[0.0118166940847923,0.014171802681634,69.97554270712547,3.4195696251916265,0.0513439509597042,0],[0.0116073932103551,0.0142241575641349,69.97307131389516,3.419240209458016,0.0496663823766345,0],[0.0118138737990555,0.0141509332182102,69.97505125211318,3.3983392776112837,0.0494956535789044,0],[0.0114105332766829,0.0141911687243351,69.97483523229455,3.4231265413409453,0.0467016988996419,0],[0.0114834204638547,0.0141081987690909,69.97967287618522,3.3853346294197757,0.0450712279097874,0]],dtype=float)
+
+def fit_stability(rows):
+    X=list(HIST[:,:5]); y=list(HIST[:,5].astype(int))
+    for r in rows:
+        X.append([r["A"],r["B"],r["H0"],r["ZC"],r["D_floor"]])
+        y.append(1 if r.get("status")=="OK" else 0)
+    clf=RandomForestClassifier(n_estimators=500,min_samples_leaf=2,class_weight="balanced",
+                               max_features="sqrt",random_state=1505)
+    clf.fit(np.asarray(X,float),np.asarray(y,int))
+    return clf
+
 def evaluate(tag,x):
     A,B,H0,ZC,DF=map(float,x)
     root=str(TMP/(tag+"_")); ip=TMP/(tag+".ini")
@@ -291,8 +305,8 @@ pts=[
  ("sobol036_zcm",np.array([A_REF,B_REF,H_REF,3.4096407580714723,0.04602317962943721])),
  ("late006",np.array([0.00792232021316886,0.012283301661722363,69.71275747716427,3.6096407580714724,0.04602317962943721])),
 ]
-sob=qmc.Sobol(d=5,scramble=True,seed=1502)
-for i,x in enumerate(qmc.scale(sob.random_base2(m=4),LOW,HIGH)):
+sob=qmc.Sobol(d=5,scramble=True,seed=2502)
+for i,x in enumerate(qmc.scale(sob.random_base2(m=5),LOW,HIGH)):
     pts.append((f"seed{i:03d}",np.asarray(x,float)))
 rows=[evaluate(tag,x) for tag,x in pts]
 
@@ -307,8 +321,8 @@ def fit_goal(rows):
     gp.fit(Xn,y)
     return gp,float(y.min())
 
-rng=np.random.default_rng(1504)
-for it in range(20):
+rng=np.random.default_rng(2504)
+for it in range(28):
     gp,ybest=fit_goal(rows)
     pool=rng.uniform(LOW,HIGH,size=(9000,5))
     ok=[r for r in rows if r.get("status")=="OK"]
@@ -323,7 +337,9 @@ for it in range(20):
     ei=imp*norm.cdf(z)+std*norm.pdf(z)
     # Encourage candidates in regions where exact P+D discrepancy remains uncertain.
     _,corrstd=corr_gp.predict(xn,return_std=True)
-    acq=ei+0.04*corrstd
+    clf=fit_stability(rows)
+    pstable=clf.predict_proba(pool)[:,1]
+    acq=(ei+0.035*corrstd)*(pstable**3)
     Xold=np.array([[r["A"],r["B"],r["H0"],r["ZC"],r["D_floor"]] for r in rows],float)
     Xoldn=(Xold-LOW)/(HIGH-LOW)
     chosen=None
@@ -333,16 +349,16 @@ for it in range(20):
     rows.append(evaluate(f"bo{it:03d}",chosen))
 
 df=pd.DataFrame(rows)
-df.to_csv(OUT/"trilikelihood_mfbo.csv",index=False)
+df.to_csv(OUT/"trilikelihood_mfbo2.csv",index=False)
 ok=df[df.status.eq("OK")].sort_values(["goal_pred","second_joint_pred","pd_exact_pred"])
 best=ok.head(12).to_dict("records")
 summary={
- "search":"multi-fidelity Bayesian Planck+DESI+SN",
+ "search":"stability-aware multi-fidelity Bayesian Planck+DESI+SN round 2",
  "cheap_layer":["Planck native-lite","DESI DR1 Gaussian BAO","Pantheon+","Union3","DES-Y5","stability"],
  "exact_correction_anchors":len(ANCHORS),
  "n_ok":int(len(ok)),
  "best":best,
  "promotion_rule":"promote leading stable points to exact full-Plik + raw DESI; stop only if P+D fair<0 and at least two SN joint gaps<0"
 }
-(OUT/"trilikelihood_mfbo_summary.json").write_text(json.dumps(summary,indent=2))
+(OUT/"trilikelihood_mfbo2_summary.json").write_text(json.dumps(summary,indent=2))
 print("TRILIK_BEST",json.dumps(summary,sort_keys=True),flush=True)
