@@ -1,0 +1,25 @@
+name: SDMC r032 expanded hard-gate structural Bayesian controller
+on:
+  push:
+    branches:
+      - sdmc-r032-hardgate-structural-bo-round2
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bayesian dependencies
+        run: python3 -m pip install --upgrade numpy scipy pandas scikit-learn
+      - name: Run expanded exact-informed Bayesian controller
+        run: python3 sdmc/run_r032_hardgate_structural_bo.py
+      - name: Show proposals
+        run: cat output/hardgate_structural_bo_round2/summary.json
+      - name: Preserve proposals
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardgate-structural-bo-round2
+          path: output/hardgate_structural_bo_round2/*
