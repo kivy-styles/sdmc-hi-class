@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-late266-ordm10-ordm10-covariant-sn
+      - sdmc-r032-late266-ordm10-covariant-sn
   workflow_dispatch:
 
 jobs:
