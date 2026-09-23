@@ -1,0 +1,1 @@
+Trigger bo002 exact SN with LCDM background output enabled.
