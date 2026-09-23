@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Coupled local closure screen around sobol036+seed015: late background plus ordinary-sector displacement.
+Fine coupled closure screen around exact sobol127+seed015.
 
 Stage 1: 256 Sobol backgrounds in (A_late, B_late, H0), exact SN covariances,
          acoustic-scale proxy, DESI DR1 Gaussian BAO, exact stability columns.
@@ -27,7 +27,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure107_sobol036_seed015_coupled_local"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure107_seed015_sobol127_coupled_fine"); OUT.mkdir(parents=True,exist_ok=True)
 TMP=OUT/"tmp"; TMP.mkdir(exist_ok=True)
 SNROOT=Path("sn_data")
 BAOROOT=Path("bao_data")
@@ -54,11 +54,11 @@ TAUA=0.25
 TAUB=1.5
 OR=4.17998772e-5
 
-A0=0.011249459300190211
-B0=0.01280436261370778
-H00=69.80878993044607
-EDGE024_PD_FAIR=0.05337920225869297
-EDGE024_BAO_CHI=13.204567845148436
+A0=0.01264600746287033
+B0=0.012972991137765347
+H00=69.83619736097754
+EDGE024_PD_FAIR=-0.214186462292193
+EDGE024_BAO_CHI=13.215120771731913
 LOCAL_BAO_CHI=13.400290718544086
 LOCAL_SN={"pantheonplus":1406.2147033223882,
           "union3":28.783140002196888,
@@ -241,18 +241,19 @@ def run_background(label,A,B,H0,t):
     return rec
 
 # Center establishes the acoustic proxy exactly in this screening code.
-center=run_background("center",A0,B0,H00,0.0)
+T0=0.05452757313847541
+center=run_background("center",A0,B0,H00,T0)
 if center["status"]!="OK": raise RuntimeError(f"center failed: {center}")
 ELL0=center["ellA_proxy"]
 print("SNCLOSE_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
 
-sob=qmc.Sobol(d=4,scramble=True,seed=15036)
-u=sob.random_base2(m=7)  # 128
+sob=qmc.Sobol(d=4,scramble=True,seed=127015)
+u=sob.random_base2(m=8)  # 256
 # Broad but physically conservative low-z box.
-Alo,Ahi=0.0070,0.0155
-Blo,Bhi=0.0105,0.0155
-Hlo,Hhi=69.65,70.05
-Tlo,Thi=-0.08,0.08
+Alo,Ahi=0.0111,0.0142
+Blo,Bhi=0.0120,0.0140
+Hlo,Hhi=69.72,69.96
+Tlo,Thi=0.005,0.095
 rows=[]
 for i,x in enumerate(u):
     A=Alo+(Ahi-Alo)*x[0]
@@ -361,7 +362,7 @@ summary={
  "n_stage1_ok":int(len(ok)),
  "n_planck":int((pdf.planck_status=="OK").sum()),
  "best":best,
- "goal":"coupled late+ordinary proxy search; exact promotion required for any apparent closure"
+ "goal":"fine coupled search around exact sobol127; exact promotion required for apparent closure"
 }
 (OUT/"snclosure_summary.json").write_text(json.dumps(summary,indent=2))
 print("SNCLOSE_BEST",json.dumps(best,sort_keys=True),flush=True)
