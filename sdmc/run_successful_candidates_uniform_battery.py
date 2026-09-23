@@ -32,8 +32,8 @@ OUT = Path("output/uniform_battery")
 OUT.mkdir(parents=True, exist_ok=True)
 
 CANDS = {
- "s117": dict(dir="s117", omega_b=0.022083219194622913, lambda_e=18.40625,
-              pd_fair=-0.053689281592824045),
+ "s117_g022": dict(dir="s117_g022", omega_b=0.022083219194622913, lambda_e=18.40625,
+              pd_fair=-0.10979459350505749),
 }
 LOCAL021 = dict(H0=68.56858744695782,
                 omega_b=0.022406369378007947,
