@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure107 BO002 transition-width Bayesian refine
+name: SDMC r032 sobol076 transition-width Bayesian refine
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-bo002-transitionwidth-bo
+      - sdmc-r032-snclosure107-bo002-sobol076-transitionwidth-bo
   workflow_dispatch:
 
 permissions:
@@ -58,16 +58,16 @@ jobs:
       - name: Print best candidates
         if: always()
         run: |
-          cat output/snclosure107_bo002_transitionwidth/snclosure107_bo002_transitionwidth_summary.json || true
+          cat output/snclosure107_bo002_sobol076_transitionwidth/snclosure107_bo002_sobol076_transitionwidth_summary.json || true
           echo "--- TOP 12 ---"
-          cat output/snclosure107_bo002_transitionwidth/snclosure107_bo002_transitionwidth_top15.csv || true
+          cat output/snclosure107_bo002_sobol076_transitionwidth/snclosure107_bo002_sobol076_transitionwidth_top15.csv || true
 
       - name: Preserve optimization
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-bo002-transitionwidth-bo
+          name: sdmc-r032-snclosure107-bo002-sobol076-transitionwidth-bo
           path: |
-            output/snclosure107_bo002_transitionwidth/*.csv
-            output/snclosure107_bo002_transitionwidth/*.json
+            output/snclosure107_bo002_sobol076_transitionwidth/*.csv
+            output/snclosure107_bo002_sobol076_transitionwidth/*.json
           if-no-files-found: warn
