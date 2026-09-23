@@ -1,4 +1,4 @@
-name: SDMC r032 fulljoint exactbo004 exact-covariant SN
+name: SDMC r032 fulljoint exactbo2000 exact-covariant SN
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-fulljoint-exactbo004-covariant-sn
+      - sdmc-r032-fulljoint-exactbo2000-covariant-sn
   workflow_dispatch:
 
 jobs:
@@ -44,15 +44,15 @@ jobs:
           mkdir -p output input_artifact/unpacked
 
           cat > output/cov_exact_target.ini <<'EOF'
-          H0 = 69.82911676766862
-          omega_b = 0.022085032861097482
-          omega_cdm = 0.12298554323019364
+          H0 = 69.80878993044607
+          omega_b = 0.02208516937362783
+          omega_cdm = 0.12298480378987971
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1197352809875867e-9
-          n_s = 0.96255392876673
+          A_s = 2.119736350292785e-9
+          n_s = 0.9625562783210716
           tau_reio = 0.055202901571989066
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -61,9 +61,9 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.023632917504307768, 3.4401668971099166, 0.36856316167028097, 0.34231919445927034, 1.0, 0.05010044754926387
+          parameters_smg = 0.023760237043553907, 3.472968289553282, 0.3675099165387822, 0.34231919445927034, 1.0, 0.04931129891928089
           expansion_model = sdmc_full
-          expansion_smg = 0.7024010769997326, 18.40625, 16.173189924377947, 0.5, 0.010557210430167612, 0.25, 0.012939807320889084, 1.5
+          expansion_smg = 0.7022289800089059, 18.40625, 16.173189924377947, 0.5, 0.011249459300190211, 0.25, 0.01280436261370778, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -116,15 +116,15 @@ jobs:
           make clean && make -j2 class
 
           cat > input_artifact/unpacked/candidate.ini <<'EOF'
-          H0 = 69.82911676766862
-          omega_b = 0.022085032861097482
-          omega_cdm = 0.12298554323019364
+          H0 = 69.80878993044607
+          omega_b = 0.02208516937362783
+          omega_cdm = 0.12298480378987971
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1197352809875867e-9
-          n_s = 0.96255392876673
+          A_s = 2.119736350292785e-9
+          n_s = 0.9625562783210716
           tau_reio = 0.055202901571989066
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -171,7 +171,7 @@ jobs:
           a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
           mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
           slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
-          print('FULLJOINT_EXACTBO004_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          print('FULLJOINT_EXACTBO2000_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
           if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
           PY
 
@@ -237,16 +237,16 @@ jobs:
           ss=scores(s)
           LOCAL={'pantheonplus':1406.2147033223882,'union3':28.783140002196888,'desy5':1650.6353947147727}
           out={k:{'sdmc':ss[k],'local021':LOCAL[k],'delta_local021':ss[k]-LOCAL[k]} for k in ss}
-          print('FULLJOINT_EXACTBO004_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
-          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],local021_chi2=v['local021'],delta_local021=v['delta_local021']) for k,v in out.items()]).to_csv(OUT/'fulljoint_exactbo004_exact_sn.csv',index=False)
+          print('FULLJOINT_EXACTBO2000_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
+          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],local021_chi2=v['local021'],delta_local021=v['delta_local021']) for k,v in out.items()]).to_csv(OUT/'fulljoint_exactbo2000_exact_sn.csv',index=False)
           PY
 
       - name: Preserve exact SN result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: fulljoint-exactbo004-exact-sn
+          name: fulljoint-exactbo2000-exact-sn
           path: |
-            output/fulljoint_exactbo004_exact_sn.csv
+            output/fulljoint_exactbo2000_exact_sn.csv
             input_artifact/unpacked/covariant_observable_00_background.dat
           if-no-files-found: warn
