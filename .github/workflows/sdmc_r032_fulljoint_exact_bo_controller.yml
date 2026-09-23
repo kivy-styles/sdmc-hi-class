@@ -1,0 +1,29 @@
+name: SDMC r032 exact joint Planck DESI SN Bayesian controller
+
+on:
+  push:
+    branches:
+      - sdmc-r032-fulljoint-exact-bo-seed015
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bayesian dependencies
+        run: python3 -m pip install --upgrade numpy scipy pandas scikit-learn
+      - name: Propose exact joint candidates
+        run: python3 sdmc/run_r032_fulljoint_exact_bo_controller.py
+      - name: Print proposal
+        run: |
+          cat output/fulljoint_exact_bo_seed015/summary.json
+      - name: Preserve proposal
+        uses: actions/upload-artifact@v4
+        with:
+          name: fulljoint-exact-bo-seed015
+          path: output/fulljoint_exact_bo_seed015/*
