@@ -3,14 +3,25 @@ from pathlib import Path
 import numpy as np, re
 from scipy.interpolate import CubicSpline
 
-AF=0.0235834146537818
-ZC=3.4274108000472188
-WIDTH=0.3689727572351694
-D0=0.34231919445927034
-POWER=1.0
-DFLOOR=0.050407338682562114
-H0=69.80878993044607/299792.458
+def ini_value(path, key):
+    for raw in Path(path).read_text().splitlines():
+        line=raw.split("#",1)[0].strip()
+        if not line or "=" not in line:
+            continue
+        k,v=line.split("=",1)
+        if k.strip()==key:
+            return v.strip()
+    raise RuntimeError(f"missing {key} in {path}")
+
+TARGET_INI=Path("output/cov_exact_target.ini")
+H0_KMS=float(ini_value(TARGET_INI,"H0"))
+KIN=[float(x.strip()) for x in ini_value(TARGET_INI,"parameters_smg").split(",")]
+if len(KIN)!=6:
+    raise RuntimeError(f"expected 6 kinetic parameters, got {KIN}")
+AF,ZC,WIDTH,D0,POWER,DFLOOR=KIN
+H0=H0_KMS/299792.458
 XSTAR=H0*H0
+print("COV_RECON_AUTOPARAMS",H0_KMS,AF,ZC,WIDTH,D0,POWER,DFLOOR,flush=True)
 
 def replace_once(path, old, new):
     p=Path(path); s=p.read_text()
