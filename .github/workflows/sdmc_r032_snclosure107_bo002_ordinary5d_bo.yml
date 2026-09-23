@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure107 BO002 ordinary 5D Bayesian refine
+name: SDMC r032 sobol076 ordinary 5D Bayesian refine
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-bo002-ordinary5d-bo
+      - sdmc-r032-snclosure107-bo002-sobol076-ordinary5d-bo
   workflow_dispatch:
 
 permissions:
@@ -58,16 +58,16 @@ jobs:
       - name: Print best candidates
         if: always()
         run: |
-          cat output/snclosure107_bo002_ordinary5d/snclosure107_bo002_ordinary5d_summary.json || true
+          cat output/snclosure107_bo002_sobol076_ordinary5d/snclosure107_bo002_sobol076_ordinary5d_summary.json || true
           echo "--- TOP 12 ---"
-          cat output/snclosure107_bo002_ordinary5d/snclosure107_bo002_ordinary5d_top12.csv || true
+          cat output/snclosure107_bo002_sobol076_ordinary5d/snclosure107_bo002_sobol076_ordinary5d_top12.csv || true
 
       - name: Preserve optimization
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-bo002-ordinary5d-bo
+          name: sdmc-r032-snclosure107-bo002-sobol076-ordinary5d-bo
           path: |
-            output/snclosure107_bo002_ordinary5d/*.csv
-            output/snclosure107_bo002_ordinary5d/*.json
+            output/snclosure107_bo002_sobol076_ordinary5d/*.csv
+            output/snclosure107_bo002_sobol076_ordinary5d/*.json
           if-no-files-found: warn
