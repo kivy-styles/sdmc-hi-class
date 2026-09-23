@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Focused low-H SN-aware closure screen around the exact sobol006 basin with structure frozen.
+Deeper low-H SN-aware closure screen around the exact sobol006 basin with structure frozen.
 
-Stage 1: 256 Sobol backgrounds in (A_late, B_late, H0), exact SN covariances,
+Stage 1: 512 Sobol backgrounds in (A_late, B_late, H0), exact SN covariances,
          acoustic-scale proxy, DESI DR1 Gaussian BAO, exact stability columns.
 Stage 2: full C_l + Planck native-lite likelihood on the best 24 backgrounds.
 
@@ -27,7 +27,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure107_bo002_sobol006_lowh"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure107_bo002_deeplowh"); OUT.mkdir(parents=True,exist_ok=True)
 TMP=OUT/"tmp"; TMP.mkdir(exist_ok=True)
 SNROOT=Path("sn_data")
 BAOROOT=Path("bao_data")
@@ -238,12 +238,12 @@ if center["status"]!="OK": raise RuntimeError(f"center failed: {center}")
 ELL0=center["ellA_proxy"]
 print("SNCLOSE_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
 
-sob=qmc.Sobol(d=3,scramble=True,seed=6006107)
-u=sob.random_base2(m=8)  # 256
+sob=qmc.Sobol(d=3,scramble=True,seed=61072026)
+u=sob.random_base2(m=9)  # 512
 # Focused extension through the lower-H boundary exposed by sobol006.
-Alo,Ahi=0.0035,0.0105
-Blo,Bhi=0.0100,0.0145
-Hlo,Hhi=69.20,69.76
+Alo,Ahi=0.0025,0.0140
+Blo,Bhi=0.0090,0.0150
+Hlo,Hhi=68.20,69.50
 rows=[]
 for i,x in enumerate(u):
     A=Alo+(Ahi-Alo)*x[0]
@@ -260,15 +260,15 @@ for i,x in enumerate(u):
         # Rank SN closure, while strongly preferring acoustic and BAO continuity.
         r["stage1_score"]=sn2 + 1600*abs(r["ellA_frac"]) + 0.10*max(0,r["bao_chi2"]-EDGE024_BAO_CHI)
     rows.append(r)
-    if i%16==0: print("SNCLOSE_PROGRESS",i,json.dumps(r,sort_keys=True),flush=True)
+    if i%32==0: print("SNCLOSE_PROGRESS",i,json.dumps(r,sort_keys=True),flush=True)
 
 df=pd.DataFrame(rows)
 df.to_csv(OUT/"snclosure_stage1_all.csv",index=False)
 ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
 # Acoustic/BAO guard; relax only if too few.
 guard=ok[(ok.ellA_frac.abs()<0.0020) & (ok.bao_chi2<20.0)].copy()
-if len(guard)<32: guard=ok.copy()
-short=guard.nsmallest(32,"stage1_score").copy()
+if len(guard)<48: guard=ok.copy()
+short=guard.nsmallest(48,"stage1_score").copy()
 # Always include exact center for consistent Planck-lite normalization.
 centerrow=pd.DataFrame([{**center,"ellA_frac":0.0,
                          "sn_delta_pantheonplus":center["sn_pantheonplus"]-LOCAL_SN["pantheonplus"],
