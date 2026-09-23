@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-bo002-sobol076 dfp-dfp-covariant-fullplik
+      - sdmc-r032-snclosure107-bo002-sobol076-dfp-covariant-fullplik
   workflow_dispatch:
 
 jobs:
