@@ -1,9 +1,9 @@
-name: SDMC r032 sobol036 seed015 coupled-local closure screen
+name: SDMC r032 seed015 sobol127 coupled-fine closure screen
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure107-sobol036-seed015-coupled-local
+      - sdmc-r032-snclosure107-seed015-sobol127-coupled-fine
   workflow_dispatch:
 
 permissions:
@@ -75,16 +75,16 @@ jobs:
       - name: Print closure summary
         if: always()
         run: |
-          cat output/snclosure107_sobol036_seed015_coupled_local/snclosure_summary.json || true
+          cat output/snclosure107_seed015_sobol127_coupled_fine/snclosure_summary.json || true
           echo "--- TOP PLANCK SHORTLIST ---"
-          head -12 output/snclosure107_sobol036_seed015_coupled_local/snclosure_planck_shortlist.csv || true
+          head -12 output/snclosure107_seed015_sobol127_coupled_fine/snclosure_planck_shortlist.csv || true
 
       - name: Preserve closure screen
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure107-sobol036-seed015-coupled-local
+          name: sdmc-r032-snclosure107-seed015-sobol127-coupled-fine
           path: |
-            output/snclosure107_sobol036_seed015_coupled_local/*.csv
-            output/snclosure107_sobol036_seed015_coupled_local/*.json
+            output/snclosure107_seed015_sobol127_coupled_fine/*.csv
+            output/snclosure107_seed015_sobol127_coupled_fine/*.json
           if-no-files-found: warn
