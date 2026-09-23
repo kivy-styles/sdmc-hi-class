@@ -1,4 +1,4 @@
-name: SDMC r032 SN-closure107 bo002 exactsn-e0231 exact-covariant SN
+name: SDMC r032 exactsn-e0231 autoparams exact-covariant SN
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-exactsn-e0231-covariant-sn
+      - sdmc-r032-exactsn-e0231-autoparams-covariant-sn
   workflow_dispatch:
 
 jobs:
@@ -171,7 +171,7 @@ jobs:
           a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
           mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
           slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
-          print('SNCLOSURE107_BO002_EXACTSN_E0231_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          print('EXACTSN_E0231_AUTOPARAMS_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
           if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
           PY
 
@@ -236,7 +236,7 @@ jobs:
                       'desy5':chi(dep,dem-mu(bg,dez,dezh))}
           s=table(ROOT/'covariant_observable_00_background.dat'); l=table(ROOT/'fullplik_lcdm_00_background.dat')
           ss=scores(s); ll=scores(l); local021={'pantheonplus':1406.2147033223882,'union3':28.783140002196888,'desy5':1650.6353947147727}; out={k:{'sdmc':ss[k],'lcdm':ll[k],'delta':ss[k]-ll[k],'local021':local021[k],'delta_vs_local021':ss[k]-local021[k]} for k in ss}
-          print('SNCLOSURE107_BO002_EXACTSN_E0231_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
+          print('EXACTSN_E0231_AUTOPARAMS_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
           pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm'],delta_chi2=v['delta']) for k,v in out.items()]).to_csv(OUT/'exactsn-e0231_exact_sn.csv',index=False)
           PY
 
