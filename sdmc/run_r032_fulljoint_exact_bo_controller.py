@@ -19,7 +19,7 @@ from scipy.stats import norm
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ConstantKernel, Matern, WhiteKernel
 
-OUT=Path("output/fulljoint_exact_bo_seed015"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/fulljoint_exact_bo_round2"); OUT.mkdir(parents=True,exist_ok=True)
 LOCAL_PD=-31.15223
 
 # Exact promoted observations only.
@@ -30,6 +30,8 @@ obs=[
   "sn_pp":0.5575426062569022,"sn_u3":0.5355814192298567,"sn_d5":1.2224958017468452},
  {"id":"sob036_seed015","u":1.0,"v":1.0,"planck":-19.930025292910614,"desi":-11.168825504830693,
   "sn_pp":0.5575426062569022,"sn_u3":0.5355814192298567,"sn_d5":1.2224958017468452},
+ {"id":"exactbo000","u":0.9725,"v":0.97,"planck":-19.94159805526033,"desi":-11.190121031232081,
+  "sn_pp":0.5852466304786503,"sn_u3":0.5583243726287037,"sn_d5":1.2762909084558487},
 ]
 for r in obs:
     r["pd_fair"]=r["planck"]+r["desi"]-LOCAL_PD
@@ -74,7 +76,7 @@ for i,x in enumerate(chosen):
     bg=[A107+u*(A036-A107),B107+u*(B036-B107),H107+u*(H036-H107),u*T036]
     st=BO+v*(SEED-BO)
     j=np.argmin(np.sum((G-x)**2,axis=1))
-    props.append({"id":f"exactbo{i:03d}","u":u,"v":v,
+    props.append({"id":f"exactbo2{i:03d}","u":u,"v":v,
       "A":bg[0],"B":bg[1],"H0":bg[2],"t_ord":bg[3],
       "AF":float(st[0]),"ZC":float(st[1]),"width":float(st[2]),"D_floor":float(st[3]),
       "gp_mu_goal":float(mu[j]),"gp_sigma":float(std[j]),"expected_improvement":float(ei[j])})
