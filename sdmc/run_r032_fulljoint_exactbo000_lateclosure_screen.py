@@ -235,7 +235,8 @@ def run_background(label,A,B,H0):
 # Center establishes the acoustic proxy exactly in this screening code.
 center=run_background("center",A0,B0,H00)
 if center["status"]!="OK": raise RuntimeError(f"center failed: {center}")
-ELL0=center["ellA_proxy"]\nCENTER_BAO_CHI=center["bao_chi2"]
+ELL0=center["ellA_proxy"]
+CENTER_BAO_CHI=center["bao_chi2"]
 print("SNCLOSE_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
 
 sob=qmc.Sobol(d=3,scramble=True,seed=230923)
