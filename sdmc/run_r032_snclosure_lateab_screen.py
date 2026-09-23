@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Local SN-aware late-background closure screen around sobol107 with bo002 structure frozen.
+Coupled local closure screen around sobol107+bo002: late background plus ordinary-sector displacement.
 
 Stage 1: 256 Sobol backgrounds in (A_late, B_late, H0), exact SN covariances,
          acoustic-scale proxy, DESI DR1 Gaussian BAO, exact stability columns.
@@ -27,16 +27,20 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure107_bo002_late_local"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure107_bo002_coupled_local"); OUT.mkdir(parents=True,exist_ok=True)
 TMP=OUT/"tmp"; TMP.mkdir(exist_ok=True)
 SNROOT=Path("sn_data")
 BAOROOT=Path("bao_data")
 
-# Successful edge024-Q structural / primordial anchor.
-OB=0.022083219194622913
-OC=0.12299536722293603
-AS=2.119721074504234e-9
-NS=0.9625227132590487
+# bo002 structural anchor + ordinary-sector interpolation direction.
+OB0=0.022083219194622913
+OC0=0.12299536722293603
+AS0=2.119721074504234e-9
+NS0=0.9625227132590487
+OB1=0.022215084896497428
+OC1=0.12228109714277088
+AS1=2.120753981008663e-9
+NS1=0.9647922897702084
 TAU=0.055202901571989066
 AF=0.024290704212870225
 ZC=3.6096407580714724
@@ -146,7 +150,11 @@ def bao_score(bg):
     d=np.array(pred)-bao_obs
     return float(d@bao_inv@d)
 
-def ini_text(root,A,B,H0,cls=False):
+def ordinary_at(t):
+    return (OB0+t*(OB1-OB0), OC0+t*(OC1-OC0), NS0+t*(NS1-NS0), AS0+t*(AS1-AS0))
+
+def ini_text(root,A,B,H0,t,cls=False):
+    OB,OC,NS,AS=ordinary_at(t)
     h=H0/100.; ox=1.-(OB+OC+OR)/(h*h)
     output = """modes=s
 output=tCl,pCl,lCl
@@ -193,12 +201,12 @@ lensing_verbose=0
 output_verbose=0
 """)
 
-def run_background(label,A,B,H0):
+def run_background(label,A,B,H0,t):
     root=str(TMP/(label+"_")); ip=TMP/(label+".ini")
-    ip.write_text(ini_text(root,A,B,H0,False))
+    ip.write_text(ini_text(root,A,B,H0,t,False))
     cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
                       text=True,timeout=120)
-    rec={"id":label,"A":float(A),"B":float(B),"H0":float(H0),
+    rec={"id":label,"A":float(A),"B":float(B),"H0":float(H0),"t_ord":float(t),
          "status":"FAIL","returncode":cp.returncode}
     p=Path(root+"00_background.dat")
     if cp.returncode==0 and p.exists():
@@ -233,23 +241,25 @@ def run_background(label,A,B,H0):
     return rec
 
 # Center establishes the acoustic proxy exactly in this screening code.
-center=run_background("center",A0,B0,H00)
+center=run_background("center",A0,B0,H00,0.0)
 if center["status"]!="OK": raise RuntimeError(f"center failed: {center}")
 ELL0=center["ellA_proxy"]
 print("SNCLOSE_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
 
-sob=qmc.Sobol(d=3,scramble=True,seed=1072002)
+sob=qmc.Sobol(d=4,scramble=True,seed=10742002)
 u=sob.random_base2(m=7)  # 128
 # Broad but physically conservative low-z box.
 Alo,Ahi=0.0000,0.0120
 Blo,Bhi=0.0100,0.0190
-Hlo,Hhi=69.70,70.50
+Hlo,Hhi=69.80,70.25
+Tlo,Thi=-0.15,0.10
 rows=[]
 for i,x in enumerate(u):
     A=Alo+(Ahi-Alo)*x[0]
     B=Blo+(Bhi-Blo)*x[1]
     H0=Hlo+(Hhi-Hlo)*x[2]
-    r=run_background(f"sobol{i:03d}",A,B,H0)
+    t=Tlo+(Thi-Tlo)*x[3]
+    r=run_background(f"sobol{i:03d}",A,B,H0,t)
     if r["status"]=="OK":
         r["ellA_frac"]=(r["ellA_proxy"]/ELL0-1.0)
         # If P+D did not move, these are the exact two easiest joint gaps.
@@ -313,7 +323,7 @@ def pscore(path):
 
 def planck_for(row):
     label="cl_"+str(row["id"]); root=str(TMP/(label+"_")); ip=TMP/(label+".ini")
-    ip.write_text(ini_text(root,float(row.A),float(row.B),float(row.H0),True))
+    ip.write_text(ini_text(root,float(row.A),float(row.B),float(row.H0),float(row.t_ord),True))
     cp=subprocess.run(["./class",str(ip)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
     rec=row.to_dict(); rec["planck_status"]="FAIL"
     cl=Path(root+"00_cl_lensed.dat")
@@ -351,7 +361,7 @@ summary={
  "n_stage1_ok":int(len(ok)),
  "n_planck":int((pdf.planck_status=="OK").sum()),
  "best":best,
- "goal":"pd_proxy<0 and second_best_sn_joint_proxy<0; then exact promotion required"
+ "goal":"coupled late+ordinary proxy search; exact promotion required for any apparent closure"
 }
 (OUT/"snclosure_summary.json").write_text(json.dumps(summary,indent=2))
 print("SNCLOSE_BEST",json.dumps(best,sort_keys=True),flush=True)
