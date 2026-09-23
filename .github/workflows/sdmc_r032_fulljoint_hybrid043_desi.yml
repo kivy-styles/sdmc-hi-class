@@ -1,0 +1,570 @@
+name: SDMC r032 fulljoint hybrid043 exact-covariant DESI
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - sdmc-r032-fulljoint-hybrid043-covariant-desi
+  workflow_dispatch:
+
+jobs:
+  acoustic-physical-desi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install base dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip git curl
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya
+
+      - name: Build reconstructed covariant acoustic physical model
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+          mkdir -p output
+
+          cat > output/cov_exact_target.ini <<'EOF'
+          H0 = 69.486625116691
+          omega_b = 0.02208511574370519
+          omega_cdm = 0.12298509428428875
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1197359302086e-9
+          n_s = 0.962555355281866
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.023604633340554453, 3.4328776987879466, 0.36879721635160295, 0.34231919445927034, 1.0, 0.050275813910968366
+          expansion_model = sdmc_full
+          expansion_smg = 0.6994609429969774, 18.40625, 16.173189924377947, 0.5, 0.007934502487070859, 0.25, 0.01100946151232347, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = no
+          root = output/cov_exact_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/cov_exact_target.ini
+          python3 sdmc/run_r032_partial_zeq_ztbest_covariant.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('source/background.c'); s=p.read_text()
+          pat=re.compile(
+              r'double Ox\s*=\s*pba->parameters_smg\[0\];\s*'
+              r'double lambda_e\s*=\s*pba->parameters_smg\[1\];\s*'
+              r'double zt\s*=\s*pba->parameters_smg\[2\];\s*'
+              r'double dNt\s*=\s*pba->parameters_smg\[3\];\s*'
+              r'double A\s*=\s*pba->parameters_smg\[4\];\s*'
+              r'double tauA\s*=\s*pba->parameters_smg\[5\];\s*'
+              r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
+              r'double tauB\s*=\s*pba->parameters_smg\[7\];'
+          )
+          repl='''double Ox = 0.6994609429969774;
+            double lambda_e = 18.40625;
+            double zt = 16.173189924377947;
+            double dNt = 0.5;
+            double A = 0.007934502487070859;
+            double tauA = 0.25;
+            double B = 0.01100946151232347;
+            double tauB = 1.5;'''
+          s2,n=pat.subn(repl,s,count=1)
+          if n != 1: raise RuntimeError(f'tracker helper replacement count={n}')
+          p.write_text(s2)
+          PY
+
+          make clean && make -j2 class
+          echo "COVARIANT_FULLJOINT_HYBRID043_BUILD_READY"
+
+      - name: Install official DESI DR1 full-shape dependencies
+        env:
+          PIP_DEFAULT_TIMEOUT: "45"
+        run: |
+          python3 -m pip install --retries 4 numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
+          for PKG in \
+            git+https://github.com/cosmodesi/cosmoprimo.git \
+            git+https://github.com/adematti/lsstypes.git \
+            git+https://github.com/sfschen/velocileptors.git
+          do
+            ok=0
+            for attempt in 1 2 3
+            do
+              echo "pip git install $PKG attempt $attempt"
+              if timeout 180 python3 -m pip install --retries 2 "$PKG"; then ok=1; break; fi
+              sleep $((attempt*5))
+            done
+            test "$ok" -eq 1
+          done
+          rm -rf desi-kp-cosmological-likelihoods
+          ok=0
+          for attempt in 1 2 3
+          do
+            if timeout 120 git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git; then ok=1; break; fi
+            rm -rf desi-kp-cosmological-likelihoods
+            sleep $((attempt*5))
+          done
+          test "$ok" -eq 1
+          mkdir -p desi_likelihood
+          BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          for FN in \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
+          do
+            ok=0
+            for attempt in 1 2 3 4 5 6 7 8
+            do
+              echo "DESI download $FN attempt $attempt"
+              for BASE in "$BASE_PRIMARY" "$BASE_MIRROR"
+              do
+                echo "Trying $BASE/$FN"
+                if curl -L --fail --retry 5 --retry-all-errors --retry-delay 5 \
+                     --connect-timeout 30 --max-time 300 -C - \
+                     -o "desi_likelihood/$FN" "$BASE/$FN"; then
+                  ok=1
+                  break 2
+                fi
+              done
+              sleep $((attempt*10))
+            done
+            test "$ok" -eq 1
+          done
+          ls -lh desi_likelihood
+
+      - name: Read official DESI effective redshifts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys,json
+          sys.path.insert(0,'desi-kp-cosmological-likelihoods/dr1/cobaya')
+          import lsstypes as types
+          from desi_fs_bao_all import list_zrange,dataset_fn,get_tracer_label
+          records=[]
+          for tracer,iz,zrange in list_zrange:
+              if 'lya' in tracer.lower(): continue
+              fn=dataset_fn('desi_likelihood',tracer,zrange,observable_name='spectrum-poles-rotated')
+              d=types.read(fn)
+              sp=d.observable.get('spectrum')
+              records.append(dict(tracer=tracer,iz=iz,zrange=list(zrange),
+                                  namespace=f"{get_tracer_label(tracer)}_z{iz}",
+                                  zeff=float(sp.attrs['zeff']),
+                                  file=str(fn)))
+          print('DESI_FS_ZEFF',records,flush=True)
+          Path('output/desi_zeff.json').write_text(json.dumps(records,indent=2))
+          zs=[0.0]+sorted({r['zeff'] for r in records})
+          Path('output/desi_zpk.txt').write_text(','.join(f'{z:.10g}' for z in zs))
+          print('DESI_ZPK',zs,flush=True)
+          PY
+
+      - name: Run reconstructed covariant DESI transfers
+        run: |
+          ZPK=$(cat output/desi_zpk.txt)
+          cat > output/desi_covariant_transfer.ini <<EOF
+          H0 = 69.486625116691
+          omega_b = 0.02208511574370519
+          omega_cdm = 0.12298509428428875
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1197359302086e-9
+          n_s = 0.962555355281866
+          tau_reio = 0.055202901571989066
+
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_exact
+          parameters_smg = 0.0
+          expansion_model = sdmc_full
+          expansion_smg = 0.6994609429969774, 18.40625, 16.173189924377947, 0.5, 0.007934502487070859, 0.25, 0.01100946151232347, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+
+          gauge = synchronous
+          modes = s
+          output = mPk,dTk,vTk
+          extra_metric_transfer_functions = yes
+          matter_source_in_current_gauge = no
+          P_k_max_h/Mpc = 2.0
+          z_pk = $ZPK
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = yes
+          root = output/desi_cov_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/desi_covariant_transfer.ini
+          echo "DESI_COVARIANT_TRANSFER_RETURNCODE=0"
+
+      - name: Run matched LCDM DESI transfers
+        run: |
+          ZPK=$(cat output/desi_zpk.txt)
+          cat > output/desi_lcdm_transfer.ini <<EOF
+          H0 = 67.36
+          omega_b = 0.02237
+          omega_cdm = 0.1200
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.10e-9
+          n_s = 0.9649
+          tau_reio = 0.0544
+
+          gauge = synchronous
+          modes = s
+          output = mPk,dTk,vTk
+          extra_metric_transfer_functions = yes
+          matter_source_in_current_gauge = no
+          P_k_max_h/Mpc = 2.0
+          z_pk = $ZPK
+          write background = yes
+          write thermodynamics = yes
+          root = output/desi_lcdm_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/desi_lcdm_transfer.ini
+          echo "DESI_LCDM_TRANSFER_RETURNCODE=0"
+
+      - name: Evaluate official DESI DR1 P0 P2 P4 full-shape likelihood
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys,re,json,math,csv
+          import numpy as np
+          import pandas as pd
+          from scipy.interpolate import interp1d
+          from scipy.optimize import minimize
+          sys.path.insert(0,'desi-kp-cosmological-likelihoods/dr1/cobaya')
+          import lsstypes as types
+          from cosmoprimo import PowerSpectrumInterpolator1D,PowerSpectrumBAOFilter,Cosmology
+          from cosmoprimo.fiducial import DESI
+          from velocileptors.EPT.ept_fullresum_varyDz_nu_fftw import REPT
+          from desi_fs_bao_all import list_zrange,dataset_fn,get_tracer_label,get_physical_stochastic_settings
+
+          OUT=Path('output')
+          C=299792.458
+          records=json.loads((OUT/'desi_zeff.json').read_text())
+          zvals=[0.0]+sorted({float(r['zeff']) for r in records})
+          z_to_i={round(z,8):i+1 for i,z in enumerate(zvals)}
+
+          def tab(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+
+          def rd_from(prefix,bg):
+              th=tab(OUT/f'{prefix}_00_thermodynamics.dat').sort_values('z')
+              zz=th.z.to_numpy(); kb=th.kappa_b.to_numpy()
+              cross=[]
+              for i in range(len(zz)-1):
+                  if (kb[i]-1.)*(kb[i+1]-1.)<=0 and kb[i]!=kb[i+1]:
+                      q=(1.-kb[i])/(kb[i+1]-kb[i])
+                      cross.append(zz[i]+q*(zz[i+1]-zz[i]))
+              if not cross: raise RuntimeError(f'no drag crossing for {prefix}')
+              zd=float(cross[0])
+              return float(np.interp(zd,bg.z,bg['comov.snd.hrz.'])),zd
+
+          def model_data(prefix,H0,ob,oc,ns):
+              h=H0/100.; fb=ob/(ob+oc); fc=1.-fb
+              bg=tab(OUT/f'{prefix}_00_background.dat').sort_values('z')
+              rd,zd=rd_from(prefix,bg)
+              series={}
+              for z in zvals:
+                  ii=z_to_i[round(z,8)]
+                  pk=np.loadtxt(OUT/f'{prefix}_00_z{ii}_pk.dat')
+                  tk=tab(OUT/f'{prefix}_00_z{ii}_tk.dat')
+                  kh=tk['k (h/Mpc)'].to_numpy()
+                  k=kh*h
+                  dm=tk['d_m'].to_numpy()
+                  tb=tk['t_b'].to_numpy()
+                  hp=tk['h_prime'].to_numpy(); ep=tk['eta_prime'].to_numpy()
+                  # CLASS default matter_source_in_current_gauge=no already
+                  # exports d_m as the gauge-invariant matter density source.
+                  # For the velocity, theta_cb^GI = f_b theta_b^S + k^2 alpha,
+                  # with k^2 alpha=(h'+6 eta')/2 in synchronous gauge.
+                  shift=.5*(hp+6.*ep)
+                  a=1./(1.+z)
+                  H=float(np.interp(z,bg.z,bg['H [1/Mpc]']))
+                  Hc=a*H
+                  theta_b_gi=tb+shift
+                  theta_c_gi=shift
+                  vb=-theta_b_gi/Hc
+                  vc=-theta_c_gi/Hc
+                  vcb=fb*vb+fc*vc
+                  ratio_v=np.divide(vcb,dm,out=np.zeros_like(vcb),where=np.abs(dm)>1e-300)
+
+                  kpk=pk[:,0]
+                  Pdd=pk[:,1]
+                  rv=np.interp(kpk,kh,ratio_v)
+                  Ptt=Pdd*rv**2
+                  series[z]=(kpk,Pdd,Ptt)
+
+              return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
+
+          cov=model_data('desi_cov',69.81677547364065,0.02208511574370519,0.12298509428428875,0.962555355281866)
+          lcdm=model_data('desi_lcdm',67.36,0.02237,0.1200,0.9649)
+
+          # Official likelihood blocks.
+          blocks=[]
+          for tracer,iz,zrange in list_zrange:
+              if 'lya' in tracer.lower(): continue
+              fn=dataset_fn('desi_likelihood',tracer,zrange,observable_name='spectrum-poles-rotated')
+              d=types.read(fn)
+              sp=d.observable.get('spectrum')
+              theory=d.window.theory.get('spectrum')
+              kin=theory.get(0).coords('k')
+              win=d.window.at.observable.get('spectrum').at.theory.get('spectrum').value()
+              blocks.append(dict(
+                  tracer=tracer,namespace=f'{get_tracer_label(tracer)}_z{iz}',
+                  zeff=float(sp.attrs['zeff']),data=sp.value(),
+                  precision=np.linalg.inv(d.covariance.value()),
+                  window=win,kin=np.asarray(kin,float),
+                  shotnoise=float(np.mean(sp.get(0).values('shotnoise')))
+              ))
+          kobs=blocks[0]['kin']
+          for b in blocks:
+              if not np.allclose(b['kin'],kobs): raise RuntimeError('DESI theory k grids differ')
+
+          starts={
+            'BGS_z0':(1.11348,0.660148,-0.223088),
+            'LRG_z0':(1.1351,-0.139101,-0.910397),
+            'LRG_z1':(1.22446,-0.671727,-0.22624),
+            'LRG_z2':(1.04564,-0.493139,-0.24021),
+            'ELG_z1':(0.127936,-0.578801,-1.45356),
+            'QSO_z0':(0.780983,0.353843,0.135725),
+          }
+
+          fid=DESI(engine='camb')
+          all_marg=['alpha0p','alpha2p','alpha4p','alpha6p','sn0p','sn2p','sn4p']
+          scales=np.array([12.5]*4+[2.]+[5.]*2)
+          marg=['alpha0p','alpha2p','sn0p','sn2p']
+          gi=np.array([all_marg.index(x) for x in marg])
+          prior_hess=-np.diag(scales[gi]**-2)
+
+          def prepare_basis(m):
+              kin=np.geomspace(min(5e-4,kobs[0]/2),max(1.0,kobs[-1]*2),500)
+              zs=np.array(zvals)
+              Pdd=np.stack([np.interp(kin,*m['series'][z][:2]) for z in zs],axis=-1)
+              Ptt=np.stack([np.interp(kin,m['series'][z][0],m['series'][z][2]) for z in zs],axis=-1)
+              pki=PowerSpectrumInterpolator1D(kin,Pdd)
+              cosmo=Cosmology(n_s=m['ns'],Omega_b=m['ob']/m['h']**2,
+                              Omega_cdm=m['oc']/m['h']**2,Omega_ncdm=0.,H0=m['H0'])
+              cosmo.rs_drag=m['rd']*m['h']
+              filt=PowerSpectrumBAOFilter(pki,engine='peakaverage',cosmo=cosmo,cosmo_fid=fid)
+              filt(pki,cosmo=cosmo)
+              Pnw=filt.smooth_pk_interpolator()(kin)
+              sig8=np.asarray(pki.sigma8())
+              ptti=PowerSpectrumInterpolator1D(kin,Ptt)
+              fs8=np.asarray(ptti.sigma8())
+
+              extk=None; pcb=None; pnw=None; ptt=None; pt=None
+              pt=REPT(kin,Pdd[:,0],pnw=Pnw[:,0],kmin=kobs[0],kmax=kobs[-1],
+                      nk=200,rbao=110,sbao=None,beyond_gauss=True,one_loop=True,
+                      shear=True,cutoff=20,jn=5,N=4000,threads=2,
+                      extrap_min=-4,extrap_max=3,import_wisdom=False)
+              extk=np.append(pt.kv,1.)
+              def loginterp(arr):
+                  return 10**interp1d(np.log10(kin),np.log10(np.maximum(arr,1e-300)),
+                                     kind='cubic',fill_value='extrapolate',axis=0,
+                                     assume_sorted=True)(np.log10(extk))
+              pcb=loginterp(Pdd); pnw=loginterp(Pnw); ptt=loginterp(Ptt)
+              tables={}
+              for b in blocks:
+                  z=b['zeff']; iz=zvals.index(z)
+                  Hkms=float(np.interp(z,m['bg'].z,m['bg']['H [1/Mpc]']))*C
+                  DA=float(np.interp(z,m['bg'].z,m['bg']['comov. dist.']))/(1.+z)
+                  qpar=float(fid.efunc(z)/(Hkms/(100.*m['h'])))
+                  qper=float(DA*m['h']/fid.angular_diameter_distance(z))
+                  Dz=float(np.sqrt(pcb[-1,iz]/pcb[-1,0]))
+                  fk=np.sqrt(np.maximum(ptt[:-1,iz]/pcb[:-1,iz],0.))
+                  pks=pt.compute_redshift_space_power_multipoles_tables(
+                      fk,apar=qpar,aperp=qper,ngauss=4,
+                      pcb=pcb[:-1,iz],pcb_nw=pnw[:-1,iz],Dz=Dz)[1:]
+                  basis=np.stack([
+                      interp1d(pt.kv,pks[j],kind='cubic',fill_value='extrapolate',
+                               axis=0,assume_sorted=True)(kobs)
+                      for j in range(3)
+                  ],axis=0)
+                  tables[b['namespace']]=dict(basis=basis,sigma8=float(sig8[iz]),
+                                               fsigma8=float(fs8[iz]),qpar=qpar,qper=qper,
+                                               Dz=Dz)
+              return tables
+
+          def get_poles(info,pars,settings,sn,return_gradient=False):
+              pktable=info['basis']; sigma8=info['sigma8']; f=info['fsigma8']/sigma8
+              b1p,b2p,bsp=pars; b3p=0.
+              b1L=b1p/sigma8-1.; b2L=b2p/sigma8**2
+              bsL=bsp/sigma8**2; b3L=b3p/sigma8**3
+              b1=1.+b1L; b2=8./21.*b1L+b2L; bs=bsL-(2./7.)*b1L; b3=3*b3L+b1L
+              gradient=np.zeros((7,7))
+              gradient[0,0]=b1*b1
+              gradient[1,0]=gradient[1,1]=f*b1
+              gradient[2,1]=f*f
+              gradient[2,2]=f*b1
+              gradient[3,2]=f*f
+              fsat=settings['fsat']; sigv=settings['sigv']
+              for jj,pole in enumerate([0,2,4]):
+                  gradient[jj-3,jj-3]=sn*(fsat if pole>0 else 1.)*sigv**pole
+              base=[1,b1,b1*b1,b2,b1*b2,b2*b2,bs,b1*bs,b2*bs,bs*bs,b3,b1*b3]
+              nuis=[0.]*7
+              mono=np.concatenate([np.asarray(base),gradient.dot(np.asarray(nuis))])
+              poles=np.sum(pktable*mono,axis=-1)
+              if return_gradient:
+                  return poles,pktable[...,-7:].dot(gradient)
+              return poles
+
+          def profile_model(label,m):
+              tables=prepare_basis(m)
+              rows=[]; total=0.
+              for b in blocks:
+                  settings=get_physical_stochastic_settings(tracer=b['tracer'].upper()[:3])
+                  def block_logp(x):
+                      poles,grad=get_poles(tables[b['namespace']],x,settings,b['shotnoise'],True)
+                      theory=b['window'].dot(poles.ravel())
+                      grad=grad[...,gi].reshape(-1,len(gi))
+                      grad=b['window'].dot(grad)
+                      diff=theory-b['data']
+                      pgrad=b['precision'].dot(grad)
+                      postgrad=-pgrad.T.dot(diff)
+                      likeh=-grad.T.dot(pgrad)
+                      posth=prior_hess+likeh
+                      dx=-np.linalg.solve(posth,postgrad)
+                      logl=-.5*diff.T.dot(b['precision']).dot(diff)
+                      logl+=.5*dx.dot(likeh).dot(dx)+postgrad.dot(dx)
+                      logprior=.5*dx.dot(prior_hess).dot(dx)
+                      logl+=-.5*np.linalg.slogdet(-posth)[1]
+                      # Cobaya Gaussian priors on b2p,bsp:
+                      logbias=-.5*(x[1]/5.)**2-.5*(x[2]/5.)**2
+                      return float(logl+logprior+logbias)
+                  seeds=[
+                      np.array(starts[b['namespace']],float),
+                      np.array([1.0,0.0,0.0]),
+                      np.array([0.55,4.0,-4.0]),
+                      np.array([1.8,-4.0,4.0]),
+                      np.array([2.6,8.0,-8.0]),
+                      np.array([1.4,-10.0,-10.0]),
+                  ]
+                  trials=[]
+                  for iseed,seed in enumerate(seeds):
+                      opti=minimize(lambda x:-2*block_logp(x),seed,method='L-BFGS-B',
+                                    bounds=[(0.,3.),(-20.,20.),(-20.,20.)],
+                                    options={'maxiter':800,'ftol':1e-11,'gtol':3e-7,'maxls':50})
+                      trials.append(opti)
+                      print('DESI_COV_ROBUST_TRIAL',label,b['namespace'],iseed,float(opti.fun),
+                            bool(opti.success),[float(v) for v in opti.x],flush=True)
+                  finite=[o for o in trials if np.isfinite(o.fun)]
+                  opt=min(finite,key=lambda o:o.fun)
+                  vals=np.array([float(o.fun) for o in finite])
+                  chi=float(opt.fun); total+=chi
+                  info=tables[b['namespace']]
+                  row=dict(model=label,tracer=b['tracer'],namespace=b['namespace'],
+                           zeff=b['zeff'],chi2_profile=chi,success=bool(opt.success),
+                           start_spread_chi2=float(vals.max()-vals.min()) if len(vals)>1 else 0.,
+                           n_success=sum(bool(o.success) for o in trials),
+                           b1p=float(opt.x[0]),b2p=float(opt.x[1]),bsp=float(opt.x[2]),
+                           sigma8=info['sigma8'],fsigma8=info['fsigma8'],
+                           qpar=info['qpar'],qper=info['qper'],Dz=info['Dz'])
+                  rows.append(row)
+                  print('DESI_FS_BLOCK',row,flush=True)
+              print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
+              return rows,total
+
+          covrows,covchi=profile_model('COVARIANT_FULLJOINT_HYBRID043',cov)
+          lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
+          delta=covchi-lcdmchi
+          print('COVARIANT_FULLJOINT_HYBRID043_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          rows=covrows+lcdmrows
+          pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
+          pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
+                             delta_chi2_cov_minus_lcdm=delta)]).to_csv(
+                                 OUT/'desi_dr1_fs_summary.csv',index=False)
+          PY
+
+      - name: Preserve DESI DR1 raw full-shape gate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-fulljoint-hybrid043-covariant-desi
+          path: |
+            output/covariant_target_00_background.dat
+            output/covariant_replay_00_background.dat
+            output/covariant_replay_comparison.csv
+            output/desi_zeff.json
+            output/desi_zpk.txt
+            output/desi_covariant_transfer.ini
+            output/desi_cov_00_*
+            output/desi_cov_z*_*
+            output/desi_lcdm_transfer.ini
+            output/desi_lcdm_00_*
+            output/desi_lcdm_z*_*
+            output/desi_dr1_fs_profile.csv
+            output/desi_dr1_fs_summary.csv
+          if-no-files-found: warn
+
+# trigger partial-zeq exact DESI
