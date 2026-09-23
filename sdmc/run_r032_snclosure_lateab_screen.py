@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Coupled local closure screen around sobol107+bo002: late background plus ordinary-sector displacement.
+Coupled local closure screen around sobol036+seed015: late background plus ordinary-sector displacement.
 
 Stage 1: 256 Sobol backgrounds in (A_late, B_late, H0), exact SN covariances,
          acoustic-scale proxy, DESI DR1 Gaussian BAO, exact stability columns.
@@ -27,26 +27,26 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure107_bo002_coupled_local"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure107_sobol036_seed015_coupled_local"); OUT.mkdir(parents=True,exist_ok=True)
 TMP=OUT/"tmp"; TMP.mkdir(exist_ok=True)
 SNROOT=Path("sn_data")
 BAOROOT=Path("bao_data")
 
 # bo002 structural anchor + ordinary-sector interpolation direction.
-OB0=0.022083219194622913
-OC0=0.12299536722293603
-AS0=2.119721074504234e-9
-NS0=0.9625227132590487
-OB1=0.022215084896497428
-OC1=0.12228109714277088
-AS1=2.120753981008663e-9
-NS1=0.9647922897702084
+OB0=0.02208516937362783
+OC0=0.12298480378987971
+AS0=2.119736350292785e-9
+NS0=0.9625562783210716
+OB1=0.022217035075502344
+OC1=0.12227053370971457
+AS1=2.120769256797214e-9
+NS1=0.9648258548322313
 TAU=0.055202901571989066
-AF=0.024290704212870225
-ZC=3.6096407580714724
-WIDTH=0.3631213944496205
+AF=0.0235834146537818
+ZC=3.4274108000472188
+WIDTH=0.3689727572351694
 D0=0.34231919445927034
-DF=0.04602317962943721
+DF=0.050407338682562114
 LAM=18.40625
 ZT=16.173189924377947
 DNT=0.5
@@ -54,11 +54,11 @@ TAUA=0.25
 TAUB=1.5
 OR=4.17998772e-5
 
-A0=0.0013601897284388
-B0=0.0147392870020121
-H00=70.09917331933976
-EDGE024_PD_FAIR=-0.675200032792783
-EDGE024_BAO_CHI=13.433004949
+A0=0.011249459300190211
+B0=0.01280436261370778
+H00=69.80878993044607
+EDGE024_PD_FAIR=0.05337920225869297
+EDGE024_BAO_CHI=13.204567845148436
 LOCAL_BAO_CHI=13.400290718544086
 LOCAL_SN={"pantheonplus":1406.2147033223882,
           "union3":28.783140002196888,
@@ -246,13 +246,13 @@ if center["status"]!="OK": raise RuntimeError(f"center failed: {center}")
 ELL0=center["ellA_proxy"]
 print("SNCLOSE_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
 
-sob=qmc.Sobol(d=4,scramble=True,seed=10742002)
+sob=qmc.Sobol(d=4,scramble=True,seed=15036)
 u=sob.random_base2(m=7)  # 128
 # Broad but physically conservative low-z box.
-Alo,Ahi=0.0000,0.0120
-Blo,Bhi=0.0100,0.0190
-Hlo,Hhi=69.80,70.25
-Tlo,Thi=-0.15,0.10
+Alo,Ahi=0.0070,0.0155
+Blo,Bhi=0.0105,0.0155
+Hlo,Hhi=69.65,70.05
+Tlo,Thi=-0.08,0.08
 rows=[]
 for i,x in enumerate(u):
     A=Alo+(Ahi-Alo)*x[0]
