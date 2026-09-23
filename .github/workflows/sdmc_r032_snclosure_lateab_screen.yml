@@ -1,9 +1,9 @@
-name: SDMC r032 joint exact-informed Bayesian Planck DESI SN search
+name: SDMC r032 joint exact-informed Bayesian Planck DESI SN search R2
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure-joint-exact-bo
+      - sdmc-r032-snclosure-joint-exact-bo-r2
   workflow_dispatch:
 
 permissions:
@@ -75,16 +75,16 @@ jobs:
       - name: Print closure summary
         if: always()
         run: |
-          cat output/snclosure_joint_exact_bo/snclosure_summary.json || true
+          cat output/snclosure_joint_exact_bo_r2/snclosure_summary.json || true
           echo "--- TOP PLANCK SHORTLIST ---"
-          head -12 output/snclosure_joint_exact_bo/snclosure_planck_shortlist.csv || true
+          head -12 output/snclosure_joint_exact_bo_r2/snclosure_planck_shortlist.csv || true
 
       - name: Preserve closure screen
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure-joint-exact-bo
+          name: sdmc-r032-snclosure-joint-exact-bo-r2-r2
           path: |
-            output/snclosure_joint_exact_bo/*.csv
-            output/snclosure_joint_exact_bo/*.json
+            output/snclosure_joint_exact_bo_r2/*.csv
+            output/snclosure_joint_exact_bo_r2/*.json
           if-no-files-found: warn
