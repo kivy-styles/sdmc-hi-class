@@ -56,9 +56,9 @@ H00=69.71275747716427
 EDGE024_PD_FAIR=-0.21524906298265822
 EDGE024_BAO_CHI=13.251270395581628
 LOCAL_BAO_CHI=13.400290718544086
-LOCAL_SN={"pantheonplus":1406.2147033223882,
-          "union3":28.783140002196888,
-          "desy5":1650.6353947147727}
+LOCAL_SN={"pantheonplus":1403.8851876021363,
+          "union3":26.547333491500467,
+          "desy5":1645.4675567299128}
 RD_FIXED=145.8653484988842
 ZSTAR=1089.9
 TCMB=2.7255; CAL_SIGMA=.0025
@@ -241,9 +241,9 @@ print("SNCLOSE_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
 sob=qmc.Sobol(d=3,scramble=True,seed=6006107)
 u=sob.random_base2(m=8)  # 256
 # Focused extension through the lower-H boundary exposed by sobol006.
-Alo,Ahi=0.0035,0.0105
-Blo,Bhi=0.0100,0.0145
-Hlo,Hhi=69.20,69.76
+Alo,Ahi=0.0040,0.0220
+Blo,Bhi=0.0075,0.0145
+Hlo,Hhi=65.50,67.50
 rows=[]
 for i,x in enumerate(u):
     A=Alo+(Ahi-Alo)*x[0]
