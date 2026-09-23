@@ -1,0 +1,386 @@
+name: SDMC r032 fulljoint hybrid175 exact-covariant full Plik
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - sdmc-r032-fulljoint-hybrid175-covariant-fullplik
+  workflow_dispatch:
+
+jobs:
+  fast-full-plik:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya iminuit
+
+      - name: Install Planck likelihood data
+        run: |
+          ok=0
+          for attempt in 1 2 3 4
+          do
+            echo "Planck install attempt $attempt"
+            rm -rf planck_full planck_packages
+            if python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          if not TTTEEE.install(path='planck_full',no_progress_bars=True):
+              raise SystemExit(2)
+          for cls in (TT,EE,LensingNative):
+              if not cls.install(path='planck_packages',no_progress_bars=True):
+                  raise SystemExit(3)
+          print('PLANCK_DATA_READY')
+          PY
+            then
+              ok=1
+              break
+            fi
+            sleep $((attempt*6))
+          done
+          test "$ok" -eq 1
+
+      - name: Build reconstructed covariant candidate and LCDM spectra
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+          mkdir -p output input_artifact/unpacked
+
+          cat > output/cov_exact_target.ini <<'EOF'
+          H0 = 69.39066212259233
+          omega_b = 0.02208511574370519
+          omega_cdm = 0.12298509428428875
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1197359302086e-9
+          n_s = 0.962555355281866
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.023604633340554453, 3.4328776987879466, 0.36879721635160295, 0.34231919445927034, 1.0, 0.050275813910968366
+          expansion_model = sdmc_full
+          expansion_smg = 0.6986291143539576, 18.40625, 16.173189924377947, 0.5, 0.009963009264320135, 0.25, 0.010114087156951428, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = no
+          root = output/cov_exact_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/cov_exact_target.ini
+
+          python3 sdmc/run_r032_partial_zeq_ztbest_covariant.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('source/background.c'); s=p.read_text()
+          pat=re.compile(
+              r'double Ox\s*=\s*pba->parameters_smg\[0\];\s*'
+              r'double lambda_e\s*=\s*pba->parameters_smg\[1\];\s*'
+              r'double zt\s*=\s*pba->parameters_smg\[2\];\s*'
+              r'double dNt\s*=\s*pba->parameters_smg\[3\];\s*'
+              r'double A\s*=\s*pba->parameters_smg\[4\];\s*'
+              r'double tauA\s*=\s*pba->parameters_smg\[5\];\s*'
+              r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
+              r'double tauB\s*=\s*pba->parameters_smg\[7\];'
+          )
+          repl='''double Ox = 0.6986291143539576;
+            double lambda_e = 18.40625;
+            double zt = 16.173189924377947;
+            double dNt = 0.5;
+            double A = 0.009963009264320135;
+            double tauA = 0.25;
+            double B = 0.010114087156951428;
+            double tauB = 1.5;'''
+          s2,n=pat.subn(repl,s,count=1)
+          if n != 1: raise RuntimeError(f'tracker helper replacement count={n}')
+          p.write_text(s2)
+          PY
+
+          make clean && make -j2 class
+
+          cat > input_artifact/unpacked/candidate.ini <<'EOF'
+          H0 = 69.39066212259233
+          omega_b = 0.02208511574370519
+          omega_cdm = 0.12298509428428875
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1197359302086e-9
+          n_s = 0.962555355281866
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_exact
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl
+          lensing = yes
+          l_max_scalars = 3000
+          write background = yes
+          root = input_artifact/unpacked/covariant_observable_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class input_artifact/unpacked/candidate.ini
+
+          python3 - <<'PY'
+          import re, numpy as np
+          from pathlib import Path
+          p=Path('input_artifact/unpacked/covariant_observable_00_background.dat')
+          lines=p.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith('#') and re.search(r'1\s*:',x)][-1].lstrip('#').strip()
+          ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
+          mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
+          slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
+          print('FULLJOINT_HYBRID175_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
+          PY
+
+          sed 's#root = output/sdmc_planck_lcdm_control_#root = input_artifact/unpacked/fullplik_lcdm_#' \
+            sdmc/config/planck_lcdm_control.ini > input_artifact/unpacked/lcdm.ini
+          ./class input_artifact/unpacked/lcdm.ini
+          test -f input_artifact/unpacked/covariant_observable_00_cl_lensed.dat
+          test -f input_artifact/unpacked/fullplik_lcdm_00_cl_lensed.dat
+
+      - name: Profile full Plik with Minuit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, json
+          import numpy as np
+          from iminuit import Minuit
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+
+          ROOT=Path('input_artifact/unpacked')
+          OUT=Path('output'); OUT.mkdir(exist_ok=True)
+          TCMB=2.7255
+
+          high=TTTEEE(packages_path='planck_full')
+          lowT=TT(packages_path='planck_packages')
+          lowE=EE(packages_path='planck_packages')
+          lens=LensingNative(packages_path='planck_packages')
+
+          fixed={
+            'cib_index':-1.3,
+            'galf_TE_index':-2.4,
+            'galf_EE_index':-2.4,
+            'A_sbpx_100_100_TT':1.0,'A_sbpx_143_143_TT':1.0,
+            'A_sbpx_143_217_TT':1.0,'A_sbpx_217_217_TT':1.0,
+            'galf_EE_A_100':0.055,'galf_EE_A_100_143':0.040,
+            'galf_EE_A_100_217':0.094,'galf_EE_A_143':0.086,
+            'galf_EE_A_143_217':0.21,'galf_EE_A_217':0.70,
+            'A_cnoise_e2e_100_100_EE':1.0,'A_cnoise_e2e_143_143_EE':1.0,
+            'A_cnoise_e2e_217_217_EE':1.0,
+            'A_sbpx_100_100_EE':1.0,'A_sbpx_100_143_EE':1.0,
+            'A_sbpx_100_217_EE':1.0,'A_sbpx_143_143_EE':1.0,
+            'A_sbpx_143_217_EE':1.0,'A_sbpx_217_217_EE':1.0,
+            'A_pol':1.0,'calib_100P':1.021,'calib_143P':0.966,'calib_217P':1.040,
+          }
+
+          names=[
+            'A_planck','calib_100T','calib_217T',
+            'A_cib_217','xi_sz_cib','A_sz','ksz_norm',
+            'gal545_A_100','gal545_A_143','gal545_A_143_217','gal545_A_217',
+            'ps_A_100_100','ps_A_143_143','ps_A_143_217','ps_A_217_217',
+            'galf_TE_A_100','galf_TE_A_100_143','galf_TE_A_100_217',
+            'galf_TE_A_143','galf_TE_A_143_217','galf_TE_A_217'
+          ]
+          x0=[
+            1.0,1.0002,0.99805,
+            67.,0.05,7.,3.,
+            8.6,10.6,23.5,91.9,
+            257.,47.,40.,104.,
+            .130,.130,.46,.207,.69,1.938
+          ]
+          bounds=[
+            (.97,1.03),
+            (.9946,1.0058),(.99285,1.00325),
+            (0,200),(0,1),(0,10),(0,10),
+            (0,24.6),(0,26.6),(0,91.5),(0,251.9),
+            (0,400),(0,400),(0,400),(0,400),
+            (0,0.466),(0,0.418),(0,1.18),(0,0.783),(0,1.41),(0,6.258)
+          ]
+          gauss={
+            'A_planck':(1.,.0025),
+            'calib_100T':(1.0002,.0007),'calib_217T':(.99805,.00065),
+            'gal545_A_100':(8.6,2.),'gal545_A_143':(10.6,2.),
+            'gal545_A_143_217':(23.5,8.5),'gal545_A_217':(91.9,20.),
+            'galf_TE_A_100':(.130,.042),'galf_TE_A_100_143':(.130,.036),
+            'galf_TE_A_100_217':(.46,.09),'galf_TE_A_143':(.207,.072),
+            'galf_TE_A_143_217':(.69,.09),'galf_TE_A_217':(1.938,.54),
+          }
+
+          expected=set(high.expected_params)
+          supplied=set(fixed)|set(names)
+          if expected!=supplied:
+              raise RuntimeError(f'param mismatch missing={sorted(expected-supplied)} extra={sorted(supplied-expected)}')
+
+          def load(path):
+              a=np.loadtxt(path); ell=a[:,0].astype(int); n=int(ell.max())+1
+              conv=(TCMB*1e6)**2
+              dl={k:np.zeros(n) for k in ['tt','ee','bb','te','pp','tp','ep']}
+              dl['tt'][ell]=a[:,1]*conv
+              dl['ee'][ell]=a[:,2]*conv
+              dl['te'][ell]=a[:,3]*conv
+              dl['bb'][ell]=a[:,4]*conv
+              ll=ell.astype(float)*(ell.astype(float)+1.)
+              dl['pp'][ell]=a[:,5]*ll
+              dl['tp'][ell]=a[:,6]*np.sqrt(ll)*(TCMB*1e6)
+              dl['ep'][ell]=a[:,7]*np.sqrt(ll)*(TCMB*1e6)
+              cl={k:np.zeros(n) for k in ['tt','ee','bb','te']}
+              fac=np.zeros(n)
+              q=ell>=2
+              fac[ell[q]]=2*np.pi/ll[q]
+              for k in cl:
+                  cl[k][ell]=dl[k][ell]*fac[ell]
+              return cl,dl
+
+          def prior_chi2(p):
+              c=0.
+              for n,(mu,sig) in gauss.items():
+                  c+=((p[n]-mu)/sig)**2
+              c+=((p['ksz_norm']+1.6*p['A_sz']-9.5)/3.0)**2
+              return float(c)
+
+          def make_objective(path):
+              cl,dl=load(path)
+              def objective(*x):
+                  p=dict(fixed); p.update(dict(zip(names,map(float,x))))
+                  lh=float(high.log_likelihood(cl,**p))
+                  A=p['A_planck']
+                  lt=float(lowT.log_likelihood(dl['tt'],calib=A))
+                  le=float(lowE.log_likelihood(dl['ee'],calib=A))
+                  lp={lens.calibration_param:A} if getattr(lens,'calibration_param',None) else {}
+                  ll=float(lens.log_likelihood(dl,**lp))
+                  if not all(np.isfinite([lh,lt,le,ll])):
+                      return 1e100
+                  return float(-2*(lh+lt+le+ll)+prior_chi2(p))
+              def pieces(x):
+                  p=dict(fixed); p.update(dict(zip(names,map(float,x))))
+                  lh=float(high.log_likelihood(cl,**p))
+                  A=p['A_planck']
+                  lt=float(lowT.log_likelihood(dl['tt'],calib=A))
+                  le=float(lowE.log_likelihood(dl['ee'],calib=A))
+                  lp={lens.calibration_param:A} if getattr(lens,'calibration_param',None) else {}
+                  ll=float(lens.log_likelihood(dl,**lp))
+                  return p,lh,lt,le,ll
+              return objective,pieces
+
+          def run_one(label,path,seeds):
+              fun,pieces=make_objective(path)
+              best=None
+              for iseed,seed in enumerate(seeds):
+                  m=Minuit(fun,*seed,name=names)
+                  m.errordef=1.0
+                  m.strategy=1
+                  m.tol=0.1
+                  for n,b in zip(names,bounds):
+                      m.limits[n]=b
+                  for n in names:
+                      m.errors[n]=max(1e-5,0.02*max(abs(m.values[n]),1.0))
+                  m.migrad(ncall=5000)
+                  if not m.fmin.is_valid:
+                      m.simplex(ncall=2500)
+                      m.migrad(ncall=5000)
+                  row=(float(m.fval),np.array([m.values[n] for n in names],float),bool(m.fmin.is_valid),int(m.nfcn))
+                  print('COVARIANT_FULLJOINT_HYBRID175_FULL_PLIK_SEED',label,iseed,row[0],row[2],row[3],flush=True)
+                  if best is None or row[0]<best[0]:
+                      best=row
+              fval,x,valid,nfcn=best
+              p,lh,lt,le,ll=pieces(x)
+              row={'model':label,'chi2_profile_total':fval,'chi2_high_full':-2*lh,
+                   'chi2_lowT':-2*lt,'chi2_lowE':-2*le,'chi2_lensing':-2*ll,
+                   'chi2_nuisance_priors':prior_chi2(p),'A_planck':p['A_planck'],
+                   'valid':valid,'nfcn':nfcn}
+              row.update({n:p[n] for n in names if n!='A_planck'})
+              print('COVARIANT_FULLJOINT_HYBRID175_FULL_PLIK_RESULT',json.dumps(row,sort_keys=True),flush=True)
+              return row,x
+
+          default=np.asarray(x0,float)
+          displaced=default.copy(); displaced[3]=80.; displaced[5]=5.; displaced[6]=2.
+          cov,cx=run_one('SDMC_COVARIANT_FULLJOINT_HYBRID175',ROOT/'covariant_observable_00_cl_lensed.dat',[default,displaced])
+          lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,cx])
+          delta=cov['chi2_profile_total']-lcdm['chi2_profile_total']
+          print('COVARIANT_FULLJOINT_HYBRID175_FULL_PLIK_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          fields=list(cov.keys())
+          with (OUT/'fast_fullplik_profile.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows([cov,lcdm])
+          (OUT/'fast_fullplik_delta.txt').write_text(f'{delta:.12g}\n')
+          PY
+
+      - name: Preserve fast profile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-snclosure223-s110-covariant-full-plik-profile
+          path: output/*
+          if-no-files-found: warn
