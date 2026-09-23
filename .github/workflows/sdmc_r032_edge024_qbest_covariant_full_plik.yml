@@ -1,4 +1,4 @@
-name: SDMC r032 bridge6796 exact-covariant full Plik
+name: SDMC r032 bridge6796_bo013 bo013 exact-covariant full Plik
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-bridge6796-covariant-fullplik
+      - sdmc-r032-bridge6796_bo013-bo013-covariant-fullplik
   workflow_dispatch:
 
 jobs:
@@ -72,15 +72,15 @@ jobs:
 
           cat > output/cov_exact_target.ini <<'EOF'
           H0 = 67.96
-          omega_b = 0.022083219194622913
-          omega_cdm = 0.12299536722293603
+          omega_b = 0.021902642840171727
+          omega_cdm = 0.12657681485141645
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.119721074504234e-9
-          n_s = 0.9625227132590487
-          tau_reio = 0.055202901571989066
+          A_s = 2.0976039420869155e-9
+          n_s = 0.9556123887279615
+          tau_reio = 0.049394406260748286
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -90,7 +90,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.024290704212870225, 3.6096407580714724, 0.3631213944496205, 0.34231919445927034, 1.0, 0.04602317962943721
           expansion_model = sdmc_full
-          expansion_smg = 0.6857887826054784, 18.40625, 16.173189924377947, 0.5, 0.011061627057101114, 0.25, 0.010557478912554592, 1.5
+          expansion_smg = 0.6784252968093178, 18.40625, 16.173189924377947, 0.5, 0.011061627057101114, 0.25, 0.010557478912554592, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -127,7 +127,7 @@ jobs:
               r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
               r'double tauB\s*=\s*pba->parameters_smg\[7\];'
           )
-          repl='''double Ox = 0.6857887826054784;
+          repl='''double Ox = 0.6784252968093178;
             double lambda_e = 18.40625;
             double zt = 16.173189924377947;
             double dNt = 0.5;
@@ -144,15 +144,15 @@ jobs:
 
           cat > input_artifact/unpacked/candidate.ini <<'EOF'
           H0 = 67.96
-          omega_b = 0.022083219194622913
-          omega_cdm = 0.12299536722293603
+          omega_b = 0.021902642840171727
+          omega_cdm = 0.12657681485141645
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.119721074504234e-9
-          n_s = 0.9625227132590487
-          tau_reio = 0.055202901571989066
+          A_s = 2.0976039420869155e-9
+          n_s = 0.9556123887279615
+          tau_reio = 0.049394406260748286
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -198,7 +198,7 @@ jobs:
           a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
           mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
           slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
-          print('BRIDGE6796_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          print('BRIDGE6796_BO013_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
           if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
           PY
 
@@ -352,7 +352,7 @@ jobs:
                       m.simplex(ncall=2500)
                       m.migrad(ncall=5000)
                   row=(float(m.fval),np.array([m.values[n] for n in names],float),bool(m.fmin.is_valid),int(m.nfcn))
-                  print('COVARIANT_BRIDGE6796_FULL_PLIK_SEED',label,iseed,row[0],row[2],row[3],flush=True)
+                  print('COVARIANT_BRIDGE6796_BO013_FULL_PLIK_SEED',label,iseed,row[0],row[2],row[3],flush=True)
                   if best is None or row[0]<best[0]:
                       best=row
               fval,x,valid,nfcn=best
@@ -362,15 +362,15 @@ jobs:
                    'chi2_nuisance_priors':prior_chi2(p),'A_planck':p['A_planck'],
                    'valid':valid,'nfcn':nfcn}
               row.update({n:p[n] for n in names if n!='A_planck'})
-              print('COVARIANT_BRIDGE6796_FULL_PLIK_RESULT',json.dumps(row,sort_keys=True),flush=True)
+              print('COVARIANT_BRIDGE6796_BO013_FULL_PLIK_RESULT',json.dumps(row,sort_keys=True),flush=True)
               return row,x
 
           default=np.asarray(x0,float)
           displaced=default.copy(); displaced[3]=80.; displaced[5]=5.; displaced[6]=2.
-          cov,cx=run_one('SDMC_COVARIANT_BRIDGE6796',ROOT/'covariant_observable_00_cl_lensed.dat',[default,displaced])
+          cov,cx=run_one('SDMC_COVARIANT_BRIDGE6796_BO013',ROOT/'covariant_observable_00_cl_lensed.dat',[default,displaced])
           lcdm,lx=run_one('LCDM',ROOT/'fullplik_lcdm_00_cl_lensed.dat',[default,cx])
           delta=cov['chi2_profile_total']-lcdm['chi2_profile_total']
-          print('COVARIANT_BRIDGE6796_FULL_PLIK_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_BRIDGE6796_BO013_FULL_PLIK_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           fields=list(cov.keys())
           with (OUT/'fast_fullplik_profile.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows([cov,lcdm])
@@ -381,6 +381,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-bridge6796-fullplik-profile
+          name: sdmc-r032-bridge6796_bo013-fullplik-profile
           path: output/*
           if-no-files-found: warn
