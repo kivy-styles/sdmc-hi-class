@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Focused low-H SN-aware closure screen around the exact sobol006 basin with structure frozen.
+SN-DESI bridge screen between the low-H SN-closure basin and the exact Planck/DESI basin.
 
-Stage 1: 256 Sobol backgrounds in (A_late, B_late, H0), exact SN covariances,
+Stage 1: 1024 Sobol backgrounds in (A_late, B_late, H0), exact SN covariances,
          acoustic-scale proxy, DESI DR1 Gaussian BAO, exact stability columns.
 Stage 2: full C_l + Planck native-lite likelihood on the best 24 backgrounds.
 
@@ -27,7 +27,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/snclosure107_bo002_sobol006_lowh"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/snclosure107_bo002_sn_desi_bridge"); OUT.mkdir(parents=True,exist_ok=True)
 TMP=OUT/"tmp"; TMP.mkdir(exist_ok=True)
 SNROOT=Path("sn_data")
 BAOROOT=Path("bao_data")
@@ -59,6 +59,9 @@ LOCAL_BAO_CHI=13.400290718544086
 LOCAL_SN={"pantheonplus":1406.2147033223882,
           "union3":28.783140002196888,
           "desy5":1650.6353947147727}
+LCDM_SN={"pantheonplus":1403.8851876021363,
+         "union3":26.547333491500467,
+         "desy5":1645.4675567299128}
 RD_FIXED=145.8653484988842
 ZSTAR=1089.9
 TCMB=2.7255; CAL_SIGMA=.0025
@@ -213,7 +216,9 @@ def run_background(label,A,B,H0):
             if stable:
                 sn=sn_scores(bg)
                 rec.update({f"sn_{k}":v for k,v in sn.items()})
-                for k,v in sn.items(): rec[f"sn_delta_{k}"]=v-LOCAL_SN[k]
+                for k,v in sn.items():
+                    rec[f"sn_delta_{k}"]=v-LOCAL_SN[k]
+                    rec[f"sn_delta_lcdm_{k}"]=v-LCDM_SN[k]
                 rec["bao_chi2"]=bao_score(bg)
                 rec["bao_delta_local"]=rec["bao_chi2"]-LOCAL_BAO_CHI
                 DM=interp(bg,'comov. dist.',ZSTAR)
@@ -238,12 +243,12 @@ if center["status"]!="OK": raise RuntimeError(f"center failed: {center}")
 ELL0=center["ellA_proxy"]
 print("SNCLOSE_CENTER_BACKGROUND",json.dumps(center,sort_keys=True),flush=True)
 
-sob=qmc.Sobol(d=3,scramble=True,seed=6006107)
-u=sob.random_base2(m=8)  # 256
+sob=qmc.Sobol(d=3,scramble=True,seed=23092026)
+u=sob.random_base2(m=10)  # 1024
 # Focused extension through the lower-H boundary exposed by sobol006.
-Alo,Ahi=0.0035,0.0105
-Blo,Bhi=0.0100,0.0145
-Hlo,Hhi=69.20,69.76
+Alo,Ahi=0.0020,0.0600
+Blo,Bhi=0.0060,0.0200
+Hlo,Hhi=65.50,68.80
 rows=[]
 for i,x in enumerate(u):
     A=Alo+(Ahi-Alo)*x[0]
@@ -252,28 +257,38 @@ for i,x in enumerate(u):
     r=run_background(f"sobol{i:03d}",A,B,H0)
     if r["status"]=="OK":
         r["ellA_frac"]=(r["ellA_proxy"]/ELL0-1.0)
-        # If P+D did not move, these are the exact two easiest joint gaps.
+        # Primary bridge target: at least two exact SN covariance likelihoods
+        # individually beat matched LCDM, while retaining acoustic/BAO continuity.
         r["joint0_pp"]=EDGE024_PD_FAIR+r["sn_delta_pantheonplus"]
         r["joint0_u3"]=EDGE024_PD_FAIR+r["sn_delta_union3"]
         r["joint0_d5"]=EDGE024_PD_FAIR+r["sn_delta_desy5"]
-        sn2=sorted([r["joint0_pp"],r["joint0_u3"],r["joint0_d5"]])[1]
-        # Rank SN closure, while strongly preferring acoustic and BAO continuity.
-        r["stage1_score"]=sn2 + 1600*abs(r["ellA_frac"]) + 0.10*max(0,r["bao_chi2"]-EDGE024_BAO_CHI)
+        sn2_lcdm=sorted([r["sn_delta_lcdm_pantheonplus"],
+                         r["sn_delta_lcdm_union3"],
+                         r["sn_delta_lcdm_desy5"]])[1]
+        r["second_best_sn_delta_lcdm"]=sn2_lcdm
+        r["stage1_score"]=sn2_lcdm + 500*abs(r["ellA_frac"]) + 0.05*max(0,r["bao_chi2"]-EDGE024_BAO_CHI)
     rows.append(r)
-    if i%16==0: print("SNCLOSE_PROGRESS",i,json.dumps(r,sort_keys=True),flush=True)
+    if i%64==0: print("SNCLOSE_PROGRESS",i,json.dumps(r,sort_keys=True),flush=True)
 
 df=pd.DataFrame(rows)
 df.to_csv(OUT/"snclosure_stage1_all.csv",index=False)
 ok=df[(df.status=="OK") & (df.stable_subluminal==True)].copy()
 # Acoustic/BAO guard; relax only if too few.
-guard=ok[(ok.ellA_frac.abs()<0.0020) & (ok.bao_chi2<20.0)].copy()
-if len(guard)<32: guard=ok.copy()
-short=guard.nsmallest(32,"stage1_score").copy()
+guard=ok[(ok.ellA_frac.abs()<0.0100) & (ok.bao_chi2<40.0)].copy()
+if len(guard)<64: guard=ok.copy()
+short=guard.nsmallest(64,"stage1_score").copy()
 # Always include exact center for consistent Planck-lite normalization.
 centerrow=pd.DataFrame([{**center,"ellA_frac":0.0,
                          "sn_delta_pantheonplus":center["sn_pantheonplus"]-LOCAL_SN["pantheonplus"],
                          "sn_delta_union3":center["sn_union3"]-LOCAL_SN["union3"],
                          "sn_delta_desy5":center["sn_desy5"]-LOCAL_SN["desy5"],
+                         "sn_delta_lcdm_pantheonplus":center["sn_pantheonplus"]-LCDM_SN["pantheonplus"],
+                         "sn_delta_lcdm_union3":center["sn_union3"]-LCDM_SN["union3"],
+                         "sn_delta_lcdm_desy5":center["sn_desy5"]-LCDM_SN["desy5"],
+                         "second_best_sn_delta_lcdm":sorted([
+                             center["sn_pantheonplus"]-LCDM_SN["pantheonplus"],
+                             center["sn_union3"]-LCDM_SN["union3"],
+                             center["sn_desy5"]-LCDM_SN["desy5"]])[1],
                          "bao_delta_local":center["bao_chi2"]-LOCAL_BAO_CHI,
                          "joint0_pp":EDGE024_PD_FAIR+center["sn_pantheonplus"]-LOCAL_SN["pantheonplus"],
                          "joint0_u3":EDGE024_PD_FAIR+center["sn_union3"]-LOCAL_SN["union3"],
@@ -333,15 +348,15 @@ p_rows=[planck_for(r) for _,r in short.iterrows()]
 pdf=pd.DataFrame(p_rows)
 centerP=float(pdf.loc[pdf.id=="center","chi2_planck"].iloc[0])
 pdf["delta_planck_vs_center"]=pdf.chi2_planck-centerP
-# Conservative DESI movement proxy: one quarter of the BAO chi2 movement.
-pdf["pd_proxy"]=EDGE024_PD_FAIR+pdf.delta_planck_vs_center+0.25*(pdf.bao_chi2-EDGE024_BAO_CHI)
-pdf["joint_pp_proxy"]=pdf.pd_proxy+pdf.sn_delta_pantheonplus
-pdf["joint_u3_proxy"]=pdf.pd_proxy+pdf.sn_delta_union3
-pdf["joint_d5_proxy"]=pdf.pd_proxy+pdf.sn_delta_desy5
-pdf["second_best_sn_joint_proxy"]=pdf[["joint_pp_proxy","joint_u3_proxy","joint_d5_proxy"]].apply(
+# Proxy margins against matched LCDM. Exact promotion remains mandatory.
+pdf["planck_exact_proxy"]= -19.443013815459835 + pdf.delta_planck_vs_center
+pdf["desi_exact_proxy"]= -10.816095962135194 + 2.0*(pdf.bao_chi2-EDGE024_BAO_CHI)
+pdf["second_best_sn_delta_lcdm"]=pdf[["sn_delta_lcdm_pantheonplus",
+                                     "sn_delta_lcdm_union3",
+                                     "sn_delta_lcdm_desy5"]].apply(
     lambda r: sorted(map(float,r))[1],axis=1)
-pdf["goal_score"]=np.maximum(pdf.pd_proxy,pdf.second_best_sn_joint_proxy)
-pdf=pdf.sort_values(["goal_score","second_best_sn_joint_proxy","pd_proxy"])
+pdf["goal_score"]=pdf[["planck_exact_proxy","desi_exact_proxy","second_best_sn_delta_lcdm"]].max(axis=1)
+pdf=pdf.sort_values(["goal_score","second_best_sn_delta_lcdm","planck_exact_proxy","desi_exact_proxy"])
 pdf.to_csv(OUT/"snclosure_planck_shortlist.csv",index=False)
 best=pdf.head(8).to_dict("records")
 summary={
@@ -351,7 +366,7 @@ summary={
  "n_stage1_ok":int(len(ok)),
  "n_planck":int((pdf.planck_status=="OK").sum()),
  "best":best,
- "goal":"pd_proxy<0 and second_best_sn_joint_proxy<0; then exact promotion required"
+ "goal":"planck_exact_proxy<0, desi_exact_proxy<0, and second_best_sn_delta_lcdm<0; then exact full-Plik/DESI/SN promotion required"
 }
 (OUT/"snclosure_summary.json").write_text(json.dumps(summary,indent=2))
 print("SNCLOSE_BEST",json.dumps(best,sort_keys=True),flush=True)
