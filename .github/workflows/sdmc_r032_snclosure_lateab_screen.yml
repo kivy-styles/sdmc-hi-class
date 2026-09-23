@@ -1,9 +1,9 @@
-name: SDMC r032 tri-likelihood MFBO seed015
+name: SDMC r032 tri-likelihood MFBO2 seed015
 
 on:
   push:
     branches:
-      - sdmc-r032-trilikelihood-mfbo-seed015
+      - sdmc-r032-trilikelihood-mfbo2-seed015
   workflow_dispatch:
 
 permissions:
@@ -75,16 +75,16 @@ jobs:
       - name: Print tri-likelihood summary
         if: always()
         run: |
-          cat output/trilikelihood_mfbo_seed015/trilikelihood_mfbo_summary.json || true
+          cat output/trilikelihood_mfbo2_seed015/trilikelihood_mfbo2_summary.json || true
           echo "--- RAW JOINT BAYESIAN TABLE ---"
-          head -20 output/trilikelihood_mfbo_seed015/trilikelihood_mfbo.csv || true
+          head -20 output/trilikelihood_mfbo2_seed015/trilikelihood_mfbo2.csv || true
 
       - name: Preserve tri-likelihood search
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-trilikelihood-mfbo-seed015
+          name: sdmc-r032-trilikelihood-mfbo2-seed015
           path: |
-            output/trilikelihood_mfbo_seed015/*.csv
-            output/trilikelihood_mfbo_seed015/*.json
+            output/trilikelihood_mfbo2_seed015/*.csv
+            output/trilikelihood_mfbo2_seed015/*.json
           if-no-files-found: warn
