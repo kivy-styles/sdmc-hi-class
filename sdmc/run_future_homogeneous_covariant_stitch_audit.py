@@ -423,9 +423,12 @@ def evolve(model,Nmax=10.,npts=2001):
     # Constants cancel in chi/chi0=(rho_X/rho_X0) sigma^2.
     rhoXa=np.array([x["rhoX_structural"] for x in diag])
     chi_hist=CHI0*(rhoXa/rhoXa[0])*yy[0]*yy[0]
+    F_hist=np.array([x["F"] for x in diag])
+    gamma_hist=chi_hist/F_hist
     mapper_hist=yy[0]/np.exp(NN)
     for j,x in enumerate(diag):
         x["chi_action"]=float(chi_hist[j])
+        x["Gamma_action"]=float(gamma_hist[j])
         x["mapper_ratio_to_present"]=float(mapper_hist[j])
 
     # Exact hi_class/Bellini-Sawicki scalar sound speed in two equivalent
@@ -518,6 +521,8 @@ def evolve(model,Nmax=10.,npts=2001):
     imax=int(np.argmax(qq))
     ichi=int(np.argmax(chi_hist))
     ichimin=int(np.argmin(chi_hist))
+    igamma=int(np.argmax(gamma_hist))
+    igammamin=int(np.argmin(gamma_hist))
     nos=np.array([abs(x["noslip_rel"]) for x in diag])
     imns=int(np.argmax(nos))
     nosa=np.array([abs(x["noslip_alpha_combo"]) for x in diag])
@@ -586,6 +591,10 @@ def evolve(model,Nmax=10.,npts=2001):
         "chi_action_max_at_ln_a":float(NN[ichi]),
         "chi_action_min":float(chi_hist[ichimin]),
         "chi_action_final":float(chi_hist[-1]),
+        "Gamma_action_max":float(gamma_hist[igamma]),
+        "Gamma_action_max_at_ln_a":float(NN[igamma]),
+        "Gamma_action_min":float(gamma_hist[igammamin]),
+        "Gamma_action_final":float(gamma_hist[-1]),
         "mapper_ratio_final":float(mapper_hist[-1]),
         "max_abs_noslip_term_balance_rel":float(nos[imns]),
         "max_abs_noslip_term_balance_at_ln_a":float(NN[imns]),
