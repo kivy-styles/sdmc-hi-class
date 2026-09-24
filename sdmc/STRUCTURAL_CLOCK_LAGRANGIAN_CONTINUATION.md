@@ -10347,3 +10347,278 @@ as the canonical action is reached.
 The remaining \(1.1\times10^{-7}\) excess is consequently a measure of how
 well the chosen future interpolation suppresses the transition residue.  It
 does not invalidate the canonical endpoint itself.
+
+
+## 60. Reconciliation of the recurring 2.84, 2.86, 2.89, 3.37, and 3.4135 numbers
+
+Several numerically similar values occur in different parts of the SDMC
+manuscript and should not be conflated.
+
+### 60.1 The legacy \(3.37\)
+
+Parts I--III used the working present structural benchmark
+
+\[
+\boxed{
+\Xi_0
+\equiv
+\frac{H_0R_0}{c}
+\simeq3.37.
+}
+\]
+
+In the older coasting picture this was also associated numerically with the
+global structural-radius rate,
+
+\[
+\dot R\simeq3.37\,c.
+\]
+
+The later Part-IX chronological closure reconstructed the temporal lapse
+independently and obtained
+
+\[
+\boxed{
+{\cal N}_0=3.41350846
+}
+\]
+
+for
+
+\[
+S_0=2.72\times10^{61}
+\]
+
+and the accepted-action age.  The same calculation gives
+
+\[
+\boxed{
+p_0=1.03421566.
+}
+\]
+
+The exact identity derived in the present continuation is
+
+\[
+\frac{HR}{c}
+=
+\frac{{\cal N}}{p}.
+\]
+
+Therefore the current accepted-action quantities imply
+
+\[
+\boxed{
+\left(\frac{H_0R_0}{c}\right)_{\rm current}
+=
+\frac{3.41350846}{1.03421566}
+\simeq3.30057704.
+}
+\]
+
+Thus the modern action separates three statements that were approximately
+identified in the early working model:
+
+\[
+\boxed{
+{\cal N}_0\simeq3.4135,
+}
+\]
+
+\[
+\boxed{
+(H_0R_0/c)_{\rm current}\simeq3.3006,
+}
+\]
+
+and the earlier benchmark
+
+\[
+\boxed{
+\Xi_0^{\rm legacy}\simeq3.37.
+}
+\]
+
+The difference is expected because the accepted present branch has
+
+\[
+p_0\ne1
+\]
+
+and also uses a later refitted \(H_0\).  The manuscript itself already notes
+that the \(3.41351\) action-derived lapse differs from the \(3.37\) legacy
+working value by about \(1.29\%\).
+
+### 60.2 The structural \(2.894405\)
+
+The value
+
+\[
+\boxed{
+2.894405018\ldots
+=
+\sqrt{\frac{8\pi}{3}}
+}
+\]
+
+is the old ideal vacuum-reference coefficient
+
+\[
+\Xi_v
+\]
+
+and the Part-III scalar-dominated canonical endpoint.
+
+In the covariant continuation it is recovered as
+
+\[
+\boxed{
+{\cal N}_\infty=2.894405018\ldots
+}
+\]
+
+when
+
+\[
+\Gamma_\infty
+=
+\frac{\chi_\infty}{F_\infty}
+=1.
+\]
+
+This is the endpoint selected by the covariant Balanced-Identity condition and
+by continuity with the old \(\lambda_\ell=\sqrt2\) canonical endpoint.
+
+### 60.3 The structural \(2.860445\)
+
+The distinct lower value
+
+\[
+\boxed{
+{\cal N}_\infty=2.86044513
+}
+\]
+
+belongs to the alternative closure
+
+\[
+\chi_\infty=1.
+\]
+
+Since
+
+\[
+F_\infty>1,
+\]
+
+this gives
+
+\[
+\Gamma_\infty=\frac1{F_\infty}<1
+\]
+
+and lowers the mature lapse by about \(1.17\%\) relative to the
+Balanced-Identity value.
+
+Thus the genuine structural endpoint interval found in the modern action is
+
+\[
+\boxed{
+2.86044513
+\le
+{\cal N}_\infty
+\le
+2.89440502.
+}
+\]
+
+### 60.4 The manuscript's \(2.84892452\) is not a lapse
+
+The remembered value near \(2.84\) is also present in Part IX, but in a
+different context.
+
+The geometry-refined likelihood milestone reports
+
+\[
+\boxed{
+\Delta\chi^2_{\rm fair,Planck+DESI}
+=
++2.84892452.
+}
+\]
+
+That number is a fair Planck+DESI best-fit difference against the optimized
+\(\Lambda\)CDM control.  It is **not** a structural lapse, sound speed, mapper,
+or asymptotic coefficient.
+
+An adjacent earlier likelihood point is
+
+\[
+\boxed{
+\Delta\chi^2_{\rm fair,Planck+DESI,Q-best}
+=
++2.86998458,
+}
+\]
+
+which can easily be mistaken for the lower structural endpoint because both
+begin with \(2.86\).  They are unrelated quantities.
+
+The likelihood continuation subsequently crossed zero and therefore neither
+\(2.8489\) nor \(2.86998\) should be imported into the Lagrangian endpoint
+derivation.
+
+### 60.5 Compact dictionary
+
+The recurring numbers can therefore be kept separate as
+
+\[
+\boxed{
+3.37
+}
+\quad
+\text{legacy present structural benchmark},
+\]
+
+\[
+\boxed{
+3.41350846
+}
+\quad
+\text{Part-IX action-derived present temporal lapse},
+\]
+
+\[
+\boxed{
+3.30057704
+}
+\quad
+\text{current }H_0R_0/c={\cal N}_0/p_0,
+\]
+
+\[
+\boxed{
+2.894405018
+}
+\quad
+\text{Balanced-Identity / canonical mature lapse},
+\]
+
+\[
+\boxed{
+2.86044513
+}
+\quad
+\text{bare-source mature lapse},
+\]
+
+\[
+\boxed{
+2.84892452
+}
+\quad
+\text{historical fair Planck+DESI }\Delta\chi^2\text{ value}.
+\]
+
+This resolves the apparent numerical overlap without discarding any of the
+earlier derivations.
