@@ -627,3 +627,224 @@ Planck-mass transition centered at \(z_c\simeq3.43\).
 This favors treating \(\chi\) as a composite diagnostic of the existing early
 handoff plus late scalar-tensor response, rather than adding a new propagating
 activation field solely to reproduce the reconstructed \(\chi(a)\).
+
+
+## 12. Linearized stability of the constant-kinetic orbit
+
+The minisuperspace equation can be written in a form that isolates the
+acceleration of the structural field.  With
+
+\[
+v\equiv\dot\sigma,
+\qquad
+B(\sigma)\equiv\frac14k_2-\frac16g_{,\sigma},
+\]
+
+the reduced scalar Lagrangian is
+
+\[
+\ell=
+\frac12k_1v^2+Bv^4+Hgv^3-V
+-3HF_{,\sigma}v-3FH^2.
+\]
+
+Define
+
+\[
+\boxed{
+{\cal K}_{\rm hom}\equiv
+\frac{\partial^2\ell}{\partial v^2}
+=
+k_1+12Bv^2+6Hgv
+}.
+\]
+
+The homogeneous scalar equation can then be arranged exactly as
+
+\[
+\boxed{
+{\cal K}_{\rm hom}\,\dot v+{\cal C}(\sigma,v;t)=0
+}
+\]
+
+with
+
+\[
+\boxed{
+\begin{aligned}
+{\cal C}={}&
+V_{,\sigma}
++\frac12 k_{1,\sigma}v^2
++3B_{,\sigma}v^4
++3Hk_1v
++12HBv^3\\
+&+2Hg_{,\sigma}v^3
++3(\dot H+3H^2)gv^2
+-3(\dot H+2H^2)F_{,\sigma}.
+\end{aligned}
+}
+\]
+
+The chronological orbit is the constant-velocity solution
+
+\[
+v=v_\star=\frac1{t_0},
+\qquad
+{\cal C}(\bar\sigma,v_\star;t)=0.
+\]
+
+For a scalar-only local stability diagnostic, temporarily holding the metric
+background on the nominal solution, write
+
+\[
+\sigma=\bar\sigma+\delta\sigma,
+\qquad
+v=v_\star+\delta v.
+\]
+
+Since \(\dot v_\star=0\), the linearized system is
+
+\[
+\frac{d}{dt}
+\begin{pmatrix}
+\delta\sigma\\
+\delta v
+\end{pmatrix}
+=
+\begin{pmatrix}
+0 & 1\\
+-{\cal M}_\star^2 & -\Gamma_\star
+\end{pmatrix}
+\begin{pmatrix}
+\delta\sigma\\
+\delta v
+\end{pmatrix},
+\]
+
+where
+
+\[
+\boxed{
+\Gamma_\star=
+\frac{{\cal C}_{,v}}{{\cal K}_{\rm hom}}
+\bigg|_\star,
+\qquad
+{\cal M}_\star^2=
+\frac{{\cal C}_{,\sigma}}{{\cal K}_{\rm hom}}
+\bigg|_\star.
+}
+\]
+
+If the coefficients are regarded as locally constant, the instantaneous
+eigenvalues are
+
+\[
+\boxed{
+\lambda_\pm=
+\frac{-\Gamma_\star
+\pm\sqrt{\Gamma_\star^2-4{\cal M}_\star^2}}{2}.
+}
+\]
+
+Positive effective damping and a non-tachyonic local restoring term,
+
+\[
+\Gamma_\star>0,
+\qquad
+{\cal M}_\star^2>0,
+\]
+
+are sufficient local indicators in this frozen-background approximation.
+They are not the final cosmological attractor criterion because the scalar
+perturbation backreacts on \(H\), \(F\), and the matter fractions.
+
+That is why the GitHub basin test perturbs the actual hi_class scalar initial
+conditions and re-integrates the full homogeneous system rather than declaring
+the orbit stable from the reduced equation alone.
+
+A convenient numerical variable is
+
+\[
+q\equiv\frac{d\psi}{d\ln t}
+=t\dot\psi
+=\frac{t\dot\sigma}{\sigma}.
+\]
+
+Since
+
+\[
+p=\frac{\dot\sigma}{H\sigma},
+\]
+
+we also have
+
+\[
+\boxed{q=Htp}.
+\]
+
+The chronological solution has
+
+\[
+q=1,
+\]
+
+so convergence of \(q\to1\), together with decay of the phase-space
+separation from the nominal solution, is a direct numerical attractor test.
+
+## 13. Covariant composite hierarchy in the structural field
+
+On the reconstructed monotonic cosmological branch
+\(\phi=f(\psi)\) and \(a=e^\phi\).  Therefore the matter mapper can be written
+directly as a composite of the same scalar coordinate,
+
+\[
+\boxed{
+\frac{K_m}{K_{m0}}
+=e^{\psi-\phi}
+=e^{\psi-f(\psi)}
+}
+\]
+
+and similarly
+
+\[
+\boxed{
+\frac{K_p}{K_{p0}}
+=e^{\psi-f(\psi)}.
+}
+\]
+
+The lapse is
+
+\[
+\boxed{
+{\cal N}
+=t_PS_0e^\psi\dot\psi
+=t_PS_0\dot\sigma.
+}
+\]
+
+Thus the structural hierarchy may be summarized as
+
+\[
+\boxed{
+\{G_2,G_3,G_4\}
+\longrightarrow
+\{\sigma,Z,\rho_X\}
+\longrightarrow
+\{\chi,{\cal N},K_m,K_p\},
+}
+\]
+
+subject to the bare-density identification
+
+\[
+\rho_v=\frac{\rho_P}{S_0^2\sigma^2}.
+\]
+
+This is stronger than treating \({\cal N}\), \(K_m\), and \(K_p\) as separate
+phenomenological parameters: once the structural scalar trajectory is fixed,
+all three are derived composites.  The unresolved step is whether an
+independently motivated microscopic form of the same covariant functions
+selects the constant-\(Z\) orbit without reconstruction from the desired
+background.
