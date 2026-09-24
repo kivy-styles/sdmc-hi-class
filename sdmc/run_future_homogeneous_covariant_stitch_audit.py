@@ -616,51 +616,52 @@ def build_refined_noslip_candidate(spec,iterations=2,blend_rate=40.):
     return model
 
 results={}
-refined_results={}
-for spec in CANDIDATES:
-    model=build_candidate(spec)
-    results[spec["name"]]=evolve(model)
-    refined=build_refined_noslip_candidate(spec,iterations=2,blend_rate=40.)
-    refined_results[spec["name"]]=evolve(refined)
+refined_if __name__ == "__main__":
+    results={}
+    for spec in CANDIDATES:
+        model=build_candidate(spec)
+        results[spec["name"]]=evolve(model)
+        refined=build_refined_noslip_candidate(spec,iterations=2,blend_rate=40.)
+        refined_results[spec["name"]]=evolve(refined)
 
-out={
-  "status":(
-    "action-native homogeneous future audit; z>=0 action is unchanged. "
-    "The exact homogeneous Bellini-Sawicki D and c_s^2 functions are also "
-    "evaluated along the future trajectory. Full perturbation propagation in "
-    "a future-capable hi_class background remains outstanding. The physical "
-    "No-Slip diagnostic is alpha_B+2 alpha_M; the separate term-balance "
-    "ratio can look large when both terms are individually tiny."
-  ),
-  "accepted_present":{
-    "H0_1Mpc":H0,"p0":p0_bg,"q0":q0_bg,
-    "N0_struct":N0_STRUCT,"Z0":Z0,"F0":float(F[i0]),
-    "F_inf":FINF,"Xi_v":XI,
-    "hi_class_saved_health":accepted_present_health,
-  },
-  "candidates":results,
-  "noslip_refined_candidates":refined_results,
-}
-OUT.parent.mkdir(parents=True,exist_ok=True)
-OUT.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+    out={
+      "status":(
+        "action-native homogeneous future audit; z>=0 action is unchanged. "
+        "The exact homogeneous Bellini-Sawicki D and c_s^2 functions are also "
+        "evaluated along the future trajectory. Full perturbation propagation in "
+        "a future-capable hi_class background remains outstanding. The physical "
+        "No-Slip diagnostic is alpha_B+2 alpha_M; the separate term-balance "
+        "ratio can look large when both terms are individually tiny."
+      ),
+      "accepted_present":{
+        "H0_1Mpc":H0,"p0":p0_bg,"q0":q0_bg,
+        "N0_struct":N0_STRUCT,"Z0":Z0,"F0":float(F[i0]),
+        "F_inf":FINF,"Xi_v":XI,
+        "hi_class_saved_health":accepted_present_health,
+      },
+      "candidates":results,
+      "noslip_refined_candidates":refined_results,
+    }
+    OUT.parent.mkdir(parents=True,exist_ok=True)
+    OUT.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 
-print("FUTURE_HOMOGENEOUS_COVARIANT_STITCH_AUDIT")
-for name,r in results.items():
-    print("CANDIDATE",name,json.dumps({
-      "present_check":r["present_eom_check"],
-      "target":r["asymptotic_target"],
-      "tail":r["tail_parameters"],
-      "health":r["health_diagnostics"],
-      "future":r["future_kinematics"],
-      "final":r["final"],
-    },sort_keys=True))
+    print("FUTURE_HOMOGENEOUS_COVARIANT_STITCH_AUDIT")
+    for name,r in results.items():
+        print("CANDIDATE",name,json.dumps({
+          "present_check":r["present_eom_check"],
+          "target":r["asymptotic_target"],
+          "tail":r["tail_parameters"],
+          "health":r["health_diagnostics"],
+          "future":r["future_kinematics"],
+          "final":r["final"],
+        },sort_keys=True))
 
-for name,r in refined_results.items():
-    print("NOSLIP_REFINED",name,json.dumps({
-      "present_check":r["present_eom_check"],
-      "target":r["asymptotic_target"],
-      "tail":r["tail_parameters"],
-      "health":r["health_diagnostics"],
-      "future":r["future_kinematics"],
-      "final":r["final"],
-    },sort_keys=True))
+    for name,r in refined_results.items():
+        print("NOSLIP_REFINED",name,json.dumps({
+          "present_check":r["present_eom_check"],
+          "target":r["asymptotic_target"],
+          "tail":r["tail_parameters"],
+          "health":r["health_diagnostics"],
+          "future":r["future_kinematics"],
+          "final":r["final"],
+        },sort_keys=True))
