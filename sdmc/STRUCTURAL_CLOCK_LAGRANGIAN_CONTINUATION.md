@@ -9244,3 +9244,248 @@ side after the late No-Slip release is complete.
 
 That question is now being tested directly by the legacy-canonical future
 audit rather than decided by notation.
+
+
+## 56. Analytic stability eigenvalues of the canonical mature endpoint
+
+The \(r=0\) endpoint admits a second, independent stability check because it is
+exactly equivalent to a canonical exponential scalar in the constant
+\(F_\infty\) limit.
+
+Using the effective mature Planck scale and the canonically normalized field,
+the potential is
+
+\[
+V(\widehat\phi)
+=
+V_\star e^{-\lambda_\ell\widehat\phi},
+\qquad
+\lambda_\ell=\sqrt2.
+\]
+
+Introduce the standard autonomous variables
+
+\[
+x
+\equiv
+\frac{\dot{\widehat\phi}}{\sqrt6 H},
+\qquad
+y
+\equiv
+\frac{\sqrt{V}}{\sqrt3 H},
+\]
+
+so that
+
+\[
+\Omega_\phi=x^2+y^2.
+\]
+
+The scalar-dominated exponential fixed point is
+
+\[
+x_\star=\frac{\lambda_\ell}{\sqrt6},
+\qquad
+y_\star=
+\sqrt{1-\frac{\lambda_\ell^2}{6}}.
+\]
+
+For
+
+\[
+\lambda_\ell^2=2,
+\]
+
+this gives
+
+\[
+\boxed{
+x_\star=\frac1{\sqrt3},
+\qquad
+y_\star=\sqrt{\frac23}.
+}
+\]
+
+Hence
+
+\[
+w_\phi=x_\star^2-y_\star^2
+=
+-\frac13,
+\]
+
+and therefore
+
+\[
+\boxed{
+q_\star=0.
+}
+\]
+
+This reproduces the structural coasting fixed point without using the
+inverse-square \(Z\)-space calculation.
+
+For a residual barotropic component with
+
+\[
+p_b=(\gamma-1)\rho_b,
+\]
+
+the two linear eigenvalues of the scalar-dominated exponential point are
+
+\[
+\boxed{
+\mu_1=\frac{\lambda_\ell^2-6}{2},
+\qquad
+\mu_2=\lambda_\ell^2-3\gamma.
+}
+\]
+
+At the SDMC canonical endpoint,
+
+\[
+\boxed{
+\mu_1=-2.
+}
+\]
+
+For pressureless matter,
+
+\[
+\gamma=1,
+\]
+
+so
+
+\[
+\boxed{
+\mu_2=-1.
+}
+\]
+
+For radiation,
+
+\[
+\gamma=\frac43,
+\]
+
+so
+
+\[
+\boxed{
+\mu_2=-2.
+}
+\]
+
+Thus the canonical mature point is linearly attractive against both its
+intrinsic scalar mode and the residual matter/radiation directions.
+
+The eigenvalues also explain two asymptotic scalings found independently in
+the structural-action calculation.
+
+The dust eigenmode
+
+\[
+\mu_2=-1
+\]
+
+implies
+
+\[
+\boxed{
+m\propto a^{-1},
+}
+\]
+
+which is exactly the residual-matter loading used in the matter-forced
+expansion.
+
+The intrinsic scalar eigenmode
+
+\[
+\mu_1=-2
+\]
+
+gives
+
+\[
+\boxed{
+\delta_{\rm scalar}\propto a^{-2}.
+}
+\]
+
+This is precisely the order that remains after the leading
+lapse--mapper cancellation,
+
+\[
+\frac{{\cal N}K_m}
+{{\cal N}_\infty K_{m,\infty}}
+=
+1+O(a^{-2}).
+\]
+
+So the previously empirical hierarchy
+
+\[
+O(a^{-1})
+\quad\text{matter correction},
+\qquad
+O(a^{-2})
+\quad\text{intrinsic residual}
+\]
+
+is the direct eigenmode structure of the legacy canonical
+\(\lambda_\ell=\sqrt2\) endpoint.
+
+For \(r=0\),
+
+\[
+\kappa=1+2r=1,
+\]
+
+and the matter-forced formulas reduce to
+
+\[
+\boxed{
+\frac{{\cal N}}{{\cal N}_\infty}-1
+=
+-\frac32 m+O(a^{-2}),
+}
+\]
+
+\[
+\boxed{
+p-1
+=
+-\frac32 m+O(a^{-2}),
+}
+\]
+
+\[
+\boxed{
+q
+=
+-\frac32 m+O(a^{-2}),
+}
+\]
+
+while
+
+\[
+\boxed{
+\frac{K_m}{K_{m,\infty}}-1
+=
+\frac{K_p}{K_{p,\infty}}-1
+=
++\frac32 m+O(a^{-2}).
+}
+\]
+
+The analytic canonical stability calculation therefore agrees with the
+covariant structural-action asymptotics at the level of both the fixed point
+and the decay exponents.
+
+This substantially strengthens the interpretation of the \(r=0\) branch:
+if the accepted late266 action can be joined to it without a transient health
+violation, the mature state is not merely an imposed canonical limit; it is an
+ordinary late-time attractor of the resulting canonical exponential theory.
