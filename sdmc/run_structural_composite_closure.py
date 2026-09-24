@@ -154,13 +154,55 @@ def sample(zt):
                          Kp_over_Kp0=float(Kmrel_chrono[j]),chi=float(chi_chrono[j]))
     )
 
+# Radiation-matter analytic bridge from Part III, using the actual equality epoch.
+Om=np.asarray(d["Omega_m(z)"])[o][keep] if "Omega_m(z)" in d else None
+Or=np.asarray(d["Omega_r(z)"])[o][keep] if "Omega_r(z)" in d else None
+rm_diag=None
+if Om is not None and Or is not None:
+    q=Om-Or
+    z_eq=None
+    for ii in range(len(ln_a)-1):
+        if q[ii]*q[ii+1] <= 0.:
+            xe=ln_a[ii]+(ln_a[ii+1]-ln_a[ii])*(-q[ii])/(q[ii+1]-q[ii])
+            z_eq=math.exp(-xe)-1.
+            break
+    if z_eq is not None:
+        aeq=1./(1.+z_eq)
+        xrm=np.exp(ln_a)/aeq
+        urm=np.sqrt(1.+xrm)
+        p_rm=3.*(urm+1.)**2/(2.*urm*(urm+2.))
+        mm=(z>=100.)&(z<=1.e6)
+        rm_diag=dict(z_eq=float(z_eq),
+                     max_abs_delta_p=float(np.max(np.abs(p_chrono[mm]-p_rm[mm]))),
+                     rms_delta_p=float(np.sqrt(np.mean((p_chrono[mm]-p_rm[mm])**2))),
+                     median_delta_p=float(np.median(p_chrono[mm]-p_rm[mm])))
+
+# If the legacy present benchmark N0=3.37 is retained exactly, solve for
+# the S0 implied by the actual covariant cosmic age.
+N0_benchmark=3.37
+t0_s=proper_gyr[i0]*SEC_PER_GYR
+S0_for_N337=N0_benchmark*t0_s/tP
+S0_ratio_N337=S0_for_N337/a.S0
+Km0_N337=Km0*S0_ratio_N337
+Kp0_N337=Kp0*S0_ratio_N337
+R0_N337_m=1.616255e-35*S0_for_N337
+
+# Current source-derived hierarchy, retained only as a domain-projection
+# diagnostic, not literal rest-mass evolution.
+lambda0=Km0**(-1./6.)/N_chrono[i0]
+source_factor0=lambda0**3
+
 out=dict(
   status="action fixes pX=p-Achi/2; two explicit closures are audited",
   active_density_positive=True,
   z_pX_equals_1=cross,
   anchors=dict(chi0=float(chi0),Omega_X0=Omega_X0,
                Omega_v_raw0=float(Omega_v_raw0),Km0=float(Km0),Kp0=float(Kp0),
-               fb=float(fb),Kp_over_Km=float(Kp0/Km0)),
+               fb=float(fb),Kp_over_Km=float(Kp0/Km0),
+               lambda0=float(lambda0),source_factor0=float(source_factor0)),
+  radiation_matter_bridge=rm_diag,
+  N337_calibration=dict(S0=float(S0_for_N337),S0_ratio_to_2p72e61=float(S0_ratio_N337),
+                        R0_m=float(R0_N337_m),Km0=float(Km0_N337),Kp0=float(Kp0_N337)),
   minimal_activation=dict(
     definition="p=max(1,pX); Achi=2 max(0,1-pX)",
     status="pointwise minimal nondecreasing-activation closure with p>=1 floor",
