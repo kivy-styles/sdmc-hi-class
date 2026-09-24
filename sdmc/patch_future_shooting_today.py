@@ -70,6 +70,8 @@ new=r'''    case Omega_smg: {
          ba.M2_today_smg,
          ba.parameters_smg[ba.tuning_index_2_smg]
         );
+      break;
+    }
 '''
 if old not in s:
     if "Omega_smg(a=1)" in s:
