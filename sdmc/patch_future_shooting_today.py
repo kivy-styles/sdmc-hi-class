@@ -30,8 +30,6 @@ old=r'''    case Omega_smg:
          ba.M2_today_smg,
          ba.parameters_smg[ba.tuning_index_2_smg]
         );
-      break;
-    }
 '''
 new=r'''    case Omega_smg: {
       int index_today_smg = 0;
