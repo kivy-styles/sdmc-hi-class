@@ -6351,3 +6351,97 @@ This creates a clean hierarchy of future tests:
 The first four stages are already closed for the tested future candidates.  The
 last stage is now implemented as an isolated workflow gate and should be
 treated as pending until its native run artifacts are available and inspected.
+
+
+## 42. Exact Planck identity behind the 2.894405 coefficient
+
+The density-route coefficient introduced above is not merely numerically close
+to the earlier manuscript value \(\Xi_v=\sqrt{8\pi/3}\).  With the standard
+Planck definitions used by SDMC,
+
+\[
+t_P^2=\frac{\hbar G}{c^5},
+\qquad
+\rho_P=\frac{c^5}{\hbar G^2},
+\]
+
+where \(\rho_P\) is the Planck mass density.  Their product is exactly
+
+\[
+\boxed{
+\rho_P t_P^2=\frac1G.
+}
+\]
+
+Therefore
+
+\[
+\Xi_P^2
+=
+\frac{8\pi G}{3}\rho_Pt_P^2
+=
+\frac{8\pi}{3},
+\]
+
+and hence
+
+\[
+\boxed{
+\Xi_P
+=
+\Xi_v
+=
+\sqrt{\frac{8\pi}{3}}
+=
+2.894405018\ldots
+}
+\]
+
+identically.
+
+The small \(2.89445\)-level discrepancy that appeared when rounded numerical
+values of \(G,t_P,\rho_P\) were inserted separately is consequently only a
+rounding artifact.  The exact structural coefficient is \(2.894405018\ldots\).
+
+The mature lapse formula can therefore be written without any independent
+Planck-density normalization constant:
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}
+\sqrt{\frac{\chi_\infty}{F_\infty}}.
+}
+\]
+
+For the accepted
+
+\[
+F_\infty=e^{0.02360463334}=1.02388543,
+\]
+
+this gives the two endpoint normalizations already found numerically,
+
+\[
+\boxed{
+{\cal N}_\infty=2.86044513
+\quad
+(\chi_\infty=1),
+}
+\]
+
+and
+
+\[
+\boxed{
+{\cal N}_\infty=2.89440502
+\quad
+(\chi_\infty=F_\infty).
+}
+\]
+
+Thus the remembered \(2.86\)--\(2.89\) interval is anchored at its upper end by
+an exact Planck identity, not by a fit parameter.  What the future covariant
+action must determine is the ratio \(\chi_\infty/F_\infty\), which selects the
+location inside that interval.
