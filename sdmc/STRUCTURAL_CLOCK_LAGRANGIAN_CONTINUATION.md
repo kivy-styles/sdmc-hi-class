@@ -12196,3 +12196,305 @@ the **rate at which the universe approaches it** are not independent pieces of
 the theory.  Once the accepted present normalization and the finite future
 mapper history are specified, the leading matter-loaded approach coefficient
 is already determined.
+
+
+## 65. A minimal-derivative principle selects the canonical shape
+
+Section 62 proved that the Balanced Identity and the mature homogeneous
+background cannot by themselves determine the kinetic-shape modulus \(r\),
+because \(r\) depends on
+
+\[
+f_{,ZZ}(Z_\star).
+\]
+
+The canonical condition was therefore written there as an additional response
+condition,
+
+\[
+c_{s,\infty}^2=1.
+\]
+
+There is, however, a more structural way to state the same selection.
+
+Assume that after the finite late activation has completely switched off, the
+mature structural vacuum is described by the **leading two-derivative
+scale-covariant scalar action**.
+
+The inverse-square structural scaling already requires
+
+\[
+G_{2,\infty}
+=
+\frac{f(Z)}{\sigma^2}.
+\]
+
+Here
+
+\[
+Z=\frac12(\partial\sigma)^2
+\]
+
+contains two first derivatives of the structural field.
+
+A term linear in \(Z\) is therefore part of the leading two-derivative scalar
+theory.  By contrast,
+
+\[
+Z^2,\ Z^3,\ldots
+\]
+
+contain higher powers of derivatives and belong to higher-order operators in
+the derivative expansion, even though the special Horndeski/k-essence
+structure keeps the field equations second order.
+
+If the mature vacuum retains only the leading derivative order, then
+
+\[
+\boxed{
+f(Z)=A Z-B.
+}
+\]
+
+Equivalently,
+
+\[
+\boxed{
+f_{,ZZ}=0.
+}
+\]
+
+For the quadratic family this is precisely
+
+\[
+\boxed{
+r=0.
+}
+\]
+
+Thus canonical shape selection can be interpreted as **mature EFT
+minimality**, rather than as an independently inserted numerical sound-speed
+condition.
+
+### 65.1 The coefficients are then fixed uniquely
+
+The mature coasting equations are
+
+\[
+f(Z_\star)+Z_\star f_{,Z}(Z_\star)=0,
+\]
+
+and
+
+\[
+f_{,Z}(Z_\star)=2F_\infty.
+\]
+
+For
+
+\[
+f(Z)=AZ-B,
+\]
+
+the second equation immediately gives
+
+\[
+\boxed{
+A=2F_\infty.
+}
+\]
+
+The first then gives
+
+\[
+AZ_\star-B+AZ_\star=0,
+\]
+
+hence
+
+\[
+\boxed{
+B=2AZ_\star.
+}
+\]
+
+The covariant Balanced Identity fixes
+
+\[
+Z_\star=Z_{\rm BI},
+\]
+
+so
+
+\[
+\boxed{
+B=4F_\infty Z_{\rm BI}.
+}
+\]
+
+Therefore the three assumptions
+
+\[
+\boxed{
+\text{inverse-square scale covariance},
+}
+\]
+
+\[
+\boxed{
+\text{leading two-derivative mature dynamics},
+}
+\]
+
+and
+
+\[
+\boxed{
+{\cal I}_{\rm BI}=1
+}
+\]
+
+produce uniquely
+
+\[
+\boxed{
+G_{2,\infty}
+=
+\frac1{\sigma^2}
+\left(
+2F_\infty Z
+-
+4F_\infty Z_{\rm BI}
+\right).
+}
+\]
+
+Together with the already established mature limits
+
+\[
+G_{3,\infty}=0,
+\qquad
+G_{4,\infty}=\frac{F_\infty}{2},
+\]
+
+this is exactly the canonical action reached by the successful native
+long-horizon continuation.
+
+### 65.2 Luminality becomes a consequence
+
+Because
+
+\[
+f_{,ZZ}=0,
+\]
+
+the mature k-essence sound speed is
+
+\[
+c_s^2
+=
+\frac{f_{,Z}}
+{f_{,Z}+2Zf_{,ZZ}}
+=
+1.
+\]
+
+Thus
+
+\[
+\boxed{
+c_{s,\infty}^2=1
+}
+\]
+
+need not be treated as an independent mature boundary number if
+two-derivative minimality is adopted.  It follows automatically.
+
+Likewise the quadratic shape modulus obeys
+
+\[
+r
+=
+\frac{
+Z_\star f_{,ZZ}(Z_\star)
+}{
+2F_\infty
+}
+=
+0.
+\]
+
+The Part-VI exponential slope then follows from the canonical field
+redefinition,
+
+\[
+\widehat\phi=\sqrt2\ln\sigma,
+\]
+
+giving
+
+\[
+V(\widehat\phi)
+\propto
+e^{-\sqrt2\widehat\phi},
+\]
+
+and therefore
+
+\[
+\boxed{
+\lambda_\ell=\sqrt2.
+}
+\]
+
+So the chain becomes
+
+\[
+\boxed{
+\text{two-derivative mature EFT}
+\Longrightarrow
+r=0
+\Longrightarrow
+c_s^2=1
+\Longrightarrow
+\lambda_\ell=\sqrt2
+}
+\]
+
+once inverse-square scale covariance and the coasting fixed-point equations are
+imposed.
+
+### 65.3 Scientific status of this step
+
+This is stronger than simply choosing \(r=0\), but it is still a conditional
+derivation.
+
+The current results establish that:
+
+1. the accepted late Horndeski action can evolve smoothly into this
+two-derivative canonical endpoint;
+2. the endpoint is a stable coasting attractor;
+3. native background and scalar perturbations remain healthy through
+\(\ln a=10\);
+4. the endpoint reproduces the legacy \(\lambda_\ell=\sqrt2\) result.
+
+What has **not** yet been proved is that the microscopic SDMC theory must
+eliminate all higher-derivative structural operators in the mature vacuum.
+
+The new statement is therefore a candidate fundamental principle:
+
+\[
+\boxed{
+\textit{The fully relaxed structural vacuum is the minimal
+two-derivative scale-covariant completion of the Unified Balanced Identity.}
+}
+\]
+
+If this principle is accepted, the mature Lagrangian is no longer selected by
+two unrelated conditions.  The Balanced Identity fixes its normalization,
+while derivative minimality fixes its kinetic shape, and the coasting field
+equations determine the remaining coefficient.
+
+A deeper microscopic derivation would have to explain why the finite
+late-time Horndeski operators are generated during the activation era but
+decouple as the structural vacuum relaxes.
