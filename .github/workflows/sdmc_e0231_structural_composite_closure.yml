@@ -1,0 +1,142 @@
+name: SDMC e0231 structural composite closure audit
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - sdmc-structural-composite-e0231
+  workflow_dispatch:
+
+jobs:
+  structural-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+      - name: Build e0231 target
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+          mkdir -p output
+          cat > output/linear_cov_target.ini <<'EOF'
+          H0 = 69.35292106793452
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.119721074504234e-9
+          n_s = 0.9625227132590487
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.024290704212870225, 3.6096407580714724, 0.3631213944496205, 0.34231919445927034, 1.0, 0.04602317962943721
+          expansion_model = sdmc_full
+          expansion_smg = 0.6982836048745417, 18.40625, 16.173189924377947, 0.5, 0.011241707768261, 0.25, 0.0102705562927805, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          root = output/linear_cov_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/linear_cov_target.ini
+      - name: Reconstruct accepted linear-G3 action
+        run: |
+          python3 sdmc/run_r032_late266_linear_covariant.py
+          cat output/linear_cov_reconstruction_summary.txt
+          make clean && make -j2 class
+      - name: Free evolve e0231 action
+        run: |
+          cat > output/free.ini <<'EOF'
+          H0 = 69.35292106793452
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.119721074504234e-9
+          n_s = 0.9625227132590487
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_linear_audit
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          root = output/e0231_linear_cov_free_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/free.ini
+      - name: Derive e0231 N Km Kp activation
+        run: |
+          python3 sdmc/run_structural_composite_closure.py             output/e0231_linear_cov_free_00_background.dat             --H0 69.35292106793452             --omega-b 0.022083219194622913             --omega-cdm 0.12299536722293603             --out output/e0231_structural_composite_closure.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('output/e0231_structural_composite_closure.json'))
+          print('EXACTBO004_CHRONO_PRESENT',json.dumps(d['chronological']['present'],sort_keys=True))
+          print('EXACTBO004_ANCHORS',json.dumps(d['anchors'],sort_keys=True))
+          print('EXACTBO004_RM_BRIDGE',json.dumps(d['radiation_matter_bridge'],sort_keys=True))
+          print('EXACTBO004_ACTIVATION_EXTREMA',json.dumps({k:d['chronological'][k] for k in ['Achi_min','Achi_max','z_Achi_min','z_Achi_max','chi_min','chi_max','z_chi_min','z_chi_max','chi_bounded_0_1']},sort_keys=True))
+          print('EXACTBO004_HIST_ACTIVATION',json.dumps(d['historical_activation_comparison'],sort_keys=True))
+          print('EXACTBO004_LEGACY',json.dumps(d['legacy_comparison_percent'],sort_keys=True))
+          PY
+      - name: Preserve result
+        uses: actions/upload-artifact@v4
+        with:
+          name: e0231-structural-composite-closure
+          path: |
+            output/linear_cov_reconstruction_summary.txt
+            output/e0231_linear_cov_free_00_background.dat
+            output/e0231_structural_composite_closure.json
