@@ -72,8 +72,14 @@ jobs:
           pert_ic_ini_z_ref_smg = 1.e7
           a_min_stability_test_smg = 1.e-8
           output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
           write background = yes
-          write thermodynamics = no
+          write thermodynamics = yes
           root = output/linear_cov_target_
           format = class
           input_verbose = 0
@@ -118,8 +124,14 @@ jobs:
           pert_ic_ini_z_ref_smg = 1.e7
           a_min_stability_test_smg = 1.e-8
           output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
           write background = yes
-          write thermodynamics = no
+          write thermodynamics = yes
           root = output/linear_cov_free_
           format = class
           input_verbose = 0
@@ -202,6 +214,45 @@ jobs:
           Path('output/linear_cov_replay_comparison.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
           PY
 
+      - name: Compare full Boltzmann observables
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,json
+
+          out={}
+          tcl=Path('output/linear_cov_target_00_cl_lensed.dat')
+          ccl=Path('output/linear_cov_free_00_cl_lensed.dat')
+          if tcl.exists() and ccl.exists():
+              a=np.loadtxt(tcl); b=np.loadtxt(ccl)
+              if a.shape != b.shape or not np.allclose(a[:,0],b[:,0]):
+                  raise RuntimeError(f'C_l grids differ {a.shape} {b.shape}')
+              labels=['TT','EE','TE','BB','PP','TP','EP']
+              for j in range(1,min(a.shape[1],8)):
+                  scale=max(float(np.max(np.abs(a[:,j]))),1e-300)
+                  out['Cl_'+labels[j-1]+'_max_norm_abs']=float(np.max(np.abs(b[:,j]-a[:,j]))/scale)
+                  mask=np.abs(a[:,j])>1e-8*scale
+                  if np.any(mask):
+                      out['Cl_'+labels[j-1]+'_max_frac_masked']=float(np.max(np.abs((b[mask,j]-a[mask,j])/a[mask,j])))
+
+          tp=sorted(Path('output').glob('linear_cov_target_00_pk*.dat'))
+          cp=sorted(Path('output').glob('linear_cov_free_00_pk*.dat'))
+          out['pk_target_files']=len(tp); out['pk_cov_files']=len(cp)
+          for i,(pt,pc) in enumerate(zip(tp,cp)):
+              a=np.loadtxt(pt); b=np.loadtxt(pc)
+              if not np.allclose(a[:,0],b[:,0]):
+                  y=np.interp(a[:,0],b[:,0],b[:,1])
+              else:
+                  y=b[:,1]
+              mask=np.abs(a[:,1])>1e-30
+              out[f'Pk_{i:02d}_max_frac']=float(np.max(np.abs((y[mask]-a[mask,1])/a[mask,1])))
+              out[f'Pk_{i:02d}_rms_frac']=float(np.sqrt(np.mean(((y[mask]-a[mask,1])/a[mask,1])**2)))
+
+          print('LINEAR_COV_BOLTZMANN_COMPARISON',json.dumps(out,sort_keys=True))
+          Path('output/linear_cov_boltzmann_comparison.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+
       - name: Preserve audit
         if: always()
         uses: actions/upload-artifact@v4
@@ -216,4 +267,9 @@ jobs:
             output/linear_cov_free_returncode.txt
             output/linear_cov_free_00_background.dat
             output/linear_cov_replay_comparison.json
+            output/linear_cov_boltzmann_comparison.json
+            output/linear_cov_target_00_cl_lensed.dat
+            output/linear_cov_free_00_cl_lensed.dat
+            output/linear_cov_target_00_pk*.dat
+            output/linear_cov_free_00_pk*.dat
           if-no-files-found: warn
