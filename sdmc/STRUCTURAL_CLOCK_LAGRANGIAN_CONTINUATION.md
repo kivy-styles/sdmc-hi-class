@@ -6445,3 +6445,544 @@ Thus the remembered \(2.86\)--\(2.89\) interval is anchored at its upper end by
 an exact Planck identity, not by a fit parameter.  What the future covariant
 action must determine is the ratio \(\chi_\infty/F_\infty\), which selects the
 location inside that interval.
+
+
+## 43. Exact Lagrangian evolution equation for the structural lapse
+
+The structural lapse no longer needs to be treated as an external closure once
+the structural field is used directly.
+
+With
+
+\[
+\sigma=\frac{S}{S_0},
+\qquad
+v\equiv\dot\sigma,
+\]
+
+the lapse is
+
+\[
+\boxed{
+{\cal N}=t_P S_0 v.
+}
+\]
+
+Hence
+
+\[
+\boxed{
+\frac{d\ln{\cal N}}{d\ln a}
+=
+\frac{\dot v}{Hv}.
+}
+\]
+
+Using the exact homogeneous system of Section 27,
+
+\[
+\Delta_{\rm hom}
+=
+2F{\cal K}+3Q^2,
+\]
+
+\[
+\dot v
+=
+-\frac{
+2F{\cal C}+3Q{\cal R}
+}{
+\Delta_{\rm hom}
+},
+\]
+
+the structural-clock equation becomes
+
+\[
+\boxed{
+\frac{d\ln{\cal N}}{d\ln a}
+=
+-
+\frac{
+2F{\cal C}+3Q{\cal R}
+}{
+Hv\left(2F{\cal K}+3Q^2\right)
+}.
+}
+\]
+
+Equivalently,
+
+\[
+\boxed{
+\frac{d{\cal N}}{d\ln a}
+=
+-
+\frac{
+t_P S_0
+\left(2F{\cal C}+3Q{\cal R}\right)
+}{
+H\left(2F{\cal K}+3Q^2\right)
+}.
+}
+\]
+
+This is the direct Lagrangian evolution law for the SDMC lapse.  No relation of
+the form
+
+\[
+S/S_0=t/t_0
+\]
+
+is required after the initial endpoint is specified.
+
+The bridge exponent
+
+\[
+p
+=
+\frac{d\ln\sigma}{d\ln a}
+=
+\frac{v}{H\sigma}
+\]
+
+is also a dynamical output.  Its exact first-order evolution is
+
+\[
+\boxed{
+\frac{d\ln p}{d\ln a}
+=
+\frac{d\ln{\cal N}}{d\ln a}
++
+1+q-p.
+}
+\]
+
+The deceleration parameter follows from the same homogeneous matrix,
+
+\[
+\boxed{
+q
+=
+-1
+-
+\frac{
+Q{\cal C}-{\cal K}{\cal R}
+}{
+H^2\left(2F{\cal K}+3Q^2\right)
+}.
+}
+\]
+
+Thus
+
+\[
+{\cal N},\qquad p,\qquad q
+\]
+
+are not three independent closures.  They are three projections of the same
+two-dimensional homogeneous scalar-metric system.
+
+The positivity of
+
+\[
+\Delta_{\rm hom}=2F{\cal K}+3Q^2
+\]
+
+along the released healthy branch is particularly useful.  It shows that the
+clock equation remains nonsingular whenever the effective Planck mass and
+homogeneous scalar kinetic sector remain healthy.
+
+## 44. Exact lapse-mapper identity and the late-time cancellation
+
+The matter and baryon mappers derived earlier obey
+
+\[
+\boxed{
+M
+\equiv
+\frac{K_m}{K_{m0}}
+=
+\frac{K_p}{K_{p0}}
+=
+\frac{\sigma}{a}.
+}
+\]
+
+Therefore
+
+\[
+\boxed{
+\frac{d\ln M}{d\ln a}=p-1.
+}
+\]
+
+Combining
+
+\[
+{\cal N}=t_PS_0v,
+\qquad
+p=\frac{v}{H\sigma},
+\qquad
+M=\frac{\sigma}{a},
+\]
+
+gives the exact identity
+
+\[
+\boxed{
+{\cal N}
+=
+t_PS_0\,p\,M\,aH.
+}
+\]
+
+This relation is useful because it unifies the structural clock and the domain
+mapper in one equation.  It also provides an immediate differential
+consistency condition,
+
+\[
+\frac{d\ln{\cal N}}{d\ln a}
+=
+\frac{d\ln p}{d\ln a}
++
+(p-1)
+-q.
+\]
+
+The right-hand side is identical to the direct lapse equation after using the
+exact \(p\)-flow above.
+
+At the mature matter-forced fixed point of Section 41 define
+
+\[
+A\equiv\frac{3}{2\kappa},
+\qquad
+\kappa=1+2r.
+\]
+
+The action gives
+
+\[
+\frac{{\cal N}}{{\cal N}_\infty}-1
+=
+-Am+O(a^{-2}),
+\]
+
+\[
+p-1
+=
+-Am+O(a^{-2}),
+\]
+
+and
+
+\[
+q
+=
+-Am+O(a^{-2}),
+\]
+
+where
+
+\[
+m\propto a^{-1}
+\]
+
+is the residual matter loading.
+
+Since
+
+\[
+\frac{d\ln M}{d\ln a}
+=
+-Am+O(a^{-2})
+\]
+
+and
+
+\[
+\frac{dm}{d\ln a}
+=
+-m+O(m^2),
+\]
+
+integration toward the fixed point gives
+
+\[
+\boxed{
+\ln\frac{M}{M_\infty}
+=
+Am+O(a^{-2}),
+}
+\]
+
+or
+
+\[
+\boxed{
+\frac{M}{M_\infty}
+=
+1+Am+O(a^{-2}).
+}
+\]
+
+Thus the matter mapper approaches its future constant from the opposite side
+to the structural lapse:
+
+\[
+\boxed{
+\frac{K_m}{K_{m,\infty}}-1
+=
+\frac{K_p}{K_{p,\infty}}-1
+=
++\frac{3m}{2\kappa}
++O(a^{-2}),
+}
+\]
+
+whereas
+
+\[
+\boxed{
+\frac{{\cal N}}{{\cal N}_\infty}-1
+=
+-\frac{3m}{2\kappa}
++O(a^{-2}).
+}
+\]
+
+The leading matter correction therefore cancels in their product,
+
+\[
+\boxed{
+\frac{{\cal N}K_m}
+{{\cal N}_\infty K_{m,\infty}}
+=
+1+O(a^{-2}),
+}
+\]
+
+and identically
+
+\[
+\boxed{
+\frac{{\cal N}K_p}
+{{\cal N}_\infty K_{p,\infty}}
+=
+1+O(a^{-2}).
+}
+\]
+
+This is a new structural invariant of the mature action: the lapse and the
+matter-domain mapper each retain an \(O(a^{-1})\) matter correction, but with
+equal magnitude and opposite sign.
+
+The C3 No-Slip-refined numerical trajectories reproduce this cancellation.
+
+For the bounded-\(\chi\) branch,
+
+\[
+\kappa=7.87368889.
+\]
+
+At
+
+\[
+\ln a=10
+\]
+
+the matter loading gives
+
+\[
+Am\simeq1.71818\times10^{-6}.
+\]
+
+The numerical lapse satisfies
+
+\[
+\frac{{\cal N}}{{\cal N}_\infty}-1
+\simeq
+-1.70644\times10^{-6},
+\]
+
+while the inferred mapper correction is
+
+\[
+\frac{M}{M_\infty}-1
+\simeq
++1.71818\times10^{-6}.
+\]
+
+Their normalized product differs from unity by only
+
+\[
+\boxed{
+1.17\times10^{-8}.
+}
+\]
+
+For the \(F_\infty\)-matched branch,
+
+\[
+\kappa=8.51223767,
+\]
+
+with
+
+\[
+Am\simeq1.54360\times10^{-6}
+\]
+
+at the same epoch.  The numerical lapse gives
+
+\[
+\frac{{\cal N}}{{\cal N}_\infty}-1
+\simeq
+-1.53304\times10^{-6},
+\]
+
+while
+
+\[
+\frac{M}{M_\infty}-1
+\simeq
++1.54360\times10^{-6}.
+\]
+
+The normalized lapse-mapper product differs from unity by only
+
+\[
+\boxed{
+1.06\times10^{-8}.
+}
+\]
+
+The cancellation is already visible at \(\ln a=8\), but the larger
+\(a^{-2}\) intrinsic scalar transient is still measurable there.  By
+\(\ln a=10\), the first-order matter duality is the dominant description.
+
+This result also explains why
+
+\[
+H\sigma
+\]
+
+is asymptotically constant at first order.  Since
+
+\[
+\frac{{\cal N}}{p}
+=
+t_PS_0H\sigma,
+\]
+
+and both \({\cal N}/{\cal N}_\infty\) and \(p\) contain the same
+\(-Am\) correction, their ratio has no \(O(a^{-1})\) term.
+
+## 45. Native future perturbation gate is now closed
+
+The native future perturbation gate described earlier as pending has now been
+run successfully on the isolated future-capable hi_class branch.
+
+For both mature endpoint candidates, the native background reaches
+
+\[
+\ln a=5,
+\qquad
+a=148.413159\ldots,
+\]
+
+and the scalar perturbation hierarchy is propagated at
+
+\[
+k=
+10^{-4},
+\quad
+10^{-3},
+\quad
+10^{-2}
+\ {\rm Mpc}^{-1}.
+\]
+
+All stored perturbation columns remain finite through the future endpoint and
+all six candidate-mode endpoint gates pass.  The workflow returns
+
+\[
+\boxed{
+\texttt{NATIVE\_FUTURE\_GATE\_PASS}.
+}
+\]
+
+The metric potentials remain bounded in the tested interval.  For the
+\(F_\infty\)-matched branch, for example, the \(k=10^{-2}\,{\rm Mpc}^{-1}\)
+mode has
+
+\[
+|\phi(a=148.4)|
+\simeq3.66\times10^{-3},
+\]
+
+compared with approximately
+
+\[
+0.312
+\]
+
+at the first future sample.  The corresponding \(\psi\) behavior is
+essentially identical.
+
+For the longest tested wavelength,
+
+\[
+k=10^{-4}\ {\rm Mpc}^{-1},
+\]
+
+the metric potentials remain of order unity relative to their present
+normalization rather than developing a runaway mode.  The scalar field
+perturbation itself remains finite in every table.
+
+The same statement holds for the bounded-\(\chi\) endpoint.
+
+The matter density contrasts continue to evolve in synchronous gauge and can
+grow in absolute coordinate amplitude.  That behavior is not by itself a
+future instability criterion.  The decisive numerical statements from this
+gate are narrower:
+
+\[
+\boxed{
+\text{native scalar hierarchy integrates successfully},
+}
+\]
+
+\[
+\boxed{
+\text{all stored variables remain finite},
+}
+\]
+
+\[
+\boxed{
+\text{the future background and perturbation endpoint gates both pass}.
+}
+\]
+
+This closes the implementation gap left by the earlier background-only
+Horndeski audit.  The remaining theory question is no longer whether a healthy
+future structural-clock branch can be propagated.  It is which structural
+closure, if any, uniquely selects the endpoint ratio
+
+\[
+\frac{\chi_\infty}{F_\infty}
+\]
+
+and therefore fixes one value inside the currently allowed
+
+\[
+2.860445
+\lesssim
+{\cal N}_\infty
+\le
+2.894405
+\]
+
+interval.
