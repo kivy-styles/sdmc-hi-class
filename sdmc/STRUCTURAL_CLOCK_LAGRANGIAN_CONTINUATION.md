@@ -9843,3 +9843,316 @@ lose their entire \(O(a^{-1})\) matter correction.
 The structural clock, radius speed, and matter/baryon mappers are therefore
 three parts of one kinematic identity rather than independent phenomenological
 rules.
+
+
+## 58. Closed mature canonical action selected by both legacy conditions
+
+If the two independent legacy-preserving conditions are imposed together,
+
+\[
+\Gamma_\infty=1
+\]
+
+from the covariant Balanced Identity and
+
+\[
+r=0
+\]
+
+from the Part-VI canonical slope \(\lambda_\ell=\sqrt2\), then the mature
+normal form becomes completely fixed up to the already measured constant
+\(F_\infty\).
+
+The kinetic normalization is
+
+\[
+\boxed{
+Z_{\rm BI}
+=
+\frac{4\pi}{3t_P^2S_0^2}.
+}
+\]
+
+The mature Horndeski functions are then
+
+\[
+\boxed{
+G_{2,\infty}(\sigma,Z)
+=
+\frac{1}{\sigma^2}
+\left(
+2F_\infty Z
+-
+4F_\infty Z_{\rm BI}
+\right),
+}
+\]
+
+\[
+\boxed{
+G_{3,\infty}=0,
+}
+\]
+
+and
+
+\[
+\boxed{
+G_{4,\infty}
+=
+\frac{F_\infty}{2}.
+}
+\]
+
+There is no remaining quadratic \(Z^2\) operator,
+
+\[
+\kappa_2=0.
+\]
+
+The exact fixed-point solution has
+
+\[
+\boxed{
+Z=Z_{\rm BI},
+}
+\]
+
+so
+
+\[
+\dot\sigma
+=
+\sqrt{2Z_{\rm BI}}
+=
+\frac{1}{t_PS_0}
+\sqrt{\frac{8\pi}{3}}.
+\]
+
+Consequently,
+
+\[
+\boxed{
+{\cal N}
+=
+t_PS_0\dot\sigma
+=
+\sqrt{\frac{8\pi}{3}}.
+}
+\]
+
+The mature structural field therefore evolves linearly in chronological time,
+
+\[
+\boxed{
+\sigma(t)
+=
+\sigma_c
++
+\frac{\sqrt{8\pi/3}}{t_PS_0}
+(t-t_c).
+}
+\]
+
+Because the mapper has frozen,
+
+\[
+\frac{\sigma}{a}
+\to
+M_\infty=\text{constant},
+\]
+
+the FRW scale factor is asymptotically proportional to the structural field,
+
+\[
+a\propto\sigma.
+\]
+
+Hence
+
+\[
+\boxed{
+H
+=
+\frac{\dot\sigma}{\sigma},
+}
+\]
+
+which gives
+
+\[
+a(t)\propto t
+\]
+
+after an irrelevant origin shift, and therefore
+
+\[
+\boxed{
+q=0.
+}
+\]
+
+The scalar energy density is
+
+\[
+\rho_\sigma
+=
+2ZG_{2,Z}-G_2.
+\]
+
+For the mature canonical action,
+
+\[
+G_{2,Z}
+=
+\frac{2F_\infty}{\sigma^2},
+\]
+
+so at \(Z=Z_{\rm BI}\),
+
+\[
+\boxed{
+\rho_{\sigma,\infty}
+=
+\frac{
+6F_\infty Z_{\rm BI}
+}{
+\sigma^2
+}.
+}
+\]
+
+The pressure is simply
+
+\[
+p_{\sigma,\infty}
+=
+G_2
+=
+-\frac{
+2F_\infty Z_{\rm BI}
+}{
+\sigma^2
+},
+\]
+
+and therefore
+
+\[
+\boxed{
+w_{\sigma,\infty}
+=
+-\frac13.
+}
+\]
+
+The Friedmann equation closes identically,
+
+\[
+3F_\infty H^2
+=
+\frac{
+6F_\infty Z_{\rm BI}
+}{
+\sigma^2
+},
+\]
+
+because
+
+\[
+H^2
+=
+\frac{2Z_{\rm BI}}{\sigma^2}.
+\]
+
+Thus the coasting solution is an exact solution of the closed mature action,
+not merely an imposed asymptotic scaling.
+
+The canonical field representation makes the connection to Part VI explicit.
+Define
+
+\[
+\boxed{
+\widehat\phi
+=
+\sqrt2\ln\sigma.
+}
+\]
+
+Then
+
+\[
+\sigma^{-2}
+=
+e^{-\sqrt2\widehat\phi},
+\]
+
+and the mature potential is
+
+\[
+\boxed{
+V_\infty(\widehat\phi)
+=
+4F_\infty Z_{\rm BI}
+e^{-\sqrt2\widehat\phi}.
+}
+\]
+
+The exponential slope is therefore exactly
+
+\[
+\boxed{
+\lambda_\ell=\sqrt2.
+}
+\]
+
+The endpoint also has
+
+\[
+\boxed{
+D_\infty=2,
+\qquad
+c_{s,\infty}^2=1,
+}
+\]
+
+and the scalar/matter eigenmodes derived in Section 56 decay as
+
+\[
+a^{-2}
+\]
+
+and
+
+\[
+a^{-1},
+\]
+
+respectively.
+
+This produces a compact candidate for the ultimate mature SDMC action:
+
+\[
+\boxed{
+\left\{
+G_2=
+\sigma^{-2}
+\left(
+2F_\infty Z-4F_\infty Z_{\rm BI}
+\right),
+\quad
+G_3=0,
+\quad
+G_4=\frac{F_\infty}{2}
+\right\}.
+}
+\]
+
+The remaining difficulty is no longer the endpoint action itself.  It is the
+future interpolation problem: whether the accepted present-day Horndeski jet
+can reach this canonical action while preserving the native hi_class
+background target, No-Slip relation, ghost/gradient health, perturbation
+finiteness, and the exact present boundary simultaneously.
+
+That is the purpose of the current native canonical closure audit.
