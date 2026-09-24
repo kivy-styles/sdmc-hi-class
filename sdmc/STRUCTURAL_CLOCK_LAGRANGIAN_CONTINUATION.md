@@ -5961,3 +5961,349 @@ from Section 36 remains useful as a normalization diagnostic because it shows
 that the present \(3.4135\) lapse and the \(2.86\)--\(2.89\) pure-scalar bracket
 are of the right relative scale.  It should not, however, be interpreted as
 the exact dynamical matter correction to the mature scalar action.
+
+
+## 34. Scalar-curvature envelope through the future transition
+
+The asymptotic fixed-point argument can be extended through the finite
+present-to-coasting transition without replacing the full hi_class hierarchy.
+
+For Horndeski scalar perturbations define
+
+\[
+\boxed{
+Q_s
+=
+\frac{2FD}{(2-\alpha_B)^2}.
+}
+\]
+
+The curvature-mode envelope obeys the standard action-level equation
+
+\[
+\boxed{
+\zeta_{,NN}
++
+\left(
+3+\frac{d\ln H}{dN}
++\frac{d\ln Q_s}{dN}
+\right)\zeta_{,N}
++
+c_s^2
+\left(
+\frac{k}{aH}
+\right)^2
+\zeta
+=
+0,
+}
+\]
+
+where here \(N=\ln a\).
+
+For the C3 No-Slip-refined future branches, the exact background
+Bellini-Sawicki quantities remain positive through the tested interval.  The
+bounded-activation branch gives approximately
+
+\[
+0.19744
+\lesssim
+Q_s
+\lesssim
+8.0581,
+\]
+
+with
+
+\[
+\min
+\left[
+3+\frac{d\ln H}{dN}
++\frac{d\ln Q_s}{dN}
+\right]
+\simeq
+1.9994.
+\]
+
+The \(F_\infty\)-matched branch gives
+
+\[
+0.19744
+\lesssim
+Q_s
+\lesssim
+8.7119,
+\]
+
+with minimum friction approximately
+
+\[
+2.0004.
+\]
+
+Thus neither branch develops a negative scalar kinetic normalization or a
+negative curvature-mode friction interval in this reduced envelope test.
+
+Representative modes were initialized at the present boundary with
+
+\[
+\zeta(0)=1,
+\qquad
+\zeta_{,N}(0)=0,
+\]
+
+and present-horizon ratios
+
+\[
+\nu_0\equiv\frac{k}{H_0}
+=
+0,\ 0.1,\ 1,\ 10.
+\]
+
+Across six future e-folds the maximum absolute amplitude did not exceed its
+initial value in any tested case.
+
+For the bounded branch the final absolute amplitudes are approximately
+
+\[
+|\zeta_f|
+=
+1,\quad
+0.99776,\quad
+0.79572,\quad
+1.14\times10^{-3},
+\]
+
+for \(\nu_0=0,0.1,1,10\), respectively.
+
+For the \(F_\infty\)-matched branch they are approximately
+
+\[
+|\zeta_f|
+=
+1,\quad
+0.99796,\quad
+0.81277,\quad
+7.02\times10^{-4}.
+\]
+
+These numbers are not a substitute for the multi-species Boltzmann hierarchy.
+They show that the scalar-curvature degree of freedom of the released action
+does not acquire a transient growing envelope in the representative band that
+was tested.
+
+At the exact mature fixed point,
+
+\[
+\alpha_B=\alpha_M=0,
+\]
+
+\[
+D=2(1+2r),
+\]
+
+\[
+c_s^2=\frac1{1+2r},
+\]
+
+and
+
+\[
+Q_s=F_\infty(1+2r)=\text{constant}.
+\]
+
+Exact coasting has
+
+\[
+\frac{d\ln H}{dN}=-1
+\]
+
+and
+
+\[
+aH=\text{constant}.
+\]
+
+Therefore the mode equation becomes
+
+\[
+\boxed{
+\zeta_{,NN}
++
+2\zeta_{,N}
++
+c_s^2
+\left(
+\frac{k}{aH}
+\right)^2
+\zeta
+=
+0.
+}
+\]
+
+Writing
+
+\[
+\zeta\propto a^s
+\]
+
+gives
+
+\[
+\boxed{
+s
+=
+-1
+\pm
+\sqrt{
+1-c_s^2
+\left(
+\frac{k}{aH}
+\right)^2
+}.
+}
+\]
+
+For \(k/(aH)\to0\),
+
+\[
+s=0,-2,
+\]
+
+so the two mature super-horizon modes are a constant mode and an
+\(a^{-2}\) decaying mode.
+
+For
+
+\[
+c_s^2
+\left(
+\frac{k}{aH}
+\right)^2>1,
+\]
+
+the roots are complex with real part \(-1\), giving an oscillatory envelope
+
+\[
+\boxed{
+|\zeta|\propto a^{-1}.
+}
+\]
+
+Hence the mature inverse-square attractor possesses no growing
+scalar-curvature mode in this sector.
+
+## 35. Native future perturbation propagation as a separate code gate
+
+The standard hi_class time bookkeeping contains an important distinction that
+must be preserved.
+
+For the observational calculation, the quantity
+
+\[
+\texttt{conformal\_age}
+\]
+
+means the conformal time at the physical present epoch.  The isolated future
+background patch deliberately keeps that quantity anchored at \(a=1\), even
+while the background integration table is extended to \(a>1\).  This prevents
+the future audit from corrupting present distances, growth normalization, and
+shooting targets.
+
+The same choice means that the stock perturbation module still stops its source
+sampling at the present epoch.  Therefore a future perturbation audit cannot
+simply reuse the extended background table and call itself complete.
+
+A separate future-only perturbation endpoint has now been introduced for the
+experimental branch:
+
+\[
+\boxed{
+\tau_{\rm end}^{\rm pert}
+=
+\tau_{\rm bg}(a_{\rm max})
+}
+\]
+
+for non-CMB diagnostic runs, while CMB calculations remain anchored to the
+ordinary observational conformal age.
+
+There is a second implementation issue.  The standard thermodynamics
+interpolation table is defined for
+
+\[
+z\ge0.
+\]
+
+Future perturbation evolution reaches
+
+\[
+-1<z<0.
+\]
+
+For the isolated diagnostic run only, a controlled post-today continuation is
+therefore used.  It loads the \(z=0\) ionization state and extrapolates
+
+\[
+\dot\kappa
+\propto
+a^{-2},
+\]
+
+\[
+T_b\propto a^{-2},
+\]
+
+\[
+w_b\propto a^{-2},
+\qquad
+c_b^2\propto a^{-2},
+\]
+
+while future visibility-source terms are set to zero.
+
+This continuation is not being promoted as a prediction of future atomic or
+astrophysical thermodynamics.  Its purpose is narrower: after photons have
+decoupled and baryon pressure is dynamically negligible, it prevents an
+unphysical interpolation failure at negative redshift while allowing the
+metric, matter, radiation, and Horndeski scalar perturbation equations to be
+propagated through the future structural transition.
+
+The native test is configured at representative wavenumbers
+
+\[
+k
+=
+10^{-4},\ 10^{-3},\ 10^{-2}\ {\rm Mpc}^{-1},
+\]
+
+with the background extended to
+
+\[
+\ln a=5.
+\]
+
+The resulting perturbation tables expose the native hi_class scalar variables,
+including the dynamical scalar-field perturbation and its first two time
+derivatives, together with the metric and standard species perturbations.
+
+This creates a clean hierarchy of future tests:
+
+\[
+\boxed{
+\text{analytic fixed point}
+\rightarrow
+\text{exact homogeneous action}
+\rightarrow
+\text{Bellini-Sawicki health}
+\rightarrow
+\text{curvature envelope}
+\rightarrow
+\text{native hi_class perturbation propagation}.
+}
+\]
+
+The first four stages are already closed for the tested future candidates.  The
+last stage is now implemented as an isolated workflow gate and should be
+treated as pending until its native run artifacts are available and inspected.
