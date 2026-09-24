@@ -187,6 +187,11 @@ jobs:
         run: |
           python3 sdmc/run_legacy_canonical_split_rate_audit.py
 
+      - name: Refine legacy canonical split-rate audit
+        run: |
+          python3 sdmc/run_legacy_canonical_split_rate_refinement.py
+
+
       - name: Run refined local canonical search
         run: |
           python3 sdmc/run_legacy_canonical_refined_local_search.py
@@ -451,6 +456,7 @@ jobs:
             output/future_covariant_activation_bound_stress_test.json
             output/legacy_canonical_mature_shape_audit.json
             output/legacy_canonical_split_rate_audit.json
+            output/legacy_canonical_split_rate_refinement.json
             output/legacy_canonical_refined_local_search.json
             output/future_noslip_fixedpoint_refinement.json
             output/future_perturbation_envelope_audit.json
