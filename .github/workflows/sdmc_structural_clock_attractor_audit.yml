@@ -136,6 +136,10 @@ jobs:
         run: |
           python3 sdmc/run_structural_epoch_mapper_audit.py
 
+      - name: Run reduced structural-clock linear stability audit
+        run: |
+          python3 sdmc/run_structural_clock_linear_stability_audit.py
+
       - name: Install structural-clock field form
         run: |
           python3 sdmc/install_late266_logstruct_covariant.py
@@ -172,6 +176,7 @@ jobs:
             output/linear_cov_reconstruction_summary.txt
             output/logstruct_redefinition_summary.txt
             output/structural_epoch_mappers.json
+            output/structural_clock_linear_stability_audit.json
             output/structural_clock_attractor/structural_clock_attractor_audit.json
             output/structural_clock_attractor/*.log
             output/structural_clock_attractor/*_00_background.dat
