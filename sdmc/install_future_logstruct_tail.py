@@ -5,7 +5,9 @@ Extend the accepted log-structural Horndeski coefficient table into sigma>1.
 This script is run only after install_late266_logstruct_covariant.py has added
 the sdmc_v3_covariant_logstruct_audit model.  It replaces only the generated
 coefficient header, preserving the accepted sigma<=1 reconstruction exactly
-(up to the same reconstruction algebra) and appending a C2 future tail.
+(up to the same reconstruction algebra).  The G2 coefficients use C2 future
+matching, while F and g preserve the complete C3 endpoint jet required by the
+hi_class perturbation gravity functions.
 
 The future tail is one of the two structural endpoint candidates already
 audited in run_future_homogeneous_covariant_stitch_audit.py:
@@ -65,8 +67,10 @@ def read(path):
     return {n:a[:,i] for i,n in enumerate(names)}
 
 def coeffs_match(qder,qinf,mu):
+    # Match the complete supplied endpoint jet: C2 for G2 coefficients,
+    # perturbation-ready C3 for F and g.
     A=[]
-    for k in range(3):
+    for k in range(len(qder)):
         s=0.
         for j in range(k):
             s += math.comb(k,j)*((-mu)**(k-j))*A[j]
@@ -92,8 +96,8 @@ def qbar_derivs_from_sigma(sp):
     return [Q,2.*Q+Q1,4.*Q+5.*Q1+Q2]
 
 def xderivs_direct_from_sigma(sp):
-    Q=float(sp(1.)); Q1=float(sp(1.,1)); Q2=float(sp(1.,2))
-    return [Q,Q1,Q1+Q2]
+    Q=float(sp(1.)); Q1=float(sp(1.,1)); Q2=float(sp(1.,2)); Q3=float(sp(1.,3))
+    return [Q,Q1,Q1+Q2,Q1+3.*Q2+Q3]
 
 def carr(x):
     return ",".join(f"{v:.17e}" for v in np.asarray(x).ravel())
@@ -172,6 +176,7 @@ g_xder=[
   float(spg(1.)),
   float(spg(1.,1)),
   float(spg(1.,1)+spg(1.,2)),
+  float(spg(1.,1)+3.*spg(1.,2)+spg(1.,3)),
 ]
 
 Z0=.5/t0**2
@@ -187,9 +192,9 @@ def asym_Z_from_mu(mu):
     AFc=coeffs_match(bars["F"],FINF,mu)
     mug=mu+1.
     Agc=coeffs_match(g_xder,0.,mug)
-    return mu*AFc[2]/(2.*Agc[2])
+    return mu*AFc[3]/(2.*Agc[3])
 
-muF=brentq(lambda mu:asym_Z_from_mu(mu)-Zinf,3.2,6.0)
+muF=brentq(lambda mu:asym_Z_from_mu(mu)-Zinf,5.0,6.2)
 mug=muF+1.
 AFc=coeffs_match(bars["F"],FINF,muF)
 Agc=coeffs_match(g_xder,0.,mug)
