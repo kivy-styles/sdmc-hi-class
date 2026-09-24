@@ -323,7 +323,6 @@ def rhs_diag(Ne,y,model):
     Cb_Z=2.*gv/Fv
     Abo=v/Hn
     Abo_N=Abo*(dotv/(Hn*v)-dotH/(Hn*Hn))
-    Cb_N=(v/Hn)*Cb+(0.)  # overwritten below for clarity
     Cb_N=(v/Hn)*Cb_s+(v*dotv/Hn)*Cb_Z
     alphaB_N=Abo_N*Cb+Abo*Cb_N
 
@@ -369,6 +368,7 @@ def rhs_diag(Ne,y,model):
 def evolve(model,Nmax=10.,npts=2001):
     def fun(Ne,y):
         return rhs_diag(Ne,y,model)[0]
+
     sol=solve_ivp(fun,(0.,Nmax),[1.,v0],rtol=3e-9,
                   atol=[1e-11,1e-14],max_step=.01,dense_output=True)
     if not sol.success:
@@ -376,18 +376,20 @@ def evolve(model,Nmax=10.,npts=2001):
 
     NN=np.linspace(0.,Nmax,npts)
     yy=sol.sol(NN)
-    diag=[]
-    for ne,(sig,v) in zip(NN,yy.T):
-        diag.append(rhs_diag(float(ne),[float(sig),float(v)],model)[1])
-
+    diag=[
+      rhs_diag(float(ne),[float(sig),float(v)],model)[1]
+      for ne,(sig,v) in zip(NN,yy.T)
+    ]
     HH=np.array([x["H"] for x in diag])
 
-    # Reproduce the exact hi_class Horndeski scalar sound-speed diagnostic
-    # in two algebraically equivalent forms.  For this action alpha_T=alpha_H=0.
+    # Exact hi_class/Bellini-Sawicki scalar sound speed in two equivalent
+    # representations.  The first mirrors gravity_functions_smg.c; the second
+    # is the compact Horndeski form.  Their agreement is an internal audit.
     bra=np.array([x["alphaB"] for x in diag])
     run=np.array([x["alphaM"] for x in diag])
     DD=np.array([x["D_full"] for x in diag])
     dbradN=np.array([x["alphaB_N"] for x in diag])
+
     cs2_source=np.empty_like(NN)
     cs2_compact=np.empty_like(NN)
     cs2num_source=np.empty_like(NN)
@@ -395,17 +397,14 @@ def evolve(model,Nmax=10.,npts=2001):
 
     for j,x in enumerate(diag):
         Fv=x["F"]; Hn=x["H"]; b=bra[j]; m=run[j]
-        # Exact hi_class effective scalar and ordinary-sector enthalpies,
-        # both in CLASS H^2-density units.
-        xp_eff=x["rho_smg_class"]+x["p_smg_class"]
+        xp=x["rho_smg_class"]+x["p_smg_class"]
         mp=(x["rho_m_action"]+4.*x["rho_r_action"]/3.)/3.
 
         num1=((2.-b)*(b+2.*m)/2.
-              +1.5*(2.-b)*xp_eff/(Hn*Hn)
+              +1.5*(2.-b)*xp/(Hn*Hn)
               -1.5*(2.-2.*Fv+b*Fv)*mp/(Hn*Hn*Fv)
               +dbradN[j])
 
-        # Equivalent Bellini-Sawicki compact form.
         hln=-1.-x["q"]
         matter_action=x["rho_m_action"]+4.*x["rho_r_action"]/3.
         num2=((2.-b)*(-hln+.5*b+m)
@@ -436,37 +435,38 @@ def evolve(model,Nmax=10.,npts=2001):
             f=-qq[i]/(qq[i+1]-qq[i])
             ne=NN[i]+f*(NN[i+1]-NN[i])
             tt=dt[i]+f*(dt[i+1]-dt[i])
-            crossings.append({"ln_a":float(ne),"a":float(math.exp(ne)),
-                              "delta_t_Gyr":float(tt)})
+            crossings.append({
+              "ln_a":float(ne),
+              "a":float(math.exp(ne)),
+              "delta_t_Gyr":float(tt)
+            })
 
     imax=int(np.argmax(qq))
     nos=np.array([abs(x["noslip_rel"]) for x in diag])
     imns=int(np.argmax(nos))
     nosa=np.array([abs(x["noslip_alpha_combo"]) for x in diag])
     imnsa=int(np.argmax(nosa))
-    cs=np.array([x["cs2_kessence_proxy"] for x in diag])
+    csproxy=np.array([x["cs2_kessence_proxy"] for x in diag])
     Kh=np.array([x["Khom"] for x in diag])
-    DF=np.array([x["D_full"] for x in diag])
-
-    Dfull=DD
-    cs2full=cs2_compact
-    iD=int(np.argmin(Dfull))
-    ics=int(np.argmin(cs2full))
-    icsmax=int(np.argmax(cs2full))
+    iD=int(np.argmin(DD))
+    ics=int(np.argmin(cs2_compact))
+    icsmax=int(np.argmax(cs2_compact))
 
     samples=[]
     for nt in [0.,.5,1.,2.,3.,5.,8.,10.]:
         j=int(np.argmin(abs(NN-nt)))
-        row={k:float(v) for k,v in diag[j].items()
-             if isinstance(v,(int,float,np.floating)) and np.isfinite(v)}
-        row.update(ln_a=float(NN[j]),a=float(math.exp(NN[j])),
-                   sigma=float(yy[0,j]),delta_t_Gyr=float(dt[j]),
-                   alpha_M=float(diag[j]["alphaM"]),
-                   alpha_B=float(diag[j]["alphaB"]),
-                   alpha_K=float(diag[j]["alphaK"]),
-                   alpha_B_N=float(diag[j]["alphaB_N"]),
-                   D_horndeski=float(Dfull[j]),
-                   cs2_horndeski=float(cs2full[j]))
+        row={
+          k:float(v) for k,v in diag[j].items()
+          if isinstance(v,(int,float,np.floating)) and np.isfinite(v)
+        }
+        row.update(
+          ln_a=float(NN[j]),
+          a=float(math.exp(NN[j])),
+          sigma=float(yy[0,j]),
+          delta_t_Gyr=float(dt[j]),
+          D_horndeski=float(DD[j]),
+          cs2_horndeski=float(cs2_compact[j])
+        )
         samples.append(row)
 
     return {
@@ -475,8 +475,8 @@ def evolve(model,Nmax=10.,npts=2001):
         "p_minus_free":float(diag[0]["p"]-p0_bg),
         "q_minus_free":float(diag[0]["q"]-q0_bg),
         "alphaB_plus_2alphaM":float(diag[0]["alphaB"]+2.*diag[0]["alphaM"]),
-        "D_full":float(diag[0]["D_full"]),
-        "cs2_hiclass":float(diag[0]["cs2_hiclass_compact"]),
+        "D_horndeski":float(DD[0]),
+        "cs2_horndeski":float(cs2_compact[0]),
         "cs2_source_compact_identity_max_abs":cs2_identity_err,
       },
       "asymptotic_target":{
@@ -492,23 +492,20 @@ def evolve(model,Nmax=10.,npts=2001):
       "health_diagnostics":{
         "min_Khom":float(np.min(Kh)),
         "min_sigma2_Khom":float(np.min(Kh*yy[0]*yy[0])),
-        "min_D_full":float(np.min(DF)),
-        "max_D_full":float(np.max(DF)),
-        "min_cs2_horndeski":float(np.min(cs2full)),
-        "max_cs2_horndeski":float(np.max(cs2full)),
+        "min_D_horndeski":float(np.min(DD)),
+        "min_D_horndeski_at_ln_a":float(NN[iD]),
+        "max_D_horndeski":float(np.max(DD)),
+        "min_cs2_horndeski":float(np.min(cs2_compact)),
+        "min_cs2_horndeski_at_ln_a":float(NN[ics]),
+        "max_cs2_horndeski":float(np.max(cs2_compact)),
+        "max_cs2_horndeski_at_ln_a":float(NN[icsmax]),
         "cs2_source_compact_identity_max_abs":cs2_identity_err,
-        "min_cs2_kessence_proxy":float(np.nanmin(cs)),
-        "max_cs2_kessence_proxy":float(np.nanmax(cs)),
+        "min_cs2_kessence_proxy":float(np.nanmin(csproxy)),
+        "max_cs2_kessence_proxy":float(np.nanmax(csproxy)),
         "max_abs_noslip_term_balance_rel":float(nos[imns]),
         "max_abs_noslip_term_balance_at_ln_a":float(NN[imns]),
         "max_abs_alphaB_plus_2alphaM":float(nosa[imnsa]),
         "max_abs_alphaB_plus_2alphaM_at_ln_a":float(NN[imnsa]),
-        "min_D_horndeski":float(Dfull[iD]),
-        "min_D_horndeski_at_ln_a":float(NN[iD]),
-        "min_cs2_horndeski_at_ln_a":float(NN[ics]),
-        "max_cs2_horndeski_at_ln_a":float(NN[icsmax]),
-        "present_D_horndeski":float(Dfull[0]),
-        "present_cs2_horndeski":float(cs2full[0]),
       },
       "future_kinematics":{
         "q_max":float(qq[imax]),
@@ -517,10 +514,16 @@ def evolve(model,Nmax=10.,npts=2001):
         "q_zero_crossings":crossings,
       },
       "final":{
-        "ln_a":float(NN[-1]),"a":float(math.exp(NN[-1])),
-        "sigma":float(yy[0,-1]),"delta_t_Gyr":float(dt[-1]),
-        **{k:float(v) for k,v in diag[-1].items()
-           if isinstance(v,(int,float,np.floating)) and np.isfinite(v)}
+        "ln_a":float(NN[-1]),
+        "a":float(math.exp(NN[-1])),
+        "sigma":float(yy[0,-1]),
+        "delta_t_Gyr":float(dt[-1]),
+        **{
+          k:float(v) for k,v in diag[-1].items()
+          if isinstance(v,(int,float,np.floating)) and np.isfinite(v)
+        },
+        "D_horndeski":float(DD[-1]),
+        "cs2_horndeski":float(cs2_compact[-1]),
       },
       "samples":samples,
     }
