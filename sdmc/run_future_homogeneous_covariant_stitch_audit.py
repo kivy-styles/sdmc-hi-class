@@ -310,6 +310,21 @@ def rhs_diag(Ne,y,model):
     # alpha_B+2 alpha_M = 2 v (Z g + F_,sigma/2)/(H F).
     noslip_alpha_combo=2.*v*ns/(Hn*Fv)
 
+    # Exact Bellini-Sawicki alpha functions for
+    # G2=k1 Z+k2 Z^2-V, G3=g Z, G4=F/2.
+    alphaM=v*Fsv/(Hn*Fv)
+    alphaB=v*(-Fsv+2.*Z*gv)/(Hn*Fv)
+    alphaK=2.*Z*Khom/(Hn*Hn*Fv)
+    Dfull=alphaK+1.5*alphaB*alphaB
+
+    # Action-level scalar pressure.  CLASS background densities are the
+    # action densities divided by three because CLASS uses H^2=rho_class.
+    pX=(k1v*Z+k2v*Z*Z-Vv
+        -2.*Z*Z*gsv-2.*Z*gv*dotv
+        +Fssv*v*v+Fsv*dotv+2.*Hn*Fsv*v)
+    rhoX=(.5*k1v*v*v+(.75*k2v-.5*gsv)*v**4+Vv
+          +3.*Hn*gv*v**3-3.*Hn*Fsv*v)
+
     csproxy=np.nan
     den=k1v+6.*k2v*Z
     if abs(den)>1e-300:
@@ -327,6 +342,14 @@ def rhs_diag(Ne,y,model):
       "F":Fv,
       "noslip_rel":ns/nsden,
       "noslip_alpha_combo":noslip_alpha_combo,
+      "alphaM":alphaM,
+      "alphaB":alphaB,
+      "alphaK":alphaK,
+      "D_full":Dfull,
+      "rhoX_action":rhoX,
+      "pX_action":pX,
+      "rho_m_action":rm,
+      "rho_r_action":rr,
       "cs2_kessence_proxy":csproxy,
     }
 
@@ -345,6 +368,33 @@ def evolve(model,Nmax=10.,npts=2001):
         diag.append(rhs_diag(float(ne),[float(sig),float(v)],model)[1])
 
     HH=np.array([x["H"] for x in diag])
+
+    # Reproduce the hi_class Horndeski scalar sound-speed diagnostic.
+    # For this action alpha_T=alpha_H=0, so gravity_functions_smg.c gives
+    #
+    # cs2num = (2-B)(B+2M)/2
+    #        + 3/2(2-B)(rhoX+pX)_CLASS/H^2
+    #        - 3/2(2-2F+B F)(rhom+4rhor/3)_CLASS/(H^2 F)
+    #        + dB/dln a.
+    bra=np.array([x["alphaB"] for x in diag])
+    run=np.array([x["alphaM"] for x in diag])
+    DD=np.array([x["D_full"] for x in diag])
+    dbradN=CubicSpline(NN,bra)(NN,1)
+    cs2full=np.empty_like(NN)
+    cs2num=np.empty_like(NN)
+    for j,x in enumerate(diag):
+        Fv=x["F"]; Hn=x["H"]; b=bra[j]; m=run[j]
+        xp=(x["rhoX_action"]+x["pX_action"])/3.
+        mp=(x["rho_m_action"]+4.*x["rho_r_action"]/3.)/3.
+        num=((2.-b)*(b+2.*m)/2.
+             +1.5*(2.-b)*xp/(Hn*Hn)
+             -1.5*(2.-2.*Fv+b*Fv)*mp/(Hn*Hn*Fv)
+             +dbradN[j])
+        cs2num[j]=num
+        cs2full[j]=num/DD[j]
+        x["cs2_full_hiclass_formula"]=float(cs2full[j])
+        x["cs2num_full_hiclass_formula"]=float(num)
+
     dt=np.zeros_like(NN)
     for i in range(1,len(NN)):
         dN=NN[i]-NN[i-1]
@@ -367,6 +417,7 @@ def evolve(model,Nmax=10.,npts=2001):
     imnsa=int(np.argmax(nosa))
     cs=np.array([x["cs2_kessence_proxy"] for x in diag])
     Kh=np.array([x["Khom"] for x in diag])
+    DF=np.array([x["D_full"] for x in diag])
 
     # Exact Bellini-Sawicki stability functions for this Horndeski subclass.
     aM=[]; aB=[]; aK=[]; Dfull=[]; matter_term=[]
@@ -406,6 +457,9 @@ def evolve(model,Nmax=10.,npts=2001):
         "H_rel_vs_free":float(diag[0]["H"]/H0-1.),
         "p_minus_free":float(diag[0]["p"]-p0_bg),
         "q_minus_free":float(diag[0]["q"]-q0_bg),
+        "alphaB_plus_2alphaM":float(diag[0]["alphaB"]+2.*diag[0]["alphaM"]),
+        "D_full":float(diag[0]["D_full"]),
+        "cs2_full_hiclass_formula":float(diag[0]["cs2_full_hiclass_formula"]),
       },
       "asymptotic_target":{
         "N_inf":model["N_inf"],
@@ -420,6 +474,10 @@ def evolve(model,Nmax=10.,npts=2001):
       "health_diagnostics":{
         "min_Khom":float(np.min(Kh)),
         "min_sigma2_Khom":float(np.min(Kh*yy[0]*yy[0])),
+        "min_D_full":float(np.min(DF)),
+        "max_D_full":float(np.max(DF)),
+        "min_cs2_full_hiclass_formula":float(np.min(cs2full)),
+        "max_cs2_full_hiclass_formula":float(np.max(cs2full)),
         "min_cs2_kessence_proxy":float(np.nanmin(cs)),
         "max_cs2_kessence_proxy":float(np.nanmax(cs)),
         "max_abs_noslip_term_balance_rel":float(nos[imns]),
@@ -450,6 +508,12 @@ def evolve(model,Nmax=10.,npts=2001):
       "samples":samples,
     }
 
+# Accepted present alpha/c_s values, if present in the saved hi_class table.
+accepted_present_health={}
+for key in ["kineticity_smg","braiding_smg","M2_running_smg","c_s^2","kin (D)","M*^2_smg"]:
+    if key in d:
+        accepted_present_health[key]=float(np.asarray(d[key])[o][keep][i0])
+
 results={}
 for spec in CANDIDATES:
     model=build_candidate(spec)
@@ -468,6 +532,7 @@ out={
     "H0_1Mpc":H0,"p0":p0_bg,"q0":q0_bg,
     "N0_struct":N0_STRUCT,"Z0":Z0,"F0":float(F[i0]),
     "F_inf":FINF,"Xi_v":XI,
+    "hi_class_saved_health":accepted_present_health,
   },
   "candidates":results,
 }
