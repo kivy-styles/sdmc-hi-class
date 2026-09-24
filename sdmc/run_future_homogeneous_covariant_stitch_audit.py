@@ -430,6 +430,34 @@ def evolve(model,Nmax=10.,npts=2001):
 
     cs2_identity_err=float(np.max(np.abs(cs2_source-cs2_compact)))
 
+    # hi_class Horndeski quasi-static effective Newton and slip diagnostics.
+    # With alpha_T=alpha_H=0, beta_1=alpha_B+2 alpha_M.  On exact No-Slip
+    # beta_1=0, so G_eff=1/F and slip=1.
+    Geff=np.empty_like(NN)
+    slip=np.empty_like(NN)
+    for j,x in enumerate(diag):
+        Fv=x["F"]; Hn=x["H"]; b=bra[j]; m=run[j]
+        xp=x["rho_smg_class"]+x["p_smg_class"]
+        mp=(x["rho_m_action"]+4.*x["rho_r_action"]/3.)/3.
+        beta1=b+2.*m
+        beta2=(2.*beta1
+               -3.*(2.-2.*Fv+b*Fv)*mp/(Hn*Hn*Fv)
+               -3.*(-2.+b)*xp/(Hn*Hn)
+               +2.*dbradN[j])
+        bb=b*beta1
+        if abs(bb)<1e-30:
+            ge=1./Fv
+        else:
+            ge=(1.-bb/(bb-beta2))/Fv
+        snum=2.*m*beta1
+        sden=snum+beta2
+        sl=1. if abs(snum)<1e-30 or abs(sden)<1e-30 else 1.-snum/sden
+        Geff[j]=ge
+        slip[j]=sl
+        x["G_eff_horndeski"]=float(ge)
+        x["slip_horndeski"]=float(sl)
+        x["G_eff_F_minus_1"]=float(ge*Fv-1.)
+
     dt=np.zeros_like(NN)
     for i in range(1,len(NN)):
         dN=NN[i]-NN[i-1]
@@ -485,6 +513,8 @@ def evolve(model,Nmax=10.,npts=2001):
         "D_horndeski":float(DD[0]),
         "cs2_horndeski":float(cs2_compact[0]),
         "cs2_source_compact_identity_max_abs":cs2_identity_err,
+        "G_eff_horndeski":float(Geff[0]),
+        "slip_horndeski":float(slip[0]),
       },
       "asymptotic_target":{
         "N_inf":model["N_inf"],
@@ -513,6 +543,10 @@ def evolve(model,Nmax=10.,npts=2001):
         "max_abs_noslip_term_balance_at_ln_a":float(NN[imns]),
         "max_abs_alphaB_plus_2alphaM":float(nosa[imnsa]),
         "max_abs_alphaB_plus_2alphaM_at_ln_a":float(NN[imnsa]),
+        "max_abs_G_eff_F_minus_1":float(np.max(np.abs(Geff*np.array([x["F"] for x in diag])-1.))),
+        "max_abs_slip_minus_1":float(np.max(np.abs(slip-1.))),
+        "final_G_eff_horndeski":float(Geff[-1]),
+        "final_slip_horndeski":float(slip[-1]),
       },
       "future_kinematics":{
         "q_max":float(qq[imax]),
