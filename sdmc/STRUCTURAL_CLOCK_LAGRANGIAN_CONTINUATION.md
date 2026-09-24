@@ -8533,3 +8533,175 @@ boundary condition can be imposed directly on \(Z_\star\), after which
 \]
 
 rather than supplied numerically.
+
+
+## 53. Residual mature shape modulus after the lapse normalization is fixed
+
+Fixing the covariant Balanced-Identity normalization removes the freedom in
+\(Z_\star\), but it does not determine the entire mature scalar Lagrangian.
+
+For the quadratic normal form,
+
+\[
+f(Z)=\kappa_1Z+\kappa_2Z^2-U_0,
+\]
+
+the coasting conditions give
+
+\[
+\kappa_1=2F_\infty(1-r),
+\]
+
+\[
+\kappa_2=\frac{rF_\infty}{Z_\star},
+\]
+
+\[
+U_0=F_\infty Z_\star(4-r),
+\]
+
+where
+
+\[
+r\equiv\frac{\kappa_2Z_\star}{F_\infty}.
+\]
+
+Once
+
+\[
+Z_\star=Z_{\rm BI}
+\]
+
+is fixed by the covariant Balanced Identity, the mature family therefore still
+contains one dimensionless **shape modulus**, \(r\).
+
+This modulus controls perturbations rather than the structural-clock
+normalization:
+
+\[
+\boxed{
+c_{s,\infty}^2
+=
+\frac1{1+2r},
+}
+\]
+
+\[
+\boxed{
+D_\infty
+=
+2(1+2r),
+}
+\]
+
+with the exact invariant
+
+\[
+D_\infty c_{s,\infty}^2=2.
+\]
+
+The structural lapse, by contrast, is already fixed by \(Z_{\rm BI}\),
+
+\[
+{\cal N}_\infty=\Xi_v,
+\]
+
+independently of \(r\).
+
+The simplest healthy region is
+
+\[
+r>0,
+\]
+
+which gives
+
+\[
+0<c_s^2<1.
+\]
+
+If the mature potential coefficient is also required to remain positive,
+
+\[
+U_0>0,
+\]
+
+then
+
+\[
+r<4.
+\]
+
+The reconstructed late action has already entered the negative-\(k_1\) sign
+sector.  Requiring the mature coefficient to retain that sign gives
+
+\[
+\kappa_1<0
+\quad\Longrightarrow\quad
+r>1.
+\]
+
+Together these conditions define the particularly natural interval
+
+\[
+\boxed{
+1<r<4.
+}
+\]
+
+Equivalently,
+
+\[
+\boxed{
+\frac19<c_{s,\infty}^2<\frac13.
+}
+\]
+
+The continuity reference obtained by setting the mature sound speed equal to
+the accepted present value,
+
+\[
+c_{s,0}^2\simeq0.138336,
+\]
+
+corresponds to
+
+\[
+r\simeq3.11441.
+\]
+
+The freely released \(F_\infty\)-matched future action that minimized the
+finite-transition residuals instead settled on
+
+\[
+r\simeq3.75612,
+\]
+
+giving
+
+\[
+c_{s,\infty}^2\simeq0.117478.
+\]
+
+Both values lie inside the same healthy mature family.
+
+This separates two questions that had previously been mixed together:
+
+1. the **structural normalization problem**, which determines
+   \(Z_\star\) and \({\cal N}_\infty\);
+
+2. the **kinetic-shape problem**, which determines \(r\), \(D_\infty\), and
+   \(c_{s,\infty}^2\).
+
+The covariant Balanced Identity can resolve the first without resolving the
+second.
+
+Therefore even if
+
+\[
+{\cal N}_\infty=2.894405018\ldots
+\]
+
+is adopted as the structural endpoint, a deeper microscopic Lagrangian is
+still needed to predict the mature scalar sound speed rather than selecting it
+through a future-tail design criterion.
