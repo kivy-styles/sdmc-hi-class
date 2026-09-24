@@ -197,6 +197,17 @@ R0_N337_m=1.616255e-35*S0_for_N337
 lambda0=Km0**(-1./6.)/N_chrono[i0]
 source_factor0=lambda0**3
 
+# Comparison with the historical Part-IV illustrative activation history.
+toy_chi={2.0:0.083,1.0:0.201,0.5:0.411,0.3:0.563,0.0:0.969}
+hist_rows=[]
+for zt,val in toy_chi.items():
+    jj=int(np.argmin(np.abs(z-zt)))
+    got=float(chi_chrono[jj])
+    hist_rows.append(dict(z_target=zt,z_actual=float(z[jj]),historical=val,
+                          derived=got,delta=got-val,
+                          fractional_delta=(got-val)/val if val else None))
+hist_rms=float(np.sqrt(np.mean([(x["delta"])**2 for x in hist_rows])))
+
 out=dict(
   status="action fixes pX=p-Achi/2; two explicit closures are audited",
   active_density_positive=True,
@@ -237,17 +248,6 @@ out=dict(
   ),
   samples=[sample(q) for q in [1e7,1e6,1e5,1e4,3400,1090,1000,300,100,30,20,10,6.8,5,3,2,1,.7,.5,.3,.1,0]]
 )
-# Comparison with the historical Part-IV illustrative activation history.
-toy_chi={2.0:0.083,1.0:0.201,0.5:0.411,0.3:0.563,0.0:0.969}
-hist_rows=[]
-for zt,val in toy_chi.items():
-    jj=int(np.argmin(np.abs(z-zt)))
-    got=float(chi_chrono[jj])
-    hist_rows.append(dict(z_target=zt,z_actual=float(z[jj]),historical=val,
-                          derived=got,delta=got-val,
-                          fractional_delta=(got-val)/val if val else None))
-hist_rms=float(np.sqrt(np.mean([(x["delta"])**2 for x in hist_rows])))
-
 # Comparison with the historical Part-II numerical hierarchy.
 legacy=dict(N0=3.37,Km0=2.19e20,Kp0=1.18e20,lambda0=1.209e-4,source_factor0=1.766e-12)
 out["legacy_comparison_percent"]=dict(
