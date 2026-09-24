@@ -18,8 +18,16 @@ MPC_M=3.085677581491367e22
 TP_MPC=TP*C_MS/MPC_M
 
 RUNS={
-  "matched_chi_F":Path("output/native_future_matched_00_background.dat"),
-  "bounded_chi":Path("output/native_future_bounded_00_background.dat"),
+  "matched_chi_F":{
+    "background":Path("output/native_future_matched_00_background.dat"),
+    "rc":Path("output/native_future_matched.rc"),
+    "log":Path("output/native_future_matched.log"),
+  },
+  "bounded_chi":{
+    "background":Path("output/native_future_bounded_00_background.dat"),
+    "rc":Path("output/native_future_bounded.rc"),
+    "log":Path("output/native_future_bounded.log"),
+  },
 }
 
 def read(path):
@@ -36,9 +44,24 @@ def read(path):
 ref=json.loads(REF.read_text()) if REF.exists() else {"candidates":{}}
 out={"status":"native future hi_class background/stability comparison","runs":{}}
 
-for name,path in RUNS.items():
+for name,paths in RUNS.items():
+    path=paths["background"]
+    rc=None
+    if paths["rc"].exists():
+        try:
+            rc=int(paths["rc"].read_text().strip())
+        except Exception:
+            rc=None
+    log_tail=[]
+    if paths["log"].exists():
+        log_tail=paths["log"].read_text(errors="replace").splitlines()[-40:]
     if not path.exists():
-        out["runs"][name]={"status":"missing","path":str(path)}
+        out["runs"][name]={
+          "status":"missing_background",
+          "path":str(path),
+          "returncode":rc,
+          "log_tail":log_tail,
+        }
         continue
     d=read(path)
     required=["z","H [1/Mpc]","phi_smg","phi'","c_s^2","kin (D)",
@@ -123,6 +146,8 @@ for name,path in RUNS.items():
     out["runs"][name]={
       "status":"ok",
       "path":str(path),
+      "returncode":rc,
+      "log_tail":log_tail,
       "future_extent":{"ln_a_max":float(N[jend]),"a_max":float(a[jend])},
       "present":{
         "ln_a":float(N[j0]),"H":float(H[j0]),"psi":float(psi[j0]),
