@@ -10156,3 +10156,194 @@ background target, No-Slip relation, ghost/gradient health, perturbation
 finiteness, and the exact present boundary simultaneously.
 
 That is the purpose of the current native canonical closure audit.
+
+
+## 59. Exact sound-speed law of the mature quadratic family
+
+The tiny \(c_s^2>1\) excursion found in the most stringent canonical stitch
+search can be localized analytically.
+
+For the mature constant-\(F\), \(G_3=0\) inverse-square family,
+
+\[
+G_2=\sigma^{-2}f(Z),
+\]
+
+with
+
+\[
+f(Z)
+=
+\kappa_1Z+\kappa_2Z^2-U_0,
+\]
+
+the scalar sound speed reduces exactly to the k-essence expression
+
+\[
+c_s^2
+=
+\frac{f_{,Z}}
+{f_{,Z}+2Zf_{,ZZ}}.
+\]
+
+Using
+
+\[
+\kappa_1=2F_\infty(1-r),
+\qquad
+\kappa_2=\frac{rF_\infty}{Z_\star},
+\]
+
+and defining
+
+\[
+x\equiv\frac{Z}{Z_\star},
+\]
+
+gives
+
+\[
+f_{,Z}
+=
+2F_\infty
+\left(
+1-r+rx
+\right),
+\]
+
+and
+
+\[
+f_{,Z}+2Zf_{,ZZ}
+=
+2F_\infty
+\left(
+1-r+3rx
+\right).
+\]
+
+Therefore
+
+\[
+\boxed{
+c_s^2(x)
+=
+\frac{
+1-r+rx
+}{
+1-r+3rx
+}.
+}
+\]
+
+At the fixed point \(x=1\),
+
+\[
+\boxed{
+c_{s,\star}^2
+=
+\frac1{1+2r},
+}
+\]
+
+as obtained previously.
+
+The canonical branch is special.  Setting
+
+\[
+r=0
+\]
+
+gives
+
+\[
+\boxed{
+c_s^2=1
+}
+\]
+
+for **every** value of \(Z\) inside the completed mature canonical normal
+form, not merely at the fixed point.
+
+Thus residual matter forcing of \(Z\),
+
+\[
+\frac{Z}{Z_\star}-1
+=
+-3m+O(a^{-2})
+\]
+
+for the canonical branch, cannot by itself produce a superluminal sound speed.
+
+This identifies the origin of the tiny numerical maximum found in the strict
+future stitch scan,
+
+\[
+c_{s,\max}^2
+\simeq
+1.00000011224.
+\]
+
+That maximum occurs around
+
+\[
+\ln a\simeq2.83,
+\]
+
+before the future coefficient release has become indistinguishable from the
+pure \(r=0\) mature action.
+
+Therefore
+
+\[
+\boxed{
+c_s^2-1
+}
+\]
+
+at that location is a **transition-sector residual**, involving the remaining
+running of \(F\), \(G_3\), and/or the finite-rate \(G_2\) coefficient stitch.
+It is not an intrinsic property of the canonical endpoint.
+
+Once the canonical normal form is fully reached,
+
+\[
+F'=0,
+\qquad
+G_3=0,
+\qquad
+\kappa_2=0,
+\]
+
+and luminality is exact:
+
+\[
+\boxed{
+c_s^2\equiv1.
+}
+\]
+
+This changes the interpretation of the strict-subluminality search.
+
+The numerical target should not be to push the asymptotic canonical sound
+speed below one; doing so would contradict the exact \(r=0\) theory.
+
+The correct requirement is instead
+
+\[
+\boxed{
+c_s^2\le1
+}
+\]
+
+through the finite transition, followed by
+
+\[
+c_s^2\to1^- \ \text{or}\ 1
+\]
+
+as the canonical action is reached.
+
+The remaining \(1.1\times10^{-7}\) excess is consequently a measure of how
+well the chosen future interpolation suppresses the transition residue.  It
+does not invalidate the canonical endpoint itself.
