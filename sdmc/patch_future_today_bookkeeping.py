@@ -38,13 +38,9 @@ replace_once(
 """,
 "declaration")
 
-anchor="""  evolver_ndf15_abstol = 1e-15;
-
-  /** - recover some quantities today */
+anchor="""  /** - recover some quantities today */
 """
-insert="""  evolver_ndf15_abstol = 1e-15;
-
-  /* SDMC FUTURE AUDIT: when the table extends beyond a=1, the last row is
+insert="""  /* SDMC FUTURE AUDIT: when the table extends beyond a=1, the last row is
      no longer today. Bracket log(a/a0)=0 once and interpolate all quantities
      whose semantics are explicitly present-day at the exact boundary. */
   {
