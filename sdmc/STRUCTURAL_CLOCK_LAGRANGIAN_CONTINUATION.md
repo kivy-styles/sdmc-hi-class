@@ -11054,3 +11054,562 @@ microscopic or variational principle can derive the Balanced-Identity
 normalization and the \(\lambda_\ell=\sqrt2\) shape condition from one common
 fundamental statement, rather than retaining them as two independently
 motivated structural boundary conditions.
+
+
+## 61. Native canonical closure verified to \(\ln a=10\)
+
+The native legacy-canonical branch has now been propagated a second time over
+a substantially longer interval,
+
+\[
+\boxed{
+0\le \ln a\le10,
+}
+\]
+
+corresponding to
+
+\[
+\boxed{
+a_{\max}=e^{10}=22026.4658\ldots .
+}
+\]
+
+This run uses the same accepted \(z\ge0\) action and the same future-only
+canonical closure as the successful \(\ln a=5\) test.  No mature endpoint
+quantity is hard-coded into the background evolution.
+
+At the final native row,
+
+\[
+\ln a=9.99999999917,
+\]
+
+the structural lapse is
+
+\[
+\boxed{
+{\cal N}
+=
+2.89436192668.
+}
+\]
+
+The exact Balanced-Identity/canonical endpoint is
+
+\[
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}
+=
+2.89440501823\ldots,
+\]
+
+so the fractional discrepancy has fallen to
+
+\[
+\boxed{
+\frac{{\cal N}}{{\cal N}_\infty}-1
+=
+-1.48879\times10^{-5}.
+}
+\]
+
+The remaining kinematic quantities are
+
+\[
+\boxed{
+p=0.999985030001,
+}
+\]
+
+and
+
+\[
+\boxed{
+q=-1.45726\times10^{-5}.
+}
+\]
+
+Thus the native solution approaches the coasting point from the weakly
+accelerating side,
+
+\[
+p\to1^-,
+\qquad
+q\to0^-,
+\]
+
+exactly as predicted by the matter-forced mature action.
+
+The Horndeski health quantities simultaneously approach their canonical
+values,
+
+\[
+\boxed{
+D=1.99994011715,
+}
+\]
+
+and
+
+\[
+\boxed{
+c_s^2=0.999999999853.
+}
+\]
+
+The final No-Slip combination is
+
+\[
+\boxed{
+\alpha_B+2\alpha_M
+\simeq
+-1.20\times10^{-23}.
+}
+\]
+
+Across the entire native future interval the run remains healthy,
+
+\[
+D_{\min}=0.47923304>0,
+\]
+
+\[
+c_{s,\min}^2=0.25005092>0,
+\]
+
+while the largest numerically resolved sound speed is only
+
+\[
+c_{s,\max}^2
+=
+1.000000000161.
+\]
+
+That \(1.6\times10^{-10}\) excess is below the long-horizon gate tolerance and
+is consistent with interpolation/numerical precision around the exactly
+luminal \(r=0\) endpoint.
+
+The native perturbation propagation was also extended to the same horizon for
+
+\[
+k=
+10^{-4},
+\quad
+10^{-3},
+\quad
+10^{-2}\ {\rm Mpc}^{-1}.
+\]
+
+All three histories reach
+
+\[
+\ln a=10
+\]
+
+with finite stored variables.
+
+More importantly, the metric potentials show no late runaway between
+\(\ln a\simeq5\) and \(\ln a=10\).
+
+For
+
+\[
+k=10^{-4}\ {\rm Mpc}^{-1},
+\]
+
+both potentials decline to approximately
+
+\[
+0.707
+\]
+
+of their amplitude at the beginning of the late window.
+
+For
+
+\[
+k=10^{-3}\ {\rm Mpc}^{-1},
+\]
+
+the corresponding ratio is approximately
+
+\[
+5.93\times10^{-3},
+\]
+
+and for
+
+\[
+k=10^{-2}\ {\rm Mpc}^{-1},
+\]
+
+it is approximately
+
+\[
+6.84\times10^{-3}.
+\]
+
+The raw synchronous structural-scalar variable is also finite and decreases
+over this late window for every tested mode.  Its final absolute-amplitude
+ratios are approximately
+
+\[
+0.774,\qquad
+0.0148,\qquad
+0.0134,
+\]
+
+respectively.  These raw scalar amplitudes remain gauge-dependent and are not
+used as independent physical stability observables.
+
+The complete long-horizon workflow returns
+
+\[
+\boxed{
+\texttt{NATIVE\_CANONICAL\_LONG\_HORIZON\_GATE\_PASS}.
+}
+\]
+
+This closes the main numerical question left after Section 58.  The accepted
+present-day Horndeski action can be connected to the legacy-preserving
+canonical mature action and propagated natively for more than four orders of
+magnitude in scale factor beyond the present while maintaining
+
+\[
+F>0,
+\qquad
+D>0,
+\qquad
+c_s^2>0,
+\]
+
+No-Slip closure, finite scalar perturbations, and non-runaway metric
+potentials.
+
+The canonical endpoint is therefore supported simultaneously by
+
+1. the covariant Balanced Identity;
+2. the old Part-VI \(\lambda_\ell=\sqrt2\) limit;
+3. the exact homogeneous action equations;
+4. the fixed-point eigenvalue analysis;
+5. the nonlinear future basin tests;
+6. native hi_class background evolution to \(\ln a=10\);
+7. native scalar perturbation propagation to the same horizon.
+
+## 62. Resonant second-order approach to the canonical fixed point
+
+The first-order matter-forced result,
+
+\[
+{\cal N}/{\cal N}_\infty-1
+=
+p-1
+=
+q
+=
+-\frac32 m+O(a^{-2}),
+\]
+
+can be sharpened analytically for the \(r=0\) canonical endpoint.
+
+Use the canonical exponential variables
+
+\[
+x
+=
+\frac{\dot{\widehat\phi}}{\sqrt6 H},
+\qquad
+y
+=
+\frac{\sqrt V}{\sqrt3 H},
+\]
+
+with
+
+\[
+\lambda_\ell=\sqrt2
+\]
+
+and pressureless matter.
+
+The autonomous equations are
+
+\[
+x'
+=
+-3x+\sqrt3\,y^2
++\frac32x(1+x^2-y^2),
+\]
+
+\[
+y'
+=
+-\sqrt3\,xy
++\frac32y(1+x^2-y^2),
+\]
+
+where a prime denotes \(d/d\ln a\).
+
+The mature fixed point is
+
+\[
+x_\star=\frac1{\sqrt3},
+\qquad
+y_\star=\sqrt{\frac23}.
+\]
+
+Its eigenvalues are
+
+\[
+-1,\qquad -2.
+\]
+
+The \(-1\) mode is the residual matter mode and the \(-2\) mode is the
+intrinsic scalar mode.
+
+Let
+
+\[
+u\equiv a^{-1}=e^{-N}.
+\]
+
+Because twice the matter eigenvalue equals the scalar eigenvalue,
+
+\[
+2(-1)=-2,
+\]
+
+the nonlinear matter self-coupling is resonant with the intrinsic scalar mode.
+Consequently the second-order asymptotic expansion necessarily contains
+\(u^2\ln u\) terms.
+
+Write
+
+\[
+x
+=
+\frac1{\sqrt3}
++
+A u
++
+\left(
+B+\sqrt3 A^2\ln u
+\right)u^2
++O(u^3\ln^2u),
+\]
+
+\[
+y
+=
+\sqrt{\frac23}
++
+\left(
+D-\frac{\sqrt6}{2}A^2\ln u
+\right)u^2
++O(u^3\ln^2u).
+\]
+
+The remaining second-order coefficients obey
+
+\[
+\boxed{
+B+\sqrt2D
+=
+-\frac{5\sqrt3}{2}A^2.
+}
+\]
+
+One free combination remains because the genuine \(-2\) scalar eigenmode can
+be added independently.
+
+Define a positive leading matter amplitude \(m_1\) by
+
+\[
+A=-\frac{\sqrt3}{2}m_1.
+\]
+
+Then the matter fraction becomes
+
+\[
+\boxed{
+\Omega_m
+=
+m_1u
++
+3m_1^2u^2
++
+O(u^3\ln u).
+}
+\]
+
+This expression is independent of the free intrinsic scalar-mode amplitude at
+this order.
+
+Using
+
+\[
+p=\sqrt3\,x,
+\]
+
+the bridge exponent is
+
+\[
+\boxed{
+p
+=
+1
+-\frac32m_1u
++
+u^2
+\left[
+\frac94m_1^2\ln u
+-\frac{45}{8}m_1^2
+-\sqrt6\,D
+\right]
++\cdots .
+}
+\]
+
+The deceleration parameter is
+
+\[
+\boxed{
+q
+=
+-\frac32m_1u
++
+u^2
+\left[
+\frac92m_1^2\ln u
+-\frac92m_1^2
+-2\sqrt6\,D
+\right]
++\cdots .
+}
+\]
+
+For the canonical structural lapse,
+
+\[
+\frac{{\cal N}}{{\cal N}_\infty}
+=
+\frac{\sqrt2\,x}{y},
+\]
+
+which gives
+
+\[
+\boxed{
+\frac{{\cal N}}{{\cal N}_\infty}
+=
+1
+-\frac32m_1u
++
+u^2
+\left[
+\frac{27}{8}m_1^2\ln u
+-\frac{45}{8}m_1^2
+-\frac{3\sqrt6}{2}D
+\right]
++\cdots .
+}
+\]
+
+The matter/baryon mapper follows from
+
+\[
+\frac{d\ln M}{dN}=p-1,
+\]
+
+and therefore
+
+\[
+\boxed{
+\frac{M}{M_\infty}
+=
+1
++\frac32m_1u
++
+u^2
+\left[
+-\frac98m_1^2\ln u
++\frac92m_1^2
++\frac{\sqrt6}{2}D
+\right]
++\cdots ,
+}
+\]
+
+where
+
+\[
+M
+=
+\frac{K_m}{K_{m0}}
+=
+\frac{K_p}{K_{p0}}.
+\]
+
+The entire \(O(a^{-1})\) correction cancels in the lapse-mapper product as
+already found.  The first surviving term is now explicit,
+
+\[
+\boxed{
+\frac{{\cal N}M}
+{{\cal N}_\infty M_\infty}
+=
+1
++
+u^2
+\left[
+\frac94m_1^2\ln u
+-\frac{27}{8}m_1^2
+-\sqrt6D
+\right]
++\cdots .
+}
+\]
+
+Similarly,
+
+\[
+\boxed{
+\frac{{\cal N}/p}
+{({\cal N}/p)_\infty}
+=
+1
++
+u^2
+\left[
+\frac98m_1^2\ln u
+-\frac{\sqrt6}{2}D
+\right]
++\cdots .
+}
+\]
+
+Since
+
+\[
+\ln u=-\ln a,
+\]
+
+the generic second-order correction is not merely \(a^{-2}\), but
+
+\[
+\boxed{
+a^{-2}\ln a
+}
+\]
+
+plus the independent \(a^{-2}\) scalar eigenmode.
+
+This resonance explains why the first-order lapse-mapper cancellation is so
+efficient while a smaller structured residual survives.  It also supplies a
+more precise asymptotic template for the new native \(\ln a=10\) data.
+
+The next audit fits the native/exact canonical trajectory to this resonant
+template and tests whether the inferred matter-mode amplitude and intrinsic
+scalar-mode coefficient become constant in the mature regime.
