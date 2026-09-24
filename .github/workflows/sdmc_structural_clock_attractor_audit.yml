@@ -437,10 +437,10 @@ jobs:
             output/native_future_bounded_00_background.dat
             output/native_future_perturb_matched.log
             output/native_future_perturb_matched.rc
-            output/native_future_perturb_matched_perturbations_k*_s.dat
+            output/native_future_perturb_matched_*perturbations_k*_s.dat
             output/native_future_perturb_bounded.log
             output/native_future_perturb_bounded.rc
-            output/native_future_perturb_bounded_perturbations_k*_s.dat
+            output/native_future_perturb_bounded_*perturbations_k*_s.dat
             output/structural_clock_attractor/structural_clock_attractor_audit.json
             output/structural_clock_attractor/*.log
             output/structural_clock_attractor/*_00_background.dat
