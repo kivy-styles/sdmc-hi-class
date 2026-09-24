@@ -317,6 +317,16 @@ def rhs_diag(Ne,y,model):
     alphaK=2.*Z*Khom/(Hn*Hn*Fv)
     Dfull=alphaK+1.5*alphaB*alphaB
 
+    # Exact d alpha_B/d ln a, needed by the hi_class c_s^2 numerator.
+    Cb=(-Fsv+2.*Z*gv)/Fv
+    Cb_s=((-Fssv+2.*Z*gsv)*Fv-(-Fsv+2.*Z*gv)*Fsv)/(Fv*Fv)
+    Cb_Z=2.*gv/Fv
+    Abo=v/Hn
+    Abo_N=Abo*(dotv/(Hn*v)-dotH/(Hn*Hn))
+    Cb_N=(v/Hn)*Cb+(0.)  # overwritten below for clarity
+    Cb_N=(v/Hn)*Cb_s+(v*dotv/Hn)*Cb_Z
+    alphaB_N=Abo_N*Cb+Abo*Cb_N
+
     # Exact hi_class effective rho_smg and p_smg for this subclass.
     # These are the bookkeeping variables used by gravity_functions_smg.c
     # in the Bellini-Sawicki c_s^2 numerator. They are deliberately distinct
@@ -348,6 +358,7 @@ def rhs_diag(Ne,y,model):
       "alphaB":alphaB,
       "alphaK":alphaK,
       "D_full":Dfull,
+      "alphaB_N":alphaB_N,
       "rho_smg_class":rho_smg_class,
       "p_smg_class":p_smg_class,
       "rho_m_action":rm,
@@ -384,15 +395,9 @@ def evolve(model,Nmax=10.,npts=2001):
 
     for j,x in enumerate(diag):
         Fv=x["F"]; Hn=x["H"]; b=bra[j]; m=run[j]
-        dotHj=-(1.+x["q"])*Hn*Hn
-
-        # hi_class packages the varying-Planck-mass pieces into its effective
-        # rho_smg,p_smg.  In CLASS H^2-density units,
-        #
-        # (rho_smg+p_smg)
-        # = (rhoX+pX)/3 + 2(F-1)dotH/3.
-        xp_eff=((x["rhoX_action"]+x["pX_action"])/3.
-                +(2./3.)*(Fv-1.)*dotHj)
+        # Exact hi_class effective scalar and ordinary-sector enthalpies,
+        # both in CLASS H^2-density units.
+        xp_eff=x["rho_smg_class"]+x["p_smg_class"]
         mp=(x["rho_m_action"]+4.*x["rho_r_action"]/3.)/3.
 
         num1=((2.-b)*(b+2.*m)/2.
@@ -456,10 +461,12 @@ def evolve(model,Nmax=10.,npts=2001):
              if isinstance(v,(int,float,np.floating)) and np.isfinite(v)}
         row.update(ln_a=float(NN[j]),a=float(math.exp(NN[j])),
                    sigma=float(yy[0,j]),delta_t_Gyr=float(dt[j]),
-                   alpha_M=float(aM[j]),alpha_B=float(aB[j]),
-                   alpha_K=float(aK[j]),D_horndeski=float(Dfull[j]),
-                   cs2_horndeski=float(cs2_standard[j]),
-                   cs2_hiclass_rhop=float(cs2_hiclass[j]))
+                   alpha_M=float(diag[j]["alphaM"]),
+                   alpha_B=float(diag[j]["alphaB"]),
+                   alpha_K=float(diag[j]["alphaK"]),
+                   alpha_B_N=float(diag[j]["alphaB_N"]),
+                   D_horndeski=float(Dfull[j]),
+                   cs2_horndeski=float(cs2full[j]))
         samples.append(row)
 
     return {
@@ -487,9 +494,9 @@ def evolve(model,Nmax=10.,npts=2001):
         "min_sigma2_Khom":float(np.min(Kh*yy[0]*yy[0])),
         "min_D_full":float(np.min(DF)),
         "max_D_full":float(np.max(DF)),
-        "min_cs2_full_hiclass_formula":float(np.min(cs2_hiclass)),
-        "max_cs2_full_hiclass_formula":float(np.max(cs2_hiclass)),
-        "max_abs_cs2_formula_disagreement":float(np.max(cs2_formula_disagreement)),
+        "min_cs2_horndeski":float(np.min(cs2full)),
+        "max_cs2_horndeski":float(np.max(cs2full)),
+        "cs2_source_compact_identity_max_abs":cs2_identity_err,
         "min_cs2_kessence_proxy":float(np.nanmin(cs)),
         "max_cs2_kessence_proxy":float(np.nanmax(cs)),
         "max_abs_noslip_term_balance_rel":float(nos[imns]),
@@ -498,12 +505,10 @@ def evolve(model,Nmax=10.,npts=2001):
         "max_abs_alphaB_plus_2alphaM_at_ln_a":float(NN[imnsa]),
         "min_D_horndeski":float(Dfull[iD]),
         "min_D_horndeski_at_ln_a":float(NN[iD]),
-        "min_cs2_horndeski":float(cs2_standard[ics]),
         "min_cs2_horndeski_at_ln_a":float(NN[ics]),
-        "max_cs2_horndeski":float(cs2_standard[icsmax]),
         "max_cs2_horndeski_at_ln_a":float(NN[icsmax]),
         "present_D_horndeski":float(Dfull[0]),
-        "present_cs2_horndeski":float(cs2_standard[0]),
+        "present_cs2_horndeski":float(cs2full[0]),
       },
       "future_kinematics":{
         "q_max":float(qq[imax]),
