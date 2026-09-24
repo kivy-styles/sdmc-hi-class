@@ -4,8 +4,11 @@ Future homogeneous covariant stitch audit for the accepted SDMC action.
 
 This script does NOT modify the successful z>=0 action or its likelihood
 history.  It reconstructs the accepted structural-field action at sigma<=1,
-attaches C2 future tails for sigma>1, and then evolves the exact homogeneous
-Horndeski background equations forward with matter and radiation dilution.
+attaches perturbation-ready future tails for sigma>1, and then evolves the
+exact homogeneous Horndeski background equations forward with matter and
+radiation dilution.  The F and g tails preserve the complete C3 jet at the
+present boundary because hi_class uses third field derivatives of G3 and G4
+in its perturbation gravity functions.
 
 Action:
     G2 = k1(sigma) Z + k2(sigma) Z^2 - V(sigma)
@@ -31,9 +34,9 @@ Two structural endpoints are audited:
 The exact homogeneous equations are reduced to a 2x2 system for dot(v) and
 dot(H), while H itself is obtained from the Friedmann constraint.  The script
 reports both a term-balance No-Slip residual and the physical dimensionless
-combination alpha_B+2 alpha_M.  The future tails remain candidate completions
-until the full Horndeski D and c_s^2 conditions are checked in a
-future-capable hi_class background.
+combination alpha_B+2 alpha_M.  The exact Bellini-Sawicki D and c_s^2 background health functions are checked
+along the released future trajectory.  A future-capable hi_class perturbation
+propagation remains a separate final implementation gate.
 """
 from pathlib import Path
 import json, math, re
@@ -180,8 +183,9 @@ def qbar_derivs_from_sigma(sp):
     return [Q,2.*Q+Q1,4.*Q+5.*Q1+Q2]
 
 def xderivs_direct_from_sigma(sp):
-    Q=float(sp(1.)); Q1=float(sp(1.,1)); Q2=float(sp(1.,2))
-    return [Q,Q1,Q1+Q2]
+    Q=float(sp(1.)); Q1=float(sp(1.,1)); Q2=float(sp(1.,2)); Q3=float(sp(1.,3))
+    # x=ln(sigma): d/dx=sigma d/dsigma.
+    return [Q,Q1,Q1+Q2,Q1+3.*Q2+Q3]
 
 bars={
   "k1":qbar_derivs_from_sigma(spk1),
@@ -193,6 +197,7 @@ g_xder=[
   float(spg(1.)),
   float(spg(1.,1)),
   float(spg(1.,1)+spg(1.,2)),
+  float(spg(1.,1)+3.*spg(1.,2)+spg(1.,3)),
 ]
 
 v0=1./t0
@@ -210,8 +215,9 @@ def asym_Z_from_mu(mu):
     AFc=coeffs_match(bars["F"],FINF,mu)
     mug=mu+1.
     Agc=coeffs_match(g_xder,0.,mug)
-    # Leading x^2 e^-mux terms give the asymptotic No-Slip ratio.
-    return mu*AFc[2]/(2.*Agc[2])
+    # With the C3-preserving cubic-polynomial tails, the leading
+    # x^3 exp(-mu x) terms give the asymptotic No-Slip ratio.
+    return mu*AFc[3]/(2.*Agc[3])
 
 def build_candidate(spec):
     chiinf=spec["chi_inf"]
@@ -223,10 +229,11 @@ def build_candidate(spec):
     kappa2=r*FINF/Zinf
     U0=FINF*Zinf*(4.-r)
 
-    # Use the faster positive root; the slow branch gave a much larger
-    # transient No-Slip departure in the design audit.
+    # The C3 asymptotic equation has multiple positive roots.  Use the
+    # fastest branch near mu_F~5.6; the slower branches leave a longer
+    # modified-gravity transient while reaching the same fixed point.
     rootfun=lambda mu: asym_Z_from_mu(mu)-Zinf
-    muF=brentq(rootfun,3.2,6.0)
+    muF=brentq(rootfun,5.0,6.2)
     mug=muF+1.
 
     AFc=coeffs_match(bars["F"],FINF,muF)
@@ -547,15 +554,17 @@ def release_trajectory(model,Nmax=10.,npts=2001):
           for ne,(sig,v) in zip(NN,yy.T)]
     return NN,yy,diag
 
-def refine_noslip_model(model,yy,blend_rate=40.):
+def refine_noslip_model(model,yy,blend_rate=500.):
     """
     Use the released Z(sigma) trajectory to reconstruct the exact on-trajectory
     No-Slip value g_NS=-F_,sigma/(2Z), while preserving the original future
-    tail's complete C2 jet at sigma=1.
+    tail's complete C3 jet at sigma=1.
 
     The blend
-      W=1-exp(-u)(1+u+u^2/2), u=blend_rate*ln(sigma)
-    has W(0)=W'(0)=W''(0)=0 and tends to unity rapidly.
+      W=1-exp(-u)(1+u+u^2/2+u^3/6), u=blend_rate*ln(sigma)
+    satisfies W^(n)(0)=0 for n=0,1,2,3 and tends to unity rapidly.  This
+    matters because hi_class uses G3_phiphiphi and G4_phiphiphi in the
+    perturbation gravity functions.
     """
     base=model["_base_action"]
     sig=np.asarray(yy[0]); vel=np.asarray(yy[1])
@@ -590,9 +599,9 @@ def refine_noslip_model(model,yy,blend_rate=40.):
 
         u=blend_rate*xx
         ee=math.exp(-u)
-        W=1.-ee*(1.+u+.5*u*u)
-        W1=.5*blend_rate*ee*u*u
-        W2=.5*blend_rate*blend_rate*ee*(2.*u-u*u)
+        W=1.-ee*(1.+u+.5*u*u+u*u*u/6.)
+        W1=blend_rate*ee*u*u*u/6.
+        W2=blend_rate*blend_rate*ee*(3.*u*u-u*u*u)/6.
 
         gx=go+W*de
         gx1=go1+W1*de+W*de1
@@ -607,7 +616,7 @@ def refine_noslip_model(model,yy,blend_rate=40.):
     new["action"]=action
     return new
 
-def build_refined_noslip_candidate(spec,iterations=2,blend_rate=40.):
+def build_refined_noslip_candidate(spec,iterations=2,blend_rate=500.):
     model=build_candidate(spec)
     model["_base_action"]=model["action"]
     for _ in range(iterations):
@@ -615,13 +624,13 @@ def build_refined_noslip_candidate(spec,iterations=2,blend_rate=40.):
         model=refine_noslip_model(model,yy,blend_rate=blend_rate)
     return model
 
-results={}
-refined_if __name__ == "__main__":
+if __name__ == "__main__":
     results={}
+    refined_results={}
     for spec in CANDIDATES:
         model=build_candidate(spec)
         results[spec["name"]]=evolve(model)
-        refined=build_refined_noslip_candidate(spec,iterations=2,blend_rate=40.)
+        refined=build_refined_noslip_candidate(spec,iterations=2,blend_rate=500.)
         refined_results[spec["name"]]=evolve(refined)
 
     out={
