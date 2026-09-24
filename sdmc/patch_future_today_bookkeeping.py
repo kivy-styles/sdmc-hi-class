@@ -6,8 +6,9 @@ anchored at log(a/a0)=0 even when background_solve integrates to loga_final>0.
 The future audit extends the interpolation table beyond a=1. Upstream CLASS
 normally assumes the last table row *is* today, so without this patch it would
 silently redefine age, conformal age, growth normalization and Omega0_m/r at
-the future endpoint. This patch keeps those quantities tied to the row nearest
-loga=0 while retaining all future rows for the SDMC health audit.
+the future endpoint. This patch brackets log(a/a0)=0 and linearly interpolates
+those quantities at the exact present epoch while retaining all future rows for
+the SDMC health audit.
 
 Applied only in the isolated future section of the experimental workflow.
 """
@@ -31,8 +32,9 @@ replace_once(
 """,
 """  /* growth factor today */
   double D_today;
-  /* SDMC future audit: row representing the actual present epoch log(a/a0)=0 */
-  int index_today_future_audit = 0;
+  /* SDMC future audit: bracket and interpolation weight for log(a/a0)=0. */
+  int index_today_future_audit = -1;
+  double weight_today_future_audit = 0.;
 """,
 "declaration")
 
@@ -43,21 +45,26 @@ anchor="""  evolver_ndf15_abstol = 1e-15;
 insert="""  evolver_ndf15_abstol = 1e-15;
 
   /* SDMC FUTURE AUDIT: when the table extends beyond a=1, the last row is
-     no longer today. Find the row closest to log(a/a0)=0 once and use it for
-     all quantities whose semantics are explicitly present-day. */
+     no longer today. Bracket log(a/a0)=0 once and interpolate all quantities
+     whose semantics are explicitly present-day at the exact boundary. */
   {
-    double abs_loga_today_future_audit = fabs(pba->loga_table[0]);
     int jj_today_future_audit;
-    for (jj_today_future_audit=1;
-         jj_today_future_audit<pba->bt_size;
+    for (jj_today_future_audit=0;
+         jj_today_future_audit<pba->bt_size-1;
          jj_today_future_audit++) {
-      if (fabs(pba->loga_table[jj_today_future_audit])
-          < abs_loga_today_future_audit) {
-        abs_loga_today_future_audit =
-          fabs(pba->loga_table[jj_today_future_audit]);
+      if (pba->loga_table[jj_today_future_audit] <= 0. &&
+          pba->loga_table[jj_today_future_audit+1] >= 0.) {
         index_today_future_audit = jj_today_future_audit;
+        break;
       }
     }
+    class_test(index_today_future_audit < 0,
+               pba->error_message,
+               "SDMC future audit could not bracket log(a/a0)=0");
+    weight_today_future_audit =
+      (0.-pba->loga_table[index_today_future_audit])/
+      (pba->loga_table[index_today_future_audit+1]
+       -pba->loga_table[index_today_future_audit]);
   }
 
   /** - recover some quantities today */
@@ -70,10 +77,16 @@ replace_once(
   pba->conformal_age = pvecback_integration[pba->index_bi_tau];
 """,
 """  pba->age =
-    pba->background_table[index_today_future_audit*pba->bg_size
-                          +pba->index_bg_time]/_Gyr_over_Mpc_;
+    ((1.-weight_today_future_audit)
+      *pba->background_table[index_today_future_audit*pba->bg_size
+                             +pba->index_bg_time]
+     +weight_today_future_audit
+      *pba->background_table[(index_today_future_audit+1)*pba->bg_size
+                             +pba->index_bg_time])/_Gyr_over_Mpc_;
   /* -> conformal age in Mpc */
-  pba->conformal_age = pba->tau_table[index_today_future_audit];
+  pba->conformal_age =
+    (1.-weight_today_future_audit)*pba->tau_table[index_today_future_audit]
+    +weight_today_future_audit*pba->tau_table[index_today_future_audit+1];
 """,
 "age bookkeeping")
 
@@ -81,8 +94,12 @@ replace_once(
 """    pba->Omega0_dcdm = pvecback_integration[pba->index_bi_rho_dcdm]/pba->H0/pba->H0;
 """,
 """    pba->Omega0_dcdm =
-      pba->background_table[index_today_future_audit*pba->bg_size
-                            +pba->index_bg_rho_dcdm]/pba->H0/pba->H0;
+      ((1.-weight_today_future_audit)
+        *pba->background_table[index_today_future_audit*pba->bg_size
+                               +pba->index_bg_rho_dcdm]
+       +weight_today_future_audit
+        *pba->background_table[(index_today_future_audit+1)*pba->bg_size
+                               +pba->index_bg_rho_dcdm])/pba->H0/pba->H0;
 """,
 "dcdm today")
 
@@ -90,8 +107,12 @@ replace_once(
 """    pba->Omega0_dr = pvecback_integration[pba->index_bi_rho_dr]/pba->H0/pba->H0;
 """,
 """    pba->Omega0_dr =
-      pba->background_table[index_today_future_audit*pba->bg_size
-                            +pba->index_bg_rho_dr]/pba->H0/pba->H0;
+      ((1.-weight_today_future_audit)
+        *pba->background_table[index_today_future_audit*pba->bg_size
+                               +pba->index_bg_rho_dr]
+       +weight_today_future_audit
+        *pba->background_table[(index_today_future_audit+1)*pba->bg_size
+                               +pba->index_bg_rho_dr])/pba->H0/pba->H0;
 """,
 "dr today")
 
@@ -99,8 +120,12 @@ replace_once(
 """  D_today = pvecback_integration[pba->index_bi_D];
 """,
 """  D_today =
-    pba->background_table[index_today_future_audit*pba->bg_size
-                          +pba->index_bg_D];
+    (1.-weight_today_future_audit)
+      *pba->background_table[index_today_future_audit*pba->bg_size
+                             +pba->index_bg_D]
+    +weight_today_future_audit
+      *pba->background_table[(index_today_future_audit+1)*pba->bg_size
+                             +pba->index_bg_D];
 """,
 "growth today")
 
@@ -109,11 +134,19 @@ replace_once(
   pba->Omega0_r = pba->background_table[(pba->bt_size-1)*pba->bg_size+pba->index_bg_Omega_r];
 """,
 """  pba->Omega0_m =
-    pba->background_table[index_today_future_audit*pba->bg_size
-                          +pba->index_bg_Omega_m];
+    (1.-weight_today_future_audit)
+      *pba->background_table[index_today_future_audit*pba->bg_size
+                             +pba->index_bg_Omega_m]
+    +weight_today_future_audit
+      *pba->background_table[(index_today_future_audit+1)*pba->bg_size
+                             +pba->index_bg_Omega_m];
   pba->Omega0_r =
-    pba->background_table[index_today_future_audit*pba->bg_size
-                          +pba->index_bg_Omega_r];
+    (1.-weight_today_future_audit)
+      *pba->background_table[index_today_future_audit*pba->bg_size
+                             +pba->index_bg_Omega_r]
+    +weight_today_future_audit
+      *pba->background_table[(index_today_future_audit+1)*pba->bg_size
+                             +pba->index_bg_Omega_r];
 """,
 "Omega0 bookkeeping")
 
