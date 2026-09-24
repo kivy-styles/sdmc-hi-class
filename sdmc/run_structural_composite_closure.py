@@ -51,7 +51,7 @@ def table(path):
     return {n:x[:,i] for i,n in enumerate(names)}
 
 d=table(a.background)
-req=["z","H [1/Mpc]","M*^2_smg","M2_running_smg",
+req=["z","proper time [Gyr]","H [1/Mpc]","M*^2_smg","M2_running_smg",
      "(.)rho_g","(.)rho_b","(.)rho_cdm","(.)rho_ur"]
 miss=[k for k in req if k not in d]
 if miss: raise RuntimeError(f"missing columns {miss}")
@@ -66,9 +66,9 @@ rho_ord=(np.asarray(d["(.)rho_g"])+np.asarray(d["(.)rho_b"]) +
 rhoX=H*H*F*(1.+alphaM)-rho_ord
 
 o=np.argsort(ln_a)
-z,ln_a,H,F,alphaM,rhoX=[x[o] for x in (z,ln_a,H,F,alphaM,rhoX)]
+z,ln_a,proper_gyr,H,F,alphaM,rhoX=[x[o] for x in (z,ln_a,proper_gyr,H,F,alphaM,rhoX)]
 keep=np.r_[True,np.diff(ln_a)>1e-12]
-z,ln_a,H,F,alphaM,rhoX=[x[keep] for x in (z,ln_a,H,F,alphaM,rhoX)]
+z,ln_a,proper_gyr,H,F,alphaM,rhoX=[x[keep] for x in (z,ln_a,proper_gyr,H,F,alphaM,rhoX)]
 if np.any(rhoX<=0):
     raise RuntimeError("active structural density becomes non-positive")
 
@@ -116,6 +116,21 @@ chi0=Omega_X0/Omega_v_raw0
 chi_rel=(rhoX/rhoX[i0])*Srel*Srel
 chi=chi0*chi_rel
 
+# Chronological closure inherited from Part III: S proportional to cosmic
+# time after the nonclassical Planck-to-radiation transition.  Then
+# p=d ln S/d ln a=1/(H t_c), S/S0=t_c/t0, and the lapse is constant.
+SEC_PER_GYR=1e9*365.25*86400.
+C_MS=299792458.
+MPC_M=3.085677581491367e22
+t_mpc=proper_gyr*SEC_PER_GYR*C_MS/MPC_M
+p_chrono=1./(H*t_mpc)
+Srel_chrono=t_mpc/t_mpc[i0]
+Kmrel_chrono=Srel_chrono/ascale
+N_chrono=pref*Srel_chrono*E*p_chrono
+Achi_chrono=2.*(p_chrono-pX)
+chi_rel_chrono=(rhoX/rhoX[i0])*Srel_chrono*Srel_chrono
+chi_chrono=chi0*chi_rel_chrono
+
 # Unique pX=1 crossing separating tracker-like no-activation from
 # the mature p=1 activation branch, if one exists.
 cross=[]
@@ -127,23 +142,41 @@ for i in range(len(ln_a)-1):
 
 def sample(zt):
     j=int(np.argmin(np.abs(z-zt)))
-    return dict(z=float(z[j]),pX=float(pX[j]),p=float(p[j]),
-                Achi=float(Achi[j]),S_over_S0=float(Srel[j]),
-                N_lapse=float(Nlapse[j]),Km_over_Km0=float(Kmrel[j]),
-                Kp_over_Kp0=float(Kprel[j]),chi=float(chi[j]))
+    return dict(
+      z=float(z[j]),pX=float(pX[j]),
+      minimal=dict(p=float(p[j]),Achi=float(Achi[j]),S_over_S0=float(Srel[j]),
+                   N_lapse=float(Nlapse[j]),Km_over_Km0=float(Kmrel[j]),
+                   Kp_over_Kp0=float(Kprel[j]),chi=float(chi[j])),
+      chronological=dict(p=float(p_chrono[j]),Achi=float(Achi_chrono[j]),
+                         S_over_S0=float(Srel_chrono[j]),N_lapse=float(N_chrono[j]),
+                         Km_over_Km0=float(Kmrel_chrono[j]),
+                         Kp_over_Kp0=float(Kmrel_chrono[j]),chi=float(chi_chrono[j]))
+    )
 
 out=dict(
-  closure="p=max(1,pX); Achi=2 max(0,1-pX)",
-  status="minimal activation closure hypothesis; action fixes pX only",
+  status="action fixes pX=p-Achi/2; two explicit closures are audited",
   active_density_positive=True,
   z_pX_equals_1=cross,
-  present=dict(
-    pX=float(pX[i0]),p=float(p[i0]),Achi=float(Achi[i0]),
-    N_lapse=float(Nlapse[i0]),chi0=float(chi0),
-    Omega_X0=Omega_X0,Omega_v_raw0=float(Omega_v_raw0),
-    Km0=float(Km0),Kp0=float(Kp0),fb=float(fb),Kp_over_Km=float(Kp0/Km0)
+  anchors=dict(chi0=float(chi0),Omega_X0=Omega_X0,
+               Omega_v_raw0=float(Omega_v_raw0),Km0=float(Km0),Kp0=float(Kp0),
+               fb=float(fb),Kp_over_Km=float(Kp0/Km0)),
+  minimal_activation=dict(
+    definition="p=max(1,pX); Achi=2 max(0,1-pX)",
+    status="pointwise minimal nondecreasing-activation closure with p>=1 floor",
+    present=dict(pX=float(pX[i0]),p=float(p[i0]),Achi=float(Achi[i0]),
+                 N_lapse=float(Nlapse[i0]),chi=float(chi[i0]))
   ),
-  samples=[sample(q) for q in [1e7,1e6,1e5,1e4,3400,1000,300,100,30,10,6.8,5,3,2,1,.7,.5,.3,.1,0]]
+  chronological=dict(
+    definition="S/S0=t_c/t0; p=1/(H t_c); N=tP*S0/t0",
+    status="Part-III chronological-scaling closure; excludes the unresolved Planck-to-classical transition",
+    age0_Gyr=float(proper_gyr[i0]),
+    present=dict(pX=float(pX[i0]),p=float(p_chrono[i0]),Achi=float(Achi_chrono[i0]),
+                 N_lapse=float(N_chrono[i0]),chi=float(chi_chrono[i0])),
+    N_lapse_min=float(np.min(N_chrono)),N_lapse_max=float(np.max(N_chrono)),
+    Achi_min=float(np.min(Achi_chrono)),
+    z_Achi_min=float(z[int(np.argmin(Achi_chrono))])
+  ),
+  samples=[sample(q) for q in [1e7,1e6,1e5,1e4,3400,1090,1000,300,100,30,20,10,6.8,5,3,2,1,.7,.5,.3,.1,0]]
 )
 Path(a.out).write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print(json.dumps(out,indent=2,sort_keys=True))
