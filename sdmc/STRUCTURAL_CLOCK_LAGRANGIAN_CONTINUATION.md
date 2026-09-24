@@ -848,3 +848,204 @@ all three are derived composites.  The unresolved step is whether an
 independently motivated microscopic form of the same covariant functions
 selects the constant-\(Z\) orbit without reconstruction from the desired
 background.
+
+
+## 14. Shift-current route toward a dynamical chronological attractor
+
+The reduced homogeneous equation admits a useful current form. Define
+
+\[
+\boxed{
+J_\sigma\equiv\ell_{,v}
+=
+k_1v+4Bv^3+3Hgv^2-3HF_{,\sigma}.
+}
+\]
+
+Then
+
+\[
+\boxed{
+\dot J_\sigma+3HJ_\sigma=\ell_{,\sigma},
+}
+\]
+
+where
+
+\[
+\ell_{,\sigma}
+=
+\frac12k_{1,\sigma}v^2
++B_{,\sigma}v^4
++Hg_{,\sigma}v^3
+-V_{,\sigma}
+-3HF_{,\sigma\sigma}v
+-3H^2F_{,\sigma}.
+\]
+
+This gives a possible microscopic route to the chronological closure. If the
+mature structural action approaches an approximately shift-symmetric regime,
+
+\[
+k_{1,\sigma},\ B_{,\sigma},\ g_{,\sigma},\ V_{,\sigma},\
+F_{,\sigma},\ F_{,\sigma\sigma}\longrightarrow0,
+\]
+
+then
+
+\[
+\ell_{,\sigma}\longrightarrow0
+\]
+
+and the current obeys
+
+\[
+\dot J_\sigma+3HJ_\sigma\simeq0,
+\qquad
+J_\sigma\propto a^{-3}.
+\]
+
+Expansion therefore drives the system toward an algebraic current root,
+
+\[
+\boxed{
+4Bv_\star^3+3Hgv_\star^2+k_1v_\star-3HF_{,\sigma}=0.
+}
+\]
+
+In the further asymptotic limit in which \(H\to0\) and
+\(F_{,\sigma}\to0\), the nonzero root becomes
+
+\[
+\boxed{
+v_\star^2=-\frac{k_{1,\infty}}{4B_\infty}.
+}
+\]
+
+Because \(v_\star=\dot\sigma\), such a nonzero constant root gives
+
+\[
+\sigma\propto t,\qquad
+S\propto t,\qquad
+{\cal N}=t_PS_0v_\star=\text{constant}.
+\]
+
+The corresponding lapse would be predicted directly by the asymptotic
+Lagrangian coefficients,
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+t_PS_0
+\sqrt{-\frac{k_{1,\infty}}{4B_\infty}}
+}.
+\]
+
+At the same reduced level,
+
+\[
+{\cal K}_{{\rm hom},\star}
+=
+k_{1,\infty}+12B_\infty v_\star^2
+=
+-2k_{1,\infty}.
+\]
+
+Thus a real nonzero root with positive homogeneous kinetic curvature requires
+
+\[
+\boxed{
+k_{1,\infty}<0,\qquad B_\infty>0
+}
+\]
+
+in this asymptotic approximation. This is a ghost-condensate-like
+constant-velocity mechanism, but the statement is deliberately limited to the
+homogeneous reduced dynamics: the full Horndeski no-ghost and sound-speed
+conditions remain the \(D>0\) and \(c_s^2>0\) tests already used in the
+covariant runs.
+
+This route is important because it changes the outstanding question from
+"why impose \(S\propto t\)?" to a concrete action-level test: do the reconstructed
+functions approach a regime in which the scalar current is Hubble-diluted
+toward a stable nonzero kinetic root?
+
+## 15. Reduced numerical stability screen of the accepted action
+
+A new repository audit named run_structural_clock_linear_stability_audit.py
+evaluates the quantities in Section 12 directly from the accepted free
+linear-\(G_3\) background after the two structural field redefinitions.
+
+A local reproduction on the accepted artifact gives, over \(z<100\),
+
+\[
+{\cal K}_{\rm hom}>0,
+\]
+
+with
+
+\[
+0.36998\lesssim{\cal K}_{\rm hom}\lesssim1.5042\times10^4,
+\]
+
+and
+
+\[
+0.1802\lesssim\frac{{\cal M}_\star^2}{H^2}\lesssim1.6913.
+\]
+
+Thus the reduced restoring term remains positive throughout this interval.
+The effective damping changes sign once, near
+
+\[
+\boxed{z\simeq57.46.}
+\]
+
+For \(z\lesssim57.5\),
+
+\[
+\Gamma_\star>0,
+\]
+
+and the instantaneous reduced eigenvalues have negative real parts. At the
+present epoch the diagnostic gives approximately
+
+\[
+\frac{\Gamma_\star}{H_0}\simeq2.1133,
+\qquad
+\frac{{\cal M}_\star^2}{H_0^2}\simeq0.18777,
+\]
+
+with
+
+\[
+\frac{\lambda_+}{H_0}\simeq-0.09294,
+\qquad
+\frac{\lambda_-}{H_0}\simeq-2.0204.
+\]
+
+This is a positive late-time indication: in the frozen-background scalar
+subsystem the chronological constant-kinetic orbit is locally damped today.
+
+The same reduced test is not uniformly attractive in the early universe. Near
+last scattering it gives roughly
+
+\[
+\frac{\Gamma_\star}{H}\simeq-0.240,
+\qquad
+\frac{{\cal M}_\star^2}{H^2}\simeq2.105,
+\]
+
+so the local eigenvalues have a small positive real part,
+approximately \(0.120H\). This does not by itself reject the chronological
+history, because the frozen-background approximation omits the simultaneous
+response of the metric, matter fractions and Planck mass. It does show that a
+claim of an all-epoch scalar-only attractor would be too strong.
+
+The decisive next test remains the full hi_class basin integration with
+perturbed structural-scalar initial conditions. The reduced calculation now
+provides a sharper expectation for that run: late perturbations should decay,
+while the early radiation/matter branch may require the tracker handoff and
+metric backreaction to carry the solution onto the mature structural
+attractor.
