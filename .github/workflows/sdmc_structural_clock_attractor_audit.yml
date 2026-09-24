@@ -179,6 +179,11 @@ jobs:
         run: |
           python3 sdmc/run_future_covariant_activation_bound_stress_test.py
 
+      - name: Run legacy canonical mature-shape audit
+        run: |
+          python3 sdmc/run_legacy_canonical_mature_shape_audit.py
+
+
 
       - name: Run future No-Slip fixed-point refinement
         run: |
@@ -434,6 +439,7 @@ jobs:
             output/future_homogeneous_covariant_stitch_audit.json
             output/future_activation_bound_stress_test.json
             output/future_covariant_activation_bound_stress_test.json
+            output/legacy_canonical_mature_shape_audit.json
             output/future_noslip_fixedpoint_refinement.json
             output/future_perturbation_envelope_audit.json
             output/structural_current_root_audit.json
