@@ -317,13 +317,15 @@ def rhs_diag(Ne,y,model):
     alphaK=2.*Z*Khom/(Hn*Hn*Fv)
     Dfull=alphaK+1.5*alphaB*alphaB
 
-    # Action-level scalar pressure.  CLASS background densities are the
-    # action densities divided by three because CLASS uses H^2=rho_class.
-    pX=(k1v*Z+k2v*Z*Z-Vv
-        -2.*Z*Z*gsv-2.*Z*gv*dotv
-        +Fssv*v*v+Fsv*dotv+2.*Hn*Fsv*v)
-    rhoX=(.5*k1v*v*v+(.75*k2v-.5*gsv)*v**4+Vv
-          +3.*Hn*gv*v**3-3.*Hn*Fsv*v)
+    # Exact hi_class effective rho_smg and p_smg for this subclass.
+    # These are the bookkeeping variables used by gravity_functions_smg.c
+    # in the Bellini-Sawicki c_s^2 numerator. They are deliberately distinct
+    # from the manuscript's positive action-level rho_X.
+    rho_smg_class=((k1v*Z+3.*k2v*Z*Z+Vv-2.*gsv*Z*Z)/3.
+                   -Hn*v*(Fsv-2.*Z*gv)-(Fv-1.)*Hn*Hn)
+    p_smg_class=(k1v*Z+k2v*Z*Z-Vv-2.*gsv*Z*Z+2.*Fssv*Z
+                 +3.*(Fv-1.)*Hn*Hn+2.*(Fv-1.)*dotH
+                 +2.*Fsv*Hn*v+(Fsv-2.*Z*gv)*dotv)/3.
 
     csproxy=np.nan
     den=k1v+6.*k2v*Z
@@ -346,8 +348,8 @@ def rhs_diag(Ne,y,model):
       "alphaB":alphaB,
       "alphaK":alphaK,
       "D_full":Dfull,
-      "rhoX_action":rhoX,
-      "pX_action":pX,
+      "rho_smg_class":rho_smg_class,
+      "p_smg_class":p_smg_class,
       "rho_m_action":rm,
       "rho_r_action":rr,
       "cs2_kessence_proxy":csproxy,
@@ -380,19 +382,19 @@ def evolve(model,Nmax=10.,npts=2001):
     run=np.array([x["alphaM"] for x in diag])
     DD=np.array([x["D_full"] for x in diag])
     dbradN=CubicSpline(NN,bra)(NN,1)
-    cs2full=np.empty_like(NN)
-    cs2num=np.empty_like(NN)
+    cs2_hiclass=np.empty_like(NN)
+    cs2num_hiclass=np.empty_like(NN)
     for j,x in enumerate(diag):
         Fv=x["F"]; Hn=x["H"]; b=bra[j]; m=run[j]
-        xp=(x["rhoX_action"]+x["pX_action"])/3.
+        xp=x["rho_smg_class"]+x["p_smg_class"]
         mp=(x["rho_m_action"]+4.*x["rho_r_action"]/3.)/3.
         num=((2.-b)*(b+2.*m)/2.
              +1.5*(2.-b)*xp/(Hn*Hn)
              -1.5*(2.-2.*Fv+b*Fv)*mp/(Hn*Hn*Fv)
              +dbradN[j])
-        cs2num[j]=num
-        cs2full[j]=num/DD[j]
-        x["cs2_full_hiclass_formula"]=float(cs2full[j])
+        cs2num_hiclass[j]=num
+        cs2_hiclass[j]=num/DD[j]
+        x["cs2_full_hiclass_formula"]=float(cs2_hiclass[j])
         x["cs2num_full_hiclass_formula"]=float(num)
 
     dt=np.zeros_like(NN)
@@ -437,8 +439,9 @@ def evolve(model,Nmax=10.,npts=2001):
     Dfull=np.asarray(Dfull); matter_term=np.asarray(matter_term)
     aBp=CubicSpline(NN,aB)(NN,1)
     hfuture=CubicSpline(NN,np.log(HH))(NN,1)
-    cs2full=((2.-aB)*(-hfuture+.5*aB+aM)-matter_term+aBp)/Dfull
-    iD=int(np.argmin(Dfull)); ics=int(np.argmin(cs2full)); icsmax=int(np.argmax(cs2full))
+    cs2_standard=((2.-aB)*(-hfuture+.5*aB+aM)-matter_term+aBp)/Dfull
+    cs2_formula_disagreement=np.abs(cs2_hiclass-cs2_standard)
+    iD=int(np.argmin(Dfull)); ics=int(np.argmin(cs2_standard)); icsmax=int(np.argmax(cs2_standard))
 
     samples=[]
     for nt in [0.,.5,1.,2.,3.,5.,8.,10.]:
@@ -449,7 +452,8 @@ def evolve(model,Nmax=10.,npts=2001):
                    sigma=float(yy[0,j]),delta_t_Gyr=float(dt[j]),
                    alpha_M=float(aM[j]),alpha_B=float(aB[j]),
                    alpha_K=float(aK[j]),D_horndeski=float(Dfull[j]),
-                   cs2_horndeski=float(cs2full[j]))
+                   cs2_horndeski=float(cs2_standard[j]),
+                   cs2_hiclass_rhop=float(cs2_hiclass[j]))
         samples.append(row)
 
     return {
@@ -476,8 +480,9 @@ def evolve(model,Nmax=10.,npts=2001):
         "min_sigma2_Khom":float(np.min(Kh*yy[0]*yy[0])),
         "min_D_full":float(np.min(DF)),
         "max_D_full":float(np.max(DF)),
-        "min_cs2_full_hiclass_formula":float(np.min(cs2full)),
-        "max_cs2_full_hiclass_formula":float(np.max(cs2full)),
+        "min_cs2_full_hiclass_formula":float(np.min(cs2_hiclass)),
+        "max_cs2_full_hiclass_formula":float(np.max(cs2_hiclass)),
+        "max_abs_cs2_formula_disagreement":float(np.max(cs2_formula_disagreement)),
         "min_cs2_kessence_proxy":float(np.nanmin(cs)),
         "max_cs2_kessence_proxy":float(np.nanmax(cs)),
         "max_abs_noslip_term_balance_rel":float(nos[imns]),
@@ -486,12 +491,12 @@ def evolve(model,Nmax=10.,npts=2001):
         "max_abs_alphaB_plus_2alphaM_at_ln_a":float(NN[imnsa]),
         "min_D_horndeski":float(Dfull[iD]),
         "min_D_horndeski_at_ln_a":float(NN[iD]),
-        "min_cs2_horndeski":float(cs2full[ics]),
+        "min_cs2_horndeski":float(cs2_standard[ics]),
         "min_cs2_horndeski_at_ln_a":float(NN[ics]),
-        "max_cs2_horndeski":float(cs2full[icsmax]),
+        "max_cs2_horndeski":float(cs2_standard[icsmax]),
         "max_cs2_horndeski_at_ln_a":float(NN[icsmax]),
         "present_D_horndeski":float(Dfull[0]),
-        "present_cs2_horndeski":float(cs2full[0]),
+        "present_cs2_horndeski":float(cs2_standard[0]),
       },
       "future_kinematics":{
         "q_max":float(qq[imax]),
