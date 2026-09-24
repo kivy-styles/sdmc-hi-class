@@ -46,6 +46,57 @@ if zold in s:
 elif znew not in s:
     raise RuntimeError("future redshift-table anchor not found")
 
+
+# ndf15 can finish at loga_final with the final requested output point missed
+# by a floating-point comparison in its output loop.  That is harmless when
+# loga_final=0 in the stock code because the endpoint is usually hit exactly,
+# but with an arbitrary future endpoint it can leave the final tau/z/background
+# row uninitialised.  The SMG post-processing then sees tau_max=0 and fails.
+#
+# Refresh the final row explicitly from the final integration state.  This does
+# not change the trajectory; it only stores the already-computed endpoint.
+post_old='''  evolver_ndf15_abstol = 1e-15;
+
+  /** - recover some quantities today */
+'''
+post_new='''  evolver_ndf15_abstol = 1e-15;
+
+  /* SDMC FUTURE AUDIT: explicitly store the already integrated final row.
+     The ndf15 output loop can miss an arbitrary positive loga_final by a
+     floating-point comparison, leaving tau_table[bt_size-1] uninitialised. */
+  pba->loga_table[pba->bt_size-1] = loga_final;
+  pba->z_table[pba->bt_size-1] = 1./exp(loga_final)-1.;
+  pba->tau_table[pba->bt_size-1] =
+    pvecback_integration[pba->index_bi_tau];
+  class_call_except(
+    background_functions(
+      pba,
+      exp(loga_final),
+      pvecback_integration,
+      long_info,
+      pba->background_table+(pba->bt_size-1)*pba->bg_size),
+    pba->error_message,
+    pba->error_message,
+    background_free_noinput(pba);
+    free(pvecback);
+    free(pvecback_integration);
+    free(used_in_output);
+  );
+
+  printf("SDMC_FUTURE_ENDPOINT_ROW loga=%e z=%e tau=%e\\n",
+         pba->loga_table[pba->bt_size-1],
+         pba->z_table[pba->bt_size-1],
+         pba->tau_table[pba->bt_size-1]);
+
+  /** - recover some quantities today */
+'''
+if post_old not in s:
+    if "SDMC_FUTURE_ENDPOINT_ROW" not in s:
+        raise RuntimeError("could not locate post-evolver endpoint anchor")
+else:
+    s=s.replace(post_old,post_new,1)
+
 p.write_text(s)
 print("FUTURE_BACKGROUND_ENDPOINT",args.loga_final)
 print("FUTURE_BACKGROUND_REDSHIFT_UNCLAMP installed")
+print("FUTURE_BACKGROUND_FINAL_ROW_REFRESH installed")
