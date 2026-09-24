@@ -9489,3 +9489,357 @@ This substantially strengthens the interpretation of the \(r=0\) branch:
 if the accepted late266 action can be joined to it without a transient health
 violation, the mature state is not merely an imposed canonical limit; it is an
 ordinary late-time attractor of the resulting canonical exponential theory.
+
+
+## 57. Geometric meaning of the structural lapse and direct mapper reconstruction
+
+The structural lapse has a simple exact geometric interpretation that is useful
+for connecting the Lagrangian field to the earlier SDMC radius language.
+
+The structural radius is
+
+\[
+R=\ell_P S
+=
+\ell_P S_0\sigma.
+\]
+
+Since
+
+\[
+{\cal N}
+=
+t_P S_0\dot\sigma
+\]
+
+and
+
+\[
+\frac{\ell_P}{t_P}=c,
+\]
+
+we obtain
+
+\[
+\boxed{
+\dot R=c\,{\cal N}.
+}
+\]
+
+Thus the structural lapse is literally the rate of change of the structural
+radius measured in units of \(c\),
+
+\[
+\boxed{
+{\cal N}=\frac{\dot R}{c}.
+}
+\]
+
+This makes the mature endpoints especially transparent.
+
+For the covariant Balanced-Identity branch,
+
+\[
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}
+=
+2.894405018\ldots,
+\]
+
+so
+
+\[
+\boxed{
+\dot R_\infty
+=
+2.894405018\,c.
+}
+\]
+
+For the alternative bare-source endpoint,
+
+\[
+{\cal N}_\infty=2.86044513,
+\]
+
+so
+
+\[
+\dot R_\infty
+=
+2.86044513\,c.
+\]
+
+The accepted present structural normalization gives approximately
+
+\[
+{\cal N}_0\simeq3.4135,
+\]
+
+hence the present structural-radius rate is
+
+\[
+\boxed{
+\dot R_0\simeq3.4135\,c.
+}
+\]
+
+This clarifies earlier values near \(3.3\)--\(3.4\): they refer to the
+structural-radius speed encoded by the lapse, whereas the mature coasting
+endpoint is lower, near \(2.89\).
+
+The bridge exponent satisfies
+
+\[
+p
+=
+\frac{d\ln\sigma}{d\ln a}
+=
+\frac{\dot R/R}{H}.
+\]
+
+Therefore
+
+\[
+\boxed{
+\frac{HR}{c}
+=
+\frac{{\cal N}}{p}.
+}
+\]
+
+At the mature fixed point,
+
+\[
+p\to1,
+\]
+
+so
+
+\[
+\boxed{
+\frac{H_\infty R_\infty}{c}
+=
+{\cal N}_\infty.
+}
+\]
+
+The matter and baryon mappers are equally direct.
+
+With the present normalization \(a_0=1\),
+
+\[
+\boxed{
+\frac{K_m(a)}{K_{m0}}
+=
+\frac{K_p(a)}{K_{p0}}
+=
+\frac{\sigma(a)}{a}
+=
+\frac{S(a)}{S_0\,a}.
+}
+\]
+
+Hence once the structural field is known from the Lagrangian, the mapper does
+not require an independent evolution equation.
+
+Equivalently,
+
+\[
+\boxed{
+K_m(a)
+=
+K_{m0}\frac{S(a)}{S_0a},
+}
+\]
+
+and
+
+\[
+\boxed{
+K_p(a)
+=
+K_{p0}\frac{S(a)}{S_0a}.
+}
+\]
+
+The exact differential relation is
+
+\[
+\boxed{
+\frac{d\ln K_m}{d\ln a}
+=
+\frac{d\ln K_p}{d\ln a}
+=
+p-1.
+}
+\]
+
+This also means that the mapper can be reconstructed directly from the lapse
+history.  Since
+
+\[
+\dot S=\frac{{\cal N}}{t_P},
+\]
+
+we have
+
+\[
+S(t)
+=
+S(t_i)
++
+\frac1{t_P}
+\int_{t_i}^{t}{\cal N}(t')\,dt',
+\]
+
+and therefore
+
+\[
+\boxed{
+\frac{K_m(t)}{K_{m0}}
+=
+\frac{
+S(t_i)+t_P^{-1}\int_{t_i}^{t}{\cal N}(t')\,dt'
+}{
+S_0\,a(t)
+}.
+}
+\]
+
+The same formula holds for \(K_p/K_{p0}\).
+
+The current epoch-mapper audit gives the following representative values:
+
+\[
+K_{m0}
+=
+2.1992619194\times10^{20},
+\]
+
+\[
+K_{p0}
+=
+1.1743136282\times10^{20},
+\]
+
+with
+
+\[
+\frac{K_p}{K_m}
+=
+f_b^{1/3}
+=
+0.5339580601.
+\]
+
+At last scattering,
+
+\[
+z_\star=1090,
+\qquad
+a_\star=9.1659028414\times10^{-4},
+\]
+
+the structural reconstruction gives
+
+\[
+\frac{S_\star}{S_0}
+=
+2.7009609742\times10^{-5},
+\]
+
+and therefore
+
+\[
+\boxed{
+\frac{K_m(z_\star)}{K_{m0}}
+=
+\frac{K_p(z_\star)}{K_{p0}}
+=
+0.02946748423.
+}
+\]
+
+Numerically,
+
+\[
+\boxed{
+K_m(z_\star)
+=
+6.480671593\times10^{18},
+}
+\]
+
+and
+
+\[
+\boxed{
+K_p(z_\star)
+=
+3.460406832\times10^{18}.
+}
+\]
+
+This is the distinct last-scattering \(K_p\) value that appeared in the mapper
+audit.
+
+It should not be inserted automatically into a sound horizon that has already
+been calculated entirely inside the local photon--baryon thermal domain.  The
+mapper is a structural/domain conversion factor.  Whether it belongs in a
+given observable depends on which domain the corresponding distance or
+wavenumber is defined in.
+
+For the released mature future branches the mapper approaches a constant.  In
+the \(F_\infty\)-matched noncanonical reference tail,
+
+\[
+\boxed{
+\frac{K_{m,\infty}}{K_{m0}}
+=
+\frac{K_{p,\infty}}{K_{p0}}
+\simeq0.710728,
+}
+\]
+
+while the bounded-\(\chi\) reference tail gives approximately
+
+\[
+0.712710.
+\]
+
+The approach to this constant is precisely the opposite-sign partner of the
+lapse correction derived earlier,
+
+\[
+\frac{{\cal N}}{{\cal N}_\infty}-1
+=
+-\frac{3m}{2\kappa}+O(a^{-2}),
+\]
+
+\[
+\frac{K_m}{K_{m,\infty}}-1
+=
+\frac{K_p}{K_{p,\infty}}-1
+=
++\frac{3m}{2\kappa}+O(a^{-2}).
+\]
+
+Consequently the mature product
+
+\[
+{\cal N}K_m
+\]
+
+and identically
+
+\[
+{\cal N}K_p
+\]
+
+lose their entire \(O(a^{-1})\) matter correction.
+
+The structural clock, radius speed, and matter/baryon mappers are therefore
+three parts of one kinematic identity rather than independent phenomenological
+rules.
