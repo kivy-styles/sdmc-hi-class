@@ -471,6 +471,17 @@ jobs:
               for name,row in h.get('runs',{}).items():
                   if row.get('status')!='ok' or row.get('returncode') not in (0,None):
                       failures.append(f'background:{name}:{row.get("status")} rc={row.get("returncode")}')
+                      continue
+                  if name=='legacy_canonical':
+                      fin=row.get('final',{})
+                      Ninf=(8.*3.141592653589793/3.)**0.5
+                      nrel=abs(fin.get('N_struct',0.)/Ninf-1.)
+                      pdev=abs(fin.get('p',0.)-1.)
+                      qdev=abs(fin.get('q',1e9))
+                      if nrel>0.02 or pdev>0.02 or qdev>0.05:
+                          failures.append(
+                            'background:legacy_canonical:target_miss '
+                            f'Nrel={nrel:.3e} pdev={pdev:.3e} qdev={qdev:.3e}')
           except Exception as e:
               failures.append(f'background_summary:{e}')
           try:
