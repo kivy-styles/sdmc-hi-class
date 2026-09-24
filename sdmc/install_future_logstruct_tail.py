@@ -50,6 +50,12 @@ CANDIDATES={
   "matched_chi_F":dict(chi_inf=FINF,
                        r=3.756118836402892,
                        muQ=3.753897593021392),
+  "legacy_canonical":dict(chi_inf=FINF,
+                          r=0.0,
+                          muQ=50.0,
+                          mu_k1=50.0,
+                          mu_k2=5.0,
+                          mu_V=120.0),
 }
 
 SEC_PER_GYR=1e9*365.25*86400.
@@ -184,6 +190,11 @@ Z0=.5/t0**2
 Ninf=XI*math.sqrt(spec["chi_inf"]/FINF)
 Zinf=Z0*(Ninf/N0_STRUCT)**2
 r=spec["r"]; muQ=spec["muQ"]
+mu_rates={
+  "k1":float(spec.get("mu_k1",muQ)),
+  "k2":float(spec.get("mu_k2",muQ)),
+  "V":float(spec.get("mu_V",muQ)),
+}
 
 kappa1=2.*FINF*(1.-r)
 kappa2=r*FINF/Zinf
@@ -200,15 +211,14 @@ mug=muF+1.
 AFc=coeffs_match(bars["F"],FINF,muF)
 Agc=coeffs_match(g_xder,0.,mug)
 asym={"k1":kappa1,"k2":kappa2,"V":U0}
-Aq={q:coeffs_match(bars[q],asym[q],muQ) for q in asym}
+Aq={q:coeffs_match(bars[q],asym[q],mu_rates[q]) for q in asym}
 
 # Import only the future No-Slip correction from the shared action audit.
 # The correction is constructed with a C3-flat switch at sigma=1, so adding
 # delta g = g_refined-g_base preserves this installer's target-derived
 # endpoint jet while aligning the unobserved future with the common refined
 # fixed-point action.
-_aud_spec=next(s for s in future_aud.CANDIDATES
-               if s["name"]==args.candidate)
+_aud_spec={"name":args.candidate,**spec}
 _aud_base=future_aud.build_candidate(_aud_spec)
 _aud_ref=future_aud.build_refined_noslip_candidate(
     _aud_spec,iterations=2,blend_rate=500.)
@@ -217,7 +227,7 @@ def future_structural(x):
     sig=math.exp(x)
     out={}
     for q in ["k1","k2","V"]:
-        qb=[tail_der(Aq[q],asym[q],muQ,x,j) for j in range(3)]
+        qb=[tail_der(Aq[q],asym[q],mu_rates[q],x,j) for j in range(3)]
         qx=[]
         for k in range(3):
             qx.append(math.exp(-2.*x)*sum(
@@ -325,7 +335,7 @@ summary={
   "t0_Mpc":t0,
   "N_inf":Ninf,
   "Z_inf_over_Z0":Zinf/Z0,
-  "r":r,"muQ":muQ,"muF":muF,"mug":mug,
+  "r":r,"muQ":muQ,"mu_rates":mu_rates,"muF":muF,"mug":mug,
   "F_inf":FINF,
   "noslip_refinement":{"iterations":2,"blend_rate":500.0},
   "tail_smoothness":{
