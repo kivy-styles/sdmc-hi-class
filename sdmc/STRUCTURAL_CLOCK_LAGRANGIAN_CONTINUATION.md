@@ -4142,3 +4142,373 @@ that the released covariant background is ghost-free, gradient-stable, has a
 positive scalar kinetic normalization, and does not exhibit a growing
 curvature mode either during the tested transition or at the exact mature
 fixed point.
+
+
+## 30. Full Bellini-Sawicki health of the released future branch
+
+The reduced homogeneous kinetic proxy can now be replaced by the exact
+Bellini-Sawicki functions for the accepted Horndeski subclass
+
+\[
+G_2=k_1(\sigma)Z+k_2(\sigma)Z^2-V(\sigma),
+\qquad
+G_3=g(\sigma)Z,
+\qquad
+G_4=\frac{F(\sigma)}{2}.
+\]
+
+With
+
+\[
+v=\dot\sigma,
+\qquad
+Z=\frac12v^2,
+\]
+
+the three nonzero alpha functions are
+
+\[
+\boxed{
+\alpha_M
+=
+\frac{vF_{,\sigma}}{HF},
+}
+\]
+
+\[
+\boxed{
+\alpha_B
+=
+\frac{v\left(-F_{,\sigma}+2Zg\right)}{HF},
+}
+\]
+
+and
+
+\[
+\boxed{
+\alpha_K
+=
+\frac{2Z}{H^2F}
+\left(
+k_1+6k_2Z-4Zg_{,\sigma}+6Hgv
+\right).
+}
+\]
+
+Hence
+
+\[
+\boxed{
+D
+=
+\alpha_K+\frac32\alpha_B^2.
+}
+\]
+
+The structural No-Slip relation
+
+\[
+Zg=-\frac12F_{,\sigma}
+\]
+
+immediately yields
+
+\[
+\boxed{
+\alpha_B=-2\alpha_M.
+}
+\]
+
+The future trajectory can therefore be tested with exactly the same scalar
+health quantities used by hi_class, without replacing them by a k-essence
+proxy.
+
+For this subclass the effective hi_class density and pressure entering the
+Bellini-Sawicki sound-speed numerator are
+
+\[
+\boxed{
+\rho_{\rm smg}
+=
+\frac{
+k_1Z+3k_2Z^2+V-2g_{,\sigma}Z^2
+}{3}
+-
+Hv\left(F_{,\sigma}-2Zg\right)
+-
+(F-1)H^2,
+}
+\]
+
+and
+
+\[
+\boxed{
+\begin{aligned}
+p_{\rm smg}
+={1\over3}\Big[
+&
+k_1Z+k_2Z^2-V
+-2g_{,\sigma}Z^2
++2F_{,\sigma\sigma}Z\\
+&
++3(F-1)H^2
++2(F-1)\dot H
++2F_{,\sigma}Hv\\
+&
++\left(F_{,\sigma}-2Zg\right)\dot v
+\Big].
+\end{aligned}
+}
+\]
+
+These are bookkeeping variables internal to the hi_class background equations
+and should not be confused with the positive action-level source
+\(\rho_X\) used in the structural density interpretation.
+
+For Horndeski with
+
+\[
+\alpha_T=\alpha_H=0,
+\]
+
+the hi_class scalar sound-speed numerator reduces to
+
+\[
+\begin{aligned}
+c_{s,\rm num}^2
+={}&
+\frac12(2-\alpha_B)(\alpha_B+2\alpha_M)\\
+&+\frac32(2-\alpha_B)
+\frac{\rho_{\rm smg}+p_{\rm smg}}{H^2}\\
+&-\frac32
+\frac{
+2-2F+\alpha_BF
+}{F}
+\frac{\rho_{\rm m,CLASS}+p_{\rm m,CLASS}}{H^2}\\
+&+
+\frac{d\alpha_B}{d\ln a},
+\end{aligned}
+\]
+
+with
+
+\[
+\boxed{
+c_s^2=\frac{c_{s,\rm num}^2}{D}.
+}
+\]
+
+An algebraically equivalent background form is
+
+\[
+\boxed{
+c_s^2
+=
+\frac{
+(2-\alpha_B)
+\left(
+-\frac{d\ln H}{d\ln a}
++\frac{\alpha_B}{2}
++\alpha_M
+\right)
+-
+\frac{
+\rho_m+\frac43\rho_r
+}{H^2F}
++
+\frac{d\alpha_B}{d\ln a}
+}{D},
+}
+\]
+
+where the last expression uses the action normalization for
+\(\rho_m,\rho_r\).
+
+The two independent implementations agree along the released future
+trajectory to approximately
+
+\[
+\boxed{
+\max|\Delta c_s^2|
+\lesssim2\times10^{-5},
+}
+\]
+
+the remaining difference being dominated by independent spline derivatives.
+
+At the present endpoint, the structural reconstruction gives
+
+\[
+\boxed{
+D_0\simeq0.38666113,
+}
+\]
+
+in agreement with the stored hi_class value at the few-\(10^{-9}\) level, and
+
+\[
+\boxed{
+c_{s,0}^2\simeq0.138335,
+}
+\]
+
+reproducing the accepted hi_class scalar sound speed.
+
+For the bounded-activation future candidate,
+
+\[
+{\cal N}_\infty=2.860445,
+\]
+
+the released trajectory gives
+
+\[
+\boxed{
+D_{\min}\simeq0.386661,
+}
+\]
+
+and
+
+\[
+\boxed{
+0.12697
+\lesssim
+c_s^2
+\lesssim
+0.21447.
+}
+\]
+
+For the \(F_\infty\)-matched candidate,
+
+\[
+{\cal N}_\infty=2.894405,
+\]
+
+the corresponding range is
+
+\[
+\boxed{
+D_{\min}\simeq0.386661,
+}
+\]
+
+and
+
+\[
+\boxed{
+0.11745
+\lesssim
+c_s^2
+\lesssim
+0.20627.
+}
+\]
+
+Thus both candidate completions remain ghost-free and gradient-stable in the
+full Bellini-Sawicki scalar sector of the released homogeneous trajectory, and
+the scalar propagation speed remains subluminal throughout the tested future.
+
+The mature quadratic fixed point gives an especially simple analytic closure.
+With
+
+\[
+r=\frac{\kappa_2Z_\star}{F_\infty},
+\]
+
+one has
+
+\[
+\alpha_M,\alpha_B\to0,
+\]
+
+and
+
+\[
+\boxed{
+D_\infty
+=
+2(1+2r).
+}
+\]
+
+Since
+
+\[
+c_{s,\infty}^2
+=
+\frac1{1+2r},
+\]
+
+the mature branch obeys the exact invariant
+
+\[
+\boxed{
+D_\infty c_{s,\infty}^2=2.
+}
+\]
+
+For the two released candidates this predicts
+
+\[
+D_\infty\simeq15.7474
+\]
+
+and
+
+\[
+D_\infty\simeq17.0245,
+\]
+
+respectively, exactly matching the numerical approach of the future
+trajectories.
+
+The remaining future gate is therefore no longer the sign of \(D\) or
+\(c_s^2\) at the homogeneous action level.  It is an implementation-level
+cross-check: extend the native hi_class background beyond \(a=1\), keep the
+shooting target anchored at the actual present epoch, and verify that hi_class
+reproduces the same future \(D\), \(c_s^2\), No-Slip, and structural-lapse
+trajectory directly from the log-structural action table.
+
+## 31. Isolated native-hi_class future test
+
+A dedicated future-only infrastructure has now been added without altering any
+of the accepted \(z\ge0\) likelihood products.
+
+The experiment performs four controlled operations after all ordinary
+present-day and basin tests are complete:
+
+1. extend the log-structural coefficient table into \(\sigma>1\) with the
+   \(C^2\) inverse-square tail;
+2. extend the background integration endpoint from \(\ln a=0\) to
+   \(\ln a=5\);
+3. keep the \(\Omega_{\rm smg}\) shooting condition explicitly evaluated at
+   \(\ln a=0\), rather than at the new future endpoint;
+4. run hi_class in background mode and compare its future
+   \(D,c_s^2,\alpha_B+2\alpha_M,p,q,\mathcal N\) against the independent
+   homogeneous-action integration.
+
+Both structural endpoint candidates are included:
+
+\[
+{\cal N}_\infty=2.860445
+\]
+
+and
+
+\[
+{\cal N}_\infty=2.894405.
+\]
+
+This native future gate is deliberately isolated at the end of the
+experimental workflow.  It cannot alter the already generated CMB, matter
+power, DESI, supernova, or present-background products.
+
+At the time of this derivation the native future workflow has been launched by
+the branch update, but its GitHub Actions result has not yet been independently
+retrieved.  Until that run is inspected, the action-level future health result
+above is the established result and the native hi_class result remains a
+pending implementation cross-check.
