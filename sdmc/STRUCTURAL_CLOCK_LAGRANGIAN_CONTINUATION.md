@@ -11690,3 +11690,509 @@ more precise asymptotic template for the new native \(\ln a=10\) data.
 The next audit fits the native/exact canonical trajectory to this resonant
 template and tests whether the inferred matter-mode amplitude and intrinsic
 scalar-mode coefficient become constant in the mature regime.
+
+
+## 64. Mapper-memory closure fixes the leading canonical matter mode
+
+The resonant fit of Section 63 leaves one important question:
+
+\[
+m_1
+\]
+
+appears there as the amplitude of the asymptotic matter eigenmode,
+
+\[
+\Omega_m
+=
+m_1 a^{-1}
++
+3m_1^2a^{-2}
++\cdots.
+\]
+
+Is this coefficient an additional free late-time constant, or is it already
+determined by the accepted present cosmology and the structural mapper?
+
+For the canonical mature branch the answer is that it is **not free**.
+
+Define the normalized matter/baryon mapper
+
+\[
+M(a)
+\equiv
+\frac{\sigma}{a}
+=
+\frac{K_m(a)}{K_{m0}}
+=
+\frac{K_p(a)}{K_{p0}}.
+\]
+
+Since
+
+\[
+\frac{d\ln M}{d\ln a}=p-1,
+\]
+
+and
+
+\[
+M(1)=1,
+\]
+
+the frozen future mapper is exactly
+
+\[
+\boxed{
+M_\infty
+=
+\exp\left[
+\int_0^\infty
+\left(p(N)-1\right)dN
+\right].
+}
+\]
+
+Thus \(M_\infty\) is a memory of the complete finite transition from the
+accepted present action into the mature coasting action.  It is not fixed by
+the local mature normal form alone.
+
+For the refined canonical continuation,
+
+\[
+\boxed{
+M_\infty
+=
+0.75880292265.
+}
+\]
+
+Equivalently,
+
+\[
+\boxed{
+\ln M_\infty
+=
+-0.27601318926.
+}
+\]
+
+This gives the absolute future mapper values
+
+\[
+\boxed{
+K_{m,\infty}
+=
+1.66880637\times10^{20},
+}
+\]
+
+and
+
+\[
+\boxed{
+K_{p,\infty}
+=
+8.91072613\times10^{19}.
+}
+\]
+
+These values belong to the refined canonical future history.  They should not
+be confused with the earlier noncanonical reference-tail values near
+\(0.71\,K_{m0}\) and \(0.71\,K_{p0}\), because the absolute mapper endpoint
+retains information about the finite transition path even when the final
+coasting fixed point is the same type of structural state.
+
+### 64.1 Algebraic prediction of the resonant coefficient
+
+On the mature canonical branch,
+
+\[
+\sigma
+\sim
+M_\infty a,
+\]
+
+and
+
+\[
+\dot\sigma
+\to
+v_\infty
+=
+\sqrt{2Z_{\rm BI}}.
+\]
+
+Since
+
+\[
+H
+=
+\frac{\dot\sigma}{\sigma}
+\]
+
+at the fixed point,
+
+\[
+H
+\sim
+\frac{
+v_\infty
+}{
+M_\infty a
+}.
+\]
+
+Ordinary pressureless matter remains conserved,
+
+\[
+\rho_m
+=
+\rho_{m0}a^{-3}.
+\]
+
+Therefore
+
+\[
+\Omega_m
+=
+\frac{
+\rho_m
+}{
+3F_\infty H^2
+}
+\]
+
+has the asymptotic form
+
+\[
+\Omega_m
+=
+\frac{
+\rho_{m0}M_\infty^2
+}{
+3F_\infty v_\infty^2
+}
+a^{-1}
++\cdots.
+\]
+
+Hence
+
+\[
+\boxed{
+m_1
+=
+\frac{
+\rho_{m0}M_\infty^2
+}{
+3F_\infty v_\infty^2
+}.
+}
+\]
+
+Using
+
+\[
+v_\infty
+=
+v_0
+\frac{{\cal N}_\infty}{{\cal N}_0},
+\]
+
+and
+
+\[
+p_0
+=
+\frac{v_0}{H_0},
+\]
+
+this becomes the dimensionless present-normalization formula
+
+\[
+\boxed{
+m_1
+=
+\frac{
+\Omega_{m0}M_\infty^2
+}{
+F_\infty p_0^2
+}
+\left(
+\frac{{\cal N}_0}{{\cal N}_\infty}
+\right)^2.
+}
+\]
+
+No asymptotic fit parameter appears on the right-hand side.
+
+For the accepted-action quantities,
+
+\[
+\Omega_{m0}
+=
+0.30075556084,
+\]
+
+\[
+F_\infty
+=
+1.02388542769,
+\]
+
+\[
+p_0
+=
+1.03421565856,
+\]
+
+\[
+{\cal N}_0
+=
+3.41350846465,
+\]
+
+\[
+{\cal N}_\infty
+=
+2.89440501823,
+\]
+
+and
+
+\[
+M_\infty
+=
+0.75880292265,
+\]
+
+the algebraic prediction is
+
+\[
+\boxed{
+m_1^{\rm pred}
+=
+0.21992846314.
+}
+\]
+
+The independent resonant fit of Section 63 gives
+
+\[
+\boxed{
+m_1^{\rm fit}
+=
+0.21992943871.
+}
+\]
+
+The absolute difference is
+
+\[
+9.76\times10^{-7},
+\]
+
+and the fractional difference is only
+
+\[
+\boxed{
+4.44\times10^{-6}.
+}
+\]
+
+Thus the asymptotic matter eigenmode amplitude is closed by the present matter
+normalization plus the integrated structural mapper.
+
+### 64.2 The leading approach coefficient is therefore fixed
+
+The universal first-order canonical formulas become
+
+\[
+\frac{{\cal N}}{{\cal N}_\infty}
+=
+1
+-\frac32m_1a^{-1}
++\cdots,
+\]
+
+\[
+p
+=
+1
+-\frac32m_1a^{-1}
++\cdots,
+\]
+
+\[
+q
+=
+-\frac32m_1a^{-1}
++\cdots,
+\]
+
+and
+
+\[
+\frac{M}{M_\infty}
+=
+1
++\frac32m_1a^{-1}
++\cdots.
+\]
+
+For the accepted refined canonical trajectory,
+
+\[
+\boxed{
+\frac32m_1
+=
+0.32989269471.
+}
+\]
+
+Hence
+
+\[
+\boxed{
+\frac{{\cal N}}{{\cal N}_\infty}
+=
+1
+-
+0.32989269471\,a^{-1}
++
+O(a^{-2}\ln a).
+}
+\]
+
+At
+
+\[
+\ln a=10,
+\]
+
+this first-order prediction alone gives
+
+\[
+\boxed{
+\frac{{\cal N}}{{\cal N}_\infty}
+=
+0.999985022895.
+}
+\]
+
+The exact homogeneous canonical trajectory gives
+
+\[
+0.999985019997,
+\]
+
+so the first-order expression is already correct to about
+
+\[
+3\times10^{-9}
+\]
+
+in absolute normalized lapse at that epoch.  The remaining difference is
+accounted for by the resonant \(a^{-2}\ln a\) and intrinsic \(a^{-2}\) terms
+derived in Section 63.
+
+### 64.3 Structural interpretation
+
+The frozen mapper also determines the asymptotic relation between the
+structural field and the FRW scale factor,
+
+\[
+\boxed{
+\sigma
+=
+M_\infty a
++
+\frac32m_1M_\infty
++
+O(a^{-1}\ln a).
+}
+\]
+
+For the refined canonical branch,
+
+\[
+\boxed{
+\frac32m_1M_\infty
+\simeq
+0.250324.
+}
+\]
+
+Thus the late structural scale is not merely proportional to \(a\); it carries
+a finite additive memory of the matter-loaded transition.
+
+Equivalently,
+
+\[
+aH
+\to
+\frac{
+v_\infty
+}{
+M_\infty
+}
+=
+\text{constant}.
+\]
+
+The mature canonical universe therefore has a constant comoving Hubble radius,
+
+\[
+\boxed{
+\frac{c}{aH}
+=
+\text{constant},
+}
+\]
+
+as expected for exact coasting.
+
+Since
+
+\[
+R
+=
+\ell_PS_0\sigma,
+\]
+
+one also has
+
+\[
+\frac{R}{a}
+\to
+\ell_PS_0M_\infty
+=
+\text{constant},
+\]
+
+and therefore
+
+\[
+\boxed{
+\frac{R}{c/H}
+=
+\frac{HR}{c}
+\to
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}.
+}
+\]
+
+The mature lapse is therefore simultaneously
+
+1. the structural-clock rate \(d t_s/dt\);
+2. the structural-radius speed in units of \(c\);
+3. the asymptotic ratio of the structural radius to the Hubble radius.
+
+The new mapper-memory closure shows that the **value of the fixed point** and
+the **rate at which the universe approaches it** are not independent pieces of
+the theory.  Once the accepted present normalization and the finite future
+mapper history are specified, the leading matter-loaded approach coefficient
+is already determined.
