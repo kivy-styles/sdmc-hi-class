@@ -106,9 +106,6 @@ for mu in MU_GRID:
         model=aud.build_refined_noslip_candidate(spec,iterations=2,blend_rate=500.)
         result=aud.evolve(model,Nmax=10.,npts=2001)
         NN,H,c2,Qs,friction,D,diag,yy=background(model)
-        gamma=np.asarray([d["chi_action"]/d["F"] for d in
-                          [aud.rhs_diag(float(ne),[float(s),float(v)],model)[1]
-                           for ne,(s,v) in zip(NN,yy.T)]])
         # rhs_diag alone does not attach chi_action; reconstruct it exactly as
         # evolve() does from the positive structural source.
         d2=[aud.rhs_diag(float(ne),[float(s),float(v)],model)[1]
