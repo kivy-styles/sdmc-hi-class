@@ -8321,3 +8321,215 @@ What is still missing is a derivation of
 
 from a deeper symmetry or variational constraint, rather than taking the
 Unified Balanced Identity itself as the defining structural principle.
+
+
+## 52. Kinetic form of the covariant Balanced-Identity condition
+
+The endpoint matching condition can be expressed directly in the scalar kinetic
+variable, without reference to the future lapse as an input.
+
+At the mature inverse-square fixed point,
+
+\[
+G_2=\sigma^{-2}f(Z),
+\]
+
+and the coasting equations give
+
+\[
+f+Z_\star f_{,Z}=0,
+\qquad
+f_{,Z}=2F_\infty.
+\]
+
+The rescaled active energy is therefore
+
+\[
+{\cal R}_\star
+=
+2Z_\star f_{,Z}-f
+=
+3Z_\star f_{,Z}
+=
+6F_\infty Z_\star.
+\]
+
+Because
+
+\[
+\Gamma_\infty
+=
+\frac{\chi_\infty}{F_\infty}
+\]
+
+and
+
+\[
+{\cal N}_\infty
+=
+\Xi_v\sqrt{\Gamma_\infty},
+\]
+
+while independently
+
+\[
+{\cal N}_\infty
+=
+t_PS_0\sqrt{2Z_\star},
+\]
+
+define the Balanced-Identity kinetic normalization
+
+\[
+\boxed{
+Z_{\rm BI}
+\equiv
+\frac{\Xi_v^2}
+{2t_P^2S_0^2}.
+}
+\]
+
+Since
+
+\[
+\Xi_v^2=\frac{8\pi}{3},
+\]
+
+this is
+
+\[
+\boxed{
+Z_{\rm BI}
+=
+\frac{4\pi}
+{3t_P^2S_0^2}.
+}
+\]
+
+The mature endpoint then satisfies the exact identity
+
+\[
+\boxed{
+\Gamma_\infty
+=
+\frac{Z_\star}{Z_{\rm BI}}.
+}
+\]
+
+Thus the covariant Balanced-Identity condition
+
+\[
+\Gamma_\infty=1
+\]
+
+is simply
+
+\[
+\boxed{
+Z_\star=Z_{\rm BI}.
+}
+\]
+
+The effective Planck-mass factor cancels from this kinetic normalization.
+
+This explains why the legacy-preserving endpoint remains
+
+\[
+{\cal N}_\infty=\Xi_v
+\]
+
+even when
+
+\[
+F_\infty\ne1.
+\]
+
+The \(F_\infty\) factor is compensated by the asymptotic source amplitude
+
+\[
+\chi_\infty=F_\infty,
+\]
+
+leaving the structural kinetic speed fixed at the original Balanced-Identity
+value.
+
+By contrast, the bare-source condition
+
+\[
+\chi_\infty=1
+\]
+
+gives
+
+\[
+\Gamma_\infty=\frac1{F_\infty}
+\]
+
+and therefore
+
+\[
+\boxed{
+Z_\star
+=
+\frac{Z_{\rm BI}}{F_\infty}.
+}
+\]
+
+This is the lower \(2.860445\) endpoint.
+
+Relative to the accepted present kinetic density,
+
+\[
+\frac{Z_{\rm BI}}{Z_0}
+=
+\left(
+\frac{\Xi_v}{{\cal N}_0}
+\right)^2
+\simeq0.71897971.
+\]
+
+The matched future action uses precisely this mature kinetic ratio.
+
+The bounded-source endpoint instead has
+
+\[
+\frac{Z_\star}{Z_0}
+=
+\frac{0.71897971}{F_\infty}
+\simeq0.70220719.
+\]
+
+The endpoint ambiguity is therefore equivalently a question about whether the
+non-minimal Planck mass is allowed to renormalize the mature **structural
+kinetic speed**.
+
+The covariant Balanced-Identity branch says no:
+
+\[
+\boxed{
+Z_\star=Z_{\rm BI}
+}
+\]
+
+and lets the active source amplitude absorb \(F_\infty\).
+
+The bare-source branch says yes:
+
+\[
+\boxed{
+Z_\star=Z_{\rm BI}/F_\infty
+}
+\]
+
+so that the active source amplitude itself returns to the bare inverse-square
+normalization.
+
+This kinetic formulation is useful for future action building because the
+boundary condition can be imposed directly on \(Z_\star\), after which
+\({\cal N}_\infty\) is derived from
+
+\[
+{\cal N}=t_PS_0\sqrt{2Z}
+\]
+
+rather than supplied numerically.
