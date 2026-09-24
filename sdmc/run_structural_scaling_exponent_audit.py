@@ -51,7 +51,8 @@ def read(path):
     return {n:x[:,i] for i,n in enumerate(names)}
 
 d=read(BG)
-for k in ["z","proper time [Gyr]","H [1/Mpc]","(.)rho_smg","(.)p_smg"]:
+for k in ["z","proper time [Gyr]","H [1/Mpc]","(.)rho_smg","(.)p_smg",
+          "(.)rho_b","(.)rho_cdm","(.)rho_g","(.)rho_ur"]:
     if k not in d: raise RuntimeError(f"missing {k}")
 
 z=np.asarray(d["z"]); N=-np.log1p(z)
@@ -59,10 +60,14 @@ H=np.asarray(d["H [1/Mpc]"])
 rho=np.asarray(d["(.)rho_smg"])
 pre=np.asarray(d["(.)p_smg"])
 tg=np.asarray(d["proper time [Gyr]"])
+rb=np.asarray(d["(.)rho_b"]); rc=np.asarray(d["(.)rho_cdm"])
+rg=np.asarray(d["(.)rho_g"]); rur=np.asarray(d["(.)rho_ur"])
 o=np.argsort(N)
-N,H,rho,pre,tg,z=[x[o] for x in (N,H,rho,pre,tg,z)]
+N,H,rho,pre,tg,z,rb,rc,rg,rur=[x[o] for x in
+                                (N,H,rho,pre,tg,z,rb,rc,rg,rur)]
 keep=np.r_[True,np.diff(N)>1e-12]
-N,H,rho,pre,tg,z=[x[keep] for x in (N,H,rho,pre,tg,z)]
+N,H,rho,pre,tg,z,rb,rc,rg,rur=[x[keep] for x in
+                                (N,H,rho,pre,tg,z,rb,rc,rg,rur)]
 
 lnH=CubicSpline(N,np.log(H)); h=lnH(N,1); dotH=H*H*h
 X=.5*H*H
@@ -87,10 +92,28 @@ k2=(F*alphaK-Cbg+4.*g1*X-6.*g*H*H)/(4.*X)
 k1=Cbg-2.*k2*X
 V=.5*(R-P)-k2*X*X
 
-# Positive action-level source, Eq. (455), with phi=N so dot(phi)=H.
-rhoX=k1*X+3.*k2*X*X+V+6.*H*H*X*g-2.*X*X*g1-3.*H*H*F1
+# Positive structural source used by the accepted-action manuscript,
+# Eq. (458):
+#   rho_X/(3 Mpl^2 H0^2)
+#     = E^2 (F+F') - Omega_m0 a^-3 - Omega_r0 a^-4 .
+# This is the source whose logarithmic slope defines p_X.  Reassembling the
+# individual KGB terms at very early times is a poor numerical route because
+# large terms cancel while the positive source is tiny; Eq. (458) evaluates
+# the same accepted background identity directly.
+i0=int(np.argmin(np.abs(N)))
+H0=float(H[i0])
+a=np.exp(N)
+Omega_m0=float((rb[i0]+rc[i0])/(H0*H0))
+Omega_r0=float((rg[i0]+rur[i0])/(H0*H0))
+rhoX=(H/H0)**2*(F+F1)-Omega_m0*a**-3-Omega_r0*a**-4
 if np.any(rhoX<=0):
-    raise RuntimeError("rho_X must remain positive for logarithmic slope audit")
+    j=int(np.argmin(rhoX))
+    raise RuntimeError(
+      f"positive action source Eq.(458) failed: min={rhoX[j]} at z={z[j]}"
+    )
+
+# Keep the coefficient-level reconstruction as a cancellation diagnostic only.
+rhoX_terms=k1*X+3.*k2*X*X+V+6.*H*H*X*g-2.*X*X*g1-3.*H*H*F1
 
 pX=-.5*CubicSpline(N,np.log(rhoX))(N,1)
 
@@ -120,6 +143,15 @@ out={
     "wX":"-1 + 2*pX/3"
   },
   "identity_max_abs_error":float(identity),
+  "source_audit":{
+    "definition":"Eq.(458) positive accepted-action source",
+    "Omega_m0":Omega_m0,
+    "Omega_r0":Omega_r0,
+    "rhoX_min":float(np.min(rhoX)),
+    "coefficient_reassembly_min":float(np.min(rhoX_terms)),
+    "coefficient_reassembly_negative_count":int(np.sum(rhoX_terms<=0)),
+    "present_pX":float(pX[i0])
+  },
   "present":sample(0.),
   "rows":[sample(x) for x in targets]
 }
