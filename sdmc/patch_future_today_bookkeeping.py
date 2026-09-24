@@ -6,9 +6,10 @@ anchored at log(a/a0)=0 even when background_solve integrates to loga_final>0.
 The future audit extends the interpolation table beyond a=1. Upstream CLASS
 normally assumes the last table row *is* today, so without this patch it would
 silently redefine age, conformal age, growth normalization and Omega0_m/r at
-the future endpoint. This patch brackets log(a/a0)=0 and linearly interpolates
-those quantities at the exact present epoch while retaining all future rows for
-the SDMC health audit.
+the future endpoint.  This patch evaluates those quantities at log(a/a0)=0
+using a one-sided linear extrapolation from the final two accepted-side rows.
+That avoids allowing a deliberately fast future-only action release to feed
+back into quantities whose semantics are explicitly present-day.
 
 Applied only in the isolated future section of the experimental workflow.
 """
@@ -41,22 +42,25 @@ replace_once(
 anchor="""  /** - recover some quantities today */
 """
 insert="""  /* SDMC FUTURE AUDIT: when the table extends beyond a=1, the last row is
-     no longer today. Bracket log(a/a0)=0 once and interpolate all quantities
-     whose semantics are explicitly present-day at the exact boundary. */
+     no longer today.  Use the final two accepted-side rows only.  The second
+     row index is the last log(a/a0)<=0 point, and the interpolation weight is
+     allowed to exceed unity slightly because this is a one-sided extrapolation
+     to the exact boundary. */
   {
     int jj_today_future_audit;
+    int last_past_today_future_audit = -1;
     for (jj_today_future_audit=0;
-         jj_today_future_audit<pba->bt_size-1;
+         jj_today_future_audit<pba->bt_size;
          jj_today_future_audit++) {
-      if (pba->loga_table[jj_today_future_audit] <= 0. &&
-          pba->loga_table[jj_today_future_audit+1] >= 0.) {
-        index_today_future_audit = jj_today_future_audit;
+      if (pba->loga_table[jj_today_future_audit] <= 0.)
+        last_past_today_future_audit = jj_today_future_audit;
+      else
         break;
-      }
     }
-    class_test(index_today_future_audit < 0,
+    class_test(last_past_today_future_audit < 1,
                pba->error_message,
-               "SDMC future audit could not bracket log(a/a0)=0");
+               "SDMC future audit could not find two accepted-side rows for today");
+    index_today_future_audit = last_past_today_future_audit-1;
     weight_today_future_audit =
       (0.-pba->loga_table[index_today_future_audit])/
       (pba->loga_table[index_today_future_audit+1]
