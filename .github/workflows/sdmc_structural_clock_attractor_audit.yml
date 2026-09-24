@@ -72,7 +72,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.023604633340554453, 3.4328776987879466, 0.36879721635160295, 0.34231919445927034, 1.0, 0.050275813910968366
+          parameters_smg = 0.0, 0.0, 0.023604633340554453, 3.4328776987879466, 0.36879721635160295, 0.34231919445927034, 1.0, 0.050275813910968366
           expansion_model = sdmc_full
           expansion_smg = 0.6991577808065268, 18.40625, 16.173189924377947, 0.5, 0.013036667098291217, 0.25, 0.010544837576337158, 1.5
           pert_initial_conditions_smg = zero
@@ -123,7 +123,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_covariant_linear_audit
-          parameters_smg = 0.0
+          parameters_smg = 0.0, 0.0, 0.0
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -254,7 +254,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_covariant_logstruct_audit
-          parameters_smg = 0.0
+          parameters_smg = 0.0, 0.0, 0.0
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 2.e-8
