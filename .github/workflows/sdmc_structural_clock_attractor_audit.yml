@@ -144,6 +144,10 @@ jobs:
         run: |
           python3 sdmc/run_structural_scaling_exponent_audit.py
 
+      - name: Run analytic future scaling-flow candidate
+        run: |
+          python3 sdmc/run_future_scaling_flow_candidate.py
+
       - name: Run structural current-root audit
         run: |
           python3 sdmc/run_structural_current_root_audit.py
@@ -190,6 +194,7 @@ jobs:
             output/structural_epoch_mappers.json
             output/structural_clock_linear_stability_audit.json
             output/structural_scaling_exponent_audit.json
+            output/future_scaling_flow_candidate.json
             output/structural_current_root_audit.json
             output/mature_coasting_normal_form_audit.json
             output/structural_clock_attractor/structural_clock_attractor_audit.json
