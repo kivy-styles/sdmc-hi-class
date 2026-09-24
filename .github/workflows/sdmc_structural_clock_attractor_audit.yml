@@ -211,6 +211,7 @@ jobs:
       - name: Prepare isolated future-capable hi_class background
         run: |
           python3 sdmc/patch_future_background_endpoint.py --loga-final 5
+          python3 sdmc/patch_future_today_bookkeeping.py
           python3 sdmc/patch_future_shooting_today.py
 
           cat > output/native_future.ini <<'EOF'
@@ -242,7 +243,7 @@ jobs:
           write background = yes
           format = class
           input_verbose = 0
-          background_verbose = 3
+          background_verbose = 0
           thermodynamics_verbose = 0
           perturbations_verbose = 0
           output_verbose = 0
