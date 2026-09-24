@@ -333,10 +333,26 @@ def rhs_diag(Ne,y,model):
     Cb_N=(v/Hn)*Cb_s+(v*dotv/Hn)*Cb_Z
     alphaB_N=Abo_N*Cb+Abo*Cb_N
 
-    # Positive action-level structural source used by the SDMC activation
-    # identity. This is deliberately distinct from hi_class rho_smg.
-    rhoX_action=(k1v*Z+3.*k2v*Z*Z+Vv
-                 +6.*Hn*v*Z*gv-2.*Z*Z*gsv-3.*Hn*Fsv*v)
+    # Keep two action-level density conventions separate.
+    #
+    # The positive SDMC structural source used in chi and p_X is the KGB
+    # matter-side density BEFORE the non-minimal -3 H dot(F) term is folded
+    # into the effective RHS:
+    #
+    #   rho_X^struct = k1 Z + 3 k2 Z^2 + V
+    #                  + 6 H v Z g - 2 Z^2 g_,sigma
+    #                = 3 H^2 (F + F') - rho_m-rho_r.
+    #
+    # This is Part-V Eq.(43)/(70) and Part-IX Eq.(458).  The metric-RHS
+    # effective source in Eq.(455)/(457) is instead
+    #
+    #   rho_X^eff = rho_X^struct - 3 H dot(F),
+    #
+    # and can change sign during the handoff without invalidating the
+    # positive structural source.
+    rhoX_structural=(k1v*Z+3.*k2v*Z*Z+Vv
+                     +6.*Hn*v*Z*gv-2.*Z*Z*gsv)
+    rhoX_metric_rhs=rhoX_structural-3.*Hn*Fsv*v
 
     # Exact hi_class effective rho_smg and p_smg for this subclass.
     # These are the bookkeeping variables used by gravity_functions_smg.c
@@ -370,7 +386,8 @@ def rhs_diag(Ne,y,model):
       "alphaK":alphaK,
       "D_full":Dfull,
       "alphaB_N":alphaB_N,
-      "rhoX_action":rhoX_action,
+      "rhoX_structural":rhoX_structural,
+      "rhoX_metric_rhs":rhoX_metric_rhs,
       "rho_smg_class":rho_smg_class,
       "p_smg_class":p_smg_class,
       "rho_m_action":rm,
@@ -395,10 +412,10 @@ def evolve(model,Nmax=10.,npts=2001):
     ]
     HH=np.array([x["H"] for x in diag])
 
-    # Action-level activation history. Constants cancel when normalized to
-    # the accepted present chi0, so this is insensitive to unit conventions:
-    # chi/chi0 = (rhoX/rhoX0) sigma^2.
-    rhoXa=np.array([x["rhoX_action"] for x in diag])
+    # Structural activation history.  Use the positive structural source,
+    # not the metric-RHS effective source containing -3 H dot(F).
+    # Constants cancel in chi/chi0=(rho_X/rho_X0) sigma^2.
+    rhoXa=np.array([x["rhoX_structural"] for x in diag])
     chi_hist=CHI0*(rhoXa/rhoXa[0])*yy[0]*yy[0]
     mapper_hist=yy[0]/np.exp(NN)
     for j,x in enumerate(diag):
