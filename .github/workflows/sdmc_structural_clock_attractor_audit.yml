@@ -152,6 +152,10 @@ jobs:
         run: |
           python3 sdmc/run_future_action_stitch_design.py
 
+      - name: Run exact homogeneous future covariant stitch audit
+        run: |
+          python3 sdmc/run_future_homogeneous_covariant_stitch_audit.py
+
       - name: Run structural current-root audit
         run: |
           python3 sdmc/run_structural_current_root_audit.py
@@ -204,6 +208,7 @@ jobs:
             output/structural_scaling_exponent_audit.json
             output/future_scaling_flow_candidate.json
             output/future_action_stitch_design.json
+            output/future_homogeneous_covariant_stitch_audit.json
             output/structural_current_root_audit.json
             output/mature_coasting_normal_form_audit.json
             output/mature_fixed_point_basin.json
