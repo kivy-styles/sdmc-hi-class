@@ -172,6 +172,10 @@ jobs:
         run: |
           python3 sdmc/run_mature_coasting_normal_form_audit.py
 
+      - name: Run matter-loaded mature coasting bridge
+        run: |
+          python3 sdmc/run_matter_loaded_coasting_bridge.py
+
       - name: Run mature fixed-point basin audit
         run: |
           python3 sdmc/run_mature_fixed_point_basin.py
@@ -296,6 +300,7 @@ jobs:
             output/future_perturbation_envelope_audit.json
             output/structural_current_root_audit.json
             output/mature_coasting_normal_form_audit.json
+            output/matter_loaded_coasting_bridge.json
             output/mature_fixed_point_basin.json
             output/future_logstruct_tail_install.json
             output/native_future_health_summary.json
