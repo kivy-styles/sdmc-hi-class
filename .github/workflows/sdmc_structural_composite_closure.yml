@@ -123,6 +123,92 @@ jobs:
         run: |
           python3 sdmc/run_structural_field_redefinition_audit.py
 
+      - name: Install and free-evolve log-structural-clock action
+        run: |
+          python3 sdmc/install_late266_logstruct_covariant.py
+          cat output/logstruct_redefinition_summary.txt
+          make clean && make -j2 class
+          cat > output/logstruct_free.ini <<'EOF'
+          H0 = 69.45160505326464
+          omega_b = 0.02208511574370519
+          omega_cdm = 0.12298509428428875
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1197359302086e-9
+          n_s = 0.962555355281866
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_logstruct_audit
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          root = output/logstruct_free_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/logstruct_free.ini
+
+      - name: Compare log-structural-clock free evolution
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,json
+          def read(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(path)
+              return {n:a[:,i] for i,n in enumerate(names)}
+          t=read('output/linear_cov_target_00_background.dat')
+          c=read('output/logstruct_free_00_background.dat')
+          Nt=-np.log1p(t['z']); Nc=-np.log1p(c['z'])
+          o=np.argsort(Nt); Nt=Nt[o]
+          def ti(name): return np.interp(Nc,Nt,t[name][o])
+          Hrel=np.abs(c['H [1/Mpc]']/ti('H [1/Mpc]')-1.)
+          Frel=np.abs(c['M*^2_smg']/ti('M*^2_smg')-1.)
+          z=c['z']; m=z<=100.
+          slip=np.abs(c['braiding_smg']+2.*c['M2_running_smg'])
+          psi_target=np.log(ti('proper time [Gyr]')/t['proper time [Gyr]'][np.argmin(np.abs(t['z']))])
+          # Locate scalar field output.
+          ph=None
+          for k in c:
+              if k.lower().startswith('phi') and 'prime' not in k.lower():
+                  ph=c[k]; break
+          out={
+            'max_abs_dH_H_z100':float(Hrel[m].max()),
+            'max_abs_dF_F_z100':float(Frel[m].max()),
+            'min_D_z100':float(c['kin (D)'][m].min()),
+            'min_cs2_z100':float(c['c_s^2'][m].min()),
+            'max_cs2_z100':float(c['c_s^2'][m].max()),
+            'max_abs_noslip_z100':float(slip[m].max()),
+            'max_abs_psi_minus_lntt0':float(np.max(np.abs(ph-psi_target))) if ph is not None else None,
+            'F0':float(c['M*^2_smg'][np.argmin(np.abs(z))]),
+            'alphaM0':float(c['M2_running_smg'][np.argmin(np.abs(z))])
+          }
+          print('LOGSTRUCT_FREE_COMPARISON',json.dumps(out,sort_keys=True))
+          Path('output/logstruct_free_comparison.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+
       - name: Derive N Km Kp and activation
         run: |
           python3 sdmc/run_structural_composite_closure.py output/linear_cov_free_00_background.dat --out output/structural_composite_closure.json
@@ -146,3 +232,6 @@ jobs:
             output/linear_cov_free_00_background.dat
             output/structural_composite_closure.json
             output/structural_field_redefinition_audit.json
+            output/logstruct_redefinition_summary.txt
+            output/logstruct_free_00_background.dat
+            output/logstruct_free_comparison.json
