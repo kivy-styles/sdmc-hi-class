@@ -8705,3 +8705,283 @@ Therefore even if
 is adopted as the structural endpoint, a deeper microscopic Lagrangian is
 still needed to predict the mature scalar sound speed rather than selecting it
 through a future-tail design criterion.
+
+
+## 54. Exact relation between the old \(\lambda_\ell=\sqrt2\) endpoint and the new shape modulus
+
+Part VI stated that the final one-scalar potential should approach the
+canonical exponential slope
+
+\[
+\boxed{
+\lambda_\ell=\sqrt2
+}
+\]
+
+so that the asymptotic SDMC branch remains coasting.
+
+The mature structural-field normal form now allows this earlier statement to
+be translated exactly.
+
+Take
+
+\[
+G_2
+=
+\frac1{\sigma^2}
+\left(
+\kappa_1Z+\kappa_2Z^2-U_0
+\right),
+\]
+
+with
+
+\[
+\kappa_1=2F_\infty(1-r),
+\]
+
+\[
+\kappa_2=\frac{rF_\infty}{Z_\star},
+\]
+
+\[
+U_0=F_\infty Z_\star(4-r).
+\]
+
+The strictly canonical limit is
+
+\[
+\boxed{
+r=0.
+}
+\]
+
+Then
+
+\[
+\kappa_2=0,
+\qquad
+\kappa_1=2F_\infty,
+\qquad
+U_0=4F_\infty Z_\star,
+\]
+
+and the scalar Lagrangian becomes
+
+\[
+G_2
+=
+\frac1{\sigma^2}
+\left(
+2F_\infty Z
+-
+4F_\infty Z_\star
+\right).
+\]
+
+Define the canonically normalized field
+
+\[
+\boxed{
+\phi
+=
+\sqrt{2F_\infty}\,\ln\sigma.
+}
+\]
+
+Because
+
+\[
+Z=\frac12(\partial\sigma)^2,
+\]
+
+the kinetic term transforms as
+
+\[
+\frac{2F_\infty Z}{\sigma^2}
+=
+\frac12(\partial\phi)^2.
+\]
+
+The potential becomes
+
+\[
+V(\phi)
+=
+4F_\infty Z_\star
+\exp\left(
+-\frac{2\phi}{\sqrt{2F_\infty}}
+\right).
+\]
+
+Using the effective mature Planck scale
+
+\[
+M_{\rm eff}^2=F_\infty,
+\]
+
+define
+
+\[
+\widehat\phi
+\equiv
+\frac{\phi}{\sqrt{F_\infty}}
+=
+\sqrt2\,\ln\sigma.
+\]
+
+Then
+
+\[
+\boxed{
+V(\widehat\phi)
+\propto
+e^{-\sqrt2\,\widehat\phi}.
+}
+\]
+
+Therefore
+
+\[
+\boxed{
+r=0
+\quad\Longleftrightarrow\quad
+\lambda_\ell=\sqrt2
+}
+\]
+
+for the mature scalar-dominated structural branch.
+
+This is an exact equivalence, not a numerical analogy.
+
+The same limit gives
+
+\[
+\boxed{
+c_{s,\infty}^2=1,
+}
+\]
+
+and
+
+\[
+\boxed{
+D_\infty=2.
+}
+\]
+
+Thus the earlier canonical late endpoint is one specific member of the modern
+inverse-square fixed-point family.
+
+The later reconstructed actions with
+
+\[
+r\simeq3.1\text{--}3.8
+\]
+
+are genuinely noncanonical mature completions.  They retain the same
+background coasting law
+
+\[
+w_\sigma=-\frac13,
+\qquad
+p=1,
+\]
+
+but predict a reduced scalar sound speed.
+
+This reveals a second independent legacy question.
+
+The covariant Balanced Identity can select the mature **normalization**
+
+\[
+Z_\star=Z_{\rm BI},
+\qquad
+{\cal N}_\infty=\Xi_v,
+\]
+
+while the older Part-VI statement
+
+\[
+\lambda_\ell=\sqrt2
+\]
+
+selects the mature **shape**
+
+\[
+\boxed{
+r=0.
+}
+\]
+
+If both legacy conditions are retained simultaneously, the mature action is no
+longer a one-parameter family.  Its quadratic fixed-point coefficients become
+
+\[
+\boxed{
+\kappa_1=2F_\infty,
+}
+\]
+
+\[
+\boxed{
+\kappa_2=0,
+}
+\]
+
+\[
+\boxed{
+U_0=4F_\infty Z_{\rm BI}.
+}
+\]
+
+The resulting endpoint is
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}},
+\qquad
+c_{s,\infty}^2=1.
+}
+\]
+
+However, this mathematical identification does not establish that the
+accepted late266 Horndeski action can reach the canonical branch smoothly.
+The present structural reconstruction has negative \(k_1\) and a substantial
+quadratic kinetic sector, so reaching \(r=0\) requires the future action to
+remove the \(Z^2\) term and reverse the sign of the linear kinetic coefficient
+without crossing a ghost or gradient instability.
+
+A dedicated future-only audit has therefore been added.  It keeps
+
+\[
+\chi_\infty=F_\infty,
+\qquad
+{\cal N}_\infty=\Xi_v,
+\]
+
+sets
+
+\[
+r=0,
+\]
+
+and scans only the unobserved future coefficient-transition rate.  The
+question is deliberately narrow:
+
+\[
+\boxed{
+\text{Can the accepted covariant action reach the old canonical }
+\lambda_\ell=\sqrt2
+\text{ endpoint while remaining healthy?}
+}
+\]
+
+If yes, the earlier Part-VI endpoint supplies a natural shape-selection
+principle in addition to the Balanced-Identity normalization.
+
+If no, the later noncanonical reconstruction has genuinely superseded the
+earlier canonical late-shape assumption, even though both share the same
+coasting background.
