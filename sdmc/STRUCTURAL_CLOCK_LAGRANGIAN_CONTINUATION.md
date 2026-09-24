@@ -5300,3 +5300,205 @@ The remaining numerical problem is no longer the existence or background
 health of the mature endpoint.  It is to propagate the actual hi_class scalar
 perturbation variables beyond the present boundary using this C3 future action,
 without redefining the observationally calibrated \(z\ge0\) branch.
+
+
+## 36. Literal bounded-activation stress test
+
+The smooth future tail used in Sections 29--35 was designed primarily to test
+whether the accepted present action could reach the mature inverse-square
+coasting basin.  It succeeds dynamically, but the action-level activation
+history exposes an additional distinction between two interpretations of
+\(\chi\).
+
+Using
+
+\[
+\chi(\sigma)
+=
+\chi_0
+\frac{\rho_X(\sigma)}{\rho_{X0}}
+\sigma^2,
+\]
+
+the original bounded-endpoint tail with
+
+\[
+\mu_Q\simeq3.75024
+\]
+
+reaches a transient maximum
+
+\[
+\boxed{
+\chi_{\max}\simeq1.96856
+}
+\]
+
+near
+
+\[
+\ln a\simeq0.778.
+\]
+
+It later relaxes to the intended asymptotic normalization.  Therefore this
+slow tail is consistent if \(\chi\) is interpreted as an effective
+action-level coupling, but it is not compatible with treating \(\chi\) as
+a literal fraction constrained to remain below unity at every future epoch.
+
+A dedicated stress test was therefore performed with the same accepted
+present endpoint and the same mature coasting target, but with progressively
+faster \(C^2\) flow of the \(G_2\) coefficients toward their inverse-square
+normal form.
+
+At fixed
+
+\[
+r=3.43684444,
+\]
+
+representative results are
+
+\[
+\begin{array}{c|c|c}
+\mu_Q & \chi_{\max} & \chi_{\max}/\chi_{\infty,\rm rec}-1\\
+\hline
+3.75024 & 1.96856 & 0.96560\\
+20 & 1.15519 & 0.15346\\
+40 & 1.05219 & 0.05062\\
+60 & 1.01644 & 0.01492\\
+68 & 1.00789 & 0.00638\\
+72 & 1.00430 & 0.00280\\
+76 & 1.00150 & 0\\
+80 & 1.00150 & 0
+\end{array}
+\]
+
+where \(\chi_{\infty,\rm rec}\simeq1.00150\) is the common late
+normalization reached by the reconstructed action.  The approximately
+\(1.5\times10^{-3}\) offset from the nominal target \(\chi_\infty=1\)
+is at the same level as the endpoint reconstruction normalization mismatch and
+is therefore kept separate from a resolved transient overshoot.
+
+The important result is that by
+
+\[
+\boxed{
+\mu_Q\simeq76
+}
+\]
+
+the future history no longer develops a resolved activation peak above its own
+asymptotic level.
+
+This fast-flow branch remains healthy in the exact Bellini-Sawicki scalar
+sector.  For \(\mu_Q=76\),
+
+\[
+\boxed{
+D_{\min}\simeq0.386661>0,
+}
+\]
+
+and
+
+\[
+\boxed{
+0.11943
+\lesssim
+c_s^2
+\lesssim
+0.20866.
+}
+\]
+
+Thus the bounded-activation requirement and scalar stability are not mutually
+exclusive.
+
+The price is a much sharper future handoff.  The first acceleration-to-
+deceleration crossing moves from approximately
+
+\[
+\ln a\simeq1.13
+\]
+
+for the slow tail to approximately
+
+\[
+\boxed{
+\ln a\simeq0.063
+}
+\]
+
+for the \(\mu_Q=76\) branch, while the second crossing occurs near
+
+\[
+\ln a\simeq1.50.
+\]
+
+The matter mapper also freezes at a different future normalization.  Since
+
+\[
+\frac{K_m}{K_{m0}}
+=
+\frac{K_p}{K_{p0}}
+=
+\frac{\sigma}{a},
+\]
+
+the slow tail approaches approximately
+
+\[
+\frac{K_{m,\infty}}{K_{m0}}
+\simeq0.713,
+\]
+
+whereas the fast bounded-activation tail approaches approximately
+
+\[
+\boxed{
+\frac{K_{m,\infty}}{K_{m0}}
+\simeq0.893.
+}
+\]
+
+The corresponding baryonic mapper has the same fractional evolution.
+
+There is also a No-Slip tradeoff.  The original smooth tail has
+
+\[
+\max|\alpha_B+2\alpha_M|
+\simeq5.7\times10^{-5},
+\]
+
+whereas the rapid \(\mu_Q=76\) branch reaches approximately
+
+\[
+\boxed{
+2.45\times10^{-4}.
+}
+\]
+
+This remains numerically small, but it is larger because the kinetic trajectory
+changes before the independently stitched \(F\) and \(g\) tails can fully
+readjust.  A future production model that insists simultaneously on
+
+\[
+\chi\le1,
+\qquad
+|\alpha_B+2\alpha_M|<10^{-5},
+\]
+
+will therefore require more than a single common \(G_2\) transition rate.
+The natural next step is a coupled future reconstruction in which
+\(k_1,k_2,V,F\), and \(g\) are solved together against the activation and
+No-Slip conditions rather than stitched independently.
+
+This stress test therefore sharpens the interpretation fork:
+
+- a smooth future continuation naturally favors \(\chi\) as an effective
+  coupling that may temporarily exceed unity;
+- a literal bounded fraction remains possible, but it requires a rapid
+  future action flow and a jointly reconstructed No-Slip sector.
+
+The branch now records both possibilities rather than assuming either one in
+advance.
