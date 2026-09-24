@@ -137,6 +137,8 @@ Across the computed classical history,
 
 The shallow minimum occurs near \(z\simeq12.69\); \(A_\chi\) reaches a minimum \(-0.5019\) near \(z\simeq18.31\), then rises and peaks near \(z\simeq3.01\). Thus the current closure is bounded, but not strictly monotonic over the whole classical history.
 
+These features line up with structures already present in the fitted background rather than introducing a new independent transition. The early tracker handoff is centered at \(z_t=16.1732\) with width \(\Delta N_t=0.5\); the negative \(A_\chi\) excursion and the \(\chi\) minimum bracket this handoff. The Planck-mass transition is centered at \(z_c=3.43288\) with width \(0.36880\); the maximum activation rate at \(z\simeq3.01\) lies inside that transition. This strongly suggests that the reconstructed \(\chi(a)\) is a composite diagnostic of the already-existing tracker handoff plus late scalar-tensor response, rather than evidence for an additional propagating activation field.
+
 ## Radiation-matter bridge
 
 Using the actual equality redshift
