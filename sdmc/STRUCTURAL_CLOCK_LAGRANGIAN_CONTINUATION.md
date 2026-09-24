@@ -4514,7 +4514,7 @@ above is the established result and the native hi_class result remains a
 pending implementation cross-check.
 
 
-## 32. Matter-loaded coasting bridge and an interior 2.869 reference
+## 36. Matter-loaded coasting bridge and an interior 2.869 reference
 
 The asymptotic structural interval
 
@@ -4743,7 +4743,7 @@ specific interpolation tail should therefore be treated as tail-shape
 transients rather than as a required feature of the mature SDMC fixed point.
 
 
-## 31. Perturbation-ready C3 stitching and near-exact future No-Slip
+## 37. Perturbation-ready C3 stitching and near-exact future No-Slip
 
 The previous future tails matched the accepted action through second field
 derivatives at the present boundary.  That is sufficient for the homogeneous
@@ -4977,7 +4977,7 @@ c_s^2
 The C3 upgrade therefore removes a perturbation-level smoothness concern
 without changing the mature structural endpoint.
 
-## 32. Recovery of the No-Slip gravitational sector
+## 38. Recovery of the No-Slip gravitational sector
 
 The hi_class Horndeski effective-gravity variables make the physical meaning of
 the refined future branch especially transparent.
@@ -5120,7 +5120,7 @@ sector.  The scalar becomes dynamically important through its structural
 energy while the metric coupling itself approaches a nearly frozen No-Slip
 limit.
 
-## 33. Future geometric regularity of the mature coasting attractor
+## 39. Future geometric regularity of the mature coasting attractor
 
 The inverse-square fixed point also gives a simple global future geometry.
 
@@ -5302,7 +5302,7 @@ perturbation variables beyond the present boundary using this C3 future action,
 without redefining the observationally calibrated \(z\ge0\) branch.
 
 
-## 36. Literal bounded-activation stress test
+## 40. Literal bounded-activation stress test
 
 The smooth future tail used in Sections 29--35 was designed primarily to test
 whether the accepted present action could reach the mature inverse-square
