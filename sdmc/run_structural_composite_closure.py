@@ -136,6 +136,18 @@ Achi_chrono=2.*(p_chrono-pX)
 chi_rel_chrono=(rhoX/rhoX[i0])*Srel_chrono*Srel_chrono
 chi_chrono=chi0*chi_rel_chrono
 
+# Activated structural lapse identity.  With
+# rho_X=chi rho_v, rho_v=rho_P/S^2 and
+# Omega_X=(8piG rho_X)/(3H^2),
+# N = p Xi_P sqrt(chi/Omega_X),
+# Xi_P^2=(8piG/3) rho_P t_P^2.
+# The numerical Xi_P below uses the same finite-precision rho_P,t_P,G
+# values as the structural anchors, making this an exact bookkeeping test.
+OmegaX_hist=rhoX/(H*H)
+XiP=math.sqrt((8.*math.pi*G/3.)*a.rhoP*tP*tP)
+N_density=p_chrono*XiP*np.sqrt(chi_chrono/OmegaX_hist)
+N_density_rel=np.max(np.abs(N_density/N_chrono-1.))
+
 # Unique pX=1 crossing separating tracker-like no-activation from
 # the mature p=1 activation branch, if one exists.
 cross=[]
@@ -231,9 +243,13 @@ out=dict(
     status="Part-III chronological-scaling closure; excludes the unresolved Planck-to-classical transition",
     age0_Gyr=float(proper_gyr[i0]),
     present=dict(pX=float(pX[i0]),p=float(p_chrono[i0]),Achi=float(Achi_chrono[i0]),
-                 Xi=float(Xi_chrono[i0]),N_lapse=float(N_chrono[i0]),
+                 Xi=float(Xi_chrono[i0]),Xi_P=float(XiP),
+                 Omega_X=float(OmegaX_hist[i0]),
+                 N_lapse=float(N_chrono[i0]),
+                 N_from_density=float(N_density[i0]),
                  N_over_Xi=float(N_chrono[i0]/Xi_chrono[i0]),
                  chi=float(chi_chrono[i0])),
+    max_abs_rel_N_clock_vs_density=float(N_density_rel),
     max_abs_N_minus_pXi=float(np.max(np.abs(N_pXi_resid))),
     N_lapse_min=float(np.min(N_chrono)),N_lapse_max=float(np.max(N_chrono)),
     Achi_min=float(np.min(Achi_chrono)),
