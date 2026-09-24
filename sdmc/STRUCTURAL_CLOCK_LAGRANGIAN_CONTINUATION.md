@@ -8107,3 +8107,217 @@ This remains a conditional selection, because it assumes that the older ideal
 endpoint is a defining SDMC boundary condition rather than a result that may be
 renormalized by the later covariant completion.  The microscopic theory must
 decide which interpretation is fundamental.
+
+
+## 51. Frame-invariant form of the Balanced-Identity closure
+
+The ratio
+
+\[
+\Gamma=\frac{\chi}{F}
+\]
+
+has a further useful property: in the mature constant-\(F\) limit it is the
+conformal-frame-invariant gravitational strength of the structural source.
+
+In the Jordan-frame description,
+
+\[
+G_{\rm eff}=\frac{G}{F},
+\]
+
+so define the dimensionless structural-strength invariant
+
+\[
+\boxed{
+{\cal I}_{\rm BI}
+\equiv
+\frac{
+G_{\rm eff}\rho_X R^2
+}{c^2}.
+}
+\]
+
+Using
+
+\[
+\rho_X=\chi\rho_v
+\]
+
+and the original Unified Balanced Identity
+
+\[
+\frac{G\rho_vR^2}{c^2}=1,
+\]
+
+one obtains immediately
+
+\[
+\boxed{
+{\cal I}_{\rm BI}
+=
+\frac{\chi}{F}
+=
+\Gamma.
+}
+\]
+
+Now perform the constant conformal transformation appropriate to the mature
+endpoint,
+
+\[
+g_{\mu\nu}^{E}
+=
+F_\infty g_{\mu\nu}^{J}.
+\]
+
+For constant \(F_\infty\),
+
+\[
+R_E=\sqrt{F_\infty}\,R_J
+\]
+
+and an energy density transforms as
+
+\[
+\rho_E=\frac{\rho_J}{F_\infty^2}.
+\]
+
+Therefore
+
+\[
+\frac{G\rho_ER_E^2}{c^2}
+=
+\frac{
+G\rho_JR_J^2
+}{
+F_\infty c^2
+}.
+\]
+
+Hence
+
+\[
+\boxed{
+{\cal I}_{\rm BI}^{E}
+=
+{\cal I}_{\rm BI}^{J}
+=
+\Gamma_\infty.
+}
+\]
+
+The endpoint variable \(\Gamma_\infty\) is therefore not an artifact of the
+Jordan-frame normalization used by hi_class.
+
+The covariant Balanced-Identity condition can be written as the frame-neutral
+statement
+
+\[
+\boxed{
+{\cal I}_{\rm BI}=1.
+}
+\]
+
+This again gives
+
+\[
+\Gamma_\infty=1,
+\qquad
+\chi_\infty=F_\infty.
+\]
+
+The same condition can be stated directly as an action-level asymptotic
+boundary condition.
+
+Define the rescaled active energy
+
+\[
+{\cal R}(Z)
+\equiv
+\sigma^2\rho_X.
+\]
+
+Since
+
+\[
+\chi
+=
+\frac{S_0^2}{\rho_P}{\cal R},
+\]
+
+the covariant Balanced-Identity condition requires
+
+\[
+\boxed{
+{\cal R}_\star
+=
+\frac{\rho_P}{S_0^2}\,F_\infty.
+}
+\]
+
+By contrast, bare-source restoration requires
+
+\[
+\boxed{
+{\cal R}_\star
+=
+\frac{\rho_P}{S_0^2}.
+}
+\]
+
+Thus the endpoint distinction can be imposed at the level of the asymptotic
+Lagrangian energy coefficient, before the lapse is calculated.
+
+For the mature normal form
+
+\[
+G_2=\sigma^{-2}f(Z),
+\]
+
+\[
+{\cal R}(Z)=2Zf_{,Z}-f.
+\]
+
+The coasting fixed point already satisfies
+
+\[
+f+Z_\star f_{,Z}=0,
+\qquad
+f_{,Z}(Z_\star)=2F_\infty.
+\]
+
+The additional Balanced-Identity equation
+
+\[
+\boxed{
+\frac{S_0^2}{\rho_PF_\infty}
+\left[
+2Z_\star f_{,Z}(Z_\star)-f(Z_\star)
+\right]
+=1
+}
+\]
+
+then fixes the normalization of \(Z_\star\), and therefore fixes
+
+\[
+{\cal N}_\infty
+=
+t_PS_0\sqrt{2Z_\star}.
+\]
+
+In this formulation the value \(2.894405\) is not inserted as a lapse target.
+The boundary condition is instead placed on the rescaled energy carried by the
+covariant Lagrangian, and the structural lapse follows from the scalar kinetic
+solution.
+
+This is the closest current formulation to a microscopic endpoint condition.
+What is still missing is a derivation of
+
+\[
+{\cal I}_{\rm BI}=1
+\]
+
+from a deeper symmetry or variational constraint, rather than taking the
+Unified Balanced Identity itself as the defining structural principle.
