@@ -29,6 +29,11 @@ RUNS={
     "rc":Path("output/native_future_perturb_bounded.rc"),
     "log":Path("output/native_future_perturb_bounded.log"),
   },
+  "legacy_canonical":{
+    "prefix":"native_future_perturb_canonical_",
+    "rc":Path("output/native_future_perturb_canonical.rc"),
+    "log":Path("output/native_future_perturb_canonical.log"),
+  },
 }
 
 def read_titles(path):
