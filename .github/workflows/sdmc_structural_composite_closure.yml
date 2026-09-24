@@ -66,7 +66,14 @@ jobs:
           pert_ic_ini_z_ref_smg = 1.e7
           a_min_stability_test_smg = 1.e-8
           output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
           write background = yes
+          write thermodynamics = yes
           root = output/linear_cov_target_
           format = class
           input_verbose = 0
@@ -109,7 +116,14 @@ jobs:
           pert_ic_ini_z_ref_smg = 1.e7
           a_min_stability_test_smg = 1.e-8
           output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
           write background = yes
+          write thermodynamics = yes
           root = output/linear_cov_free_
           format = class
           input_verbose = 0
@@ -154,7 +168,14 @@ jobs:
           pert_ic_ini_z_ref_smg = 1.e7
           a_min_stability_test_smg = 1.e-8
           output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
           write background = yes
+          write thermodynamics = yes
           root = output/logstruct_free_
           format = class
           input_verbose = 0
@@ -209,6 +230,37 @@ jobs:
           Path('output/logstruct_free_comparison.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
           PY
 
+      - name: Compare log-structural full Boltzmann observables
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,json
+          out={}
+          a=np.loadtxt('output/linear_cov_target_00_cl_lensed.dat')
+          b=np.loadtxt('output/logstruct_free_00_cl_lensed.dat')
+          if a.shape != b.shape or not np.allclose(a[:,0],b[:,0]):
+              raise RuntimeError(f'C_l grids differ {a.shape} {b.shape}')
+          labels=['TT','EE','TE','BB','PP','TP','EP']
+          for j in range(1,min(a.shape[1],8)):
+              scale=max(float(np.max(np.abs(a[:,j]))),1e-300)
+              out['Cl_'+labels[j-1]+'_max_norm_abs']=float(np.max(np.abs(b[:,j]-a[:,j]))/scale)
+              mask=np.abs(a[:,j])>1e-8*scale
+              if np.any(mask):
+                  out['Cl_'+labels[j-1]+'_max_frac_masked']=float(np.max(np.abs((b[mask,j]-a[mask,j])/a[mask,j])))
+          tp=sorted(Path('output').glob('linear_cov_target_*pk.dat'))
+          cp=sorted(Path('output').glob('logstruct_free_*pk.dat'))
+          out['pk_target_files']=len(tp); out['pk_logstruct_files']=len(cp)
+          if len(tp)!=len(cp): raise RuntimeError('Pk file count mismatch')
+          for i,(pt,pc) in enumerate(zip(tp,cp)):
+              aa=np.loadtxt(pt); bb=np.loadtxt(pc)
+              y=np.interp(aa[:,0],bb[:,0],bb[:,1]) if not np.allclose(aa[:,0],bb[:,0]) else bb[:,1]
+              mask=np.abs(aa[:,1])>1e-30
+              out[f'Pk_{i:02d}_max_frac']=float(np.max(np.abs((y[mask]-aa[mask,1])/aa[mask,1])))
+              out[f'Pk_{i:02d}_rms_frac']=float(np.sqrt(np.mean(((y[mask]-aa[mask,1])/aa[mask,1])**2)))
+          print('LOGSTRUCT_BOLTZMANN_COMPARISON',json.dumps(out,sort_keys=True))
+          Path('output/logstruct_boltzmann_comparison.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+
       - name: Derive N Km Kp and activation
         run: |
           python3 sdmc/run_structural_composite_closure.py output/linear_cov_free_00_background.dat --out output/structural_composite_closure.json
@@ -235,3 +287,8 @@ jobs:
             output/logstruct_redefinition_summary.txt
             output/logstruct_free_00_background.dat
             output/logstruct_free_comparison.json
+            output/logstruct_boltzmann_comparison.json
+            output/linear_cov_target_00_cl_lensed.dat
+            output/logstruct_free_00_cl_lensed.dat
+            output/linear_cov_target_*pk.dat
+            output/logstruct_free_*pk.dat
