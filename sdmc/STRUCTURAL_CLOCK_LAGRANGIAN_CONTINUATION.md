@@ -4724,23 +4724,15 @@ structural lapse near \(3.41\): part of the excess structural speed is simply
 the finite matter/radiation loading of a universe that has not yet reached its
 pure-scalar asymptote.
 
-It also supplies a new future-tail design criterion.  Once the inverse-square
-normal form is effectively reached, a physically clean continuation should
-prefer
-
-\[
-q\ge0
-\]
-
-while residual matter remains nonzero and should tend toward
-
-\[
-q\to0^+
-\]
-
-as the matter loading disappears.  Tiny late sign reversals of \(q\) in a
-specific interpolation tail should therefore be treated as tail-shape
-transients rather than as a required feature of the mature SDMC fixed point.
+The sign of the late approach should not, however, be promoted from this
+frozen-fluid construction to a fundamental action-level requirement.  In the
+actual inverse-square scalar theory, residual matter perturbs the scalar
+kinetic state itself.  Section 41 derives that forced response and shows that
+the healthy covariant fixed point instead has a universal leading matter
+correction with \(q\to0^-\).  The \(2.868923\) value therefore remains a
+useful interior normalization diagnostic, while the sign of the asymptotic
+approach must be taken from the scalar field equation rather than from the
+frozen-source bridge.
 
 
 ## 37. Perturbation-ready C3 stitching and near-exact future No-Slip
@@ -5502,3 +5494,470 @@ This stress test therefore sharpens the interpretation fork:
 
 The branch now records both possibilities rather than assuming either one in
 advance.
+
+
+## 41. Action-level matter-forced approach to the mature fixed point
+
+The fluid-level construction in Section 36 deliberately froze the mature
+structural source while adding conserved matter.  The covariant scalar does
+not remain frozen in this way.  Once the inverse-square normal form has been
+reached, residual matter perturbs the kinetic state \(Z\), and the scalar
+responds dynamically.
+
+Take
+
+\[
+G_2(\sigma,Z)=\sigma^{-2}f(Z),
+\qquad
+G_3\to0,
+\qquad
+F\to F_\infty=\text{constant}.
+\]
+
+Define
+
+\[
+{\cal R}(Z)
+\equiv
+2Zf_{,Z}-f,
+\]
+
+so that
+
+\[
+\rho_X=\frac{{\cal R}(Z)}{\sigma^2}.
+\]
+
+The homogeneous scalar equation is
+
+\[
+\frac{d}{dt}
+\left(
+\sigma^{-2}f_{,Z}\dot\sigma
+\right)
++
+3H\sigma^{-2}f_{,Z}\dot\sigma
++
+2\sigma^{-3}f
+=
+0.
+\]
+
+Writing
+
+\[
+p\equiv\frac{d\ln\sigma}{d\ln a}
+=
+\frac{\dot\sigma}{H\sigma},
+\]
+
+and using
+
+\[
+Z=\frac12\dot\sigma^2,
+\]
+
+this becomes the exact first-order relation
+
+\[
+\boxed{
+{\cal K}\frac{dZ}{d\ln a}
++
+6Zf_{,Z}
+-
+2p{\cal R}
+=
+0,
+}
+\]
+
+where
+
+\[
+{\cal K}
+=
+f_{,Z}+2Zf_{,ZZ}.
+\]
+
+The flat Friedmann equation gives independently
+
+\[
+\boxed{
+\frac{6FZ}{p^2}
+=
+\rho_m\sigma^2
++
+\rho_r\sigma^2
++
+{\cal R}(Z).
+}
+\]
+
+These two equations show why the frozen-fluid bridge is not the exact
+action-level late solution.  If one imposed simultaneously
+
+\[
+p=1,
+\qquad
+\rho_X\propto a^{-2},
+\]
+
+then \(\sigma\propto a\), and therefore
+\({\cal R}(Z)\) would have to remain constant.  But
+
+\[
+\frac{d{\cal R}}{dZ}
+=
+{\cal K}.
+\]
+
+For a healthy scalar,
+
+\[
+{\cal K}>0,
+\]
+
+so constant \({\cal R}\) forces
+
+\[
+Z=\text{constant}.
+\]
+
+Then \(p=1\) implies exact coasting,
+
+\[
+H\propto a^{-1},
+\]
+
+which cannot simultaneously contain a finite separately conserved
+\(\rho_m\propto a^{-3}\) contribution.  Thus the exact
+\(p=1,\ w_X=-1/3\) state is reached only asymptotically as matter disappears.
+
+The leading forced correction can be derived analytically.  Let
+
+\[
+Z=Z_\star(1+z),
+\qquad
+p=1+u,
+\]
+
+and define the dimensionless matter loading
+
+\[
+m
+\equiv
+\frac{\rho_m\sigma^2}{{\cal R}_\star}.
+\]
+
+At the pure-scalar fixed point,
+
+\[
+{\cal R}_\star=6FZ_\star,
+\qquad
+f_{,Z}(Z_\star)=2F.
+\]
+
+Introduce
+
+\[
+\boxed{
+\kappa
+\equiv
+\frac{{\cal K}_\star}{2F}.
+}
+\]
+
+For the quadratic mature family,
+
+\[
+\kappa=1+2r
+=
+\frac{1}{c_{s,\star}^2}.
+\]
+
+To first order in \(m\), the Friedmann constraint gives
+
+\[
+-2u
+=
+m
++
+\left(
+\frac{\kappa}{3}-1
+\right)z.
+\]
+
+The scalar equation gives
+
+\[
+\frac{\kappa}{3}\frac{dz}{d\ln a}
++
+\left(
+1+\frac{\kappa}{3}
+\right)z
+-
+2u
+=
+0.
+\]
+
+Eliminating \(u\),
+
+\[
+\boxed{
+\frac{dz}{d\ln a}
++
+2z
+=
+-\frac{3}{\kappa}m.
+}
+\]
+
+At late times,
+
+\[
+\frac{dm}{d\ln a}
+=
+-m+O(m^2),
+\]
+
+so the solution is
+
+\[
+\boxed{
+z
+=
+-\frac{3}{\kappa}m
++
+C a^{-2}.
+}
+\]
+
+This separates two physical relaxation modes.  The intrinsic scalar
+perturbation found in Section 25 decays as
+
+\[
+a^{-2},
+\]
+
+whereas the matter-forced correction decays only as
+
+\[
+a^{-1}.
+\]
+
+Consequently the matter-forced term eventually dominates the final approach
+to the fixed point even though matter itself becomes negligible.
+
+Substituting the forced solution back into the Friedmann relation gives
+
+\[
+\boxed{
+p-1
+=
+-\frac{3}{2\kappa}m
++
+O(a^{-2}),
+}
+\]
+
+and because
+
+\[
+{\cal N}\propto\sqrt{Z},
+\]
+
+\[
+\boxed{
+\frac{{\cal N}}{{\cal N}_\infty}-1
+=
+-\frac{3}{2\kappa}m
++
+O(a^{-2}).
+}
+\]
+
+The rescaled scalar density responds as
+
+\[
+\frac{{\cal R}}{{\cal R}_\star}-1
+=
+\frac{\kappa}{3}z
+=
+-m+O(a^{-2}).
+\]
+
+Thus, to first order, the scalar density decreases by precisely the amount
+introduced by the residual matter term.  The direct matter loading and the
+scalar response cancel in the Friedmann amplitude at \(O(m)\).
+
+As a result,
+
+\[
+H\sigma
+=
+\text{constant}
++
+O(m^2),
+\]
+
+and therefore
+
+\[
+\boxed{
+q
+=
+-\frac{3}{2\kappa}m
++
+O(a^{-2}).
+}
+\]
+
+The exact inverse-square scalar consequently approaches coasting from the
+very weakly accelerating side,
+
+\[
+\boxed{
+q\to0^-,
+}
+\]
+
+rather than the \(q\to0^+\) behavior of the frozen-fluid diagnostic.
+
+The total effective equation of state is correspondingly
+
+\[
+\boxed{
+w_{\rm eff}
+=
+-\frac13
+-
+\frac{m}{\kappa}
++
+O(a^{-2}),
+}
+\]
+
+while the scalar itself obeys
+
+\[
+\boxed{
+w_X
+=
+-\frac13
+-
+\left(
+\frac13+\frac1\kappa
+\right)m
++
+O(a^{-2}).
+}
+\]
+
+These corrections remain safely above the phantom boundary for sufficiently
+late \(m\ll1\).
+
+The freely evolved future tails provide a direct numerical check.  For the
+bounded-\(\chi\) candidate,
+
+\[
+r=3.43684444,
+\qquad
+\kappa=7.87368889.
+\]
+
+At \(\ln a=10\), the released action has approximately
+
+\[
+m=9.02\times10^{-6},
+\]
+
+for which the asymptotic formula predicts
+
+\[
+\frac{{\cal N}}{{\cal N}_\infty}-1
+\simeq
+-1.72\times10^{-6}.
+\]
+
+The numerical trajectory gives
+
+\[
+\frac{{\cal N}}{{\cal N}_\infty}-1
+\simeq
+-1.71\times10^{-6},
+\]
+
+and
+
+\[
+q\simeq-1.68\times10^{-6}.
+\]
+
+For the \(F_\infty\)-matched candidate,
+
+\[
+r=3.75611884,
+\qquad
+\kappa=8.51223767,
+\]
+
+and at the same epoch
+
+\[
+m=8.76\times10^{-6}.
+\]
+
+The analytic prediction is
+
+\[
+-\frac{3m}{2\kappa}
+\simeq
+-1.54\times10^{-6},
+\]
+
+while the released action gives approximately
+
+\[
+\frac{{\cal N}}{{\cal N}_\infty}-1
+\simeq
+-1.53\times10^{-6},
+\]
+
+and
+
+\[
+q\simeq-1.50\times10^{-6}.
+\]
+
+The agreement is at the percent level by \(\ln a=10\).
+
+This explains a feature that previously looked like a possible interpolation
+artifact: after the finite future tail passes through a weakly decelerating
+phase, \(q\) crosses back below zero at very large scale factor.  The final
+negative sign is in fact the expected matter-forced asymptotic response of the
+healthy inverse-square scalar.
+
+The mature endpoint itself is unchanged,
+
+\[
+q\to0,
+\qquad
+p\to1,
+\qquad
+{\cal N}\to{\cal N}_\infty,
+\]
+
+but the direction from which the action approaches that endpoint is now
+derived rather than guessed.
+
+The interior value
+
+\[
+{\cal N}_{\infty,\rm load}\simeq2.868923
+\]
+
+from Section 36 remains useful as a normalization diagnostic because it shows
+that the present \(3.4135\) lapse and the \(2.86\)--\(2.89\) pure-scalar bracket
+are of the right relative scale.  It should not, however, be interpreted as
+the exact dynamical matter correction to the mature scalar action.
