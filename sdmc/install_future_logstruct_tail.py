@@ -27,6 +27,7 @@ import argparse, json, math, re
 import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.optimize import brentq
+import run_future_homogeneous_covariant_stitch_audit as future_aud
 
 TARGET=Path("output/linear_cov_target_00_background.dat")
 HEADER=Path("gravity_smg/sdmc_late266_logstruct_table.h")
@@ -201,6 +202,17 @@ Agc=coeffs_match(g_xder,0.,mug)
 asym={"k1":kappa1,"k2":kappa2,"V":U0}
 Aq={q:coeffs_match(bars[q],asym[q],muQ) for q in asym}
 
+# Import only the future No-Slip correction from the shared action audit.
+# The correction is constructed with a C3-flat switch at sigma=1, so adding
+# delta g = g_refined-g_base preserves this installer's target-derived
+# endpoint jet while aligning the unobserved future with the common refined
+# fixed-point action.
+_aud_spec=next(s for s in future_aud.CANDIDATES
+               if s["name"]==args.candidate)
+_aud_base=future_aud.build_candidate(_aud_spec)
+_aud_ref=future_aud.build_refined_noslip_candidate(
+    _aud_spec,iterations=2,blend_rate=500.)
+
 def future_structural(x):
     sig=math.exp(x)
     out={}
@@ -216,6 +228,9 @@ def future_structural(x):
     gx=[tail_der(Agc,0.,mug,x,j) for j in range(3)]
     out["F"]=fx[0]
     out["g"]=gx[0]
+    # Future-only correction; exactly flat through third order at sigma=1.
+    out["g"] += (_aud_ref["action"](sig)["g"]
+                 - _aud_base["action"](sig)["g"])
     return sig,out
 
 # Preserve all accepted past samples through psi=0, then append future.
@@ -312,6 +327,12 @@ summary={
   "Z_inf_over_Z0":Zinf/Z0,
   "r":r,"muQ":muQ,"muF":muF,"mug":mug,
   "F_inf":FINF,
+  "noslip_refinement":{"iterations":2,"blend_rate":500.0},
+  "tail_smoothness":{
+    "G3_F_structural_jet":"C3 at sigma=1 before table interpolation",
+    "G2_structural_coefficients":"C2 at sigma=1",
+    "table_representation":"piecewise cubic spline (C2 globally)"
+  },
   "join_step_at_first_future_sample":join
 }
 SUMMARY.parent.mkdir(parents=True,exist_ok=True)
