@@ -3248,3 +3248,318 @@ c_s^2\le1
 
 conditions can be checked along the complete released trajectory rather than
 through the reduced homogeneous and k-essence diagnostics alone.
+
+
+## 30. Full background-level Horndeski stability of the released future tails
+
+The reduced k-essence proxy in Section 29 can now be replaced by the exact
+Bellini-Sawicki background stability functions for the accepted Horndeski
+subclass
+
+\[
+G_2=k_1(\sigma)Z+k_2(\sigma)Z^2-V(\sigma),
+\qquad
+G_3=g(\sigma)Z,
+\qquad
+G_4=\frac12F(\sigma),
+\]
+
+with \(G_5=0\) and \(c_T^2=1\).
+
+Along the released homogeneous trajectory,
+
+\[
+\boxed{
+\alpha_M
+=
+\frac{vF_{,\sigma}}{HF},
+}
+\]
+
+\[
+\boxed{
+\alpha_B
+=
+\frac{2v}{HF}
+\left(
+Zg-\frac12F_{,\sigma}
+\right),
+}
+\]
+
+and
+
+\[
+\boxed{
+\alpha_K
+=
+\frac{
+2Z\left(k_1+6k_2Z-4Zg_{,\sigma}\right)
++
+12HvZg
+}{
+H^2F
+}.
+}
+\]
+
+The exact scalar kinetic combination is therefore
+
+\[
+\boxed{
+D
+=
+\alpha_K
++
+\frac32\alpha_B^2.
+}
+\]
+
+For this \(c_T=1\) Horndeski subclass, the scalar sound speed may be written
+
+\[
+\boxed{
+c_s^2
+=
+\frac{
+(2-\alpha_B)
+\left[
+-\frac{\dot H}{H^2}
++
+\frac12\alpha_B
++
+\alpha_M
+\right]
+-
+\frac{\rho_m+\frac43\rho_r}{H^2F}
++
+\frac{d\alpha_B}{d\ln a}
+}{
+D
+}.
+}
+\]
+
+This expression was cross-checked at the accepted present endpoint against the
+native hi_class background columns.  The reconstructed present value is
+
+\[
+D_0\simeq0.38666113,
+\]
+
+against the direct hi_class value
+
+\[
+D_0^{\rm hi\_class}=0.38666113,
+\]
+
+while
+
+\[
+c_{s,0}^2\simeq0.13836
+\]
+
+is consistent with the direct native value
+
+\[
+c_{s,0}^{2\,{\rm hi\_class}}
+=
+0.13833497
+\]
+
+at the few-\(10^{-5}\) level.  The residual difference is dominated by the
+endpoint derivative used for \(d\alpha_B/d\ln a\) in the future continuation.
+
+### 30.1 Bounded-activation future tail
+
+For the released
+
+\[
+\chi_\infty=1
+\]
+
+candidate, the complete background-level Horndeski audit over
+
+\[
+0\le\ln a\le10
+\]
+
+gives
+
+\[
+\boxed{
+D_{\min}
+=
+0.38666113>0,
+}
+\]
+
+with the minimum occurring at the present endpoint.
+
+The sound speed remains positive and subluminal throughout the tested future:
+
+\[
+\boxed{
+0.126971
+\lesssim
+c_s^2
+\lesssim
+0.214469.
+}
+\]
+
+At ten future e-folds,
+
+\[
+D\simeq15.74725,
+\qquad
+c_s^2\simeq0.12700435.
+\]
+
+### 30.2 \(F_\infty\)-matched activation tail
+
+For
+
+\[
+\chi_\infty=F_\infty,
+\]
+
+the full background-level stability audit gives
+
+\[
+\boxed{
+D_{\min}
+=
+0.38666113>0,
+}
+\]
+
+and
+
+\[
+\boxed{
+0.117446
+\lesssim
+c_s^2
+\lesssim
+0.206273.
+}
+\]
+
+At ten future e-folds,
+
+\[
+D\simeq17.02435,
+\qquad
+c_s^2\simeq0.11747705.
+\]
+
+Thus neither candidate encounters a ghost crossing or a scalar gradient
+instability in the entire released homogeneous interval.
+
+The physical No-Slip combination remains extremely small:
+
+\[
+\max|\alpha_B+2\alpha_M|
+\simeq5.7\times10^{-5}
+\]
+
+for the bounded-\(\chi\) tail and
+
+\[
+\max|\alpha_B+2\alpha_M|
+\simeq5.3\times10^{-5}
+\]
+
+for the \(F_\infty\)-matched tail.
+
+These values clarify the previously quoted few-percent term-balance residual:
+that ratio becomes misleading when both \(Zg\) and
+\(F_{,\sigma}/2\) have already become individually tiny.  The physical
+dimensionless No-Slip departure remains at the \(10^{-5}\) level and decays
+rapidly toward zero.
+
+### 30.3 Exact mature stability invariant
+
+At the mature fixed point,
+
+\[
+\alpha_M\to0,
+\qquad
+\alpha_B\to0,
+\qquad
+g\to0,
+\qquad
+F\to F_\infty.
+\]
+
+For the quadratic inverse-square normal form, with
+
+\[
+r\equiv\frac{\kappa_2Z_\infty}{F_\infty},
+\]
+
+the fixed-point relations give
+
+\[
+\boxed{
+D_\infty
+=
+2(1+2r),
+}
+\]
+
+whereas
+
+\[
+\boxed{
+c_{s,\infty}^2
+=
+\frac1{1+2r}.
+}
+\]
+
+Hence the mature branch obeys the exact invariant
+
+\[
+\boxed{
+D_\infty c_{s,\infty}^2=2.
+}
+\]
+
+For the bounded-activation candidate,
+
+\[
+r=3.43684444,
+\]
+
+so
+
+\[
+D_\infty=15.74737778,
+\qquad
+c_{s,\infty}^2=0.12700527.
+\]
+
+For the \(F_\infty\)-matched candidate,
+
+\[
+r=3.75611884,
+\]
+
+so
+
+\[
+D_\infty=17.02447535,
+\qquad
+c_{s,\infty}^2=0.11747792.
+\]
+
+The numerical future integrations approach these analytic limits.
+
+This closes the background-level ghost and scalar-gradient gate for the two
+released future tails.  It does not yet replace an actual future perturbation
+integration inside hi_class: the stock background solver terminates at
+\(\ln(a/a_0)=0\), so a separate future-capable numerical branch is still needed
+before the perturbation module itself can be propagated beyond the present
+epoch.
