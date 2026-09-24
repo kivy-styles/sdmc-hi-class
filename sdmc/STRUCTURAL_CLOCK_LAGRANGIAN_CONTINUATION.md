@@ -8985,3 +8985,262 @@ principle in addition to the Balanced-Identity normalization.
 If no, the later noncanonical reconstruction has genuinely superseded the
 earlier canonical late-shape assumption, even though both share the same
 coasting background.
+
+
+## 55. The shape modulus separates canonical and kinetic-condensate mature branches
+
+The remaining modulus \(r\) has a direct microscopic interpretation.
+
+For
+
+\[
+f(Z)=\kappa_1Z+\kappa_2Z^2-U_0,
+\]
+
+the kinetic derivative is
+
+\[
+f_{,Z}
+=
+\kappa_1+2\kappa_2Z.
+\]
+
+Using the mature coefficients,
+
+\[
+\kappa_1=2F_\infty(1-r),
+\qquad
+\kappa_2=\frac{rF_\infty}{Z_\star},
+\]
+
+gives
+
+\[
+\boxed{
+f_{,Z}
+=
+2F_\infty
+\left[
+1-r+r\frac{Z}{Z_\star}
+\right].
+}
+\]
+
+At the fixed point,
+
+\[
+f_{,Z}(Z_\star)=2F_\infty>0
+\]
+
+for every value of \(r\), which is why the background coasting solution itself
+does not distinguish the shapes.
+
+Away from the fixed point the distinction is sharp.
+
+For
+
+\[
+0\le r<1,
+\]
+
+the low-kinetic coefficient is positive,
+
+\[
+\kappa_1>0,
+\]
+
+and
+
+\[
+f_{,Z}>0
+\]
+
+for every \(Z\ge0\).
+
+The endpoint
+
+\[
+r=0
+\]
+
+is the strictly canonical exponential branch discussed in Section 54.
+
+For
+
+\[
+r>1,
+\]
+
+the linear coefficient becomes negative,
+
+\[
+\kappa_1<0.
+\]
+
+The positive quadratic term then restores a healthy kinetic slope only above
+
+\[
+f_{,Z}=0
+\quad\Longrightarrow\quad
+\boxed{
+\frac{Z}{Z_\star}
+=
+1-\frac1r.
+}
+\]
+
+Thus the \(r>1\) family has a kinetic-condensate-like structure: a wrong-sign
+linear term is stabilized at finite \(Z\) by the \(Z^2\) operator.
+
+The same threshold appeared independently in the nonlinear fixed-point basin
+audit as the gradient-stability floor,
+
+\[
+\boxed{
+\left(
+\frac{Z}{Z_\star}
+\right)_{\rm grad}
+=
+1-\frac1r.
+}
+\]
+
+For the released \(F_\infty\)-matched tail,
+
+\[
+r=3.75611884,
+\]
+
+so
+
+\[
+\boxed{
+\left(
+\frac{Z}{Z_\star}
+\right)_{\rm grad}
+\simeq0.73377.
+}
+\]
+
+The healthy future orbit approaches
+
+\[
+Z/Z_\star\to1
+\]
+
+from safely above that threshold.
+
+The homogeneous kinetic coefficient has a weaker zero,
+
+\[
+{\cal K}
+=
+f_{,Z}+2Zf_{,ZZ},
+\]
+
+which gives
+
+\[
+\boxed{
+\left(
+\frac{Z}{Z_\star}
+\right)_{\rm hom}
+=
+\frac{r-1}{3r}.
+}
+\]
+
+For the same \(r=3.75612\),
+
+\[
+\left(
+\frac{Z}{Z_\star}
+\right)_{\rm hom}
+\simeq0.2446.
+\]
+
+Hence gradient stability, rather than the homogeneous kinetic determinant, is
+the tighter basin boundary.
+
+The fixed-point energy decomposition is also informative.  The total mature
+energy is
+
+\[
+\rho_\star=6F_\infty Z_\star.
+\]
+
+Its three quadratic-normal-form pieces contribute
+
+\[
+\boxed{
+\frac{\rho_{\kappa_1}}{\rho_\star}
+=
+\frac{1-r}{3},
+}
+\]
+
+\[
+\boxed{
+\frac{\rho_{\kappa_2}}{\rho_\star}
+=
+\frac{r}{2},
+}
+\]
+
+and
+
+\[
+\boxed{
+\frac{\rho_{U_0}}{\rho_\star}
+=
+\frac{4-r}{6}.
+}
+\]
+
+For the canonical branch \(r=0\),
+
+\[
+\frac{\rho_{\kappa_1}}{\rho_\star}
+=
+\frac13,
+\qquad
+\frac{\rho_{U_0}}{\rho_\star}
+=
+\frac23,
+\qquad
+\rho_{\kappa_2}=0,
+\]
+
+which is exactly the familiar canonical coasting balance.
+
+For \(r>1\), the linear kinetic contribution is negative while the positive
+quadratic contribution overcompensates it.  The total energy and physical
+fixed-point kinetic slope remain positive.
+
+Therefore the unresolved shape question is more physical than a choice of
+sound speed:
+
+\[
+\boxed{
+r=0
+}
+\]
+
+means a canonical exponential mature scalar, whereas
+
+\[
+\boxed{
+r>1
+}
+\]
+
+means a finite-kinetic condensate-like mature scalar.
+
+The accepted late266 reconstruction presently has a negative structural
+\(k_1\), so its immediate future continuation naturally lies on the
+kinetic-condensate side.  The earlier Part-VI \(\lambda_\ell=\sqrt2\) endpoint
+instead asks whether the theory eventually crosses back to the canonical
+side after the late No-Slip release is complete.
+
+That question is now being tested directly by the legacy-canonical future
+audit rather than decided by notation.
