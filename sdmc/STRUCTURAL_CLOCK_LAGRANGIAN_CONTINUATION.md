@@ -7931,3 +7931,179 @@ then the \(0.06030779\) branch is selected.
 
 The next microscopic derivation should therefore target
 \(\beta_\Gamma\), rather than \(\chi\) and \(F\) independently.
+
+
+## 50. Legacy Part-III endpoint continuity as a boundary condition
+
+The covariant matching condition has an independent interpretation when the
+new action is compared directly with the earlier temporal reconstruction.
+
+Part III derived, under its flat canonical scalar closure,
+
+\[
+{\cal N}
+=
+\Xi_v\frac{p}{\sqrt{\Omega_\phi}},
+\qquad
+\Xi_v=\sqrt{\frac{8\pi}{3}},
+\]
+
+and therefore obtained the ideal late scalar-dominated endpoint
+
+\[
+\boxed{
+{\cal N}_\infty=\Xi_v.
+}
+\]
+
+The modern covariant action generalizes the same relation to
+
+\[
+{\cal N}
+=
+p\,\Xi_v
+\sqrt{
+\frac{\Gamma}{\widehat\Omega_X}
+},
+\]
+
+where
+
+\[
+\Gamma=\frac{\chi}{F}
+\]
+
+and
+
+\[
+\widehat\Omega_X
+\equiv
+\frac{8\pi G\rho_X}{3FH^2}
+\]
+
+is the structural-source fraction measured relative to the actual
+non-minimal Friedmann normalization.
+
+On the mature scalar-dominated branch,
+
+\[
+p\to1,
+\qquad
+\widehat\Omega_X\to1,
+\]
+
+so
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\Xi_v\sqrt{\Gamma_\infty}.
+}
+\]
+
+Consequently, preserving the older Part-III endpoint in the modern covariant
+completion requires
+
+\[
+\Xi_v\sqrt{\Gamma_\infty}
+=
+\Xi_v,
+\]
+
+hence
+
+\[
+\boxed{
+\Gamma_\infty=1.
+}
+\]
+
+Therefore
+
+\[
+\boxed{
+\chi_\infty=F_\infty.
+}
+\]
+
+This is exactly the covariant Balanced-Identity matching condition of
+Section 47.
+
+The two arguments are logically distinct but algebraically equivalent:
+
+\[
+\boxed{
+R_X=R
+}
+\]
+
+preserves the original density-radius column of the Unified Balanced Identity,
+while
+
+\[
+\boxed{
+{\cal N}_\infty=\Xi_v
+}
+\]
+
+preserves the earlier temporal endpoint.  Both lead to
+
+\[
+\boxed{
+\frac{\chi_\infty}{F_\infty}=1.
+}
+\]
+
+The bounded-source condition
+
+\[
+\chi_\infty=1
+\]
+
+instead gives
+
+\[
+{\cal N}_\infty
+=
+\frac{\Xi_v}{\sqrt{F_\infty}}
+=
+2.86044513,
+\]
+
+so it should be interpreted as a deliberate modification of the older ideal
+endpoint caused by the frozen non-minimal Planck mass.
+
+The fractional shift is
+
+\[
+\frac{
+2.86044513
+}{
+2.89440502
+}
+-1
+\simeq
+-1.1733\%.
+\]
+
+Thus the endpoint fork can be stated operationally:
+
+- **legacy-preserving covariant completion:**  
+  \(\Gamma_\infty=1\), \(\chi_\infty=F_\infty\),
+  \({\cal N}_\infty=2.89440502\);
+
+- **bare-source-amplitude completion:**  
+  \(\chi_\infty=1\),
+  \(\Gamma_\infty=1/F_\infty\),
+  \({\cal N}_\infty=2.86044513\).
+
+The present derivation therefore gives a structural reason to treat the upper
+endpoint as more than an arbitrary member of the stable interval: it is the
+unique member that leaves the original Part-III ideal lapse unchanged after
+the covariant Planck-mass dressing is introduced.
+
+This remains a conditional selection, because it assumes that the older ideal
+endpoint is a defining SDMC boundary condition rather than a result that may be
+renormalized by the later covariant completion.  The microscopic theory must
+decide which interpretation is fundamental.
