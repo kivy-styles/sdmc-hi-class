@@ -26,6 +26,18 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install numpy scipy
 
+      - name: Syntax-check structural audit scripts
+        run: |
+          python3 -m py_compile \
+            sdmc/run_future_homogeneous_covariant_stitch_audit.py \
+            sdmc/run_future_noslip_fixedpoint_refinement.py \
+            sdmc/run_future_perturbation_envelope_audit.py \
+            sdmc/install_future_logstruct_tail.py \
+            sdmc/patch_future_background_endpoint.py \
+            sdmc/patch_future_today_bookkeeping.py \
+            sdmc/patch_future_shooting_today.py \
+            sdmc/run_native_future_health_summary.py
+
       - name: Build parameterized late266 target
         run: |
           python3 sdmc/apply_sdmc_tracker_patch.py
