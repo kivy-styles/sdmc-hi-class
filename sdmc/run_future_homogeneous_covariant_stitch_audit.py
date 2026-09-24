@@ -30,9 +30,10 @@ Two structural endpoints are audited:
 
 The exact homogeneous equations are reduced to a 2x2 system for dot(v) and
 dot(H), while H itself is obtained from the Friedmann constraint.  The script
-also reports a normalized on-trajectory No-Slip residual.  The future tails are
-therefore candidates, not accepted completions: a few-percent transient
-No-Slip residual remains and must be removed before promotion.
+reports both a term-balance No-Slip residual and the physical dimensionless
+combination alpha_B+2 alpha_M.  The future tails remain candidate completions
+until the full Horndeski D and c_s^2 conditions are checked in a
+future-capable hi_class background.
 """
 from pathlib import Path
 import json, math, re
@@ -305,6 +306,9 @@ def rhs_diag(Ne,y,model):
 
     ns=Z*gv+.5*Fsv
     nsden=abs(Z*gv)+.5*abs(Fsv)+1e-300
+    # For G4=F/2 and G3=g(sigma)Z,
+    # alpha_B+2 alpha_M = 2 v (Z g + F_,sigma/2)/(H F).
+    noslip_alpha_combo=2.*v*ns/(Hn*Fv)
 
     csproxy=np.nan
     den=k1v+6.*k2v*Z
@@ -322,6 +326,7 @@ def rhs_diag(Ne,y,model):
       "Z_ratio":Z/Z0,
       "F":Fv,
       "noslip_rel":ns/nsden,
+      "noslip_alpha_combo":noslip_alpha_combo,
       "cs2_kessence_proxy":csproxy,
     }
 
@@ -358,6 +363,8 @@ def evolve(model,Nmax=10.,npts=2001):
     imax=int(np.argmax(qq))
     nos=np.array([abs(x["noslip_rel"]) for x in diag])
     imns=int(np.argmax(nos))
+    nosa=np.array([abs(x["noslip_alpha_combo"]) for x in diag])
+    imnsa=int(np.argmax(nosa))
     cs=np.array([x["cs2_kessence_proxy"] for x in diag])
     Kh=np.array([x["Khom"] for x in diag])
 
@@ -391,8 +398,10 @@ def evolve(model,Nmax=10.,npts=2001):
         "min_sigma2_Khom":float(np.min(Kh*yy[0]*yy[0])),
         "min_cs2_kessence_proxy":float(np.nanmin(cs)),
         "max_cs2_kessence_proxy":float(np.nanmax(cs)),
-        "max_abs_noslip_rel":float(nos[imns]),
-        "max_abs_noslip_at_ln_a":float(NN[imns]),
+        "max_abs_noslip_term_balance_rel":float(nos[imns]),
+        "max_abs_noslip_term_balance_at_ln_a":float(NN[imns]),
+        "max_abs_alphaB_plus_2alphaM":float(nosa[imnsa]),
+        "max_abs_alphaB_plus_2alphaM_at_ln_a":float(NN[imnsa]),
       },
       "future_kinematics":{
         "q_max":float(qq[imax]),
@@ -417,9 +426,10 @@ for spec in CANDIDATES:
 out={
   "status":(
     "action-native homogeneous future audit; z>=0 action is unchanged. "
-    "These tails are not yet promoted because the transient on-trajectory "
-    "No-Slip residual remains at the few-percent level and full Horndeski "
-    "D/c_s^2 has not yet been run in a future-capable hi_class background."
+    "These tails are not yet promoted because full Horndeski D/c_s^2 has "
+    "not yet been run in a future-capable hi_class background. The physical "
+    "No-Slip diagnostic is alpha_B+2 alpha_M; the separate term-balance "
+    "ratio can look large when both terms are individually tiny."
   ),
   "accepted_present":{
     "H0_1Mpc":H0,"p0":p0_bg,"q0":q0_bg,
