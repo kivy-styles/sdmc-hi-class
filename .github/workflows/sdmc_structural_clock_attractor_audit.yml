@@ -328,9 +328,6 @@ jobs:
           k_output_values = 0.0001, 0.001, 0.01
           write parameters = yes
           write warnings = yes
-          input_verbose = 1
-          perturbations_verbose = 1
-          output_verbose = 1
           root = output/native_future_perturb_matched_
           EOF
           set +e
@@ -361,9 +358,6 @@ jobs:
           k_output_values = 0.0001, 0.001, 0.01
           write parameters = yes
           write warnings = yes
-          input_verbose = 1
-          perturbations_verbose = 1
-          output_verbose = 1
           root = output/native_future_perturb_bounded_
           EOF
           set +e
