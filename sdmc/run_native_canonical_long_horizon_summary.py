@@ -25,6 +25,7 @@ BLOG=Path("output/native_future_canonical_long.log")
 PPREFIX="native_future_perturb_canonical_long_"
 PRC=Path("output/native_future_perturb_canonical_long.rc")
 PLOG=Path("output/native_future_perturb_canonical_long.log")
+REF=Path("output/legacy_canonical_split_rate_refinement.json")
 
 TP=5.391247e-44
 S0=2.72e61
@@ -67,12 +68,20 @@ def col(names,a,*opts):
             return np.asarray(a[:,names.index(q)],float),q
     return None,None
 
+ref_best=None
+if REF.exists():
+    try:
+        ref_best=json.loads(REF.read_text()).get("best_refined")
+    except Exception:
+        ref_best=None
+
 out={
   "status":"native canonical long-horizon closure audit",
   "analytic_target":{
     "ln_a":10.0,"N_inf":XI,"p_inf":1.0,"q_inf":0.0,
     "D_inf":2.0,"cs2_inf":1.0
-  }
+  },
+  "action_reference":ref_best
 }
 
 # ---------------- Background ----------------
@@ -127,18 +136,35 @@ else:
           "max_abs_alphaB_plus_2alphaM":float(np.max(np.abs(ns[jf])))
         }
         target=(
-          abs(errs["N_rel"])<=2e-4 and
-          abs(errs["p_minus_1"])<=2e-4 and
-          abs(errs["q"])<=2e-4 and
-          abs(errs["D_minus_2"])<=1e-2 and
-          abs(errs["cs2_minus_1"])<=1e-4
+          abs(errs["N_rel"])<=5e-5 and
+          abs(errs["p_minus_1"])<=5e-5 and
+          abs(errs["q"])<=5e-5 and
+          abs(errs["D_minus_2"])<=5e-4 and
+          abs(errs["cs2_minus_1"])<=1e-6
         )
+        reference_gate=True
+        reference_diff=None
+        if ref_best:
+            reference_diff={
+              "N_abs":float(Nstruct[j]-float(ref_best["N_final"])),
+              "N_rel":float(Nstruct[j]/float(ref_best["N_final"])-1.),
+              "p_abs":float(p[j]-float(ref_best["p_final"])),
+              "q_abs":float(q[j]-float(ref_best["q_final"])),
+            }
+            reference_gate=(
+              abs(reference_diff["N_rel"])<=1e-5 and
+              abs(reference_diff["p_abs"])<=1e-5 and
+              abs(reference_diff["q_abs"])<=1e-5
+            )
         gate=bool(bg["returncode"]==0 and finite and N[j]>=9.99 and
                   health["min_D"]>0. and health["min_cs2"]>0. and
-                  health["max_cs2"]<=1.00001 and target)
+                  health["max_cs2"]<=1.00000001 and target and reference_gate)
         bg.update(status="ok" if gate else "target_or_health_miss",
                   finite=finite,final=final,errors=errs,health=health,
-                  target_gate_pass=target,gate_pass=gate)
+                  target_gate_pass=target,
+                  action_reference_diff=reference_diff,
+                  action_reference_gate_pass=reference_gate,
+                  gate_pass=gate)
 out["background"]=bg
 
 # ---------------- Perturbations ----------------
@@ -172,10 +198,10 @@ for path in files:
             y0=max(float(yl[0]),1e-300)
             growth=float(np.max(yl)/y0)
             final_ratio=float(yl[-1]/y0)
-            # A generous no-runaway condition.  Canonical super-Hubble metric
-            # modes should freeze or decay; this only rejects a resolved late
-            # explosive mode, not small ringing.
-            ok=bool(np.all(np.isfinite(yl)) and growth<=2.0)
+            # The long-horizon continuation is now far inside the canonical
+            # basin.  Require each metric potential to remain non-growing to
+            # 10% tolerance and to finish no larger than its ln(a)>=5 start.
+            ok=bool(np.all(np.isfinite(yl)) and growth<=1.10 and final_ratio<=1.0)
             row[key]={
               "column":used,"late_start_ln_a":float(Nv[late][0]),
               "late_growth_factor":growth,
@@ -211,7 +237,9 @@ OUT.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("NATIVE_CANONICAL_LONG_HORIZON_SUMMARY")
 print("BACKGROUND",json.dumps({
   "status":bg.get("status"),"gate":bg.get("gate_pass"),
-  "final":bg.get("final"),"errors":bg.get("errors"),"health":bg.get("health")
+  "final":bg.get("final"),"errors":bg.get("errors"),"health":bg.get("health"),
+  "action_reference_diff":bg.get("action_reference_diff"),
+  "action_reference_gate":bg.get("action_reference_gate_pass")
 },sort_keys=True))
 for x in pr["files"]:
     print("PERTURB",json.dumps(x,sort_keys=True))
