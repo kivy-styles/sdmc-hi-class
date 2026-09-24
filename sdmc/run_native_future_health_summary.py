@@ -106,18 +106,22 @@ for name,paths in RUNS.items():
         continue
     jf=np.where(future)[0]
 
-    # Evaluate the present endpoint at exact ln(a/a0)=0 rather than using
-    # the nearest row of the future-extended uniform background grid.
+    # Evaluate the present endpoint from the accepted side only.  A steep
+    # future-only release can make a two-sided spline at N=0 branch-dependent
+    # even when every N<0 row is unchanged.
+    past0=N<=0.
+    class_past_N=N[past0]
     def at0(y):
-        return float(CubicSpline(N,y)(0.0))
-    H0_exact=math.exp(float(CubicSpline(N,np.log(H))(0.0)))
+        return float(CubicSpline(class_past_N,np.asarray(y)[past0])(0.0))
+    H0_spline=CubicSpline(class_past_N,np.log(H[past0]))
+    H0_exact=math.exp(float(H0_spline(0.0)))
     psi0_exact=at0(psi)
     sig0_exact=math.exp(psi0_exact)
     phip0_exact=at0(phip)
     dotpsi0_exact=phip0_exact
     p0_exact=dotpsi0_exact/H0_exact
     Nstruct0_exact=TP_MPC*S0*sig0_exact*dotpsi0_exact
-    q0_exact=-1.-float(CubicSpline(N,np.log(H))(0.0,1))
+    q0_exact=-1.-float(H0_spline(0.0,1))
     F0_exact=at0(F)
     D0_exact=at0(D)
     cs0_exact=at0(cs)
