@@ -2704,3 +2704,547 @@ The next numerical task is therefore well defined: construct these future
 coefficient tails from the actual accepted endpoint derivatives, release the
 extended action under native evolution, and test whether the solution reaches
 the universal inverse-square basin without imposing the target trajectory.
+
+
+## 27. Exact homogeneous covariant evolution without imposing the clock
+
+The future stitch can be released under the homogeneous equations of the same
+linear-\(G_3\) Horndeski action rather than evolving a prescribed
+\(Z(\sigma)\).
+
+Write
+
+\[
+v\equiv\dot\sigma,
+\qquad
+Z=\frac12v^2,
+\qquad
+B\equiv\frac{k_2}{4}-\frac{g_{,\sigma}}{6}.
+\]
+
+The action-level energy density is
+
+\[
+\rho_X
+=
+\frac12k_1v^2
++
+\left(
+\frac34k_2-\frac12g_{,\sigma}
+\right)v^4
++
+V
++
+3Hgv^3
+-
+3HF_{,\sigma}v.
+\]
+
+Hence the flat Friedmann constraint is a quadratic equation for \(H\),
+
+\[
+\boxed{
+3FH^2
+-
+3\left(gv^3-F_{,\sigma}v\right)H
+-
+{\cal E}
+=
+0,
+}
+\]
+
+where
+
+\[
+{\cal E}
+=
+\rho_m+\rho_r
++
+\frac12k_1v^2
++
+\left(
+\frac34k_2-\frac12g_{,\sigma}
+\right)v^4
++
+V.
+\]
+
+The expanding solution is
+
+\[
+\boxed{
+H
+=
+\frac{
+3A_H+\sqrt{9A_H^2+12F{\cal E}}
+}{6F},
+\qquad
+A_H\equiv gv^3-F_{,\sigma}v.
+}
+\]
+
+Thus \(H\) is determined algebraically once
+\(\sigma,v,\rho_m,\rho_r\) are known.
+
+The scalar equation and Raychaudhuri equation are both linear in
+\(\dot v\) and \(\dot H\).  Define
+
+\[
+{\cal K}
+=
+k_1+12Bv^2+6Hgv,
+\]
+
+\[
+Q
+=
+F_{,\sigma}-gv^2,
+\]
+
+\[
+{\cal R}
+=
+\rho_m+\frac43\rho_r
++k_1v^2
++\left(k_2-g_{,\sigma}\right)v^4
++3Hgv^3
+-HF_{,\sigma}v
++F_{,\sigma\sigma}v^2,
+\]
+
+and
+
+\[
+\begin{aligned}
+{\cal C}
+={}&
+V_{,\sigma}
++\frac12k_{1,\sigma}v^2
++3B_{,\sigma}v^4
++3Hk_1v
++12HBv^3
++2Hg_{,\sigma}v^3\\
+&+9H^2gv^2
+-6H^2F_{,\sigma}.
+\end{aligned}
+\]
+
+The exact homogeneous system becomes
+
+\[
+\boxed{
+\begin{pmatrix}
+{\cal K} & -3Q\\
+Q & 2F
+\end{pmatrix}
+\begin{pmatrix}
+\dot v\\
+\dot H
+\end{pmatrix}
+=
+-
+\begin{pmatrix}
+{\cal C}\\
+{\cal R}
+\end{pmatrix}.
+}
+\]
+
+Its determinant is
+
+\[
+\boxed{
+\Delta_{\rm hom}
+=
+2F{\cal K}+3Q^2.
+}
+\]
+
+Therefore
+
+\[
+\boxed{
+\dot v
+=
+-\frac{
+2F{\cal C}+3Q{\cal R}
+}{
+2F{\cal K}+3Q^2
+},
+}
+\]
+
+and
+
+\[
+\boxed{
+\dot H
+=
+\frac{
+Q{\cal C}-{\cal K}{\cal R}
+}{
+2F{\cal K}+3Q^2
+}.
+}
+\]
+
+Using the cosmological e-fold \(N_a=\ln a\),
+
+\[
+\boxed{
+\frac{d\sigma}{dN_a}
+=
+\frac{v}{H},
+}
+\]
+
+\[
+\boxed{
+\frac{dv}{dN_a}
+=
+\frac{\dot v}{H}.
+}
+\]
+
+This closes the future homogeneous system with ordinary matter and radiation
+dilution,
+
+\[
+\rho_m\propto a^{-3},
+\qquad
+\rho_r\propto a^{-4}.
+\]
+
+No chronological relation such as
+\(S/S_0=t/t_0\) is imposed in this integration.  The structural lapse is
+read out afterwards from
+
+\[
+{\cal N}
+=
+t_PS_0v.
+\]
+
+The same is true for
+
+\[
+p
+=
+\frac{v}{H\sigma}.
+\]
+
+This is the first stage of the present investigation in which the future
+structural clock is evolved directly from the stitched covariant action rather
+than inserted as a closure condition.
+
+## 28. Present-endpoint consistency of the released equations
+
+Before using the future extension, the coupled system was evaluated at the
+accepted present endpoint using the reconstructed action itself.
+
+The algebraic Friedmann solution reproduces the accepted free background with
+
+\[
+\left|
+\frac{H_{\rm EOM}}{H_{\rm free}}-1
+\right|
+\simeq
+1.8\times10^{-8}.
+\]
+
+The released system gives
+
+\[
+p_{\rm EOM}
+=
+1.03421568,
+\]
+
+against
+
+\[
+p_{\rm free}
+=
+1.03421566,
+\]
+
+and
+
+\[
+q_{\rm EOM}
+\simeq
+-0.53565562,
+\]
+
+against the direct background value
+
+\[
+q_{\rm free}
+\simeq
+-0.53565646.
+\]
+
+Thus the structural-field homogeneous equations reproduce the present accepted
+solution before any future asymptotic behavior is tested.
+
+For the linear-\(G_3\) action, the physical No-Slip combination is
+
+\[
+\boxed{
+\alpha_B+2\alpha_M
+=
+\frac{
+2v
+}{
+HF
+}
+\left(
+Zg+\frac12F_{,\sigma}
+\right).
+}
+\]
+
+This is a better future diagnostic than dividing the two No-Slip terms by
+their own instantaneous magnitudes, because both terms become very small as
+\(F_{,\sigma}\to0\) and \(g\to0\).
+
+## 29. First freely evolved future coasting candidates
+
+Two \(C^2\) future tails were released under the exact homogeneous system.
+
+### 29.1 Bounded-activation endpoint
+
+For
+
+\[
+\chi_\infty=1,
+\]
+
+the structural target is
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+2.86044513,
+}
+\]
+
+with
+
+\[
+\frac{Z_\infty}{Z_0}
+=
+0.70220719.
+\]
+
+A representative stable stitch uses
+
+\[
+r=3.43684,
+\qquad
+\mu_Q=3.75024,
+\qquad
+\mu_F=4.47766.
+\]
+
+After ten future e-folds the released solution gives
+
+\[
+\boxed{
+{\cal N}=2.86044025,
+}
+\]
+
+\[
+\boxed{
+p=0.99999826,
+}
+\]
+
+and
+
+\[
+\boxed{
+q=-1.68\times10^{-6}.
+}
+\]
+
+Thus the freely evolved field reaches the intended mature structural speed and
+coasting kinematics without directly imposing \(v=v_\infty\).
+
+The maximum physical No-Slip departure in this future run is only
+
+\[
+\boxed{
+\max|\alpha_B+2\alpha_M|
+\simeq
+5.7\times10^{-5}.
+}
+\]
+
+The homogeneous kinetic coefficient remains positive in the tested interval.
+The k-essence-sector sound-speed proxy remains in the approximate range
+
+\[
+0.127
+\lesssim
+c_{s,\rm proxy}^2
+\lesssim
+0.215.
+\]
+
+This is not yet the full Horndeski \(c_s^2\) test.
+
+### 29.2 \(F_\infty\)-matched activation endpoint
+
+For
+
+\[
+\chi_\infty=F_\infty,
+\]
+
+the ideal manuscript endpoint is recovered,
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+2.89440502.
+}
+\]
+
+Here
+
+\[
+\frac{Z_\infty}{Z_0}
+=
+0.71897971.
+\]
+
+A representative released stitch uses
+
+\[
+r=3.75612,
+\qquad
+\mu_Q=3.75390,
+\qquad
+\mu_F=4.49987.
+\]
+
+After ten future e-folds,
+
+\[
+\boxed{
+{\cal N}=2.89440058,
+}
+\]
+
+\[
+\boxed{
+p=0.99999844,
+}
+\]
+
+and
+
+\[
+\boxed{
+q=-1.50\times10^{-6}.
+}
+\]
+
+The maximum physical No-Slip departure is
+
+\[
+\boxed{
+\max|\alpha_B+2\alpha_M|
+\simeq
+5.3\times10^{-5}.
+}
+\]
+
+The k-essence-sector sound-speed proxy remains between approximately
+
+\[
+0.117
+\lesssim
+c_{s,\rm proxy}^2
+\lesssim
+0.207.
+\]
+
+Again, this proxy is not a substitute for the complete Horndeski scalar-health
+calculation.
+
+Both future candidates therefore exhibit the same qualitative release:
+
+\[
+{\cal N}_0\simeq3.4135
+\]
+
+relaxes dynamically toward the mature interval,
+
+\[
+{\cal N}_\infty\simeq2.86\text{--}2.89,
+\]
+
+while
+
+\[
+p\to1,
+\qquad
+q\to0,
+\qquad
+F\to F_\infty,
+\qquad
+g\to0.
+\]
+
+The current acceleration ends naturally in these candidate continuations.
+For the \(F_\infty\)-matched example, the first
+\(q=0\) crossing occurs near
+
+\[
+\ln a\simeq1.155,
+\qquad
+a\simeq3.17,
+\]
+
+about \(23.5\) Gyr after the present endpoint in this particular tail design.
+The solution then enters a weakly decelerating interval, with a maximum
+
+\[
+q\simeq0.088
+\]
+
+around \(58\) Gyr after the present, before tending back toward
+
+\[
+q\to0.
+\]
+
+These future times are candidate-tail diagnostics rather than observationally
+fixed predictions.
+
+The most important result is narrower: the accepted action can be extended
+smoothly into a future inverse-square branch whose freely evolved homogeneous
+solution selects the same \(2.86\)--\(2.89\) structural interval identified
+independently from the density closure and the old
+\(\Xi_v\simeq2.8944\) endpoint.
+
+The remaining promotion gate is now sharper.  The future extension must be
+implemented in a genuinely future-capable hi_class background so that the full
+Horndeski
+
+\[
+D>0,
+\qquad
+c_s^2>0,
+\qquad
+c_s^2\le1
+\]
+
+conditions can be checked along the complete released trajectory rather than
+through the reduced homogeneous and k-essence diagnostics alone.
