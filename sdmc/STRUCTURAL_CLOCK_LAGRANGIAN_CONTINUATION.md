@@ -422,3 +422,208 @@ or generic prediction of an independently specified microscopic action. The
 new attractor audit is designed to test the first necessary condition:
 dynamical stability of that trajectory under scalar initial-condition
 perturbations.
+
+
+## 9. Epoch-dependent matter and baryon mappers
+
+The recent chronological closure sharpens an important point that was only
+conditional in Part II.  The mapper need not be constant at all epochs.
+
+For a general matter reference density,
+
+\[
+S_m=\left(\frac{\rho_{m,P}}{\rho_m}\right)^{1/3},
+\qquad
+K_m=\frac{S}{S_m},
+\]
+
+hence directly
+
+\[
+\boxed{
+K_m(S,\rho_m)
+=
+S\left(\frac{\rho_m}{\rho_{m,P}}\right)^{1/3}
+}.
+\]
+
+With the working common primordial reference \(\rho_{m,P}=\rho_P\),
+
+\[
+\boxed{
+K_m
+=
+S\left(\frac{\rho_m}{\rho_P}\right)^{1/3}
+}.
+\]
+
+Combining this with the inverse-square bare density
+\(\rho_v=\rho_P/S^2\) gives the equivalent density-only form
+
+\[
+\boxed{
+K_m=
+\left(
+\frac{\rho_P\rho_m^2}{\rho_v^3}
+\right)^{1/6}
+}.
+\]
+
+For conserved pressureless matter, \(\rho_m=\rho_{m0}a^{-3}\), so
+
+\[
+\boxed{
+\frac{K_m(a)}{K_{m0}}
+=
+\frac{S(a)/S_0}{a}
+}
+\]
+
+and therefore
+
+\[
+\boxed{
+\frac{d\ln K_m}{d\ln a}=p-1.
+}
+\]
+
+Likewise, with constant baryon fraction,
+
+\[
+K_p=K_m f_b^{1/3},
+\]
+
+so
+
+\[
+\boxed{
+\frac{K_p(a)}{K_{p0}}
+=
+\frac{K_m(a)}{K_{m0}}
+=
+\frac{S(a)/S_0}{a}
+},
+\qquad
+\boxed{
+\frac{K_p}{K_m}=f_b^{1/3}.
+}
+\]
+
+Thus the baryon and total-matter mappers have the same fractional epoch
+evolution; their ratio remains constant.
+
+This also resolves the older Part-II conditional statement about an
+epoch-invariant \(K_m\).  Part II showed that \(K_m\) is constant if the global
+and matter radii have identical fractional expansion rates.  The covariant
+chronological closure instead gives
+
+\[
+\frac{\dot K_m}{K_m}=H(p-1).
+\]
+
+Hence the constant-\(K_m\) result is recovered only in the synchronized mature
+limit \(p\to1\).  During radiation and matter tracking, \(p>1\), so \(K_m\) and
+\(K_p\) evolve.
+
+### Last-scattering value in the accepted late266 closure
+
+The structural-closure artifact samples the accepted covariant history near
+last scattering and gives, at \(z=1091.31\),
+
+\[
+\frac{S_*}{S_0}=2.69548\times10^{-5},
+\qquad
+\frac{K_{m,*}}{K_{m0}}
+=
+\frac{K_{p,*}}{K_{p0}}
+=0.02944299.
+\]
+
+Interpolating the same free covariant background to \(z_*=1090\) gives
+
+\[
+\frac{S_*}{S_0}=2.70096\times10^{-5},
+\qquad
+\frac{K_{m,*}}{K_{m0}}
+=
+\frac{K_{p,*}}{K_{p0}}
+=0.02946748.
+\]
+
+Using the current action-derived present anchors,
+
+\[
+K_{m0}=2.19926192\times10^{20},
+\qquad
+K_{p0}=1.17431363\times10^{20},
+\]
+
+therefore gives
+
+\[
+\boxed{
+K_m(z_*=1090)\simeq6.481\times10^{18}
+}
+\]
+
+and
+
+\[
+\boxed{
+K_p(z_*=1090)\simeq3.460\times10^{18}.
+}
+\]
+
+The ratio is unchanged,
+
+\[
+\frac{K_p(z_*)}{K_m(z_*)}
+=0.53395806=f_b^{1/3}.
+\]
+
+This is the epoch-dependent \(K_p\) value that must be distinguished from the
+present-day anchor \(K_{p0}\simeq1.1743\times10^{20}\).  It should also be kept
+separate from the historical acoustic use of \(K_p\): once the photon-baryon
+sound horizon has already been computed in the local thermal domain, the
+absolute mapper must not automatically be applied to that ruler a second time.
+
+## 10. Source-map conservation constraint
+
+The older source hierarchy is
+
+\[
+M_L=M_GK_m^{-1/2}{\cal N}^{-3},
+\qquad
+\lambda=K_m^{-1/6}{\cal N}^{-1}.
+\]
+
+The accepted action has universal Jordan-frame matter conservation.  Therefore
+this relation cannot mean that the rest mass of a fixed collection of ordinary
+particles literally changes with epoch.
+
+With the chronological closure \({\cal N}=\) constant,
+
+\[
+\frac{d}{d\ln a}
+\ln\left(K_m^{-1/2}{\cal N}^{-3}\right)
+=
+-\frac12(p-1).
+\]
+
+The factor varies during radiation and matter tracking and freezes only as
+\(p\to1\).  Its viable interpretation is therefore a map between coarse-grained
+source representations in different structural domains, not literal particle
+mass evolution.
+
+## 11. Placement of the activation features
+
+The reconstructed activation history is not independent of the already fitted
+background transitions.  In the accepted late266 solution the short negative
+activation-rate precursor near \(z\simeq18.3\) and the minimum of \(\chi\) near
+\(z\simeq12.7\) bracket the tracker handoff centered at \(z_t\simeq16.17\).
+The maximum activation rate near \(z\simeq3.01\) lies within the effective
+Planck-mass transition centered at \(z_c\simeq3.43\).
+
+This favors treating \(\chi\) as a composite diagnostic of the existing early
+handoff plus late scalar-tensor response, rather than adding a new propagating
+activation field solely to reproduce the reconstructed \(\chi(a)\).
