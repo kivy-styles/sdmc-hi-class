@@ -333,6 +333,11 @@ def rhs_diag(Ne,y,model):
     Cb_N=(v/Hn)*Cb_s+(v*dotv/Hn)*Cb_Z
     alphaB_N=Abo_N*Cb+Abo*Cb_N
 
+    # Positive action-level structural source used by the SDMC activation
+    # identity. This is deliberately distinct from hi_class rho_smg.
+    rhoX_action=(k1v*Z+3.*k2v*Z*Z+Vv
+                 +6.*Hn*v*Z*gv-2.*Z*Z*gsv-3.*Hn*Fsv*v)
+
     # Exact hi_class effective rho_smg and p_smg for this subclass.
     # These are the bookkeeping variables used by gravity_functions_smg.c
     # in the Bellini-Sawicki c_s^2 numerator. They are deliberately distinct
@@ -365,6 +370,7 @@ def rhs_diag(Ne,y,model):
       "alphaK":alphaK,
       "D_full":Dfull,
       "alphaB_N":alphaB_N,
+      "rhoX_action":rhoX_action,
       "rho_smg_class":rho_smg_class,
       "p_smg_class":p_smg_class,
       "rho_m_action":rm,
@@ -388,6 +394,16 @@ def evolve(model,Nmax=10.,npts=2001):
       for ne,(sig,v) in zip(NN,yy.T)
     ]
     HH=np.array([x["H"] for x in diag])
+
+    # Action-level activation history. Constants cancel when normalized to
+    # the accepted present chi0, so this is insensitive to unit conventions:
+    # chi/chi0 = (rhoX/rhoX0) sigma^2.
+    rhoXa=np.array([x["rhoX_action"] for x in diag])
+    chi_hist=CHI0*(rhoXa/rhoXa[0])*yy[0]*yy[0]
+    mapper_hist=yy[0]/np.exp(NN)
+    for j,x in enumerate(diag):
+        x["chi_action"]=float(chi_hist[j])
+        x["mapper_ratio_to_present"]=float(mapper_hist[j])
 
     # Exact hi_class/Bellini-Sawicki scalar sound speed in two equivalent
     # representations.  The first mirrors gravity_functions_smg.c; the second
@@ -477,6 +493,8 @@ def evolve(model,Nmax=10.,npts=2001):
             })
 
     imax=int(np.argmax(qq))
+    ichi=int(np.argmax(chi_hist))
+    ichimin=int(np.argmin(chi_hist))
     nos=np.array([abs(x["noslip_rel"]) for x in diag])
     imns=int(np.argmax(nos))
     nosa=np.array([abs(x["noslip_alpha_combo"]) for x in diag])
@@ -539,6 +557,11 @@ def evolve(model,Nmax=10.,npts=2001):
         "cs2_source_compact_identity_max_abs":cs2_identity_err,
         "min_cs2_kessence_proxy":float(np.nanmin(csproxy)),
         "max_cs2_kessence_proxy":float(np.nanmax(csproxy)),
+        "chi_action_max":float(chi_hist[ichi]),
+        "chi_action_max_at_ln_a":float(NN[ichi]),
+        "chi_action_min":float(chi_hist[ichimin]),
+        "chi_action_final":float(chi_hist[-1]),
+        "mapper_ratio_final":float(mapper_hist[-1]),
         "max_abs_noslip_term_balance_rel":float(nos[imns]),
         "max_abs_noslip_term_balance_at_ln_a":float(NN[imns]),
         "max_abs_alphaB_plus_2alphaM":float(nosa[imnsa]),
