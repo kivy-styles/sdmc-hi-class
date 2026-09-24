@@ -125,7 +125,9 @@ jobs:
           python3 - <<'PY'
           import json
           d=json.load(open('output/structural_composite_closure.json'))
-          print('STRUCTURAL_CLOSURE_PRESENT',json.dumps(d['present'],sort_keys=True))
+          print('STRUCTURAL_CLOSURE_MINIMAL_PRESENT',json.dumps(d['minimal_activation']['present'],sort_keys=True))
+          print('STRUCTURAL_CLOSURE_CHRONO_PRESENT',json.dumps(d['chronological']['present'],sort_keys=True))
+          print('STRUCTURAL_CLOSURE_ANCHORS',json.dumps(d['anchors'],sort_keys=True))
           print('STRUCTURAL_CLOSURE_CROSSING',d['z_pX_equals_1'])
           for x in d['samples']:
               if min(abs(x['z']-q) for q in [1000000,1000,100,10,5,3,2,1,.5,.3,0])<1:
