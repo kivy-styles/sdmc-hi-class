@@ -128,6 +128,10 @@ p_chrono=1./(H*t_mpc)
 Srel_chrono=t_mpc/t_mpc[i0]
 Kmrel_chrono=Srel_chrono/ascale
 N_chrono=pref*Srel_chrono*E*p_chrono
+# Xi=H R/c = t_P S H.  The exact structural identity is N=p Xi;
+# N=Xi is only the synchronized p=1 limit.
+Xi_chrono=pref*Srel_chrono*E
+N_pXi_resid=N_chrono-p_chrono*Xi_chrono
 Achi_chrono=2.*(p_chrono-pX)
 chi_rel_chrono=(rhoX/rhoX[i0])*Srel_chrono*Srel_chrono
 chi_chrono=chi0*chi_rel_chrono
@@ -149,7 +153,8 @@ def sample(zt):
                    N_lapse=float(Nlapse[j]),Km_over_Km0=float(Kmrel[j]),
                    Kp_over_Kp0=float(Kprel[j]),chi=float(chi[j])),
       chronological=dict(p=float(p_chrono[j]),Achi=float(Achi_chrono[j]),
-                         S_over_S0=float(Srel_chrono[j]),N_lapse=float(N_chrono[j]),
+                         S_over_S0=float(Srel_chrono[j]),Xi=float(Xi_chrono[j]),
+                         N_lapse=float(N_chrono[j]),N_over_Xi=float(N_chrono[j]/Xi_chrono[j]),
                          Km_over_Km0=float(Kmrel_chrono[j]),
                          Kp_over_Kp0=float(Kmrel_chrono[j]),chi=float(chi_chrono[j]))
     )
@@ -201,6 +206,7 @@ out=dict(
                fb=float(fb),Kp_over_Km=float(Kp0/Km0),
                lambda0=float(lambda0),source_factor0=float(source_factor0)),
   radiation_matter_bridge=rm_diag,
+  historical_activation_comparison=dict(rows=hist_rows,rms_absolute=hist_rms),
   N337_calibration=dict(S0=float(S0_for_N337),S0_ratio_to_2p72e61=float(S0_ratio_N337),
                         R0_m=float(R0_N337_m),Km0=float(Km0_N337),Kp0=float(Kp0_N337)),
   minimal_activation=dict(
@@ -214,7 +220,10 @@ out=dict(
     status="Part-III chronological-scaling closure; excludes the unresolved Planck-to-classical transition",
     age0_Gyr=float(proper_gyr[i0]),
     present=dict(pX=float(pX[i0]),p=float(p_chrono[i0]),Achi=float(Achi_chrono[i0]),
-                 N_lapse=float(N_chrono[i0]),chi=float(chi_chrono[i0])),
+                 Xi=float(Xi_chrono[i0]),N_lapse=float(N_chrono[i0]),
+                 N_over_Xi=float(N_chrono[i0]/Xi_chrono[i0]),
+                 chi=float(chi_chrono[i0])),
+    max_abs_N_minus_pXi=float(np.max(np.abs(N_pXi_resid))),
     N_lapse_min=float(np.min(N_chrono)),N_lapse_max=float(np.max(N_chrono)),
     Achi_min=float(np.min(Achi_chrono)),
     Achi_max=float(np.max(Achi_chrono)),
@@ -228,6 +237,17 @@ out=dict(
   ),
   samples=[sample(q) for q in [1e7,1e6,1e5,1e4,3400,1090,1000,300,100,30,20,10,6.8,5,3,2,1,.7,.5,.3,.1,0]]
 )
+# Comparison with the historical Part-IV illustrative activation history.
+toy_chi={2.0:0.083,1.0:0.201,0.5:0.411,0.3:0.563,0.0:0.969}
+hist_rows=[]
+for zt,val in toy_chi.items():
+    jj=int(np.argmin(np.abs(z-zt)))
+    got=float(chi_chrono[jj])
+    hist_rows.append(dict(z_target=zt,z_actual=float(z[jj]),historical=val,
+                          derived=got,delta=got-val,
+                          fractional_delta=(got-val)/val if val else None))
+hist_rms=float(np.sqrt(np.mean([(x["delta"])**2 for x in hist_rows])))
+
 # Comparison with the historical Part-II numerical hierarchy.
 legacy=dict(N0=3.37,Km0=2.19e20,Kp0=1.18e20,lambda0=1.209e-4,source_factor0=1.766e-12)
 out["legacy_comparison_percent"]=dict(
