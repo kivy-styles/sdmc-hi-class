@@ -263,6 +263,141 @@ The naive cosmological estimate is
 
 A full local solution is still required because Vainshtein screening of spatial forces does not by itself determine the locally measured time variation of \(G_N\).
 
+## Structural-clock field form of the same action
+
+Because the accepted free solution has \(\phi=\ln a\) to about \(10^{-8}\), and \(\phi\) is monotonic, the scalar can be redefined without introducing a new degree of freedom.  A numerically well-conditioned choice is
+
+\[
+\psi\equiv\ln\frac{S}{S_0}=\ln\frac{t_c}{t_0}.
+\]
+
+Write the old scalar as \(\phi=f(\psi)\) and define
+
+\[
+A(\psi)\equiv\frac{d\phi}{d\psi}=Ht=\frac{1}{p}.
+\]
+
+For the accepted late266 history, \(A\) evolves from about \(1/2\) in radiation domination to \(2/3\) in matter domination and \(0.9669\) today.
+
+If
+
+\[
+Y\equiv-\frac12\nabla_\mu\psi\nabla^\mu\psi,
+\]
+
+then \(X_\phi=A^2Y\).  The original action
+
+\[
+G_4=\frac{F}{2},\qquad
+G_3=gX_\phi,\qquad
+G_2=k_1X_\phi+k_2X_\phi^2-V
+\]
+
+retains the same low-complexity form after the field redefinition:
+
+\[
+\widetilde G_4=\frac{\widetilde F}{2},
+\]
+
+\[
+\widetilde G_3=\widetilde g\,Y,
+\]
+
+\[
+\widetilde G_2=\widetilde k_1Y+\widetilde k_2Y^2-\widetilde V,
+\]
+
+with
+
+\[
+\widetilde F=F,\qquad
+\widetilde g=A^3g,
+\]
+
+\[
+\widetilde k_1=A^2k_1,
+\]
+
+\[
+\widetilde k_2=A^4k_2+2A^2A_{,\psi}g,
+\]
+
+\[
+\widetilde V=V.
+\]
+
+The exact on-trajectory No-Slip identity is invariant:
+
+\[
+Y\widetilde g
+=A\,X_\phi g
+=-\frac{A F_{,\phi}}{2}
+=-\frac{F_{,\psi}}{2}.
+\]
+
+The numerical field-redefinition audit closes at machine precision:
+\(X\)-mapping residual \(4.44\times10^{-16}\),
+\(G_2\) transformation residual \(1.08\times10^{-15}\),
+\(G_3\) residual \(1.99\times10^{-17}\),
+and transformed No-Slip residual \(2.08\times10^{-17}\).
+
+The transformed \(\psi\)-action was then installed as an independent hi_class gravity model and free-evolved.  It reproduces the original target with
+
+\[
+\max_{z<100}\left|\frac{\Delta H}{H}\right|
+=3.07\times10^{-9},
+\]
+
+\[
+\max_{z<100}\left|\frac{\Delta F}{F}\right|
+=1.22\times10^{-10},
+\]
+
+\[
+\max_{z<100}|\alpha_B+2\alpha_M|
+=3.62\times10^{-10},
+\]
+
+while retaining
+
+\[
+D_{\min}=0.05035,\qquad
+c_{s,\min}^2=0.05291.
+\]
+
+The evolved scalar itself obeys
+
+\[
+\psi=\ln(t/t_0)
+\]
+
+to \(1.36\times10^{-8}\).
+
+This provides a direct action-level route to the original structural quantities:
+
+\[
+S=S_0e^\psi,
+\]
+
+\[
+N=t_PS_0e^\psi\dot\psi=\frac{t_PS_0}{t_0},
+\]
+
+\[
+\frac{K_m}{K_{m0}}=\frac{e^\psi}{a}
+=e^{\psi-f(\psi)},
+\]
+
+and, for constant baryon fraction,
+
+\[
+\frac{K_p}{K_{p0}}=\frac{e^\psi}{a},
+\qquad
+\frac{K_p}{K_m}=f_b^{1/3}.
+\]
+
+Thus \(N\), \(K_m\), and \(K_p\) can all be written as composites of the same covariant scalar that already generates the successful cosmology.
+
 ## Main conclusion
 
 The accepted action now supports the hierarchy
