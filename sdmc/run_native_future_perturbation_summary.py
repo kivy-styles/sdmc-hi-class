@@ -85,7 +85,7 @@ for name,cfg in RUNS.items():
         try: rc=int(cfg["rc"].read_text().strip())
         except Exception: pass
     log_tail=cfg["log"].read_text(errors="replace").splitlines()[-30:] if cfg["log"].exists() else []
-    files=sorted(Path("output").glob(cfg["prefix"]+"perturbations_k*_s.dat"))
+    files=sorted(Path("output").glob(cfg["prefix"]+"*perturbations_k*_s.dat"))
     run={"returncode":rc,"log_tail":log_tail,"files":[]}
     if not files:
         run["status"]="missing_perturbation_files"
