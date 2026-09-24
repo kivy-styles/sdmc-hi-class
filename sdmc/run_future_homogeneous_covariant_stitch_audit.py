@@ -371,31 +371,53 @@ def evolve(model,Nmax=10.,npts=2001):
 
     HH=np.array([x["H"] for x in diag])
 
-    # Reproduce the hi_class Horndeski scalar sound-speed diagnostic.
-    # For this action alpha_T=alpha_H=0, so gravity_functions_smg.c gives
-    #
-    # cs2num = (2-B)(B+2M)/2
-    #        + 3/2(2-B)(rhoX+pX)_CLASS/H^2
-    #        - 3/2(2-2F+B F)(rhom+4rhor/3)_CLASS/(H^2 F)
-    #        + dB/dln a.
+    # Reproduce the exact hi_class Horndeski scalar sound-speed diagnostic
+    # in two algebraically equivalent forms.  For this action alpha_T=alpha_H=0.
     bra=np.array([x["alphaB"] for x in diag])
     run=np.array([x["alphaM"] for x in diag])
     DD=np.array([x["D_full"] for x in diag])
-    dbradN=CubicSpline(NN,bra)(NN,1)
-    cs2_hiclass=np.empty_like(NN)
-    cs2num_hiclass=np.empty_like(NN)
+    dbradN=np.array([x["alphaB_N"] for x in diag])
+    cs2_source=np.empty_like(NN)
+    cs2_compact=np.empty_like(NN)
+    cs2num_source=np.empty_like(NN)
+    cs2num_compact=np.empty_like(NN)
+
     for j,x in enumerate(diag):
         Fv=x["F"]; Hn=x["H"]; b=bra[j]; m=run[j]
-        xp=x["rho_smg_class"]+x["p_smg_class"]
+        dotHj=-(1.+x["q"])*Hn*Hn
+
+        # hi_class packages the varying-Planck-mass pieces into its effective
+        # rho_smg,p_smg.  In CLASS H^2-density units,
+        #
+        # (rho_smg+p_smg)
+        # = (rhoX+pX)/3 + 2(F-1)dotH/3.
+        xp_eff=((x["rhoX_action"]+x["pX_action"])/3.
+                +(2./3.)*(Fv-1.)*dotHj)
         mp=(x["rho_m_action"]+4.*x["rho_r_action"]/3.)/3.
-        num=((2.-b)*(b+2.*m)/2.
-             +1.5*(2.-b)*xp/(Hn*Hn)
-             -1.5*(2.-2.*Fv+b*Fv)*mp/(Hn*Hn*Fv)
-             +dbradN[j])
-        cs2num_hiclass[j]=num
-        cs2_hiclass[j]=num/DD[j]
-        x["cs2_full_hiclass_formula"]=float(cs2_hiclass[j])
-        x["cs2num_full_hiclass_formula"]=float(num)
+
+        num1=((2.-b)*(b+2.*m)/2.
+              +1.5*(2.-b)*xp_eff/(Hn*Hn)
+              -1.5*(2.-2.*Fv+b*Fv)*mp/(Hn*Hn*Fv)
+              +dbradN[j])
+
+        # Equivalent Bellini-Sawicki compact form.
+        hln=-1.-x["q"]
+        matter_action=x["rho_m_action"]+4.*x["rho_r_action"]/3.
+        num2=((2.-b)*(-hln+.5*b+m)
+              -matter_action/(Hn*Hn*Fv)
+              +dbradN[j])
+
+        cs2num_source[j]=num1
+        cs2num_compact[j]=num2
+        cs2_source[j]=num1/DD[j]
+        cs2_compact[j]=num2/DD[j]
+
+        x["cs2_hiclass_source"]=float(cs2_source[j])
+        x["cs2_hiclass_compact"]=float(cs2_compact[j])
+        x["cs2num_hiclass_source"]=float(num1)
+        x["cs2num_hiclass_compact"]=float(num2)
+
+    cs2_identity_err=float(np.max(np.abs(cs2_source-cs2_compact)))
 
     dt=np.zeros_like(NN)
     for i in range(1,len(NN)):
@@ -421,27 +443,11 @@ def evolve(model,Nmax=10.,npts=2001):
     Kh=np.array([x["Khom"] for x in diag])
     DF=np.array([x["D_full"] for x in diag])
 
-    # Exact Bellini-Sawicki stability functions for this Horndeski subclass.
-    aM=[]; aB=[]; aK=[]; Dfull=[]; matter_term=[]
-    for ne,(sig,v),dd in zip(NN,yy.T,diag):
-        aq=model["action"](float(sig))
-        Hn=dd["H"]; Z=.5*v*v; Fv=aq["F"]
-        am=v*aq["Fs"]/(Hn*Fv)
-        ab=2.*v*(Z*aq["g"]-.5*aq["Fs"])/(Hn*Fv)
-        ak=(2.*Z*(aq["k1"]+6.*aq["k2"]*Z-4.*Z*aq["gs"])
-            +12.*v*Z*Hn*aq["g"])/(Hn*Hn*Fv)
-        dfull=ak+1.5*ab*ab
-        rm=rho_m0*math.exp(-3.*ne)
-        rr=rho_r0*math.exp(-4.*ne)
-        aM.append(am); aB.append(ab); aK.append(ak); Dfull.append(dfull)
-        matter_term.append((rm+4.*rr/3.)/(Hn*Hn*Fv))
-    aM=np.asarray(aM); aB=np.asarray(aB); aK=np.asarray(aK)
-    Dfull=np.asarray(Dfull); matter_term=np.asarray(matter_term)
-    aBp=CubicSpline(NN,aB)(NN,1)
-    hfuture=CubicSpline(NN,np.log(HH))(NN,1)
-    cs2_standard=((2.-aB)*(-hfuture+.5*aB+aM)-matter_term+aBp)/Dfull
-    cs2_formula_disagreement=np.abs(cs2_hiclass-cs2_standard)
-    iD=int(np.argmin(Dfull)); ics=int(np.argmin(cs2_standard)); icsmax=int(np.argmax(cs2_standard))
+    Dfull=DD
+    cs2full=cs2_compact
+    iD=int(np.argmin(Dfull))
+    ics=int(np.argmin(cs2full))
+    icsmax=int(np.argmax(cs2full))
 
     samples=[]
     for nt in [0.,.5,1.,2.,3.,5.,8.,10.]:
@@ -463,7 +469,8 @@ def evolve(model,Nmax=10.,npts=2001):
         "q_minus_free":float(diag[0]["q"]-q0_bg),
         "alphaB_plus_2alphaM":float(diag[0]["alphaB"]+2.*diag[0]["alphaM"]),
         "D_full":float(diag[0]["D_full"]),
-        "cs2_full_hiclass_formula":float(diag[0]["cs2_full_hiclass_formula"]),
+        "cs2_hiclass":float(diag[0]["cs2_hiclass_compact"]),
+        "cs2_source_compact_identity_max_abs":cs2_identity_err,
       },
       "asymptotic_target":{
         "N_inf":model["N_inf"],
