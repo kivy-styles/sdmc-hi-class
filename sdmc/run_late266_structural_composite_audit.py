@@ -16,28 +16,35 @@ for i,m in enumerate(ms):
 a=np.loadtxt(SRC)
 d={n:a[:,i] for i,n in enumerate(names)}
 
-rho_name="(.)rho_smg"
-if rho_name not in d:
-    raise RuntimeError(f"{rho_name} missing; available={names}")
+# Use the action-level structural density from Part V Eq. (43), not the
+# raw hi_class rho_smg bookkeeping term.  The background table stores all
+# densities multiplied by 8piG/3, so
+#   rho_struct = H^2 (F + F') - rho_m - rho_r
+#              = H^2 F (1+alpha_M) - rho_m - rho_r.
+# The auxiliary fld tracker belongs to the structural architecture and is not
+# subtracted as ordinary matter/radiation here.
+for key in ["M*^2_smg","M2_running_smg","(.)rho_g","(.)rho_b","(.)rho_cdm","(.)rho_ur"]:
+    if key not in d:
+        raise RuntimeError(f"missing required column {key}; available={names}")
 
 z=np.asarray(d["z"])
 N=-np.log1p(z)
 H=np.asarray(d["H [1/Mpc]"])
-rho=np.asarray(d[rho_name])
+F=np.asarray(d["M*^2_smg"])
+alphaM=np.asarray(d["M2_running_smg"])
+rho_ord=(np.asarray(d["(.)rho_g"])+np.asarray(d["(.)rho_b"])+
+         np.asarray(d["(.)rho_cdm"])+np.asarray(d["(.)rho_ur"]))
+rho=H*H*F*(1.+alphaM)-rho_ord
+
 order=np.argsort(N)
-N,H,rho,z=N[order],H[order],rho[order],z[order]
+N,H,rho,z,F,alphaM=N[order],H[order],rho[order],z[order],F[order],alphaM[order]
 keep=np.r_[True,np.diff(N)>1e-12]
-N,H,rho,z=N[keep],H[keep],rho[keep],z[keep]
+N,H,rho,z,F,alphaM=N[keep],H[keep],rho[keep],z[keep],F[keep],alphaM[keep]
 
 positive=rho>0
 frac_positive=float(np.mean(positive))
 if not np.all(positive):
-    print("STRUCTURAL_RHO_NONPOSITIVE",int(np.sum(~positive)),"of",len(rho),flush=True)
-    # Use only positive connected range containing today for logarithmic reconstruction.
-    i0=int(np.argmin(np.abs(N)))
-    lo=i0
-    while lo>0 and rho[lo-1]>0: lo-=1
-    N,H,rho,z=N[lo:],H[lo:],rho[lo:],z[lo:]
+    raise RuntimeError(f"action-level structural density nonpositive at {np.sum(~positive)} nodes")
 
 lnrho=CubicSpline(N,np.log(rho))
 p=-0.5*lnrho(N,1)
@@ -67,7 +74,7 @@ w_eff=2.*p/3.-1.
 def at_z(zt):
     j=int(np.argmin(np.abs(z-zt)))
     return {
-      "z":float(z[j]),"Nlog":float(N[j]),"rho_smg":float(rho[j]),
+      "z":float(z[j]),"Nlog":float(N[j]),"rho_struct_action":float(rho[j]),
       "p_struct":float(p[j]),"w_from_scaling":float(w_eff[j]),
       "S_over_S0":float(Srel[j]),"Km_over_Km0":float(Kmrel[j]),
       "Kp_over_Kp0":float(Kprel[j]),"E":float(E[j]),
