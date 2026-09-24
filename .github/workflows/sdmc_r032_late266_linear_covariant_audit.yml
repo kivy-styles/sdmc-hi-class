@@ -253,6 +253,11 @@ jobs:
           Path('output/linear_cov_boltzmann_comparison.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
           PY
 
+      - name: Local decoupling-limit screening proxy
+        if: always()
+        run: |
+          python3 sdmc/run_late266_local_screening_proxy.py
+
       - name: Preserve audit
         if: always()
         uses: actions/upload-artifact@v4
@@ -268,6 +273,7 @@ jobs:
             output/linear_cov_free_00_background.dat
             output/linear_cov_replay_comparison.json
             output/linear_cov_boltzmann_comparison.json
+            output/late266_local_screening_proxy.txt
             output/linear_cov_target_00_cl_lensed.dat
             output/linear_cov_free_00_cl_lensed.dat
             output/linear_cov_target_*pk.dat
