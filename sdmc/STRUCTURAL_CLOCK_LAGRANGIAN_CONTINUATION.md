@@ -11613,3 +11613,324 @@ more precise asymptotic template for the new native \(\ln a=10\) data.
 The next audit fits the native/exact canonical trajectory to this resonant
 template and tests whether the inferred matter-mode amplitude and intrinsic
 scalar-mode coefficient become constant in the mature regime.
+
+
+## 62. No-go theorem for a background-only derivation of the canonical shape
+
+The long-horizon closure makes it possible to ask a sharper question:
+
+\[
+\text{Can one single background structural identity derive both }
+\Gamma_\infty=1
+\text{ and }
+r=0?
+\]
+
+For the mature scale-covariant normal form
+
+\[
+G_2=\frac{f(Z)}{\sigma^2},
+\qquad
+G_3\to0,
+\qquad
+F\to F_\infty,
+\]
+
+the answer is no if the additional identity depends only on the homogeneous
+background energy, pressure, and geometry.
+
+At the coasting fixed point the exact background equations give
+
+\[
+\boxed{
+f(Z_\star)+Z_\star f_{,Z}(Z_\star)=0,
+}
+\]
+
+and
+
+\[
+\boxed{
+f_{,Z}(Z_\star)=2F_\infty.
+}
+\]
+
+Hence
+
+\[
+\boxed{
+f(Z_\star)=-2F_\infty Z_\star.
+}
+\]
+
+The structural energy is
+
+\[
+\rho_{\sigma,\star}
+=
+2Z_\star f_{,Z}(Z_\star)-f(Z_\star)
+=
+6F_\infty Z_\star,
+\]
+
+while
+
+\[
+p_{\sigma,\star}=f(Z_\star)=-2F_\infty Z_\star,
+\]
+
+so
+
+\[
+w_{\sigma,\star}=-\frac13.
+\]
+
+The covariant Balanced Identity fixes the remaining **normalization**
+
+\[
+\boxed{
+Z_\star=Z_{\rm BI},
+}
+\]
+
+or equivalently
+
+\[
+\boxed{
+\Gamma_\infty=1.
+}
+\]
+
+But none of these equations contains
+
+\[
+f_{,ZZ}(Z_\star).
+\]
+
+The mature shape modulus is precisely second-derivative data.  For the
+quadratic normal form,
+
+\[
+f(Z)=\kappa_1Z+\kappa_2Z^2-U_0,
+\]
+
+one has
+
+\[
+f_{,ZZ}=2\kappa_2,
+\]
+
+and therefore
+
+\[
+\boxed{
+r
+=
+\frac{Z_\star f_{,ZZ}(Z_\star)}
+{2F_\infty}.
+}
+\]
+
+Thus two theories can have the same
+
+\[
+Z_\star,
+\qquad
+f(Z_\star),
+\qquad
+f_{,Z}(Z_\star),
+\qquad
+\rho_\star,
+\qquad
+p_\star,
+\qquad
+H_\star,
+\qquad
+{\cal N}_\star,
+\]
+
+while possessing different \(r\).
+
+Their homogeneous mature background is identical, but their scalar response is
+different.
+
+This can be seen directly from
+
+\[
+\boxed{
+c_{s,\star}^2
+=
+\frac{
+f_{,Z}
+}{
+f_{,Z}+2Z_\star f_{,ZZ}
+}
+=
+\frac1{1+2r}.
+}
+\]
+
+Therefore \(r\) is an **off-shell/perturbative shape datum**, not a background
+normalization datum.
+
+This gives a useful no-go statement:
+
+\[
+\boxed{
+\text{No identity involving only the mature homogeneous }
+(\rho,p,H,R,S)
+\text{ state can uniquely select }r.
+}
+\]
+
+The Unified Balanced Identity can fix the gravitational normalization
+
+\[
+\Gamma_\infty=1,
+\]
+
+and inverse-square structural scaling with a frozen mapper fixes
+
+\[
+w_\infty=-\frac13,
+\]
+
+but a continuum of kinetic functions share those same background properties.
+
+### 62.1 The minimal extra condition that does select \(r=0\)
+
+The shape is fixed if one supplements the background state identity with an
+asymptotic response condition.
+
+The simplest such condition is exact mature scalar luminality,
+
+\[
+\boxed{
+c_{s,\infty}^2=1.
+}
+\]
+
+Using
+
+\[
+c_{s,\infty}^2=\frac1{1+2r}
+\]
+
+gives immediately
+
+\[
+\boxed{
+r=0.
+}
+\]
+
+Equivalently,
+
+\[
+\boxed{
+f_{,ZZ}(Z_{\rm BI})=0.
+}
+\]
+
+For the quadratic family this means
+
+\[
+\boxed{
+\kappa_2=0.
+}
+\]
+
+The two mature closure conditions can therefore be written in a particularly
+compact way:
+
+\[
+\boxed{
+{\cal I}_{\rm BI}
+=
+\frac{G_{\rm eff}\rho_XR^2}{c^2}
+=1,
+}
+\]
+
+and
+
+\[
+\boxed{
+c_s^2=1.
+}
+\]
+
+The first fixes the on-shell normalization,
+
+\[
+Z_\star=Z_{\rm BI},
+\]
+
+while the second fixes the local kinetic curvature,
+
+\[
+f_{,ZZ}(Z_\star)=0.
+\]
+
+Together they uniquely recover
+
+\[
+\boxed{
+G_{2,\infty}
+=
+\frac1{\sigma^2}
+\left(
+2F_\infty Z-4F_\infty Z_{\rm BI}
+\right).
+}
+\]
+
+### 62.2 A possible unified interpretation, but not yet a derivation
+
+These two equations may be viewed as two aspects of a single proposed
+**mature structural-vacuum recovery principle**:
+
+1. the active source has the same gravitational strength-radius relation as the
+original Unified Balanced Identity;
+
+2. small scalar disturbances recover the undeformed local causal cone of the
+canonical mature vacuum.
+
+Under that interpretation,
+
+\[
+{\cal I}_{\rm BI}=1
+\]
+
+fixes the background state and
+
+\[
+c_s^2=1
+\]
+
+fixes the perturbative response around that state.
+
+This is conceptually economical, but it must not be confused with a
+first-principles derivation.  The current manuscript establishes the
+consequences of these conditions and verifies that the accepted late action can
+reach them smoothly.  It does not yet derive both from one deeper symmetry or
+microscopic action.
+
+The result is nevertheless restrictive: any deeper SDMC principle that claims
+to produce the mature canonical endpoint must constrain **both**
+
+\[
+f(Z_\star)
+\ \text{and}\ 
+f_{,Z}(Z_\star)
+\]
+
+through the background equations and
+
+\[
+f_{,ZZ}(Z_\star)
+\]
+
+through the perturbative sector.
+
+A purely background variational condition is insufficient.
