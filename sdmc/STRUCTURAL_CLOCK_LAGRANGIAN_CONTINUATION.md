@@ -3781,3 +3781,364 @@ D>0,
 \]
 
 before the tail is admitted to a future-capable perturbation run.
+
+
+## 31. Future scalar perturbations of the mature coasting fixed point
+
+The background-level conditions
+
+\[
+D>0,
+\qquad
+c_s^2>0
+\]
+
+exclude ghost and gradient instabilities, but one can go further and ask
+whether the mature inverse-square branch admits any growing scalar curvature
+mode.
+
+For the Bellini-Sawicki curvature variable \(\zeta\), the quadratic action may
+be written schematically as
+
+\[
+S_\zeta^{(2)}
+=
+\int dt\,d^3x\,
+a^3 Q_s
+\left[
+\dot\zeta^2
+-
+c_s^2\frac{(\nabla\zeta)^2}{a^2}
+\right],
+\]
+
+with
+
+\[
+\boxed{
+Q_s
+=
+\frac{2FD}{(2-\alpha_B)^2}.
+}
+\]
+
+The Fourier-mode equation is therefore
+
+\[
+\boxed{
+\ddot\zeta_k
++
+\left(
+3H+\frac{\dot Q_s}{Q_s}
+\right)
+\dot\zeta_k
++
+c_s^2\frac{k^2}{a^2}\zeta_k
+=
+0.
+}
+\]
+
+At the mature inverse-square fixed point,
+
+\[
+\alpha_M\to0,
+\qquad
+\alpha_B\to0,
+\qquad
+F\to F_\infty,
+\]
+
+and Section 30 gave
+
+\[
+D_\infty=2(1+2r),
+\qquad
+c_{s,\infty}^2=\frac1{1+2r}.
+\]
+
+Hence
+
+\[
+\boxed{
+Q_{s,\infty}
+=
+F_\infty(1+2r)
+}
+\]
+
+is constant.
+
+Because mature coasting has
+
+\[
+a\propto t,
+\qquad
+H=\frac1t,
+\qquad
+aH=\text{constant},
+\]
+
+the dimensionless physical wavenumber
+
+\[
+\nu^2
+\equiv
+c_s^2\frac{k^2}{a^2H^2}
+\]
+
+is itself constant.  Writing
+
+\[
+\zeta_k\propto a^s
+\]
+
+gives
+
+\[
+\boxed{
+s^2+2s+\nu^2=0,
+}
+\]
+
+so
+
+\[
+\boxed{
+s_\pm
+=
+-1\pm\sqrt{1-\nu^2}.
+}
+\]
+
+This immediately separates the mature perturbations into two regimes.
+
+For
+
+\[
+\nu\ll1,
+\]
+
+the roots approach
+
+\[
+s_+\to0,
+\qquad
+s_-\to-2,
+\]
+
+so the super-horizon solution is a constant curvature mode plus a decaying
+
+\[
+a^{-2}
+\]
+
+mode.
+
+For
+
+\[
+\nu>1,
+\]
+
+the roots are
+
+\[
+s_\pm
+=
+-1
+\pm
+i\sqrt{\nu^2-1},
+\]
+
+so sub-horizon curvature perturbations oscillate with envelope
+
+\[
+\boxed{
+|\zeta_k|\propto a^{-1}.
+}
+\]
+
+There is therefore no growing scalar curvature mode at the mature fixed point.
+
+Tensor modes satisfy the same qualitative coasting equation because
+
+\[
+F\to\text{constant},
+\qquad
+c_T^2=1.
+\]
+
+Their long-wavelength branch consists of a constant mode plus a decaying mode,
+while finite-wavelength modes oscillate with a decaying envelope.
+
+Ordinary matter also becomes asymptotically subdominant,
+
+\[
+\frac{\rho_m}{\rho_X}
+\propto
+a^{-1}
+\to0.
+\]
+
+Its leading growth equation therefore tends to
+
+\[
+\ddot\delta_m+2H\dot\delta_m\simeq0,
+\]
+
+with asymptotic solutions
+
+\[
+\boxed{
+\delta_m
+=
+C_1+\frac{C_2}{t}.
+}
+\]
+
+Thus the mature branch does not generate a divergent future matter-growth
+mode either.
+
+## 32. Perturbation envelope through the finite future transition
+
+The mature analytic result does not by itself exclude transient amplification
+during the finite transition from the present accelerating branch to the
+coasting fixed point.  The released backgrounds were therefore used to evolve
+the curvature-mode equation directly over
+
+\[
+0\le\ln a\le6.
+\]
+
+Using e-fold time,
+
+\[
+\boxed{
+\zeta_{,NN}
++
+\left[
+3+\frac{d\ln H}{dN}
++\frac{d\ln Q_s}{dN}
+\right]
+\zeta_{,N}
++
+c_s^2
+\left(
+\frac{k}{aH}
+\right)^2
+\zeta
+=
+0.
+}
+\]
+
+For the bounded-activation tail, the exact background gives
+
+\[
+Q_s>0
+\]
+
+throughout the tested interval, with
+
+\[
+Q_{s,\min}\simeq0.19744,
+\]
+
+and the total damping coefficient obeys approximately
+
+\[
+\boxed{
+1.9994
+\lesssim
+3+\frac{d\ln H}{dN}
++\frac{d\ln Q_s}{dN}
+\lesssim
+11.63.
+}
+\]
+
+For the \(F_\infty\)-matched tail,
+
+\[
+Q_{s,\min}\simeq0.19744,
+\]
+
+and
+
+\[
+\boxed{
+2.0000
+\lesssim
+3+\frac{d\ln H}{dN}
++\frac{d\ln Q_s}{dN}
+\lesssim
+11.80.
+}
+\]
+
+The friction term is therefore positive over the full released transition in
+both candidates.
+
+Representative modes were initialized at the present endpoint with
+
+\[
+\zeta(0)=1,
+\qquad
+\frac{d\zeta}{dN}(0)=0.
+\]
+
+Using the present-horizon ratios
+
+\[
+\nu_0\equiv\frac{k}{H_0}
+=
+0,\ 0.1,\ 1,\ 10,
+\]
+
+no tested mode exceeded its initial amplitude.
+
+For the bounded-\(\chi\) future tail, the amplitudes at
+\(\ln a=6\) are approximately
+
+\[
+\zeta=
+1,\quad
+0.99776,\quad
+0.79573,\quad
+-1.14\times10^{-3},
+\]
+
+for the four representative \(\nu_0\) values respectively.
+
+For the \(F_\infty\)-matched tail, the corresponding values are
+
+\[
+\zeta=
+1,\quad
+0.99796,\quad
+0.81278,\quad
+-7.02\times10^{-4}.
+\]
+
+The maximum absolute amplitude in every tested case is
+
+\[
+\boxed{
+\max|\zeta|=1.
+}
+\]
+
+Thus the finite future transition shows no scalar-curvature transient
+amplification in this representative mode set, and the numerical solutions
+join smoothly onto the analytic mature behavior: a conserved long-wavelength
+mode and decaying finite-wavelength modes.
+
+Scientific status.  This closes a stronger future stability gate than the
+background \(D\) and \(c_s^2\) conditions alone.  It still does not replace a
+complete future multi-species Boltzmann integration, because the stock
+hi_class background table terminates at \(a=1\).  What has now been shown is
+that the released covariant background is ghost-free, gradient-stable, has a
+positive scalar kinetic normalization, and does not exhibit a growing
+curvature mode either during the tested transition or at the exact mature
+fixed point.
