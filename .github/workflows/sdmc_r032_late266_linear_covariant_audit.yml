@@ -236,8 +236,8 @@ jobs:
                   if np.any(mask):
                       out['Cl_'+labels[j-1]+'_max_frac_masked']=float(np.max(np.abs((b[mask,j]-a[mask,j])/a[mask,j])))
 
-          tp=sorted(Path('output').glob('linear_cov_target_00_pk*.dat'))
-          cp=sorted(Path('output').glob('linear_cov_free_00_pk*.dat'))
+          tp=sorted(Path('output').glob('linear_cov_target_*pk.dat'))
+          cp=sorted(Path('output').glob('linear_cov_free_*pk.dat'))
           out['pk_target_files']=len(tp); out['pk_cov_files']=len(cp)
           for i,(pt,pc) in enumerate(zip(tp,cp)):
               a=np.loadtxt(pt); b=np.loadtxt(pc)
@@ -270,6 +270,6 @@ jobs:
             output/linear_cov_boltzmann_comparison.json
             output/linear_cov_target_00_cl_lensed.dat
             output/linear_cov_free_00_cl_lensed.dat
-            output/linear_cov_target_00_pk*.dat
-            output/linear_cov_free_00_pk*.dat
+            output/linear_cov_target_*pk.dat
+            output/linear_cov_free_*pk.dat
           if-no-files-found: warn
