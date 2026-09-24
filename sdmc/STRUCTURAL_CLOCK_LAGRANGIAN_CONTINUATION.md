@@ -7698,3 +7698,236 @@ and the exact upper endpoint
 The next theoretical task is to determine whether that matching condition can
 itself be derived from a variational or microscopic statement, rather than
 adopted as an additional structural closure.
+
+
+## 49. Renormalized activation flow and the endpoint sum rule
+
+The covariant Balanced-Identity analysis shows that the physically relevant
+normalization variable is not \(\chi\) or \(F\) separately, but
+
+\[
+\boxed{
+\Gamma
+\equiv
+\frac{\chi}{F}.
+}
+\]
+
+It is useful to promote this combination to its own structural beta function.
+
+Define
+
+\[
+\beta_\Gamma
+\equiv
+\frac{d\ln\Gamma}{d\ln\sigma}.
+\]
+
+Since
+
+\[
+\beta_\chi
+=
+\frac{d\ln\chi}{d\ln\sigma}
+=
+2-m_X
+\]
+
+and
+
+\[
+\alpha_M
+=
+\frac{d\ln F}{d\ln a}
+=
+p\frac{d\ln F}{d\ln\sigma},
+\]
+
+we obtain the exact identity
+
+\[
+\boxed{
+\beta_\Gamma
+=
+2-m_X-\frac{\alpha_M}{p}.
+}
+\]
+
+Equivalently, using \(d\ln\sigma=p\,d\ln a\),
+
+\[
+\boxed{
+\frac{d\ln\Gamma}{d\ln a}
+=
+A_\chi-\alpha_M.
+}
+\]
+
+Thus the endpoint normalization is controlled by the integrated difference
+between activation growth and Planck-mass running,
+
+\[
+\boxed{
+\ln\frac{\Gamma_\infty}{\Gamma_0}
+=
+\int_{\sigma_0}^{\infty}
+\left(
+2-m_X-\frac{\alpha_M}{p}
+\right)d\ln\sigma.
+}
+\]
+
+This is the endpoint **sum rule**.
+
+At the accepted present point,
+
+\[
+\chi_0=0.94108957,
+\]
+
+\[
+F_0=1.02346657,
+\]
+
+so
+
+\[
+\boxed{
+\Gamma_0
+=
+\frac{\chi_0}{F_0}
+\simeq0.91951178.
+}
+\]
+
+The covariant Balanced-Identity endpoint requires
+
+\[
+\Gamma_\infty=1,
+\]
+
+and therefore the required integrated beta-function area is
+
+\[
+\boxed{
+\int\beta_\Gamma\,d\ln\sigma
+=
+-\ln\Gamma_0
+\simeq0.08391242.
+}
+\]
+
+The bare-source restoration endpoint instead has
+
+\[
+\Gamma_\infty=\frac1{F_\infty}
+\simeq0.97667178,
+\]
+
+which requires
+
+\[
+\boxed{
+\int\beta_\Gamma\,d\ln\sigma
+\simeq0.06030779.
+}
+\]
+
+The difference between the two endpoint areas is exactly
+
+\[
+\boxed{
+0.08391242-0.06030779
+=
+0.02360463334
+=
+\ln F_\infty.
+}
+\]
+
+This equality is not numerical coincidence.  The two closures differ only by
+whether the asymptotic activation acquires the additional factor \(F_\infty\).
+
+The released future actions satisfy the corresponding sum rules directly.
+
+At \(\ln a=10\), the \(F_\infty\)-matched branch has accumulated approximately
+
+\[
+\ln\frac{\Gamma}{\Gamma_0}
+\simeq0.08387418,
+\]
+
+already within about
+
+\[
+3.8\times10^{-5}
+\]
+
+of the exact covariant-matching area.
+
+The bounded-\(\chi\) branch gives approximately
+
+\[
+\ln\frac{\Gamma}{\Gamma_0}
+\simeq0.06026929,
+\]
+
+again within about
+
+\[
+3.9\times10^{-5}
+\]
+
+of its asymptotic target.
+
+The endpoint problem can therefore be restated in a particularly compact
+form:
+
+\[
+\boxed{
+\text{What microscopic dynamics fixes }
+\int\beta_\Gamma\,d\ln\sigma?
+}
+\]
+
+The local fixed-point equations determine
+
+\[
+\beta_\Gamma\to0
+\]
+
+but do not determine the total accumulated area.  That area is a global
+boundary-value datum.
+
+This clarifies why neither the mature stability conditions nor the local
+inverse-square normal form can choose the endpoint.  A local fixed point fixes
+the **slope** at the end of the flow; the Balanced-Identity closure fixes the
+**integrated normalization** of the entire flow.
+
+If the earlier Part-III ideal endpoint
+
+\[
+{\cal N}_\infty=\Xi_v
+\]
+
+is required to survive in the covariant completion, then the sum rule must take
+the \(0.08391242\) branch and therefore
+
+\[
+\boxed{
+\Gamma_\infty=1,
+\qquad
+\chi_\infty=F_\infty.
+}
+\]
+
+If instead the defining late condition is
+
+\[
+\rho_X\to\rho_v,
+\]
+
+then the \(0.06030779\) branch is selected.
+
+The next microscopic derivation should therefore target
+\(\beta_\Gamma\), rather than \(\chi\) and \(F\) independently.
