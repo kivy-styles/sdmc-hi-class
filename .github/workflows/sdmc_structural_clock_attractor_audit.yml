@@ -363,6 +363,33 @@ jobs:
           python3 sdmc/run_native_future_perturbation_summary.py || true
           test -f output/native_future_perturbation_summary.json && cat output/native_future_perturbation_summary.json || true
 
+      - name: Enforce native future gates
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json,sys
+          failures=[]
+          try:
+              h=json.load(open('output/native_future_health_summary.json'))
+              for name,row in h.get('runs',{}).items():
+                  if row.get('status')!='ok' or row.get('returncode') not in (0,None):
+                      failures.append(f'background:{name}:{row.get("status")} rc={row.get("returncode")}')
+          except Exception as e:
+              failures.append(f'background_summary:{e}')
+          try:
+              p=json.load(open('output/native_future_perturbation_summary.json'))
+              for name,row in p.get('runs',{}).items():
+                  if row.get('status')!='ok' or not row.get('all_endpoint_gates_pass',False):
+                      failures.append(f'perturbations:{name}:{row.get("status")} rc={row.get("returncode")}')
+          except Exception as e:
+              failures.append(f'perturbation_summary:{e}')
+          if failures:
+              print('NATIVE_FUTURE_GATE_FAILURE')
+              for x in failures: print(x)
+              sys.exit(1)
+          print('NATIVE_FUTURE_GATE_PASS')
+          PY
+
       - name: Preserve result
         if: always()
         uses: actions/upload-artifact@v4
