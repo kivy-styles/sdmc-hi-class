@@ -123,7 +123,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_covariant_linear_audit
-          parameters_smg = 0.0, 0.0, 0.0
+          parameters_smg = 0.0
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
