@@ -203,6 +203,11 @@ jobs:
         run: |
           python3 sdmc/run_structural_lapse_mapper_asymptotic_audit.py
 
+      - name: Run covariant Balanced-Identity closure audit
+        run: |
+          python3 sdmc/run_covariant_balanced_identity_closure_audit.py
+
+
       - name: Run mature fixed-point basin audit
         run: |
           python3 sdmc/run_mature_fixed_point_basin.py
@@ -430,6 +435,7 @@ jobs:
             output/matter_loaded_coasting_bridge.json
             output/mature_matter_forced_asymptotics.json
             output/structural_lapse_mapper_asymptotic_audit.json
+            output/covariant_balanced_identity_closure_audit.json
             output/mature_fixed_point_basin.json
             output/future_logstruct_tail_install.json
             output/native_future_health_summary.json
