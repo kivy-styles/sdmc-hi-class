@@ -253,6 +253,11 @@ jobs:
           Path('output/linear_cov_boltzmann_comparison.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
           PY
 
+      - name: Action-derived N, Km and Kp audit
+        if: always()
+        run: |
+          python3 sdmc/run_late266_structural_composite_audit.py
+
       - name: Local decoupling-limit screening proxy
         if: always()
         run: |
@@ -274,6 +279,7 @@ jobs:
             output/linear_cov_replay_comparison.json
             output/linear_cov_boltzmann_comparison.json
             output/late266_local_screening_proxy.txt
+            output/late266_structural_composite_audit.json
             output/linear_cov_target_00_cl_lensed.dat
             output/linear_cov_free_00_cl_lensed.dat
             output/linear_cov_target_*pk.dat
