@@ -12498,3 +12498,284 @@ equations determine the remaining coefficient.
 A deeper microscopic derivation would have to explain why the finite
 late-time Horndeski operators are generated during the activation era but
 decouple as the structural vacuum relaxes.
+
+
+## 66. Decoupling hierarchy of the finite Horndeski operators
+
+The successful canonical future stitch also shows explicitly how the
+non-minimal operators disappear.
+
+Write
+
+\[
+x\equiv\ln\sigma.
+\]
+
+The future tail is constructed in the rescaled \(G_2\) coefficients
+
+\[
+\bar k_1\equiv\sigma^2k_1,
+\qquad
+\bar k_2\equiv\sigma^2k_2,
+\qquad
+\bar V\equiv\sigma^2V.
+\]
+
+For the refined canonical continuation
+
+\[
+(\mu_{k_1},\mu_{k_2},\mu_V)
+=
+(50,5,120),
+\]
+
+the asymptotic tails have the form
+
+\[
+\bar k_1
+=
+2F_\infty
++
+e^{-50x}P_{k_1}(x),
+\]
+
+\[
+\bar k_2
+=
+e^{-5x}P_{k_2}(x),
+\]
+
+and
+
+\[
+\bar V
+=
+4F_\infty Z_{\rm BI}
++
+e^{-120x}P_V(x),
+\]
+
+where the \(P(x)\) are finite matching polynomials required to preserve the
+present action jet.
+
+The non-minimal gravitational sector relaxes as
+
+\[
+F
+=
+F_\infty
++
+e^{-\mu_Fx}P_F(x),
+\]
+
+with
+
+\[
+\boxed{
+\mu_F
+=
+5.57322517\ldots,
+}
+\]
+
+while the linear braiding coefficient obeys
+
+\[
+g
+=
+e^{-\mu_gx}P_g(x),
+\]
+
+with
+
+\[
+\boxed{
+\mu_g
+=
+\mu_F+1
+=
+6.57322517\ldots .
+}
+\]
+
+Returning to the physical \(G_2\) coefficients gives
+
+\[
+\boxed{
+k_1
+=
+\frac{2F_\infty}{\sigma^2}
++
+O\!\left(
+\sigma^{-52}\,\mathrm{poly}(\ln\sigma)
+\right),
+}
+\]
+
+\[
+\boxed{
+k_2
+=
+O\!\left(
+\sigma^{-7}\,\mathrm{poly}(\ln\sigma)
+\right),
+}
+\]
+
+and
+
+\[
+\boxed{
+V
+=
+\frac{4F_\infty Z_{\rm BI}}{\sigma^2}
++
+O\!\left(
+\sigma^{-122}\,\mathrm{poly}(\ln\sigma)
+\right).
+}
+\]
+
+Therefore the relative correction from the higher-kinetic operator
+
+\[
+k_2Z^2
+\]
+
+to the leading mature \(G_2\) density decays as
+
+\[
+\boxed{
+\sigma^{-5}\,\mathrm{poly}(\ln\sigma).
+}
+\]
+
+The \(F\) correction decays approximately as
+
+\[
+\sigma^{-5.573},
+\]
+
+and the braiding coefficient as
+
+\[
+\sigma^{-6.573}.
+\]
+
+### 66.1 Matter becomes the slow mode
+
+On the canonical attractor,
+
+\[
+\sigma
+\sim
+M_\infty a.
+\]
+
+Hence all of these finite-action transition remnants disappear at least as
+fast as approximately
+
+\[
+a^{-5}
+\]
+
+relative to the mature \(G_2\) sector.
+
+Ordinary conserved matter, however, produces the eigenmode
+
+\[
+\Omega_m
+\sim
+m_1a^{-1}.
+\]
+
+Its nonlinear self-coupling produces the slower resonant correction
+
+\[
+a^{-2}\ln a.
+\]
+
+Thus, once the canonical transition has completed,
+
+\[
+\boxed{
+a^{-1}
+\gg
+a^{-2}\ln a
+\gg
+a^{-5}
+}
+\]
+
+as \(a\to\infty\).
+
+The leading deviation from exact coasting is therefore **not** caused by a
+slowly dying Horndeski operator.  It is caused by the residual conserved
+matter component.
+
+This explains why the Section-63 resonant canonical formulas reproduce the
+long-horizon numerical trajectory with extremely high accuracy even though the
+full future action began from a noncanonical, braided scalar-tensor state.
+
+### 66.2 EFT interpretation
+
+The successful future action therefore realizes the minimal-derivative
+principle of Section 65 dynamically rather than by an abrupt projection.
+
+The finite late transition contains
+
+\[
+F_{,\sigma}\ne0,
+\qquad
+g\ne0,
+\qquad
+k_2\ne0,
+\]
+
+but the corresponding operators become irrelevant along the mature flow,
+
+\[
+F\to F_\infty,
+\qquad
+g\to0,
+\qquad
+k_2\to0.
+\]
+
+The surviving action is
+
+\[
+G_{2,\infty}
+=
+\frac1{\sigma^2}
+\left(
+2F_\infty Z
+-
+4F_\infty Z_{\rm BI}
+\right),
+\]
+
+\[
+G_{3,\infty}=0,
+\qquad
+G_{4,\infty}=\frac{F_\infty}{2}.
+\]
+
+In this sense the canonical mature theory acts as an infrared fixed action for
+the successful future completion.
+
+The numerical decay exponents used in the current stitch are not claimed to
+be fundamental renormalization-group critical exponents.  They are one
+explicit healthy interpolation compatible with the accepted present jet.
+
+What is robust is the hierarchy required for the interpretation:
+
+\[
+\boxed{
+\text{finite activation operators must decay faster than the physical
+matter eigenmode if the canonical mature attractor is to control the
+late-time expansion.}
+}
+\]
+
+The current continuation satisfies that requirement by a wide margin.
