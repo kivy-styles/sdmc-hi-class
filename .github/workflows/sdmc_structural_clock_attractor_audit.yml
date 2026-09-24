@@ -148,6 +148,10 @@ jobs:
         run: |
           python3 sdmc/run_future_scaling_flow_candidate.py
 
+      - name: Run C2 future action stitch design
+        run: |
+          python3 sdmc/run_future_action_stitch_design.py
+
       - name: Run structural current-root audit
         run: |
           python3 sdmc/run_structural_current_root_audit.py
@@ -199,6 +203,7 @@ jobs:
             output/structural_clock_linear_stability_audit.json
             output/structural_scaling_exponent_audit.json
             output/future_scaling_flow_candidate.json
+            output/future_action_stitch_design.json
             output/structural_current_root_audit.json
             output/mature_coasting_normal_form_audit.json
             output/mature_fixed_point_basin.json
