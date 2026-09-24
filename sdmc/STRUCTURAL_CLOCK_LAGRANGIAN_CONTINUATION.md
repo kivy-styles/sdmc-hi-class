@@ -1049,3 +1049,425 @@ provides a sharper expectation for that run: late perturbations should decay,
 while the early radiation/matter branch may require the tracker handoff and
 metric backreaction to carry the solution onto the mature structural
 attractor.
+
+
+## 16. Mature inverse-square coasting normal form
+
+The shift-current discussion above identifies an important limitation.  A
+strictly shift-symmetric constant-velocity root would generically drive
+\(P_{,Z}\to0\), which is cosmological-constant-like rather than the required
+mature SDMC coasting source.  The mature inverse-square branch instead suggests
+a scale-covariant, explicitly \(\sigma\)-dependent normal form.
+
+Take the asymptotic No-Slip/GR limit
+
+\[
+F\to F_\infty=\text{constant},
+\qquad
+F_{,\sigma}\to0,
+\qquad
+g\to0,
+\]
+
+and let the leading scalar Lagrangian be
+
+\[
+\boxed{
+G_2(\sigma,Z)
+=
+\frac{1}{\sigma^2}
+\left(
+\kappa_1 Z+\kappa_2 Z^2-U_0
+\right).
+}
+\]
+
+Assume the synchronized constant-velocity orbit
+
+\[
+\sigma=\frac{t-t_B}{t_\star},
+\qquad
+v_\star\equiv\dot\sigma=\text{constant},
+\qquad
+H=\frac{v_\star}{\sigma},
+\qquad
+Z_\star=\frac12v_\star^2.
+\]
+
+The homogeneous scalar equation then gives
+
+\[
+\boxed{
+U_0
+=
+2\kappa_1 Z_\star
++
+3\kappa_2 Z_\star^2.
+}
+\]
+
+The scalar energy density and pressure are
+
+\[
+\rho_\sigma
+=
+\frac{
+\kappa_1 Z_\star
++3\kappa_2Z_\star^2
++U_0
+}{\sigma^2},
+\]
+
+\[
+p_\sigma
+=
+\frac{
+\kappa_1 Z_\star
++\kappa_2Z_\star^2
+-U_0
+}{\sigma^2}.
+\]
+
+Using the constant-velocity field equation,
+
+\[
+\boxed{
+\rho_\sigma
+=
+\frac{
+3Z_\star(\kappa_1+2\kappa_2Z_\star)
+}{\sigma^2},
+}
+\]
+
+\[
+\boxed{
+p_\sigma
+=
+-\frac{
+Z_\star(\kappa_1+2\kappa_2Z_\star)
+}{\sigma^2}.
+}
+\]
+
+Therefore
+
+\[
+\boxed{
+w_\sigma=-\frac13.
+}
+\]
+
+This is a major structural closure: the same inverse-square dependence that
+defines the mature SDMC density produces the coasting equation of state
+directly from the scalar field equation.  The relation \(w=-1/3\) is not
+inserted separately.
+
+If this scalar sector dominates a spatially flat future and \(F_\infty\) is
+constant, the Friedmann equation gives
+
+\[
+\boxed{
+\kappa_1+2\kappa_2Z_\star=2F_\infty.
+}
+\]
+
+Consequently
+
+\[
+\rho_\sigma
+=
+\frac{6F_\infty Z_\star}{\sigma^2},
+\qquad
+p_\sigma
+=
+-\frac{2F_\infty Z_\star}{\sigma^2}.
+\]
+
+For the asymptotic k-essence normal form,
+
+\[
+P_{,Z}+2ZP_{,ZZ}
+=
+\frac{\kappa_1+6\kappa_2Z_\star}{\sigma^2},
+\]
+
+and the scalar sound speed is
+
+\[
+\boxed{
+c_s^2
+=
+\frac{\kappa_1+2\kappa_2Z_\star}
+{\kappa_1+6\kappa_2Z_\star}
+=
+\frac{F_\infty}
+{F_\infty+2\kappa_2Z_\star}.
+}
+\]
+
+Thus \(F_\infty>0\) and \(\kappa_2Z_\star>0\) give
+
+\[
+0<c_s^2<1.
+\]
+
+Unlike the pure shift-current \(P_{,Z}=0\) root, the inverse-square normal form
+can therefore support a finite positive propagation speed while retaining a
+constant structural velocity and exact coasting.
+
+Defining
+
+\[
+r\equiv\frac{\kappa_2Z_\star}{F_\infty},
+\]
+
+one may write
+
+\[
+c_s^2=\frac1{1+2r},
+\qquad
+\kappa_1=2F_\infty(1-r),
+\]
+
+\[
+U_0=F_\infty Z_\star(4-r).
+\]
+
+The region
+
+\[
+0<r<4
+\]
+
+has subluminal positive \(c_s^2\) and positive \(U_0\), while
+
+\[
+r>1
+\]
+
+also gives \(\kappa_1<0\).  The present reconstructed structural coefficient
+\(k_1\) becomes negative near \(z\simeq17.41\), so the sign pattern required by
+this candidate late normal form is already entered during the tracker-to-late
+handoff, although the full scale-covariant asymptote has not yet been reached.
+
+## 17. Present acceleration is not yet the mature normal form
+
+The accepted \(z\ge0\) reconstruction can be tested for proximity to the
+inverse-square normal form by examining
+
+\[
+\sigma^2k_1(\sigma),
+\qquad
+\sigma^2k_2(\sigma),
+\qquad
+\sigma^2V(\sigma).
+\]
+
+These quantities would tend to constants if the \(G_2\propto\sigma^{-2}\)
+normal form had already been reached.
+
+At the present endpoint the reconstructed logarithmic slopes are approximately
+
+\[
+\frac{d\ln|\sigma^2k_1|}{d\ln\sigma}
+\simeq-0.640,
+\]
+
+\[
+\frac{d\ln|\sigma^2k_2|}{d\ln\sigma}
+\simeq+0.681,
+\]
+
+\[
+\frac{d\ln|\sigma^2V|}{d\ln\sigma}
+\simeq+1.931.
+\]
+
+Meanwhile
+
+\[
+\frac{d\ln F}{d\ln\sigma}
+\simeq1.05\times10^{-3}.
+\]
+
+Thus the effective Planck mass is already close to frozen, but the reconstructed
+\(G_2\) sector is not yet in its mature \(\sigma^{-2}\) form.  In particular,
+the potential is still behaving much more like the nearly constant
+activation-supported source required by the present accelerating phase.
+
+This is consistent with the independently reconstructed activation rate,
+
+\[
+A_{\chi,0}\simeq1.99837,
+\]
+
+which is close to temporary cosmological-constant mimicry rather than the
+future coasting requirement
+
+\[
+A_\chi\to0.
+\]
+
+The present accepted action therefore describes the transient accelerating
+handoff.  The manuscript's mature coasting normal form is a future completion,
+not a property that should already hold at \(z=0\).
+
+## 18. Future lapse consistency and the role of the ideal structural coefficient
+
+The density identity derived earlier is
+
+\[
+{\cal N}
+=
+p\,\Xi_P
+\sqrt{\frac{\chi}{\Omega_X}},
+\qquad
+\Xi_P^2
+=
+\frac{8\pi G}{3}\rho_Pt_P^2.
+\]
+
+With the numerical Planck references used in the current structural audit,
+
+\[
+\boxed{
+\Xi_P\simeq2.89445,
+}
+\]
+
+which is essentially the manuscript's ideal flat-vacuum structural coefficient
+\(\Xi_v=\sqrt{8\pi/3}\).
+
+At the present accepted-action point,
+
+\[
+p_0=1.03421566,
+\qquad
+\chi_0=0.94108957,
+\qquad
+\Omega_{X0}=0.72374015,
+\]
+
+and therefore
+
+\[
+p_0\Xi_P
+\sqrt{\frac{\chi_0}{\Omega_{X0}}}
+=
+3.41350846,
+\]
+
+exactly reproducing the chronological lapse.
+
+Now consider the mature flat scalar-dominated normal form.  Then
+
+\[
+p\to1,
+\]
+
+and for constant \(F_\infty\),
+
+\[
+\Omega_X\to F_\infty.
+\]
+
+Hence
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\Xi_P
+\sqrt{\frac{\chi_\infty}{F_\infty}}.
+}
+\]
+
+This creates a useful consistency fork.
+
+If the activation factor is a literal bounded fraction and saturates at
+
+\[
+\chi_\infty=1,
+\]
+
+while ordinary gravity is recovered with
+
+\[
+F_\infty\simeq1,
+\]
+
+then
+
+\[
+\boxed{
+{\cal N}_\infty\simeq2.89445,
+}
+\]
+
+rather than the present chronological value \(3.41351\).
+
+Keeping
+
+\[
+{\cal N}_\infty=3.41351
+\]
+
+with \(F_\infty=1\) instead requires
+
+\[
+\boxed{
+\chi_\infty\simeq1.39082.
+}
+\]
+
+If \(F_\infty\) remained at its present value
+\(F_0\simeq1.02347\), the required value would be
+
+\[
+\chi_\infty\simeq1.42346.
+\]
+
+Therefore the three assumptions
+
+\[
+{\cal N}=\text{present constant forever},
+\qquad
+\chi_\infty\le1,
+\qquad
+F_\infty\simeq1
+\]
+
+cannot all hold simultaneously in the simplest flat scalar-dominated mature
+limit.
+
+This is not a contradiction in the current \(z\ge0\) reconstruction.  It says
+that the future completion must choose among several physically distinct
+possibilities:
+
+1. the structural lapse relaxes from its present value toward the ideal
+   \(\Xi_P\) value as activation saturates;
+2. \(\chi\) is an effective coupling rather than a strictly bounded fraction
+   and may exceed unity;
+3. the asymptotic modified-gravity bookkeeping keeps
+   \(\Omega_X\ne F_\infty\simeq1\);
+4. the simple chronological relation \(S/S_0=t/t_0\) is only an excellent
+   classical-history closure and is replaced by a slightly different future
+   linear branch.
+
+The first possibility has a particularly clean interpretation.  If
+\(\chi_\infty=F_\infty=1\),
+
+\[
+\frac{{\cal N}_\infty}{{\cal N}_0}
+\simeq0.84794.
+\]
+
+Thus the mature structural speed would be about \(15.2\%\) below the present
+chronological slope.  This is compatible with the manuscript's earlier
+distinction between the present structural coefficient near \(3.37\) and the
+ideal flat-vacuum coefficient near \(2.894\).
+
+The future asymptote therefore provides a new discriminator for the microscopic
+Lagrangian: it must determine whether \({\cal N}\) remains fixed, relaxes toward
+\(\Xi_P\), or is supported by a non-bounded effective activation coupling.
