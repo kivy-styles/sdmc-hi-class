@@ -119,6 +119,10 @@ jobs:
           output_verbose = 0
           EOF
           ./class output/free.ini
+      - name: Structural clock field redefinition audit
+        run: |
+          python3 sdmc/run_structural_field_redefinition_audit.py
+
       - name: Derive N Km Kp and activation
         run: |
           python3 sdmc/run_structural_composite_closure.py output/linear_cov_free_00_background.dat --out output/structural_composite_closure.json
@@ -141,3 +145,4 @@ jobs:
             output/linear_cov_reconstruction_summary.txt
             output/linear_cov_free_00_background.dat
             output/structural_composite_closure.json
+            output/structural_field_redefinition_audit.json
