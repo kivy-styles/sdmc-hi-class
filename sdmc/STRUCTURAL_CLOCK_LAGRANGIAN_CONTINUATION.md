@@ -2201,3 +2201,506 @@ The next covariant task is to realize this \(m_X\) flow through smooth
 future extensions of \(k_1(\sigma)\), \(k_2(\sigma)\), \(V(\sigma)\),
 \(g(\sigma)\), and \(F(\sigma)\), and then release the extension under native
 hi_class evolution rather than imposing \(m_X(\sigma)\) directly.
+
+
+## 24. The 2.860--2.894 mature-lapse bracket
+
+The earlier manuscript contains several nearby numbers that should remain
+separate.
+
+The structural one is
+
+\[
+\Xi_v=\sqrt{\frac{8\pi}{3}}=2.894405018\ldots,
+\]
+
+and Part III already identified
+
+\[
+{\cal N}_\infty=\Xi_v\simeq2.8944
+\]
+
+for the ideal late scalar-dominated canonical endpoint.
+
+Separately, Part VI contains an unrelated \(2.86\%\) growth-suppression entry,
+and Part IX contains an unrelated likelihood value
+\(\Delta\chi^2\simeq2.86998\).  Neither of those is a structural lapse.
+
+The current action-level completion nevertheless produces a genuine structural
+interval close to the remembered \(2.86\)--\(2.89\) range.
+
+For the accepted Planck-mass amplitude,
+
+\[
+F_\infty=e^{A_F},
+\qquad
+A_F=0.02360463334,
+\]
+
+so
+
+\[
+F_\infty=1.02388543.
+\]
+
+In the mature scalar-dominated branch,
+
+\[
+{\cal N}_\infty
+=
+\Xi_v\sqrt{\frac{\chi_\infty}{F_\infty}}.
+\]
+
+If the asymptotic activation lies in the natural interval
+
+\[
+1\le\chi_\infty\le F_\infty,
+\]
+
+then
+
+\[
+\boxed{
+2.860445
+\le
+{\cal N}_\infty
+\le
+2.894405.
+}
+\]
+
+The lower endpoint corresponds to
+
+\[
+\chi_\infty=1,
+\qquad
+F_\infty=1.02388543,
+\]
+
+while the upper endpoint corresponds to
+
+\[
+\chi_\infty=F_\infty
+\]
+
+or to the canonical limit
+
+\[
+\chi_\infty=F_\infty=1.
+\]
+
+Thus a structural range of approximately
+
+\[
+\boxed{
+{\cal N}_\infty\simeq2.86\text{--}2.89
+}
+\]
+
+arises naturally in the present covariant completion, even though the older
+manuscript's exact structural reference was the upper endpoint \(2.8944\).
+
+Relative to the accepted present lapse,
+
+\[
+{\cal N}_0=3.41350846,
+\]
+
+the corresponding mature structural-speed range is
+
+\[
+0.83798
+\lesssim
+\frac{{\cal N}_\infty}{{\cal N}_0}
+\lesssim
+0.84793.
+\]
+
+Since
+
+\[
+Z\propto{\cal N}^2,
+\]
+
+the mature kinetic density is therefore predicted to lie in the interval
+
+\[
+\boxed{
+0.70221
+\lesssim
+\frac{Z_\infty}{Z_0}
+\lesssim
+0.71898.
+}
+\]
+
+This sharpens the future completion problem: the present structural field need
+not stop; its homogeneous speed relaxes by only about \(15\)--\(16\%\), while
+its kinetic density relaxes by about \(28\)--\(30\%\), before settling on the
+mature coasting fixed point.
+
+## 25. Universal homogeneous attraction of the inverse-square fixed point
+
+The scale-covariant fixed point admits a stronger stability statement than the
+earlier frozen-background diagnostic.
+
+Take the asymptotic scalar-dominated action
+
+\[
+G_2(\sigma,Z)=\sigma^{-2}f(Z),
+\qquad
+G_3\to0,
+\qquad
+G_4\to\frac{F}{2},
+\]
+
+with constant positive \(F\).  The flat Friedmann equation gives
+
+\[
+H\sigma
+=
+\sqrt{
+\frac{2Zf_{,Z}-f}{3F}
+}.
+\]
+
+Define
+
+\[
+{\cal K}(Z)
+=
+f_{,Z}+2Zf_{,ZZ}.
+\]
+
+Using \(\ln\sigma\) as the evolution variable, the exact homogeneous scalar
+equation can be written
+
+\[
+\boxed{
+\frac{dZ}{d\ln\sigma}
+=
+-\frac{{\cal B}(Z)}{{\cal K}(Z)},
+}
+\]
+
+where
+
+\[
+\boxed{
+{\cal B}(Z)
+=
+3(H\sigma)f_{,Z}\sqrt{2Z}
++
+2f
+-
+4Zf_{,Z}.
+}
+\]
+
+At the mature coasting fixed point,
+
+\[
+f+Z_\star f_{,Z}=0,
+\]
+
+and the Friedmann amplitude requires
+
+\[
+f_{,Z}(Z_\star)=2F.
+\]
+
+These conditions imply
+
+\[
+H\sigma=\sqrt{2Z_\star}.
+\]
+
+Now perturb
+
+\[
+Z=Z_\star+\delta Z.
+\]
+
+Because
+
+\[
+\frac{d}{dZ}
+\left(2Zf_{,Z}-f\right)
+=
+{\cal K},
+\]
+
+one finds exactly at the fixed point
+
+\[
+{\cal B}_{,Z}\big|_\star
+=
+2{\cal K}_\star.
+\]
+
+Therefore
+
+\[
+\boxed{
+\frac{d\,\delta Z}{d\ln\sigma}
+=
+-2\,\delta Z.
+}
+\]
+
+Hence
+
+\[
+\boxed{
+\delta Z\propto\sigma^{-2}.
+}
+\]
+
+This decay exponent is independent of the detailed shape of \(f(Z)\).  The only
+local requirements are that the fixed point exists and that
+
+\[
+{\cal K}_\star>0.
+\]
+
+Since
+
+\[
+{\cal N}
+=
+t_PS_0\sqrt{2Z},
+\]
+
+small lapse perturbations satisfy
+
+\[
+\boxed{
+\frac{\delta{\cal N}}{{\cal N}}
+\simeq
+\frac12\frac{\delta Z}{Z_\star}
+\propto\sigma^{-2}.
+}
+\]
+
+Thus the mature structural lapse is not merely a consistent endpoint; within
+the scalar-dominated inverse-square normal form it is a genuine homogeneous
+attractor.
+
+For the quadratic family
+
+\[
+f(Z)
+=
+\kappa_1Z+\kappa_2Z^2-U_0,
+\]
+
+define
+
+\[
+r=\frac{\kappa_2Z_\star}{F}.
+\]
+
+Then
+
+\[
+c_{s,\star}^2=\frac1{1+2r}.
+\]
+
+If, only as a continuity reference, the asymptotic sound speed is chosen equal
+to the accepted present scalar value
+
+\[
+c_{s,0}^2\simeq0.138335,
+\]
+
+then
+
+\[
+\boxed{
+r\simeq3.11441.
+}
+\]
+
+For this value the positive-gradient region is
+
+\[
+\frac{Z}{Z_\star}
+>
+1-\frac1r
+\simeq0.67891,
+\]
+
+while the homogeneous kinetic coefficient remains positive already for
+
+\[
+\frac{Z}{Z_\star}
+>
+\frac{r-1}{3r}
+\simeq0.22630.
+\]
+
+A nonlinear basin integration of the exact scalar-dominated equations confirms
+convergence toward \(Z/Z_\star=1\) from representative initial values between
+\(0.70\) and \(2.0\).  For example, after
+\(\Delta\ln\sigma=3\), the \(r\simeq3.1144\) cases give approximately
+
+\[
+Z/Z_\star=0.99913
+\]
+
+from an initial value \(0.70\), and
+
+\[
+Z/Z_\star=1.00169
+\]
+
+from an initial value \(2.0\).
+
+The nonlinear result is consistent with the universal local law
+\(\delta Z\propto\sigma^{-2}\).
+
+This is stronger than the earlier late-time frozen-background stability test:
+the metric response is included through the scalar-dominated Friedmann
+constraint.  What remains to be demonstrated is that a smooth continuation of
+the accepted late266 Horndeski functions enters this normal-form basin without
+crossing \(D=0\), \(c_s^2=0\), or generating an unacceptable future singularity.
+
+## 26. Smooth covariant stitching conditions
+
+A future completion should leave the accepted \(z\ge0\) action unchanged and
+modify only the unobserved \(\sigma>1\) branch.
+
+A convenient variable is
+
+\[
+x=\ln\sigma.
+\]
+
+For any coefficient \(Q\) that must approach an inverse-square mature form,
+
+\[
+Q(\sigma)\longrightarrow Q_\infty\sigma^{-2},
+\]
+
+define the rescaled quantity
+
+\[
+\bar Q(x)=e^{2x}Q(x).
+\]
+
+A \(C^2\) future tail can be written
+
+\[
+\boxed{
+\bar Q(x)
+=
+Q_\infty
++
+e^{-\mu x}
+\left(
+A_0+A_1x+\frac12A_2x^2
+\right),
+\qquad x\ge0.
+}
+\]
+
+If the accepted action supplies the present value and first two derivatives
+
+\[
+\bar Q_0,\qquad
+\bar Q'_0,\qquad
+\bar Q''_0,
+\]
+
+then exact \(C^2\) matching at \(x=0\) requires
+
+\[
+\boxed{
+A_0=\bar Q_0-Q_\infty,
+}
+\]
+
+\[
+\boxed{
+A_1=\bar Q'_0+\mu A_0,
+}
+\]
+
+\[
+\boxed{
+A_2=\bar Q''_0+2\mu\bar Q'_0+\mu^2A_0.
+}
+\]
+
+This construction can be applied separately to the future
+\(k_1,k_2,V\) coefficients.
+
+For the Planck mass, which approaches a constant rather than an inverse-square
+law, the same formula is used directly on \(F(x)\) with \(F_\infty\) replacing
+\(Q_\infty\).
+
+The No-Slip relation should not be independently interpolated.  Once a smooth
+future \(F(\sigma)\) and a target kinetic branch \(Z(\sigma)\) are chosen,
+define
+
+\[
+\boxed{
+g(\sigma)
+=
+-\frac{F_{,\sigma}}{2Z(\sigma)}.
+}
+\]
+
+Then
+
+\[
+ZG_{3,Z}
+=
+Zg
+=
+-\frac12F_{,\sigma}
+\]
+
+remains exact by construction and \(g\to0\) automatically as
+\(F_{,\sigma}\to0\).
+
+Likewise, a \(C^2\) structural-speed relaxation from the present chronological
+kinetic density \(Z_0\) to the mature value \(Z_\infty\) can be represented by
+
+\[
+\boxed{
+Z(x)
+=
+Z_\infty
++
+(Z_0-Z_\infty)
+e^{-\mu_Zx}
+\left(
+1+\mu_Zx+\frac12\mu_Z^2x^2
+\right).
+}
+\]
+
+This satisfies
+
+\[
+Z(0)=Z_0,
+\qquad
+Z'(0)=0,
+\qquad
+Z''(0)=0,
+\]
+
+so it joins smoothly onto the presently constant-\(Z\) chronological branch,
+while
+
+\[
+Z\to Z_\infty
+\]
+
+in the future.
+
+The next numerical task is therefore well defined: construct these future
+coefficient tails from the actual accepted endpoint derivatives, release the
+extended action under native evolution, and test whether the solution reaches
+the universal inverse-square basin without imposing the target trajectory.
