@@ -53,6 +53,8 @@ out={
     "gravitational_weight_ratio":"Gamma=(G_eff*rho_X)/(G*rho_v)=chi/F",
     "active_radius_ratio":"R_X/R=sqrt(F/chi)=Gamma^(-1/2)",
     "mature_structural_coefficient":"Xi_active=sqrt(8*pi/3)*sqrt(Gamma)",
+    "Gamma_beta":"beta_Gamma=dlnGamma/dlnsigma=2-m_X-alpha_M/p",
+    "Gamma_sum_rule":"ln(Gamma_inf/Gamma_0)=integral beta_Gamma dlnsigma",
   },
   "closures":{
     "covariant_balanced_identity":{
@@ -82,9 +84,11 @@ out={
 
 for name,row in d["noslip_refined_candidates"].items():
     final=row["final"]
+    first=min(row["samples"],key=lambda x:abs(float(x["ln_a"])))
     chi=float(final["chi_action"])
     F=float(final["F"])
     gamma=chi/F
+    gamma0=float(first["chi_action"])/float(first["F"])
     rr=math.sqrt(F/chi)
     Xi_active=Xi*math.sqrt(gamma)
     N=float(final["N_struct"])
@@ -96,6 +100,11 @@ for name,row in d["noslip_refined_candidates"].items():
       "chi_action":chi,
       "F":F,
       "Gamma_action":gamma,
+      "Gamma_present":gamma0,
+      "integrated_beta_Gamma_to_final":math.log(gamma/gamma0),
+      "required_integral_for_covariant_match":-math.log(gamma0),
+      "required_integral_for_bare_source_match":
+        math.log((1./F_inf)/gamma0),
       "G_eff_rhoX_over_G_rhov":gamma,
       "R_active_over_R_structural":rr,
       "Xi_active_from_action":Xi_active,
@@ -112,7 +121,22 @@ OUT.parent.mkdir(parents=True,exist_ok=True)
 OUT.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 
 print("COVARIANT_BALANCED_IDENTITY_CLOSURE_AUDIT")
+out["flow_sum_rule"]={
+  "present_Gamma":next(iter(out["candidates"].values()))["Gamma_present"],
+  "covariant_match_required_area":
+    next(iter(out["candidates"].values()))["required_integral_for_covariant_match"],
+  "bare_source_required_area":
+    next(iter(out["candidates"].values()))["required_integral_for_bare_source_match"],
+  "area_difference":
+    next(iter(out["candidates"].values()))["required_integral_for_covariant_match"]
+    -next(iter(out["candidates"].values()))["required_integral_for_bare_source_match"],
+  "ln_F_inf":math.log(F_inf),
+}
+# Rewrite once more with the derived flow block included.
+OUT.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+
 for k,v in out["closures"].items():
     print("CLOSURE",k,json.dumps(v,sort_keys=True))
+print("FLOW_SUM_RULE",json.dumps(out["flow_sum_rule"],sort_keys=True))
 for name,row in out["candidates"].items():
     print("CANDIDATE",name,json.dumps(row,sort_keys=True))
