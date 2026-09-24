@@ -38,7 +38,7 @@ future-capable hi_class background.
 from pathlib import Path
 import json, math, re
 import numpy as np
-from scipy.interpolate import CubicSpline
+from scipy.interpolate import CubicSpline, PchipInterpolator
 from scipy.integrate import solve_ivp
 from scipy.optimize import brentq
 
@@ -531,10 +531,94 @@ for key in ["kineticity_smg","braiding_smg","M2_running_smg","c_s^2","kin (D)","
     if key in d:
         accepted_present_health[key]=float(np.asarray(d[key])[o][keep][i0])
 
+
+def release_trajectory(model,Nmax=10.,npts=2001):
+    sol=solve_ivp(lambda Ne,y:rhs_diag(Ne,y,model)[0],
+                  (0.,Nmax),[1.,v0],rtol=3e-9,
+                  atol=[1e-11,1e-14],max_step=.01,dense_output=True)
+    if not sol.success:
+        raise RuntimeError(sol.message)
+    NN=np.linspace(0.,Nmax,npts)
+    yy=sol.sol(NN)
+    diag=[rhs_diag(float(ne),[float(sig),float(v)],model)[1]
+          for ne,(sig,v) in zip(NN,yy.T)]
+    return NN,yy,diag
+
+def refine_noslip_model(model,yy,blend_rate=40.):
+    """
+    Use the released Z(sigma) trajectory to reconstruct the exact on-trajectory
+    No-Slip value g_NS=-F_,sigma/(2Z), while preserving the original future
+    tail's complete C2 jet at sigma=1.
+
+    The blend
+      W=1-exp(-u)(1+u+u^2/2), u=blend_rate*ln(sigma)
+    has W(0)=W'(0)=W''(0)=0 and tends to unity rapidly.
+    """
+    base=model["_base_action"]
+    sig=np.asarray(yy[0]); vel=np.asarray(yy[1])
+    x=np.log(sig); Ztraj=.5*vel*vel
+    zsp=PchipInterpolator(x,Ztraj,extrapolate=False)
+
+    xmax=max(12.,float(x[-1])+1.)
+    xg=np.linspace(0.,xmax,10001)
+    xclip=np.minimum(xg,x[-1])
+    Zg=np.asarray(zsp(xclip))
+    Zg[xg>x[-1]]=model["Z_inf"]
+
+    gns=np.empty_like(xg)
+    for i,(xx,zz) in enumerate(zip(xg,Zg)):
+        aq=base(math.exp(xx))
+        gns[i]=-aq["Fs"]/(2.*zz)
+    gnsp=CubicSpline(xg,gns,bc_type="natural")
+
+    def action(sigv):
+        aq=base(sigv).copy()
+        xx=max(0.,math.log(sigv))
+
+        # Baseline g and its x=ln(sigma) derivatives.
+        go=aq["g"]
+        go1=sigv*aq["gs"]
+        go2=sigv*sigv*aq["gss"]+sigv*aq["gs"]
+
+        gn=float(gnsp(xx))
+        gn1=float(gnsp(xx,1))
+        gn2=float(gnsp(xx,2))
+        de=gn-go; de1=gn1-go1; de2=gn2-go2
+
+        u=blend_rate*xx
+        ee=math.exp(-u)
+        W=1.-ee*(1.+u+.5*u*u)
+        W1=.5*blend_rate*ee*u*u
+        W2=.5*blend_rate*blend_rate*ee*(2.*u-u*u)
+
+        gx=go+W*de
+        gx1=go1+W1*de+W*de1
+        gx2=go2+W2*de+2.*W1*de1+W*de2
+
+        aq["g"]=gx
+        aq["gs"]=gx1/sigv
+        aq["gss"]=(gx2-gx1)/(sigv*sigv)
+        return aq
+
+    new=dict(model)
+    new["action"]=action
+    return new
+
+def build_refined_noslip_candidate(spec,iterations=2,blend_rate=40.):
+    model=build_candidate(spec)
+    model["_base_action"]=model["action"]
+    for _ in range(iterations):
+        _,yy,_=release_trajectory(model)
+        model=refine_noslip_model(model,yy,blend_rate=blend_rate)
+    return model
+
 results={}
+refined_results={}
 for spec in CANDIDATES:
     model=build_candidate(spec)
     results[spec["name"]]=evolve(model)
+    refined=build_refined_noslip_candidate(spec,iterations=2,blend_rate=40.)
+    refined_results[spec["name"]]=evolve(refined)
 
 out={
   "status":(
@@ -552,6 +636,7 @@ out={
     "hi_class_saved_health":accepted_present_health,
   },
   "candidates":results,
+  "noslip_refined_candidates":refined_results,
 }
 OUT.parent.mkdir(parents=True,exist_ok=True)
 OUT.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
@@ -559,6 +644,16 @@ OUT.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("FUTURE_HOMOGENEOUS_COVARIANT_STITCH_AUDIT")
 for name,r in results.items():
     print("CANDIDATE",name,json.dumps({
+      "present_check":r["present_eom_check"],
+      "target":r["asymptotic_target"],
+      "tail":r["tail_parameters"],
+      "health":r["health_diagnostics"],
+      "future":r["future_kinematics"],
+      "final":r["final"],
+    },sort_keys=True))
+
+for name,r in refined_results.items():
+    print("NOSLIP_REFINED",name,json.dumps({
       "present_check":r["present_eom_check"],
       "target":r["asymptotic_target"],
       "tail":r["tail_parameters"],
