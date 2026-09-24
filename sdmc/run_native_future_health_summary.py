@@ -28,6 +28,11 @@ RUNS={
     "rc":Path("output/native_future_bounded.rc"),
     "log":Path("output/native_future_bounded.log"),
   },
+  "legacy_canonical":{
+    "background":Path("output/native_future_canonical_00_background.dat"),
+    "rc":Path("output/native_future_canonical.rc"),
+    "log":Path("output/native_future_canonical.log"),
+  },
 }
 
 def read(path):
