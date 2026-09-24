@@ -7245,3 +7245,456 @@ Until such a condition is derived, the scientifically correct statement is
 
 for the two currently motivated endpoint normalizations, with no unique
 preferred value supplied by the mature covariant action alone.
+
+
+## 47. Covariant extension of the Unified Balanced Identity
+
+The remaining normalization zero mode can be tested against the oldest
+structural identity in the manuscript.
+
+The Part-I Unified Balanced Identity contains the bare inverse-square density
+
+\[
+\boxed{
+\rho_v=\frac{\rho_P}{S^2}
+}
+\]
+
+and the corresponding structural radius
+
+\[
+\boxed{
+R=\ell_P S
+=
+\frac{c}{\sqrt{G\rho_v}}.
+}
+\]
+
+The modern covariant action contains instead the positive active structural
+source
+
+\[
+\boxed{
+\rho_X=\chi\,\rho_v
+}
+\]
+
+and a non-minimal Planck-mass factor \(F\).  In the mature No-Slip limit,
+
+\[
+F\rightarrow F_\infty=\text{constant},
+\qquad
+g\rightarrow0,
+\]
+
+the background Friedmann weighting and the No-Slip effective Newton sector
+both carry the factor
+
+\[
+\boxed{
+\frac{G_{\rm eff}}{G}=\frac1F.
+}
+\]
+
+The active source therefore gravitates relative to the original Balanced
+Identity source with the dimensionless weight
+
+\[
+\boxed{
+\Gamma
+\equiv
+\frac{G_{\rm eff}\rho_X}
+{G\rho_v}
+=
+\frac{\chi}{F}.
+}
+\]
+
+This is exactly the same normalization variable isolated in Section 46.
+
+Define the gravitational radius associated with the active covariant source by
+
+\[
+R_X
+\equiv
+\frac{c}
+{\sqrt{G_{\rm eff}\rho_X}}.
+\]
+
+Using the original structural radius gives
+
+\[
+\boxed{
+\frac{R_X}{R}
+=
+\sqrt{\frac{F}{\chi}}
+=
+\Gamma^{-1/2}.
+}
+\]
+
+The mature structural coefficient is correspondingly
+
+\[
+\boxed{
+\frac{HR}{c}
+=
+\sqrt{\frac{8\pi}{3}}
+\sqrt{\Gamma}.
+}
+\]
+
+Since \(p\to1\) on the mature coasting attractor,
+
+\[
+\frac{HR}{c}
+\to
+{\cal N}_\infty.
+\]
+
+This produces a new candidate closure condition.
+
+If the covariant completion is required to preserve the Part-I statement that
+the radius column and density column describe the **same structural state
+after gravitational weighting is included**, then one should require
+
+\[
+\boxed{
+R_X=R.
+}
+\]
+
+Equivalently,
+
+\[
+\boxed{
+G_{\rm eff}\rho_X
+=
+G\rho_v.
+}
+\]
+
+This immediately gives
+
+\[
+\boxed{
+\Gamma_\infty=1,
+}
+\]
+
+hence
+
+\[
+\boxed{
+\chi_\infty=F_\infty
+}
+\]
+
+and therefore
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}
+=
+2.894405018\ldots .
+}
+\]
+
+This condition may be called the **covariant Balanced-Identity matching
+condition**.
+
+It should be distinguished from the alternative source-amplitude condition
+
+\[
+\boxed{
+\rho_X\to\rho_v,
+}
+\]
+
+which gives
+
+\[
+\chi_\infty=1
+\]
+
+and hence
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\frac{\sqrt{8\pi/3}}{\sqrt{F_\infty}}
+=
+2.86044513.
+}
+\]
+
+The difference between the two closures is now transparent.
+
+The lower endpoint restores the bare **source amplitude**,
+
+\[
+\rho_X=\rho_v,
+\]
+
+but because \(F_\infty>1\), its gravitational radius is
+
+\[
+\boxed{
+\frac{R_X}{R}
+=
+\sqrt{F_\infty}
+\simeq1.01187224.
+}
+\]
+
+Thus the active gravitational radius remains about
+
+\[
+\boxed{
+1.1872\%
+}
+\]
+
+larger than the original Balanced-Identity radius.
+
+The upper endpoint instead restores the bare **gravitational strength**,
+
+\[
+\frac{G}{F_\infty}\rho_X
+=
+G\rho_v,
+\]
+
+so the two radii coincide exactly.
+
+The released future trajectories show the distinction directly.  At
+\(\ln a=10\), the C3 No-Slip-refined \(F_\infty\)-matched branch has
+
+\[
+\frac{\chi}{F}
+\simeq0.99996176
+\]
+
+and therefore
+
+\[
+\frac{R_X}{R}
+\simeq1.00001912,
+\]
+
+already within about \(1.9\times10^{-5}\) of the covariant Balanced-Identity
+condition.
+
+The bounded-\(\chi\) branch instead has
+
+\[
+\frac{\chi}{F}
+\simeq0.97663417,
+\]
+
+with
+
+\[
+\frac{R_X}{R}
+\simeq1.01189172,
+\]
+
+and tends to the non-unit asymptotic value
+\(\sqrt{F_\infty}\).
+
+This result does **not** prove that \(\chi_\infty=F_\infty\).  It identifies the
+precise additional principle that selects the upper endpoint: the original
+Unified Balanced Identity must remain a single density-radius state after the
+covariant theory's effective gravitational coupling is included.
+
+If that principle is accepted as part of the covariant completion, the
+normalization zero mode is removed and the mature lapse is uniquely
+
+\[
+\boxed{
+{\cal N}_\infty=2.894405018\ldots .
+}
+\]
+
+If only the active source amplitude is required to return to the bare
+inverse-square density, the lower endpoint remains the appropriate closure.
+
+## 48. Why the Planck-to-radiation handoff does not yet fix the endpoint
+
+The early manuscript supplies a second possible source of normalization:
+the Planck boundary.
+
+The structural boundary is
+
+\[
+S_P=1,
+\qquad
+t_{s,P}=t_P,
+\qquad
+{\cal N}_P=1,
+\qquad
+\rho_{v,P}=\rho_P.
+\]
+
+However, Part III already showed that this boundary cannot be identified
+directly with the classical radiation tracker.
+
+The radiation tracker has
+
+\[
+p_r=2,
+\]
+
+and, for the accepted early exponential slope,
+
+\[
+{\cal N}_r
+=
+\Xi_v\lambda_e.
+\]
+
+For
+
+\[
+\lambda_e=20,
+\]
+
+this is approximately
+
+\[
+{\cal N}_r\simeq57.89,
+\]
+
+which is incompatible with imposing the classical tracker directly at
+
+\[
+{\cal N}_P=1.
+\]
+
+The manuscript therefore inserts a separate Planck-to-radiation transition
+with structural-to-radiation energy transfer \(J\),
+
+\[
+\dot\rho_\phi
++
+3H(1+w_\phi)\rho_\phi
+=
+-J,
+\]
+
+\[
+\dot\rho_r+4H\rho_r=+J.
+\]
+
+The structural density equation becomes
+
+\[
+2p
+=
+3(1+w_\phi)
++
+\frac{J}{H\rho_\phi},
+\]
+
+and the radiation fraction evolves according to
+
+\[
+\frac{d\ln(\rho_r/\rho_\phi)}{d\ln a}
+=
+2p-4+\frac{J}{H\rho_r}.
+\]
+
+Consequently, the Planck boundary fixes the initial structural normalization,
+but the accumulated transfer history
+
+\[
+\int J\,a^4\,dt
+\]
+
+controls how the classical thermal branch is reached.
+
+The exact structural reconstruction
+
+\[
+S(t_c)
+=
+1+
+\frac1{t_P}
+\int_{t_P}^{t_c}
+{\cal N}(t')\,dt'
+\]
+
+must simultaneously satisfy the density column of the Balanced Identity.
+Without a microscopic law for \(J\), or an action valid continuously through
+the nonclassical Planck-to-thermal transition, these equations do not supply a
+unique map from
+
+\[
+{\cal N}_P=1
+\]
+
+to the late normalization \(\Gamma_\infty\).
+
+Therefore the existing Planck-to-radiation handoff does **not** presently
+select either
+
+\[
+\chi_\infty=1
+\]
+
+or
+
+\[
+\chi_\infty=F_\infty.
+\]
+
+It constrains the topology of the history -- the classical radiation tracker
+must emerge only after a separate transition -- but it leaves an integrated
+normalization freedom because \(J(t)\) is not yet derived.
+
+This is useful because it isolates the remaining theoretical fork very
+cleanly:
+
+\[
+\boxed{
+\text{Planck boundary alone}
+\;\not\Rightarrow\;
+\Gamma_\infty.
+}
+\]
+
+The strongest currently available candidate for removing the mature
+normalization zero mode is instead the covariant Balanced-Identity condition
+
+\[
+\boxed{
+G_{\rm eff}\rho_X=G\rho_v,
+}
+\]
+
+which selects
+
+\[
+\boxed{
+\Gamma_\infty=1
+}
+\]
+
+and the exact upper endpoint
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}
+=
+2.894405018\ldots .
+}
+\]
+
+The next theoretical task is to determine whether that matching condition can
+itself be derived from a variational or microscopic statement, rather than
+adopted as an additional structural closure.
