@@ -55,7 +55,8 @@ CANDIDATES={
                           muQ=50.0,
                           mu_k1=50.0,
                           mu_k2=5.0,
-                          mu_V=120.0),
+                          mu_V=120.0,
+                          grid_power=2.0),
 }
 
 SEC_PER_GYR=1e9*365.25*86400.
@@ -250,8 +251,9 @@ N_p=N[past]
 gt_p=gt[past]; k1t_p=k1t[past]; k2t_p=k2t[past]
 V_p=V[past]; F_p=F[past]
 
-x_future=np.linspace(args.psi_max/args.future_points,
-                     args.psi_max,args.future_points)
+grid_power=float(spec.get("grid_power",1.0))
+u_future=np.arange(1,args.future_points+1,dtype=float)/args.future_points
+x_future=args.psi_max*u_future**grid_power
 gt_f=[]; k1t_f=[]; k2t_f=[]; V_f=[]; F_f=[]
 for x in x_future:
     sig,q=future_structural(float(x))
@@ -332,6 +334,8 @@ summary={
   "psi_max":float(psi_ext[-1]),
   "n_past":int(len(psi_p)),
   "n_future":int(len(x_future)),
+  "future_grid_power":grid_power,
+  "first_future_psi":float(x_future[0]),
   "t0_Mpc":t0,
   "N_inf":Ninf,
   "Z_inf_over_Z0":Zinf/Z0,
