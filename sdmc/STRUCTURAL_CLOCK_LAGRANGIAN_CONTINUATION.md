@@ -3563,3 +3563,221 @@ integration inside hi_class: the stock background solver terminates at
 \(\ln(a/a_0)=0\), so a separate future-capable numerical branch is still needed
 before the perturbation module itself can be propagated beyond the present
 epoch.
+
+
+## 31. C2-preserving iterative No-Slip refinement
+
+The first freely evolved future tails already gave a small physical No-Slip
+departure,
+
+\[
+|\alpha_B+2\alpha_M|\lesssim6\times10^{-5},
+\]
+
+but the residual can be reduced further without changing the accepted present
+action or its first two field derivatives.
+
+After releasing a candidate future tail, regard the resulting monotonic
+trajectory as
+
+\[
+Z=Z_{\rm rel}(\sigma).
+\]
+
+The exact on-trajectory No-Slip value of the cubic coefficient is
+
+\[
+\boxed{
+g_{\rm NS}(\sigma)
+=
+-\frac{F_{,\sigma}}
+{2Z_{\rm rel}(\sigma)}.
+}
+\]
+
+Directly replacing \(g\) by this expression would slightly change the future
+side of the \(C^2\) jet at \(\sigma=1\). Instead define
+
+\[
+x=\ln\sigma,
+\]
+
+and the blending function
+
+\[
+\boxed{
+W(x)
+=
+1-e^{-u}
+\left(
+1+u+\frac12u^2
+\right),
+\qquad
+u=\lambda_{\rm NS}x.
+}
+\]
+
+It satisfies
+
+\[
+W(0)=W'(0)=W''(0)=0,
+\]
+
+while
+
+\[
+W(x)\to1
+\]
+
+rapidly for \(x>0\).
+
+The refined cubic coefficient is therefore
+
+\[
+\boxed{
+g_{\rm ref}
+=
+g_{\rm base}
++
+W(x)
+\left(
+g_{\rm NS}-g_{\rm base}
+\right).
+}
+\]
+
+Consequently,
+
+\[
+g_{\rm ref}(1)=g_{\rm base}(1),
+\]
+
+\[
+g_{{\rm ref},\sigma}(1)
+=
+g_{{\rm base},\sigma}(1),
+\]
+
+and
+
+\[
+g_{{\rm ref},\sigma\sigma}(1)
+=
+g_{{\rm base},\sigma\sigma}(1).
+\]
+
+Thus the present accepted action and the complete \(C^2\) matching data are
+unchanged.
+
+A fixed-point iteration was then performed:
+
+\[
+g^{(n)}
+\longrightarrow
+Z^{(n)}_{\rm rel}(\sigma)
+\longrightarrow
+g^{(n+1)}_{\rm ref}.
+\]
+
+Using two refinement iterations and
+
+\[
+\lambda_{\rm NS}=40,
+\]
+
+the bounded-activation branch improves from
+
+\[
+\max|\alpha_B+2\alpha_M|
+\simeq5.7\times10^{-5}
+\]
+
+to approximately
+
+\[
+\boxed{
+9.3\times10^{-6},
+}
+\]
+
+while the \(F_\infty\)-matched branch improves from
+
+\[
+5.3\times10^{-5}
+\]
+
+to approximately
+
+\[
+\boxed{
+8.8\times10^{-6}.
+}
+\]
+
+In the independent refinement audit the numerical changes of the endpoint
+\(g\), \(g_{,\sigma}\), and \(g_{,\sigma\sigma}\) were zero at the quoted
+precision, as required by the construction.
+
+The full background-level Horndeski health conditions remain intact. For the
+refined bounded-\(\chi\) trajectory,
+
+\[
+D_{\min}\simeq0.38666113,
+\]
+
+and
+
+\[
+0.126971
+\lesssim
+c_s^2
+\lesssim
+0.21449.
+\]
+
+For the refined \(F_\infty\)-matched trajectory,
+
+\[
+D_{\min}\simeq0.38666113,
+\]
+
+and
+
+\[
+0.117446
+\lesssim
+c_s^2
+\lesssim
+0.20630.
+\]
+
+The present deceleration parameter is unchanged by the \(C^2\) refinement,
+
+\[
+q_0\simeq-0.53565562,
+\]
+
+and the mature structural endpoint is unchanged to the numerical accuracy of
+the test.
+
+This demonstrates that the small transient No-Slip error is not tied to the
+future coasting dynamics. It is mainly a choice of interpolation for
+\(g(\sigma)\), and it can be systematically driven downward while preserving
+the accepted endpoint jet.
+
+The next numerical promotion criterion is therefore stronger than approximate
+No-Slip. A future production tail can demand
+
+\[
+|\alpha_B+2\alpha_M|<10^{-5}
+\]
+
+throughout the released background, together with
+
+\[
+D>0,
+\qquad
+0<c_s^2<1,
+\]
+
+before the tail is admitted to a future-capable perturbation run.
