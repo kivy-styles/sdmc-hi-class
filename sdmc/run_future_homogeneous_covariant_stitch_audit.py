@@ -85,10 +85,10 @@ def read(path):
     return {n:a[:,i] for i,n in enumerate(names)}
 
 def coeffs_match(qder,qinf,mu):
-    # C2 exponential-polynomial tail:
-    # q=qinf+e^-mux(A0+A1 x+A2 x^2/2).
+    # Exponential-polynomial tail matching the complete supplied endpoint jet.
+    # Three derivatives give C2 matching; four give perturbation-ready C3.
     A=[]
-    for k in range(3):
+    for k in range(len(qder)):
         s=0.
         for j in range(k):
             s += math.comb(k,j)*((-mu)**(k-j))*A[j]
