@@ -4741,3 +4741,562 @@ q\to0^+
 as the matter loading disappears.  Tiny late sign reversals of \(q\) in a
 specific interpolation tail should therefore be treated as tail-shape
 transients rather than as a required feature of the mature SDMC fixed point.
+
+
+## 31. Perturbation-ready C3 stitching and near-exact future No-Slip
+
+The previous future tails matched the accepted action through second field
+derivatives at the present boundary.  That is sufficient for the homogeneous
+equations, but it is not the correct final smoothness requirement for a native
+hi_class perturbation implementation.
+
+The hi_class gravity-function module contains explicit
+\(G_{3,\phi\phi\phi}\) and \(G_{4,\phi\phi\phi}\) terms.  Therefore the future
+continuation of the present action should preserve the complete third-order
+field jet of \(G_3\) and \(G_4\).  In the structural variable
+\(x=\ln\sigma\), the future \(F\) and \(g\) tails are consequently upgraded to
+
+\[
+Q(x)
+=
+Q_\infty
++
+e^{-\mu x}
+\left(
+A_0+A_1x+\frac{A_2}{2}x^2+\frac{A_3}{6}x^3
+\right).
+\]
+
+For a prescribed present jet
+
+\[
+q_n
+\equiv
+\left.
+\frac{d^nQ}{dx^n}
+\right|_{x=0},
+\qquad n=0,1,2,3,
+\]
+
+the coefficients are fixed recursively by
+
+\[
+\boxed{
+A_n
+=
+q_n-\delta_{n0}Q_\infty
+-
+\sum_{j=0}^{n-1}
+{n\choose j}
+(-\mu)^{\,n-j}A_j.
+}
+\]
+
+This guarantees continuity of
+
+\[
+Q,\quad Q_{,x},\quad Q_{,xx},\quad Q_{,xxx}
+\]
+
+through the present boundary.
+
+For the accepted structural reconstruction the present \(x\)-derivatives are
+approximately
+
+\[
+F(0)=1.02346657,
+\]
+
+\[
+F_{,x}(0)=1.07891\times10^{-3},
+\]
+
+\[
+F_{,xx}(0)=-2.13347\times10^{-3},
+\]
+
+\[
+F_{,xxx}(0)=3.47914\times10^{-3}.
+\]
+
+The transformed cubic-braiding coefficient likewise has a finite third-order
+jet and is matched at the same order.
+
+The asymptotic No-Slip matching condition is modified only in its leading
+polynomial power.  With the C3 tails,
+
+\[
+F-F_\infty
+\sim
+\frac{A_3^{(F)}}{6}x^3e^{-\mu_Fx},
+\]
+
+while
+
+\[
+g
+\sim
+\frac{A_3^{(g)}}{6}x^3e^{-\mu_gx}.
+\]
+
+Since
+
+\[
+F_{,\sigma}
+=
+e^{-x}F_{,x},
+\]
+
+asymptotic No-Slip requires
+
+\[
+\boxed{
+\mu_g=\mu_F+1,
+}
+\]
+
+and
+
+\[
+\boxed{
+Z_\infty
+=
+\frac{
+\mu_F A_3^{(F)}
+}{
+2A_3^{(g)}
+}.
+}
+\]
+
+The fast positive C3 branches selected by the two mature structural endpoints
+are
+
+\[
+\boxed{
+\mu_F\simeq5.55458
+}
+\]
+
+for the bounded-\(\chi\) candidate and
+
+\[
+\boxed{
+\mu_F\simeq5.57323
+}
+\]
+
+for the \(F_\infty\)-matched candidate.
+
+The released trajectory can then be used to refine \(g\) toward the exact
+on-trajectory relation
+
+\[
+g_{\rm NS}(\sigma)
+=
+-\frac{F_{,\sigma}}{2Z(\sigma)}.
+\]
+
+To preserve the complete C3 jet of the accepted branch, the refinement is
+multiplied by
+
+\[
+\boxed{
+W(u)
+=
+1-e^{-u}
+\left(
+1+u+\frac{u^2}{2}+\frac{u^3}{6}
+\right),
+}
+\]
+
+with
+
+\[
+u=\lambda_{\rm NS}\ln\sigma.
+\]
+
+This satisfies
+
+\[
+W(0)=W'(0)=W''(0)=W'''(0)=0.
+\]
+
+A two-iteration release/refinement audit with
+\(\lambda_{\rm NS}=500\) gives
+
+\[
+\boxed{
+\max|\alpha_B+2\alpha_M|
+\simeq7.6\times10^{-8}
+}
+\]
+
+for the bounded-activation branch and
+
+\[
+\boxed{
+\max|\alpha_B+2\alpha_M|
+\simeq7.1\times10^{-8}
+}
+\]
+
+for the \(F_\infty\)-matched branch.
+
+The improved No-Slip matching leaves the background dynamics and scalar-health
+intervals essentially unchanged.  In the same local audit the bounded branch
+retains
+
+\[
+D_{\min}\simeq0.38666113,
+\]
+
+\[
+0.12697117
+\lesssim
+c_s^2
+\lesssim
+0.21447760,
+\]
+
+while the \(F_\infty\)-matched branch retains
+
+\[
+D_{\min}\simeq0.38666113,
+\]
+
+\[
+0.11744554
+\lesssim
+c_s^2
+\lesssim
+0.20628612.
+\]
+
+The C3 upgrade therefore removes a perturbation-level smoothness concern
+without changing the mature structural endpoint.
+
+## 32. Recovery of the No-Slip gravitational sector
+
+The hi_class Horndeski effective-gravity variables make the physical meaning of
+the refined future branch especially transparent.
+
+For \(c_T^2=1\), define
+
+\[
+\beta_1
+=
+\alpha_B+2\alpha_M.
+\]
+
+The quasi-static effective Newton coupling used by hi_class is
+
+\[
+G_{\rm eff}
+=
+\frac1F
+\left[
+1-
+\frac{
+\alpha_B\beta_1
+}{
+\alpha_B\beta_1-\beta_2
+}
+\right],
+\]
+
+with \(\beta_2\) the corresponding background combination.
+
+Thus exact No-Slip,
+
+\[
+\beta_1=0,
+\]
+
+immediately implies
+
+\[
+\boxed{
+G_{\rm eff}=\frac1F.
+}
+\]
+
+The gravitational slip simultaneously tends to
+
+\[
+\boxed{
+\eta_{\rm slip}=1.
+}
+\]
+
+The C3-refined future audit gives
+
+\[
+\max|F G_{\rm eff}-1|
+\lesssim1.45\times10^{-9}
+\]
+
+for the bounded branch and
+
+\[
+\max|F G_{\rm eff}-1|
+\lesssim1.35\times10^{-9}
+\]
+
+for the \(F_\infty\)-matched branch.
+
+The maximum slip departures are of the same order,
+
+\[
+\boxed{
+\max|\eta_{\rm slip}-1|
+\sim10^{-9}.
+}
+\]
+
+At the mature endpoint,
+
+\[
+F_\infty
+=
+1.02388543,
+\]
+
+so
+
+\[
+\boxed{
+G_{{\rm eff},\infty}
+=
+F_\infty^{-1}
+=
+0.97667178
+}
+\]
+
+in the current hi_class normalization.
+
+At the accepted present endpoint,
+
+\[
+F_0=1.02346657,
+\]
+
+which corresponds to
+
+\[
+F_0^{-1}=0.97707148.
+\]
+
+Therefore the remaining evolution of the effective gravitational normalization
+from the present branch to the mature branch is only
+
+\[
+\boxed{
+\frac{
+G_{{\rm eff},\infty}
+}{
+G_{{\rm eff},0}
+}
+-1
+\simeq
+-4.09\times10^{-4},
+}
+\]
+
+or about
+
+\[
+\boxed{
+-0.0409\%.
+}
+\]
+
+This is a useful structural result.  The late transition in
+\({\cal N}\) from \(3.4135\) toward \(2.86\)--\(2.89\) is not accompanied by a
+large residual modification of gravitational slip or the effective Newton
+sector.  The scalar becomes dynamically important through its structural
+energy while the metric coupling itself approaches a nearly frozen No-Slip
+limit.
+
+## 33. Future geometric regularity of the mature coasting attractor
+
+The inverse-square fixed point also gives a simple global future geometry.
+
+On the mature branch,
+
+\[
+p\to1,
+\qquad
+a(t)\propto t-t_B,
+\]
+
+so
+
+\[
+H
+=
+\frac1{t-t_B},
+\]
+
+and
+
+\[
+\dot H
+=
+-\frac1{(t-t_B)^2}.
+\]
+
+Therefore
+
+\[
+\boxed{
+q
+=
+-1-\frac{\dot H}{H^2}
+=
+0.
+}
+\]
+
+For a spatially flat FLRW metric the Ricci scalar is
+
+\[
+R_{\rm Ricci}
+=
+6(2H^2+\dot H),
+\]
+
+so the mature solution gives
+
+\[
+\boxed{
+R_{\rm Ricci}
+=
+\frac{6}{(t-t_B)^2}
+\rightarrow0.
+}
+\]
+
+The Kretschmann scalar is
+
+\[
+{\cal K}
+=
+12
+\left[
+(H^2+\dot H)^2+H^4
+\right].
+\]
+
+Because \(H^2+\dot H=0\) in exact coasting,
+
+\[
+\boxed{
+{\cal K}
+=
+\frac{12}{(t-t_B)^4}
+\rightarrow0.
+}
+\]
+
+Thus the mature fixed point contains no finite-future curvature blow-up; the
+curvature invariants decay toward zero.
+
+The future conformal interval is
+
+\[
+\Delta\eta_{\rm future}
+=
+\int_t^\infty
+\frac{dt'}{a(t')}.
+\]
+
+For
+
+\[
+a(t')\propto t'-t_B,
+\]
+
+this becomes
+
+\[
+\Delta\eta_{\rm future}
+\propto
+\int_t^\infty
+\frac{dt'}{t'-t_B},
+\]
+
+which diverges logarithmically.  Hence the exact mature coasting limit has
+
+\[
+\boxed{
+\Delta\eta_{\rm future}=\infty.
+}
+\]
+
+In particular, the asymptotic coasting branch does not possess the finite
+future event horizon characteristic of an eternal de-Sitter phase.
+
+The assumed scalar domination is also self-consistent.  In the mature branch,
+
+\[
+\rho_X\propto a^{-2},
+\]
+
+whereas
+
+\[
+\rho_m\propto a^{-3},
+\qquad
+\rho_r\propto a^{-4}.
+\]
+
+Therefore
+
+\[
+\frac{\rho_m}{\rho_X}\propto a^{-1}\to0,
+\]
+
+and
+
+\[
+\frac{\rho_r}{\rho_X}\propto a^{-2}\to0.
+\]
+
+At the same time,
+
+\[
+\frac{K_m}{K_{m0}}
+=
+\frac{K_p}{K_{p0}}
+=
+\frac{\sigma}{a}
+\]
+
+tends to a constant because the mature attractor has
+\(\sigma\propto a\).
+
+The future completion is therefore internally coherent at the background
+level:
+
+\[
+\boxed{
+\text{stable inverse-square scalar domination}
+\;\Longrightarrow\;
+q\to0,\;
+D>0,\;
+c_s^2>0,\;
+\eta_{\rm slip}\to1,\;
+G_{\rm eff}\to F_\infty^{-1},
+}
+\]
+
+with decaying curvature, frozen matter/baryon mapping ratios, and no finite
+future event horizon.
+
+The remaining numerical problem is no longer the existence or background
+health of the mature endpoint.  It is to propagate the actual hi_class scalar
+perturbation variables beyond the present boundary using this C3 future action,
+without redefining the observationally calibrated \(z\ge0\) branch.
