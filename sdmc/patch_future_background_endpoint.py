@@ -10,7 +10,7 @@ intentionally applied in the workflow only after all accepted z>=0 products
 have been generated.
 """
 from pathlib import Path
-import argparse
+import argparse,re
 
 ap=argparse.ArgumentParser()
 ap.add_argument("--loga-final",type=float,default=5.0)
@@ -23,14 +23,22 @@ s=p.read_text()
 old='  loga_final = 0.; // with our conventions, loga is in fact log(a/a_0); we integrate until today, when log(a/a_0) = 0'
 new=(f'  loga_final = {args.loga_final:.17e}; '
      '// SDMC FUTURE AUDIT: extend background table beyond a/a0=1')
-if old not in s:
-    if new in s:
-        print("FUTURE_BACKGROUND_ENDPOINT already installed")
-        raise SystemExit(0)
-    raise RuntimeError("unique CLASS loga_final anchor not found")
-if s.count(old)!=1:
-    raise RuntimeError(f"expected one loga_final anchor, found {s.count(old)}")
-s=s.replace(old,new,1)
+if old in s:
+    if s.count(old)!=1:
+        raise RuntimeError(f"expected one loga_final anchor, found {s.count(old)}")
+    s=s.replace(old,new,1)
+elif new in s:
+    print("FUTURE_BACKGROUND_ENDPOINT already installed")
+else:
+    # Allow a later audit step to lengthen/shorten an already isolated future
+    # endpoint without requiring a fresh checkout.
+    pat=(r'  loga_final = [-+0-9.eE]+; '
+         r'// SDMC FUTURE AUDIT: extend background table beyond a/a0=1')
+    ms=list(re.finditer(pat,s))
+    if len(ms)!=1:
+        raise RuntimeError(
+          f"unique CLASS future loga_final anchor not found (found {len(ms)})")
+    s=s[:ms[0].start()]+new+s[ms[0].end():]
 
 # Standard CLASS clamps all post-present background rows to z=0 because the
 # production table ends at today.  A genuine future table must instead remain
