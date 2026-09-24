@@ -224,6 +224,11 @@ def build_candidate(spec):
     Ninf=XI*math.sqrt(chiinf/FINF)
     Zinf=Z0*(Ninf/N0_STRUCT)**2
     r=spec["r"]; muQ=spec["muQ"]
+    mu_rates={
+      "k1":float(spec.get("mu_k1",muQ)),
+      "k2":float(spec.get("mu_k2",muQ)),
+      "V":float(spec.get("mu_V",muQ)),
+    }
 
     kappa1=2.*FINF*(1.-r)
     kappa2=r*FINF/Zinf
@@ -239,13 +244,13 @@ def build_candidate(spec):
     AFc=coeffs_match(bars["F"],FINF,muF)
     Agc=coeffs_match(g_xder,0.,mug)
     asym={"k1":kappa1,"k2":kappa2,"V":U0}
-    Aq={q:coeffs_match(bars[q],asym[q],muQ) for q in asym}
+    Aq={q:coeffs_match(bars[q],asym[q],mu_rates[q]) for q in asym}
 
     def action(sig):
         x=max(0.,math.log(sig))
         out={}
         for q in ["k1","k2","V"]:
-            qb=[tail_der(Aq[q],asym[q],muQ,x,j) for j in range(3)]
+            qb=[tail_der(Aq[q],asym[q],mu_rates[q],x,j) for j in range(3)]
             qx=[]
             for k in range(3):
                 qx.append(math.exp(-2.*x)*sum(
@@ -266,6 +271,7 @@ def build_candidate(spec):
 
     return {
       **spec,"N_inf":Ninf,"Z_inf":Zinf,"muF":muF,"mug":mug,
+      "mu_rates":mu_rates,
       "kappa1":kappa1,"kappa2":kappa2,"U0":U0,"action":action
     }
 
@@ -557,7 +563,9 @@ def evolve(model,Nmax=10.,npts=2001):
         "Z_inf_over_Z0":model["Z_inf"]/Z0,
       },
       "tail_parameters":{
-        "r":model["r"],"muQ":model["muQ"],"muF":model["muF"],
+        "r":model["r"],"muQ":model["muQ"],
+        "mu_rates":model.get("mu_rates",{"k1":model["muQ"],"k2":model["muQ"],"V":model["muQ"]}),
+        "muF":model["muF"],
         "mug":model["mug"],"kappa1":model["kappa1"],
         "kappa2":model["kappa2"],"U0":model["U0"],
       },
