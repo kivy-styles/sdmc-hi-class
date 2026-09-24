@@ -238,16 +238,60 @@ and conserved matter densities.
 
 ## 5. Activation factor as an action-derived composite
 
-For the structural-field action, the positive homogeneous active source has the
-same form as in the accepted linear-\(G_3\) reconstruction,
+For the structural-field action, two closely related density conventions must
+be kept separate. The **positive structural source** used to define the SDMC
+activation factor is the KGB-side density before the non-minimal Planck-mass
+term is folded into an effective dark source,
 
 \[
-\rho_X=
+\boxed{
+\rho_X^{\rm struct}=
 \widehat k_1 Z+3\widehat k_2 Z^2+\widehat V
 +6H\dot\sigma Z\widehat g
 -2Z^2\widehat g_{,\sigma}
+}.
+\]
+
+The background equation may equivalently be written
+
+\[
+3\widehat F H^2
+=
+\rho_m+\rho_r
++\rho_X^{\rm struct}
 -3H\dot{\widehat F}.
 \]
+
+Hence the quantity that appears as a single effective right-hand-side source is
+
+\[
+\boxed{
+\rho_X^{\rm eff}
+=
+\rho_X^{\rm struct}-3H\dot{\widehat F}.
+}
+\]
+
+The positive source used in the Part-V/Part-IX structural-density audit is
+
+\[
+\boxed{
+\frac{\rho_X^{\rm struct}}{3M_{\rm Pl}^2H_0^2}
+=
+E^2(F+F')
+-\Omega_{m0}a^{-3}
+-\Omega_{r0}a^{-4}.
+}
+\]
+
+This distinction resolves an otherwise confusing notation collision in the
+earlier continuation: the coefficient-level expression containing
+\(-3H\dot F\) is the metric-RHS effective source, whereas the source whose
+slope defines \(p_X\) and whose positivity is audited is
+\(\rho_X^{\rm struct}\). The two coincide only when \(\dot F=0\).
+
+In the remainder of the structural-clock discussion, \(\rho_X\) means
+\(\rho_X^{\rm struct}\) unless an eff superscript is written explicitly.
 
 The bare inverse-square SDMC density is
 
