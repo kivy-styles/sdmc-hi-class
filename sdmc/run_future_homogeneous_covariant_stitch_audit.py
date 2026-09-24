@@ -368,13 +368,37 @@ def evolve(model,Nmax=10.,npts=2001):
     cs=np.array([x["cs2_kessence_proxy"] for x in diag])
     Kh=np.array([x["Khom"] for x in diag])
 
+    # Exact Bellini-Sawicki stability functions for this Horndeski subclass.
+    aM=[]; aB=[]; aK=[]; Dfull=[]; matter_term=[]
+    for ne,(sig,v),dd in zip(NN,yy.T,diag):
+        aq=model["action"](float(sig))
+        Hn=dd["H"]; Z=.5*v*v; Fv=aq["F"]
+        am=v*aq["Fs"]/(Hn*Fv)
+        ab=2.*v*(Z*aq["g"]-.5*aq["Fs"])/(Hn*Fv)
+        ak=(2.*Z*(aq["k1"]+6.*aq["k2"]*Z-4.*Z*aq["gs"])
+            +12.*v*Z*Hn*aq["g"])/(Hn*Hn*Fv)
+        dfull=ak+1.5*ab*ab
+        rm=rho_m0*math.exp(-3.*ne)
+        rr=rho_r0*math.exp(-4.*ne)
+        aM.append(am); aB.append(ab); aK.append(ak); Dfull.append(dfull)
+        matter_term.append((rm+4.*rr/3.)/(Hn*Hn*Fv))
+    aM=np.asarray(aM); aB=np.asarray(aB); aK=np.asarray(aK)
+    Dfull=np.asarray(Dfull); matter_term=np.asarray(matter_term)
+    aBp=CubicSpline(NN,aB)(NN,1)
+    hfuture=CubicSpline(NN,np.log(HH))(NN,1)
+    cs2full=((2.-aB)*(-hfuture+.5*aB+aM)-matter_term+aBp)/Dfull
+    iD=int(np.argmin(Dfull)); ics=int(np.argmin(cs2full)); icsmax=int(np.argmax(cs2full))
+
     samples=[]
     for nt in [0.,.5,1.,2.,3.,5.,8.,10.]:
         j=int(np.argmin(abs(NN-nt)))
         row={k:float(v) for k,v in diag[j].items()
              if isinstance(v,(int,float,np.floating)) and np.isfinite(v)}
         row.update(ln_a=float(NN[j]),a=float(math.exp(NN[j])),
-                   sigma=float(yy[0,j]),delta_t_Gyr=float(dt[j]))
+                   sigma=float(yy[0,j]),delta_t_Gyr=float(dt[j]),
+                   alpha_M=float(aM[j]),alpha_B=float(aB[j]),
+                   alpha_K=float(aK[j]),D_horndeski=float(Dfull[j]),
+                   cs2_horndeski=float(cs2full[j]))
         samples.append(row)
 
     return {
@@ -402,6 +426,14 @@ def evolve(model,Nmax=10.,npts=2001):
         "max_abs_noslip_term_balance_at_ln_a":float(NN[imns]),
         "max_abs_alphaB_plus_2alphaM":float(nosa[imnsa]),
         "max_abs_alphaB_plus_2alphaM_at_ln_a":float(NN[imnsa]),
+        "min_D_horndeski":float(Dfull[iD]),
+        "min_D_horndeski_at_ln_a":float(NN[iD]),
+        "min_cs2_horndeski":float(cs2full[ics]),
+        "min_cs2_horndeski_at_ln_a":float(NN[ics]),
+        "max_cs2_horndeski":float(cs2full[icsmax]),
+        "max_cs2_horndeski_at_ln_a":float(NN[icsmax]),
+        "present_D_horndeski":float(Dfull[0]),
+        "present_cs2_horndeski":float(cs2full[0]),
       },
       "future_kinematics":{
         "q_max":float(qq[imax]),
@@ -426,8 +458,9 @@ for spec in CANDIDATES:
 out={
   "status":(
     "action-native homogeneous future audit; z>=0 action is unchanged. "
-    "These tails are not yet promoted because full Horndeski D/c_s^2 has "
-    "not yet been run in a future-capable hi_class background. The physical "
+    "The exact homogeneous Bellini-Sawicki D and c_s^2 functions are also "
+    "evaluated along the future trajectory. Full perturbation propagation in "
+    "a future-capable hi_class background remains outstanding. The physical "
     "No-Slip diagnostic is alpha_B+2 alpha_M; the separate term-balance "
     "ratio can look large when both terms are individually tiny."
   ),
