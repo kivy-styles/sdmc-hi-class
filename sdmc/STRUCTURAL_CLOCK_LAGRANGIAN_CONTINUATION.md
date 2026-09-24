@@ -4512,3 +4512,232 @@ the branch update, but its GitHub Actions result has not yet been independently
 retrieved.  Until that run is inspected, the action-level future health result
 above is the established result and the native hi_class result remains a
 pending implementation cross-check.
+
+
+## 32. Matter-loaded coasting bridge and an interior 2.869 reference
+
+The asymptotic structural interval
+
+\[
+2.860445
+\lesssim
+{\cal N}_\infty
+\lesssim
+2.894405
+\]
+
+can be viewed from another angle once the mature source has reached
+
+\[
+\rho_X\propto a^{-2},
+\qquad
+w_X=-\frac13,
+\qquad
+p=1.
+\]
+
+At the fluid level, with constant \(F\), conserved matter and radiation give
+
+\[
+H^2
+=
+H_X^2 a^{-2}
+\left(
+1+\frac{\mu_m}{a}+\frac{\mu_r}{a^2}
+\right),
+\]
+
+where
+
+\[
+\mu_m=\frac{\rho_{m,\rm ref}}{\rho_{X,\rm ref}},
+\qquad
+\mu_r=\frac{\rho_{r,\rm ref}}{\rho_{X,\rm ref}}.
+\]
+
+If the structural mapper has synchronized so that
+
+\[
+\sigma\propto a,
+\]
+
+then
+
+\[
+v=\dot\sigma=\sigma H,
+\]
+
+and consequently
+
+\[
+\boxed{
+\frac{{\cal N}(a)}{{\cal N}_\infty}
+=
+\sqrt{
+1+\frac{\mu_m}{a}+\frac{\mu_r}{a^2}
+}.
+}
+\]
+
+Residual matter and radiation therefore load the structural speed above the
+pure-scalar endpoint.
+
+The associated deceleration parameter is
+
+\[
+\boxed{
+q(a)
+=
+\frac12
+\frac{
+\mu_m/a+2\mu_r/a^2
+}{
+1+\mu_m/a+\mu_r/a^2
+}
+>0.
+}
+\]
+
+Equivalently,
+
+\[
+\boxed{
+\frac{d\ln{\cal N}}{d\ln a}=-q.
+}
+\]
+
+Thus an exact mature coasting source mixed with residual conserved matter does
+not approach \(q=0\) from the accelerating side.  It approaches from the
+weakly decelerating side while the matter loading disappears.
+
+This is a fluid-level mature-manifold relation, not yet an exact statement
+about the present accepted action.  The current universe still has
+
+\[
+w_{X0}\simeq-0.977
+\]
+
+rather than \(-1/3\), so applying the mature formula at \(a=1\) is only a
+diagnostic extrapolation.
+
+Using the accepted physical densities,
+
+\[
+\Omega_{m0}
+=
+\frac{\omega_b+\omega_c}{h^2}
+\simeq0.300756,
+\]
+
+\[
+\Omega_{r0}
+\simeq8.67\times10^{-5},
+\]
+
+and
+
+\[
+\Omega_{X0}=0.72374015,
+\]
+
+gives
+
+\[
+\mu_m\simeq0.415557,
+\qquad
+\mu_r\simeq1.198\times10^{-4}.
+\]
+
+If one asks which pure-scalar lapse would reproduce the present
+\({\cal N}_0=3.41350846\) through this mature matter-loading formula, the result
+is
+
+\[
+\boxed{
+{\cal N}_{\infty,\rm load}
+=
+\frac{{\cal N}_0}
+{\sqrt{1+\mu_m+\mu_r}}
+\simeq2.868923.
+}
+\]
+
+This value lies naturally inside the independently derived structural bracket,
+
+\[
+2.860445
+<
+2.868923
+<
+2.894405.
+\]
+
+It is about one quarter of the way from the bounded-\(\chi\) endpoint to the
+ideal \(\Xi_v\) endpoint.
+
+At the accepted
+
+\[
+F_\infty=1.02388543,
+\]
+
+this interior lapse corresponds through
+
+\[
+{\cal N}_\infty
+=
+\Xi_v
+\sqrt{\frac{\chi_\infty}{F_\infty}}
+\]
+
+to
+
+\[
+\boxed{
+\chi_\infty\simeq1.00594.
+}
+\]
+
+That is noteworthy because it is only about \(0.6\%\) above unity.  A future
+activation interpreted as an effective action-level coupling therefore does
+not have to rise all the way to \(F_\infty\simeq1.0239\) in order to land in
+the structural range suggested by the present matter loading.
+
+The comparison should not be overinterpreted.  The present action is not yet
+on the mature \(p=1,w=-1/3\) manifold, and \(F\), \(\chi\), and the scalar
+equation are still evolving.  The \(2.868923\) value is therefore a useful
+interior reference, not a newly selected fundamental constant.
+
+It should also be kept distinct from the historically unrelated likelihood
+number
+
+\[
+\Delta\chi^2_{\rm fair,Planck+DESI}
+\simeq2.86998,
+\]
+
+whose numerical proximity is coincidental.
+
+The matter-loaded bridge gives a new physical interpretation of why a
+\(2.86\)--\(2.89\) pure-scalar endpoint can coexist naturally with a present
+structural lapse near \(3.41\): part of the excess structural speed is simply
+the finite matter/radiation loading of a universe that has not yet reached its
+pure-scalar asymptote.
+
+It also supplies a new future-tail design criterion.  Once the inverse-square
+normal form is effectively reached, a physically clean continuation should
+prefer
+
+\[
+q\ge0
+\]
+
+while residual matter remains nonzero and should tend toward
+
+\[
+q\to0^+
+\]
+
+as the matter loading disappears.  Tiny late sign reversals of \(q\) in a
+specific interpolation tail should therefore be treated as tail-shape
+transients rather than as a required feature of the mature SDMC fixed point.
