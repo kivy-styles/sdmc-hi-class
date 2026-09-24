@@ -58,6 +58,7 @@ if miss: raise RuntimeError(f"missing columns {miss}")
 
 z=np.asarray(d["z"])
 ln_a=-np.log1p(z)
+proper_gyr=np.asarray(d["proper time [Gyr]"])
 H=np.asarray(d["H [1/Mpc]"])
 F=np.asarray(d["M*^2_smg"])
 alphaM=np.asarray(d["M2_running_smg"])
