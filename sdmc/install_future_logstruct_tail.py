@@ -279,11 +279,50 @@ if not np.all(np.diff(psi_ext)>0):
 if not np.all(np.diff(N_ext)>0):
     raise RuntimeError("extended N grid is not strictly increasing")
 
-spl={}
-for name,y in [("g",gt_ext),("k1",k1t_ext),("k2",k2t_ext),
-               ("V",V_ext),("F",F_ext)]:
-    spl[name]=CubicSpline(psi_ext,y)
-psiN=CubicSpline(N_ext,psi_ext)
+# Preserve the accepted z>=0 spline coefficients exactly.  Re-splining the
+# combined past+future knot set changes the last accepted intervals because a
+# cubic spline solves a global tridiagonal system; this matters for the very
+# fast canonical future release.  Build the accepted past and the future
+# continuation separately, then concatenate interval coefficients.
+past_data={
+  "g":gt_p,"k1":k1t_p,"k2":k2t_p,"V":V_p,"F":F_p
+}
+future_data={
+  "g":np.asarray(gt_f),"k1":np.asarray(k1t_f),"k2":np.asarray(k2t_f),
+  "V":np.asarray(V_f),"F":np.asarray(F_f)
+}
+coef={}
+join_jet={}
+xf=np.r_[0.,x_future]
+for name in ["g","k1","k2","V","F"]:
+    sp_p=CubicSpline(psi_p,past_data[name])
+    # The analytic structural tail was matched through C2 (G2) or C3 (F,g).
+    # Enforce the accepted second derivative at the table join so the stored
+    # representation is C2 there; the tiny clustered first future interval
+    # then makes the first-derivative mismatch numerically negligible.
+    y0=float(past_data[name][-1])
+    yfuture=np.r_[y0,future_data[name]]
+    second0=float(sp_p(0.,2))
+    sp_f=CubicSpline(
+      xf,yfuture,bc_type=((2,second0),"not-a-knot")
+    )
+    coef[name]=np.vstack([sp_p.c.T,sp_f.c.T])
+    join_jet[name]={
+      "past_d1":float(sp_p(0.,1)),
+      "future_d1":float(sp_f(0.,1)),
+      "d1_abs_mismatch":float(sp_f(0.,1)-sp_p(0.,1)),
+      "past_d2":second0,
+      "future_d2":float(sp_f(0.,2)),
+      "d2_abs_mismatch":float(sp_f(0.,2)-second0),
+    }
+
+# Preserve the accepted N->psi initial-condition spline as well.  The future
+# extension is exactly psi=N and is not used to reconstruct the accepted past.
+psiN_p=CubicSpline(N_p,psi_p)
+psiN_future_coef=np.asarray([
+  [0.,0.,1.,float(x)] for x in np.r_[0.,x_future[:-1]]
+])
+psiN_coef=np.vstack([psiN_p.c.T,psiN_future_coef])
 
 with HEADER.open("w") as f:
     f.write("#ifndef SDMC_LATE266_LOGSTRUCT_TABLE_H\n#define SDMC_LATE266_LOGSTRUCT_TABLE_H\n")
@@ -291,9 +330,9 @@ with HEADER.open("w") as f:
     f.write(f"#define SDMC_LS_T0 {t0:.17e}\n")
     f.write("static const double sdmc_ls_x[SDMC_LS_N] = {"+carr(psi_ext)+"};\n")
     f.write("static const double sdmc_ls_Nx[SDMC_LS_N] = {"+carr(N_ext)+"};\n")
-    for name,sp in spl.items():
-        f.write(f"static const double sdmc_ls_{name}[4*(SDMC_LS_N-1)] = "+"{"+carr(np.asarray(sp.c.T).reshape(-1))+"};\n")
-    f.write("static const double sdmc_ls_psiN[4*(SDMC_LS_N-1)] = {"+carr(np.asarray(psiN.c.T).reshape(-1))+"};\n")
+    for name,cc in coef.items():
+        f.write(f"static const double sdmc_ls_{name}[4*(SDMC_LS_N-1)] = "+"{"+carr(np.asarray(cc).reshape(-1))+"};\n")
+    f.write("static const double sdmc_ls_psiN[4*(SDMC_LS_N-1)] = {"+carr(np.asarray(psiN_coef).reshape(-1))+"};\n")
     f.write(r"""
 static int sdmc_ls_idx(const double *xarr,double x){
   int lo=0,hi=SDMC_LS_N-1;
@@ -336,6 +375,8 @@ summary={
   "n_future":int(len(x_future)),
   "future_grid_power":grid_power,
   "first_future_psi":float(x_future[0]),
+  "past_spline_preserved_exactly":True,
+  "join_jet_mismatch":join_jet,
   "t0_Mpc":t0,
   "N_inf":Ninf,
   "Z_inf_over_Z0":Zinf/Z0,
