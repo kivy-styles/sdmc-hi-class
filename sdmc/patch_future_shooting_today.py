@@ -4,9 +4,12 @@ Patch hi_class shooting targets so a dedicated future-background run still
 interprets "today" at log(a/a0)=0 after background_solve is extended to
 loga_final>0.
 
-Only the Omega_smg and M2_today_smg target readout is changed. The target is linearly interpolated at exact log(a/a0)=0 rather than taken from the nearest future-grid row.  Ordinary
-accepted runs are completed before this patch is applied in the experimental
-workflow.
+Only the Omega_smg and M2_today_smg target readout is changed.  The target is
+extrapolated to exact log(a/a0)=0 from the last two accepted-side (loga<=0)
+rows.  This is deliberate: a fast future-only action release can change the
+first loga>0 row strongly, and a two-sided interpolation would feed that
+unobserved future branch back into the shooting condition for today.
+Ordinary accepted runs are completed before this patch is applied.
 """
 from pathlib import Path
 
@@ -32,31 +35,34 @@ old=r'''    case Omega_smg:
         );
 '''
 new=r'''    case Omega_smg: {
-      int jlo_today_smg = -1;
+      int jhi_today_smg = -1;
       int jj_today_smg;
-      double w_today_smg, rho_today_smg, crit_today_smg;
-      for (jj_today_smg=0; jj_today_smg<ba.bt_size-1; jj_today_smg++) {
-        if (ba.loga_table[jj_today_smg] <= 0. &&
-            ba.loga_table[jj_today_smg+1] >= 0.) {
-          jlo_today_smg = jj_today_smg;
+      double x0_today_smg, x1_today_smg, w_today_smg;
+      double rho_today_smg, crit_today_smg;
+      /* Use only the accepted side of the boundary.  A future-only release
+         may be very fast just above a=1, so using a future row in the today
+         interpolation would contaminate the shooting target. */
+      for (jj_today_smg=0; jj_today_smg<ba.bt_size; jj_today_smg++) {
+        if (ba.loga_table[jj_today_smg] <= 0.)
+          jhi_today_smg = jj_today_smg;
+        else
           break;
-        }
       }
-      class_test(jlo_today_smg < 0,
+      class_test(jhi_today_smg < 1,
                  errmsg,
-                 "future audit could not bracket log(a/a0)=0 for Omega_smg shooting");
-      w_today_smg =
-        (0.-ba.loga_table[jlo_today_smg])/
-        (ba.loga_table[jlo_today_smg+1]-ba.loga_table[jlo_today_smg]);
+                 "future audit could not find two accepted-side rows for Omega_smg shooting");
+      x0_today_smg = ba.loga_table[jhi_today_smg-1];
+      x1_today_smg = ba.loga_table[jhi_today_smg];
+      w_today_smg = (0.-x0_today_smg)/(x1_today_smg-x0_today_smg);
       rho_today_smg =
-        (1.-w_today_smg)*ba.background_table[jlo_today_smg*ba.bg_size+ba.index_bg_rho_smg]
-        +w_today_smg*ba.background_table[(jlo_today_smg+1)*ba.bg_size+ba.index_bg_rho_smg];
+        (1.-w_today_smg)*ba.background_table[(jhi_today_smg-1)*ba.bg_size+ba.index_bg_rho_smg]
+        +w_today_smg*ba.background_table[jhi_today_smg*ba.bg_size+ba.index_bg_rho_smg];
       crit_today_smg =
-        (1.-w_today_smg)*ba.background_table[jlo_today_smg*ba.bg_size+ba.index_bg_rho_crit]
-        +w_today_smg*ba.background_table[(jlo_today_smg+1)*ba.bg_size+ba.index_bg_rho_crit];
+        (1.-w_today_smg)*ba.background_table[(jhi_today_smg-1)*ba.bg_size+ba.index_bg_rho_crit]
+        +w_today_smg*ba.background_table[jhi_today_smg*ba.bg_size+ba.index_bg_rho_crit];
       output[i] = rho_today_smg/pow(ba.H0,2) - ba.Omega0_smg;
       if (input_verbose > 2)
-        printf(" param[%i] = %e, Omega_smg(a=1 exact interp) = %.3e, %.3e, target = %.2e \\n",
+        printf(" param[%i] = %e, Omega_smg(a=1 past-side extrap) = %.3e, %.3e, target = %.2e \\n",
           ba.tuning_index_smg,
           ba.parameters_smg[ba.tuning_index_smg],
           rho_today_smg/crit_today_smg,
@@ -65,28 +71,27 @@ new=r'''    case Omega_smg: {
       break;
     }
     case M2_today_smg: {
-      int jlo_today_m2 = -1;
+      int jhi_today_m2 = -1;
       int jj_today_m2;
-      double w_today_m2, M2_today_interp;
-      for (jj_today_m2=0; jj_today_m2<ba.bt_size-1; jj_today_m2++) {
-        if (ba.loga_table[jj_today_m2] <= 0. &&
-            ba.loga_table[jj_today_m2+1] >= 0.) {
-          jlo_today_m2 = jj_today_m2;
+      double x0_today_m2, x1_today_m2, w_today_m2, M2_today_interp;
+      for (jj_today_m2=0; jj_today_m2<ba.bt_size; jj_today_m2++) {
+        if (ba.loga_table[jj_today_m2] <= 0.)
+          jhi_today_m2 = jj_today_m2;
+        else
           break;
-        }
       }
-      class_test(jlo_today_m2 < 0,
+      class_test(jhi_today_m2 < 1,
                  errmsg,
-                 "future audit could not bracket log(a/a0)=0 for M2 shooting");
-      w_today_m2 =
-        (0.-ba.loga_table[jlo_today_m2])/
-        (ba.loga_table[jlo_today_m2+1]-ba.loga_table[jlo_today_m2]);
+                 "future audit could not find two accepted-side rows for M2 shooting");
+      x0_today_m2 = ba.loga_table[jhi_today_m2-1];
+      x1_today_m2 = ba.loga_table[jhi_today_m2];
+      w_today_m2 = (0.-x0_today_m2)/(x1_today_m2-x0_today_m2);
       M2_today_interp =
-        (1.-w_today_m2)*ba.background_table[jlo_today_m2*ba.bg_size+ba.index_bg_M2_smg]
-        +w_today_m2*ba.background_table[(jlo_today_m2+1)*ba.bg_size+ba.index_bg_M2_smg];
+        (1.-w_today_m2)*ba.background_table[(jhi_today_m2-1)*ba.bg_size+ba.index_bg_M2_smg]
+        +w_today_m2*ba.background_table[jhi_today_m2*ba.bg_size+ba.index_bg_M2_smg];
       output[i] = M2_today_interp - ba.M2_today_smg;
       if (input_verbose > 2)
-        printf("M2(a=1 exact interp) = %e, want %e, param=%e\\n",
+        printf("M2(a=1 past-side extrap) = %e, want %e, param=%e\\n",
           M2_today_interp,
           ba.M2_today_smg,
           ba.parameters_smg[ba.tuning_index_2_smg]
@@ -95,7 +100,7 @@ new=r'''    case Omega_smg: {
     }
 '''
 if old not in s:
-    if "Omega_smg(a=1 exact interp)" in s:
+    if "Omega_smg(a=1 past-side extrap)" in s:
         print("FUTURE_SHOOTING_TODAY already installed")
         raise SystemExit(0)
     raise RuntimeError("future shooting target anchor not found")
