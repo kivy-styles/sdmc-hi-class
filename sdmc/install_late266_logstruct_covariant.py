@@ -162,7 +162,27 @@ gcode=r'''  else if (pba->gravity_model_smg == sdmc_v3_covariant_logstruct_audit
     sdmc_ls_eval(sdmc_ls_x,sdmc_ls_k2,phi,&k2,&k2p,&k2pp,&k2ppp);
     sdmc_ls_eval(sdmc_ls_x,sdmc_ls_V,phi,&V,&Vp,&Vpp,&Vppp);
     sdmc_ls_eval(sdmc_ls_x,sdmc_ls_F,phi,&F,&Fp,&Fpp,&Fppp);
-    V += 3.*pba->H0*pba->H0*pba->parameters_smg[0];
+    /* The shooting parameter is a numerical present-day closure term, not
+       a physical cosmological constant.  Keep it exactly constant throughout
+       the accepted psi<=0 branch, but switch it off C3-smoothly for psi>0 so
+       it cannot dominate a mature inverse-square potential at large sigma. */
+    {
+      double Vshoot = 3.*pba->H0*pba->H0*pba->parameters_smg[0];
+      double Tw=1.,Tw1=0.,Tw2=0.,Tw3=0.;
+      if (phi > 0.) {
+        const double muw=20.;
+        double u=muw*phi;
+        double ee=exp(-u);
+        Tw=ee*(1.+u+.5*u*u+u*u*u/6.);
+        Tw1=-muw*ee*u*u*u/6.;
+        Tw2=muw*muw*ee*(u*u*u-3.*u*u)/6.;
+        Tw3=muw*muw*muw*ee*(-u*u*u+6.*u*u-6.*u)/6.;
+      }
+      V += Vshoot*Tw;
+      Vp += Vshoot*Tw1;
+      Vpp += Vshoot*Tw2;
+      Vppp += Vshoot*Tw3;
+    }
 
     pgf->G2 = k1*X+k2*X*X-V;
     pgf->G2_X = k1+2.*k2*X;
