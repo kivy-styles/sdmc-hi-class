@@ -10622,3 +10622,435 @@ The recurring numbers can therefore be kept separate as
 
 This resolves the apparent numerical overlap without discarding any of the
 earlier derivations.
+
+
+## 61. Long-horizon native closure of the canonical endpoint
+
+The final precision test extends the native legacy-canonical branch from
+
+\[
+\ln a=5
+\]
+
+to
+
+\[
+\boxed{
+\ln a=10,
+\qquad
+a=2.20264658\times10^4.
+}
+\]
+
+The mature target is
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}
+=
+2.894405018\ldots,
+}
+\]
+
+\[
+\boxed{
+p_\infty=1,
+\qquad
+q_\infty=0,
+\qquad
+D_\infty=2,
+\qquad
+c_{s,\infty}^2=1.
+}
+\]
+
+The native hi_class background at the \(\ln a=10\) endpoint gives
+
+\[
+\boxed{
+{\cal N}
+=
+2.8943619267,
+}
+\]
+
+\[
+\boxed{
+p
+=
+0.9999850300,
+}
+\]
+
+\[
+\boxed{
+q
+=
+-1.45726\times10^{-5},
+}
+\]
+
+\[
+\boxed{
+D
+=
+1.9999401171,
+}
+\]
+
+and
+
+\[
+\boxed{
+c_s^2
+=
+0.999999999853.
+}
+\]
+
+The fractional lapse error is therefore
+
+\[
+\boxed{
+\frac{{\cal N}}{{\cal N}_\infty}-1
+=
+-1.48879\times10^{-5}.
+}
+\]
+
+The No-Slip combination at the final point is
+
+\[
+\boxed{
+\alpha_B+2\alpha_M
+\simeq
+-1.20\times10^{-23}.
+}
+\]
+
+Across the entire native future interval the health diagnostics remain
+
+\[
+\boxed{
+D_{\min}
+=
+0.479233>0,
+}
+\]
+
+\[
+\boxed{
+c_{s,\min}^2
+=
+0.250051>0.
+}
+\]
+
+The maximum native sound speed is
+
+\[
+\boxed{
+c_{s,\max}^2
+=
+1.000000000161.
+}
+\]
+
+The excess above unity is therefore only
+
+\[
+\boxed{
+1.61\times10^{-10},
+}
+\]
+
+which is at the level expected from the finite table/interpolation
+representation of an endpoint whose analytic \(r=0\) normal form has
+
+\[
+c_s^2\equiv1.
+\]
+
+### 61.1 Agreement with the exact homogeneous action
+
+The independently integrated C3 No-Slip-refined action with the future rates
+
+\[
+\boxed{
+\mu_{k_1}=50,
+\qquad
+\mu_{k_2}=5,
+\qquad
+\mu_V=120
+}
+\]
+
+is a strict feasible canonical solution.
+
+Its \(\ln a=10\) values are
+
+\[
+{\cal N}_{\rm action}
+=
+2.8943616600,
+\]
+
+\[
+p_{\rm action}
+=
+0.9999850208,
+\]
+
+\[
+q_{\rm action}
+=
+-1.49807\times10^{-5}.
+\]
+
+The native/action differences are only
+
+\[
+\boxed{
+\frac{
+{\cal N}_{\rm native}
+-
+{\cal N}_{\rm action}
+}{
+{\cal N}_{\rm action}
+}
+=
+9.21\times10^{-8},
+}
+\]
+
+\[
+\boxed{
+p_{\rm native}-p_{\rm action}
+=
+9.22\times10^{-9},
+}
+\]
+
+and
+
+\[
+\boxed{
+q_{\rm native}-q_{\rm action}
+=
+4.08\times10^{-7}.
+}
+\]
+
+Thus the native implementation is reproducing the independently integrated
+homogeneous Lagrangian trajectory, rather than merely approaching the same
+qualitative endpoint.
+
+The same refined action has
+
+\[
+\boxed{
+c_{s,\max}^2
+=
+1.0000000000000004,
+}
+\]
+
+which differs from exact unity only at double-precision floating-point level.
+Its minimum sound speed is
+
+\[
+c_{s,\min}^2
+=
+0.0477261,
+\]
+
+and
+
+\[
+D_{\min}
+=
+0.386661>0.
+\]
+
+This resolves the earlier \(10^{-7}\)-level sound-speed excess found for the
+nearby \((46,7,100)\) exploratory stitch.  That small excess belonged to a
+different finite transition profile, not to the canonical endpoint itself.
+The \((50,5,120)\) C3 No-Slip-refined continuation reaches the same \(r=0\)
+endpoint without a resolved action-level superluminal excursion.
+
+### 61.2 Native perturbations to \(\ln a=10\)
+
+The same canonical native branch was propagated to \(\ln a=10\) for
+
+\[
+k
+=
+10^{-4},
+\quad
+10^{-3},
+\quad
+10^{-2}
+\ {\rm Mpc}^{-1}.
+\]
+
+All stored perturbation columns remain finite.
+
+A stronger late-time metric gate was applied from approximately
+
+\[
+\ln a=5
+\]
+
+to
+
+\[
+\ln a=10.
+\]
+
+For the longest wavelength,
+
+\[
+k=10^{-4}\ {\rm Mpc}^{-1},
+\]
+
+the final metric potentials are only about
+
+\[
+\boxed{
+0.707
+}
+\]
+
+of their \(\ln a\simeq5.1\) amplitudes.
+
+For
+
+\[
+k=10^{-3}\ {\rm Mpc}^{-1},
+\]
+
+the ratio is approximately
+
+\[
+\boxed{
+5.93\times10^{-3},
+}
+\]
+
+and for
+
+\[
+k=10^{-2}\ {\rm Mpc}^{-1},
+\]
+
+approximately
+
+\[
+\boxed{
+6.84\times10^{-3}.
+}
+\]
+
+None of the three metric modes develops a late-time growth envelope.
+
+The raw synchronous structural-scalar variable also decreases over the same
+late interval.  Its final-to-start absolute-amplitude ratios are approximately
+
+\[
+\boxed{
+0.774,
+\quad
+0.0148,
+\quad
+0.0134
+}
+\]
+
+for the three increasing wavenumbers respectively.  These raw scalar values
+remain gauge-dependent and are therefore reported as diagnostics rather than
+used as a standalone physical stability definition.
+
+The strengthened long-horizon workflow returns
+
+\[
+\boxed{
+\texttt{NATIVE\_CANONICAL\_LONG\_HORIZON\_GATE\_PASS}.
+}
+\]
+
+### 61.3 Closure status
+
+At this stage the same mature solution has been reached through four
+independent routes:
+
+1. the covariant Balanced Identity fixes
+
+\[
+\Gamma_\infty=1
+\]
+
+and hence
+
+\[
+{\cal N}_\infty=\sqrt{8\pi/3};
+\]
+
+2. the legacy Part-VI condition
+
+\[
+\lambda_\ell=\sqrt2
+\]
+
+fixes the mature shape modulus
+
+\[
+r=0;
+\]
+
+3. the exact homogeneous Horndeski equations evolve the accepted present
+action toward that fixed point while remaining healthy;
+
+4. native hi_class background and scalar perturbation evolution reproduce the
+same trajectory through
+
+\[
+\ln a=10.
+\]
+
+The mature canonical candidate can therefore be written as
+
+\[
+\boxed{
+G_2
+=
+\frac1{\sigma^2}
+\left(
+2F_\infty Z
+-
+4F_\infty Z_{\rm BI}
+\right),
+\qquad
+G_3=0,
+\qquad
+G_4=\frac{F_\infty}{2},
+}
+\]
+
+with
+
+\[
+\boxed{
+Z_{\rm BI}
+=
+\frac{4\pi}{3t_P^2S_0^2}.
+}
+\]
+
+Within the present numerical precision tests, the remaining task is no longer
+to identify the mature endpoint.  It is to determine whether a deeper
+microscopic or variational principle can derive the Balanced-Identity
+normalization and the \(\lambda_\ell=\sqrt2\) shape condition from one common
+fundamental statement, rather than retaining them as two independently
+motivated structural boundary conditions.
