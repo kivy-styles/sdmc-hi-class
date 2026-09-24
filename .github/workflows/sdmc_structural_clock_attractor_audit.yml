@@ -156,6 +156,10 @@ jobs:
         run: |
           python3 sdmc/run_mature_coasting_normal_form_audit.py
 
+      - name: Run mature fixed-point basin audit
+        run: |
+          python3 sdmc/run_mature_fixed_point_basin.py
+
       - name: Install structural-clock field form
         run: |
           python3 sdmc/install_late266_logstruct_covariant.py
@@ -197,6 +201,7 @@ jobs:
             output/future_scaling_flow_candidate.json
             output/structural_current_root_audit.json
             output/mature_coasting_normal_form_audit.json
+            output/mature_fixed_point_basin.json
             output/structural_clock_attractor/structural_clock_attractor_audit.json
             output/structural_clock_attractor/*.log
             output/structural_clock_attractor/*_00_background.dat
