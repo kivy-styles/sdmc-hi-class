@@ -6986,3 +6986,262 @@ and therefore fixes one value inside the currently allowed
 \]
 
 interval.
+
+
+## 46. Why the mature action does not yet select a unique 2.86--2.89 endpoint
+
+The remaining endpoint ambiguity can now be isolated mathematically.
+
+The mature inverse-square normal form is
+
+\[
+G_2
+=
+\frac1{\sigma^2}
+\left(
+\kappa_1Z+\kappa_2Z^2-U_0
+\right),
+\qquad
+F\to F_\infty,
+\qquad
+g\to0.
+\]
+
+At the coasting fixed point define
+
+\[
+r
+\equiv
+\frac{\kappa_2Z_\star}{F_\infty}.
+\]
+
+The exact fixed-point relations are
+
+\[
+\boxed{
+\kappa_1
+=
+2F_\infty(1-r),
+}
+\]
+
+\[
+\boxed{
+\kappa_2
+=
+\frac{rF_\infty}{Z_\star},
+}
+\]
+
+and
+
+\[
+\boxed{
+U_0
+=
+F_\infty Z_\star(4-r).
+}
+\]
+
+The perturbative health of the fixed point depends on \(r\),
+
+\[
+D_\infty=2(1+2r),
+\]
+
+\[
+c_{s,\infty}^2=\frac1{1+2r},
+\]
+
+but not on the absolute value of \(Z_\star\).
+
+This exposes an exact normalization freedom.  For any positive constant
+\(\lambda\), the transformation
+
+\[
+\boxed{
+Z_\star\rightarrow\lambda Z_\star,
+}
+\]
+
+together with
+
+\[
+\boxed{
+\kappa_2\rightarrow\frac{\kappa_2}{\lambda},
+}
+\]
+
+\[
+\boxed{
+U_0\rightarrow\lambda U_0,
+}
+\]
+
+and unchanged
+
+\[
+F_\infty,\qquad r,\qquad\kappa_1
+\]
+
+leaves
+
+\[
+w_\sigma=-\frac13,
+\qquad
+D_\infty,
+\qquad
+c_{s,\infty}^2
+\]
+
+unchanged.
+
+But the structural lapse is
+
+\[
+{\cal N}_\infty
+=
+t_PS_0\sqrt{2Z_\star},
+\]
+
+so the same transformation gives
+
+\[
+\boxed{
+{\cal N}_\infty
+\rightarrow
+\sqrt{\lambda}\,{\cal N}_\infty.
+}
+\]
+
+Therefore coasting, No-Slip, ghost freedom, gradient stability, and the mature
+sound speed determine the **shape** of the fixed point but do not determine its
+absolute structural-clock normalization.
+
+This is why both
+
+\[
+{\cal N}_\infty=2.86044513
+\]
+
+and
+
+\[
+{\cal N}_\infty=2.89440502
+\]
+
+can belong to healthy mature actions.
+
+It is useful to isolate the normalization variable
+
+\[
+\boxed{
+\Gamma_\infty
+\equiv
+\frac{\chi_\infty}{F_\infty}.
+}
+\]
+
+The exact Planck identity gives
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}\,
+\sqrt{\Gamma_\infty}.
+}
+\]
+
+Thus the unresolved endpoint question is now one-dimensional:
+
+\[
+\boxed{
+\text{what fixes }\Gamma_\infty?
+}
+\]
+
+The mature normal form itself cannot answer this because \(Z_\star\) is a
+normalization zero mode of the fixed-point family.
+
+Two closures already studied correspond to two distinct normalization
+statements:
+
+\[
+\chi_\infty=1
+\]
+
+gives
+
+\[
+\Gamma_\infty=\frac1{F_\infty}
+\]
+
+and therefore
+
+\[
+{\cal N}_\infty=2.86044513,
+\]
+
+whereas
+
+\[
+\chi_\infty=F_\infty
+\]
+
+gives
+
+\[
+\Gamma_\infty=1
+\]
+
+and therefore
+
+\[
+{\cal N}_\infty=\sqrt{\frac{8\pi}{3}}
+=2.89440502.
+\]
+
+Neither follows from fixed-point stability alone.
+
+A value strictly between them would correspond to
+
+\[
+1<\chi_\infty<F_\infty
+\]
+
+or, equivalently,
+
+\[
+\frac1{F_\infty}
+<
+\Gamma_\infty
+<
+1.
+\]
+
+The remembered \(2.86\)--\(2.89\) band is therefore not a numerical accident.
+It is the image, under the exact Planck relation, of the remaining structural
+normalization freedom.
+
+The next derivation should consequently not perform another stability scan in
+\(r\).  That direction cannot remove the degeneracy.  The missing condition
+must come from physics that fixes the absolute normalization of the structural
+source relative to the effective Planck mass: for example the microscopic
+activation definition, a matching condition inherited from the
+tracker-to-structural handoff, or another independently stated SDMC identity.
+
+Until such a condition is derived, the scientifically correct statement is
+
+\[
+\boxed{
+2.86044513
+\le
+{\cal N}_\infty
+\le
+2.89440502
+}
+\]
+
+for the two currently motivated endpoint normalizations, with no unique
+preferred value supplied by the mature covariant action alone.
