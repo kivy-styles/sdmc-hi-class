@@ -1471,3 +1471,261 @@ ideal flat-vacuum coefficient near \(2.894\).
 The future asymptote therefore provides a new discriminator for the microscopic
 Lagrangian: it must determine whether \({\cal N}\) remains fixed, relaxes toward
 \(\Xi_P\), or is supported by a non-bounded effective activation coupling.
+
+
+## 19. Activation as the running of the rescaled action density
+
+The mature normal form also suggests a cleaner interpretation of the activation
+factor itself.  Define the rescaled active structural energy
+
+\[
+{\cal R}\equiv\sigma^2\rho_X.
+\]
+
+Because
+
+\[
+\rho_v=\frac{\rho_P}{S_0^2\sigma^2},
+\qquad
+\chi=\frac{\rho_X}{\rho_v},
+\]
+
+we have the exact identity
+
+\[
+\boxed{
+\chi
+=
+\frac{S_0^2}{\rho_P}\,{\cal R}.
+}
+\]
+
+Therefore the activation history is simply the running of the rescaled
+action-level energy:
+
+\[
+\boxed{
+A_\chi
+=
+\frac{d\ln{\cal R}}{d\ln a}.
+}
+\]
+
+Since
+
+\[
+p=\frac{d\ln\sigma}{d\ln a},
+\]
+
+one may also define a structural beta function,
+
+\[
+\boxed{
+\beta_\chi
+\equiv
+\frac{d\ln\chi}{d\ln\sigma}
+=
+\frac{A_\chi}{p}.
+}
+\]
+
+The mature coasting fixed point is
+
+\[
+\beta_\chi\to0,
+\]
+
+because \({\cal R}\) becomes constant when
+\(\rho_X\propto\sigma^{-2}\).
+
+At the accepted present point,
+
+\[
+A_{\chi,0}=1.99836914,
+\qquad
+p_0=1.03421566,
+\]
+
+so
+
+\[
+\boxed{
+\beta_{\chi,0}
+\simeq1.93226.
+}
+\]
+
+The reconstructed potential provides a striking cross-check.  At the same
+endpoint,
+
+\[
+\frac{d\ln(\sigma^2V)}{d\ln\sigma}
+\simeq1.93130,
+\]
+
+differing from \(\beta_{\chi,0}\) by only about
+
+\[
+9.5\times10^{-4}.
+\]
+
+Thus the present activation is almost entirely aligned with the running of the
+rescaled potential term.  This is exactly what should occur during a
+cosmological-constant-like phase: \(V\) is nearly constant while multiplication
+by \(\sigma^2\) makes the rescaled structural energy grow with a slope near
+two.
+
+The future activation problem can therefore be reframed without introducing an
+independent activation field:
+
+\[
+\boxed{
+\text{late activation}
+\quad\Longleftrightarrow\quad
+\text{RG-like flow of the reconstructed structural functions toward }
+G_2\propto\sigma^{-2}.
+}
+\]
+
+In this picture the microscopic theory must explain why the present
+near-constant-potential regime flows into the inverse-square normal form.  Once
+that flow completes,
+
+\[
+A_\chi\to0,
+\qquad
+\chi\to\chi_\infty,
+\qquad
+w_X\to-\frac13.
+\]
+
+## 20. Exact structural-lapse evolution equation
+
+The structural lapse admits two equivalent representations,
+
+\[
+{\cal N}=t_PS H p
+\]
+
+and
+
+\[
+{\cal N}
+=
+p\,\Xi_P
+\sqrt{\frac{\chi}{\Omega_X}}.
+\]
+
+Taking a logarithmic derivative with respect to \(a\) gives
+
+\[
+\boxed{
+A_{\cal N}
+\equiv
+\frac{d\ln{\cal N}}{d\ln a}
+=
+p-1-q
++
+\frac{d\ln p}{d\ln a},
+}
+\]
+
+where
+
+\[
+q=-1-\frac{\dot H}{H^2}.
+\]
+
+The density representation gives the equivalent relation
+
+\[
+\boxed{
+A_{\cal N}
+=
+\frac{d\ln p}{d\ln a}
++
+\frac12
+\left(
+A_\chi
+-
+\frac{d\ln\Omega_X}{d\ln a}
+\right).
+}
+\]
+
+These are identical because
+
+\[
+\frac{d\ln\Omega_X}{d\ln a}
+=
+A_\chi-2p+2(1+q).
+\]
+
+This equation clarifies the status of the chronological constant-lapse
+closure.  If
+
+\[
+A_{\cal N}=0,
+\]
+
+then
+
+\[
+\boxed{
+q
+=
+p-1
++
+\frac{d\ln p}{d\ln a}.
+}
+\]
+
+The present and past chronological branch approximately satisfies this
+relation.  A future relaxation of \({\cal N}\), however, can occur without
+breaking the structural framework; it corresponds to a controlled departure
+from this special constant-lapse trajectory during the final activation
+saturation.
+
+For the bounded-activation future example
+
+\[
+\chi_\infty=1,
+\qquad
+F_\infty=1,
+\qquad
+{\cal N}_\infty=\Xi_P,
+\]
+
+the required integrated change is
+
+\[
+\ln\frac{{\cal N}_\infty}{{\cal N}_0}
+\simeq-0.16495.
+\]
+
+Because \(p_\infty=1\),
+
+\[
+\boxed{
+\int_{a_0}^{\infty}
+\left(p-1-q\right)d\ln a
+\simeq-0.13130.
+}
+\]
+
+If \(p\) settles close to unity quickly, this becomes approximately
+
+\[
+\int_{a_0}^{\infty}q\,d\ln a
+\simeq0.1313.
+\]
+
+Thus the bounded-activation route naturally prefers some net future
+decelerating area before the universe settles to \(q\to0\).  This connects
+directly with the manuscript's earlier observation that the final coasting
+state may be approached from the weakly decelerating side rather than remaining
+eternally accelerating.
+
+The future asymptotic sign of \(q\) is therefore no longer merely qualitative:
+once the microscopic flow of \(\chi\), \(p\), and \(F\) is specified, the lapse
+evolution equation fixes the integrated approach to the mature coasting branch.
