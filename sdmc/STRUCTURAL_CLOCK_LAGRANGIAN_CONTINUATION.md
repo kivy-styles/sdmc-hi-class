@@ -3783,7 +3783,7 @@ D>0,
 before the tail is admitted to a future-capable perturbation run.
 
 
-## 31. Future scalar perturbations of the mature coasting fixed point
+## 32. Future scalar perturbations of the mature coasting fixed point
 
 The background-level conditions
 
@@ -4000,7 +4000,7 @@ C_1+\frac{C_2}{t}.
 Thus the mature branch does not generate a divergent future matter-growth
 mode either.
 
-## 32. Perturbation envelope through the finite future transition
+## 33. Perturbation envelope through the finite future transition
 
 The mature analytic result does not by itself exclude transient amplification
 during the finite transition from the present accelerating branch to the
@@ -4144,7 +4144,7 @@ curvature mode either during the tested transition or at the exact mature
 fixed point.
 
 
-## 30. Full Bellini-Sawicki health of the released future branch
+## 34. Full Bellini-Sawicki health of the released future branch
 
 The reduced homogeneous kinetic proxy can now be replaced by the exact
 Bellini-Sawicki functions for the accepted Horndeski subclass
@@ -4473,7 +4473,7 @@ shooting target anchored at the actual present epoch, and verify that hi_class
 reproduces the same future \(D\), \(c_s^2\), No-Slip, and structural-lapse
 trajectory directly from the log-structural action table.
 
-## 31. Isolated native-hi_class future test
+## 35. Isolated native-hi_class future test
 
 A dedicated future-only infrastructure has now been added without altering any
 of the accepted \(z\ge0\) likelihood products.
