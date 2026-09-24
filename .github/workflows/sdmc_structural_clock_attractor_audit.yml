@@ -13,7 +13,7 @@ on:
 jobs:
   structural-clock-attractor:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     permissions:
       contents: read
     steps:
@@ -196,7 +196,82 @@ jobs:
                     'max_dH_z100=',v.get('max_abs_deltaH_H_z100'))
           PY
 
+      - name: Prepare isolated future-capable hi_class background
+        run: |
+          python3 sdmc/patch_future_background_endpoint.py --loga-final 5
+          python3 sdmc/patch_future_shooting_today.py
+
+          cat > output/native_future.ini <<'EOF'
+          H0 = 69.45160505326464
+          omega_b = 0.02208511574370519
+          omega_cdm = 0.12298509428428875
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1197359302086e-9
+          n_s = 0.962555355281866
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_logstruct_audit
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 2.e-8
+          a_ini_test_qs_smg = 2.e-8
+          pert_ic_ini_z_ref_smg = 5.e7
+          a_min_stability_test_smg = 2.e-8
+          output_background_smg = 3
+          write background = yes
+          format = class
+          input_verbose = 0
+          background_verbose = 3
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+
+      - name: Native future hi_class matched-F endpoint
+        continue-on-error: true
+        run: |
+          python3 sdmc/install_future_logstruct_tail.py --candidate matched_chi_F --psi-max 8
+          make clean && make -j2 class
+          cp output/native_future.ini output/native_future_matched.ini
+          echo 'root = output/native_future_matched_' >> output/native_future_matched.ini
+          set +e
+          ./class output/native_future_matched.ini > output/native_future_matched.log 2>&1
+          rc=$?
+          echo "$rc" > output/native_future_matched.rc
+          cat output/native_future_matched.log
+          exit $rc
+
+      - name: Native future hi_class bounded-activation endpoint
+        continue-on-error: true
+        run: |
+          python3 sdmc/install_future_logstruct_tail.py --candidate bounded_chi --psi-max 8
+          make clean && make -j2 class
+          cp output/native_future.ini output/native_future_bounded.ini
+          echo 'root = output/native_future_bounded_' >> output/native_future_bounded.ini
+          set +e
+          ./class output/native_future_bounded.ini > output/native_future_bounded.log 2>&1
+          rc=$?
+          echo "$rc" > output/native_future_bounded.rc
+          cat output/native_future_bounded.log
+          exit $rc
+
+      - name: Summarize native future health
+        if: always()
+        run: |
+          python3 sdmc/run_native_future_health_summary.py || true
+          test -f output/native_future_health_summary.json && cat output/native_future_health_summary.json || true
+
       - name: Preserve result
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sdmc-structural-clock-attractor-audit
@@ -212,6 +287,14 @@ jobs:
             output/structural_current_root_audit.json
             output/mature_coasting_normal_form_audit.json
             output/mature_fixed_point_basin.json
+            output/future_logstruct_tail_install.json
+            output/native_future_health_summary.json
+            output/native_future_matched.log
+            output/native_future_matched.rc
+            output/native_future_matched_00_background.dat
+            output/native_future_bounded.log
+            output/native_future_bounded.rc
+            output/native_future_bounded_00_background.dat
             output/structural_clock_attractor/structural_clock_attractor_audit.json
             output/structural_clock_attractor/*.log
             output/structural_clock_attractor/*_00_background.dat
