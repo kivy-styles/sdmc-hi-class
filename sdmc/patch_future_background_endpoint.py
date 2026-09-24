@@ -4,9 +4,10 @@ Patch the CLASS background integration endpoint into the future for a dedicated
 SDMC background-only audit.
 
 Upstream CLASS/hi_class fixes log(a/a0)_final=0, i.e. today.  This experiment
-changes only that endpoint.  It is intentionally applied in the workflow after
-all accepted z>=0 products have been generated and is reverted before the
-ordinary structural-clock basin test.
+changes that endpoint and releases the background redshift table from the
+standard z>=0 clamp so future rows carry their physical -1<z<0 values.  It is
+intentionally applied in the workflow only after all accepted z>=0 products
+have been generated.
 """
 from pathlib import Path
 import argparse
@@ -29,5 +30,22 @@ if old not in s:
     raise RuntimeError("unique CLASS loga_final anchor not found")
 if s.count(old)!=1:
     raise RuntimeError(f"expected one loga_final anchor, found {s.count(old)}")
-p.write_text(s.replace(old,new,1))
+s=s.replace(old,new,1)
+
+# Standard CLASS clamps all post-present background rows to z=0 because the
+# production table ends at today.  A genuine future table must instead remain
+# one-to-one in log(a), z and tau; otherwise the z/tau spline receives a long
+# repeated z=0 plateau and the SMG post-processing interpolation becomes
+# ill-defined.
+zold='  pba->z_table[index_loga] = MAX(0.,1./a-1.);'
+znew='  pba->z_table[index_loga] = 1./a-1.; /* SDMC FUTURE AUDIT: allow -1<z<0 */'
+if zold in s:
+    if s.count(zold)!=1:
+        raise RuntimeError(f"expected one redshift clamp anchor, found {s.count(zold)}")
+    s=s.replace(zold,znew,1)
+elif znew not in s:
+    raise RuntimeError("future redshift-table anchor not found")
+
+p.write_text(s)
 print("FUTURE_BACKGROUND_ENDPOINT",args.loga_final)
+print("FUTURE_BACKGROUND_REDSHIFT_UNCLAMP installed")
