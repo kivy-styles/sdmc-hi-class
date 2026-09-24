@@ -325,12 +325,19 @@ jobs:
           P_k_max_h/Mpc = 0.02
           z_pk = 0
           k_output_values = 0.0001, 0.001, 0.01
+          write parameters = yes
+          write warnings = yes
+          input_verbose = 1
+          perturbations_verbose = 1
+          output_verbose = 1
           root = output/native_future_perturb_matched_
           EOF
           set +e
           ./class output/native_future_perturb_matched.ini > output/native_future_perturb_matched.log 2>&1
           rc=$?
           echo "$rc" > output/native_future_perturb_matched.rc
+          echo "NATIVE_FUTURE_OUTPUT_FILE_LIST"
+          find output -maxdepth 1 -type f -printf '%f\n' | sort | grep -E 'native_future|perturbations' || true
           cat output/native_future_perturb_matched.log
           exit $rc
 
@@ -348,12 +355,19 @@ jobs:
           P_k_max_h/Mpc = 0.02
           z_pk = 0
           k_output_values = 0.0001, 0.001, 0.01
+          write parameters = yes
+          write warnings = yes
+          input_verbose = 1
+          perturbations_verbose = 1
+          output_verbose = 1
           root = output/native_future_perturb_bounded_
           EOF
           set +e
           ./class output/native_future_perturb_bounded.ini > output/native_future_perturb_bounded.log 2>&1
           rc=$?
           echo "$rc" > output/native_future_perturb_bounded.rc
+          echo "NATIVE_FUTURE_OUTPUT_FILE_LIST"
+          find output -maxdepth 1 -type f -printf '%f\n' | sort | grep -E 'native_future|perturbations' || true
           cat output/native_future_perturb_bounded.log
           exit $rc
 
