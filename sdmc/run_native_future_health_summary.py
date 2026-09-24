@@ -101,7 +101,23 @@ for name,paths in RUNS.items():
         continue
     jf=np.where(future)[0]
 
-    j0=int(np.argmin(np.abs(N)))
+    # Evaluate the present endpoint at exact ln(a/a0)=0 rather than using
+    # the nearest row of the future-extended uniform background grid.
+    def at0(y):
+        return float(CubicSpline(N,y)(0.0))
+    H0_exact=math.exp(float(CubicSpline(N,np.log(H))(0.0)))
+    psi0_exact=at0(psi)
+    sig0_exact=math.exp(psi0_exact)
+    phip0_exact=at0(phip)
+    dotpsi0_exact=phip0_exact
+    p0_exact=dotpsi0_exact/H0_exact
+    Nstruct0_exact=TP_MPC*S0*sig0_exact*dotpsi0_exact
+    q0_exact=-1.-float(CubicSpline(N,np.log(H))(0.0,1))
+    F0_exact=at0(F)
+    D0_exact=at0(D)
+    cs0_exact=at0(cs)
+    ns0_exact=at0(ns)
+
     jend=jf[-1]
     jD=jf[np.argmin(D[jf])]
     jcs=jf[np.argmin(cs[jf])]
@@ -150,11 +166,12 @@ for name,paths in RUNS.items():
       "log_tail":log_tail,
       "future_extent":{"ln_a_max":float(N[jend]),"a_max":float(a[jend])},
       "present":{
-        "ln_a":float(N[j0]),"H":float(H[j0]),"psi":float(psi[j0]),
-        "sigma":float(sig[j0]),"N_struct":float(Nstruct[j0]),
-        "p":float(pstruct[j0]),"q":float(q[j0]),"F":float(F[j0]),
-        "D":float(D[j0]),"cs2":float(cs[j0]),
-        "alphaB_plus_2alphaM":float(ns[j0]),
+        "ln_a":0.0,"H":H0_exact,"psi":psi0_exact,
+        "sigma":sig0_exact,"N_struct":Nstruct0_exact,
+        "p":p0_exact,"q":q0_exact,"F":F0_exact,
+        "D":D0_exact,"cs2":cs0_exact,
+        "alphaB_plus_2alphaM":ns0_exact,
+        "grid_nearest_abs_ln_a":float(np.min(np.abs(N))),
       },
       "future_health":{
         "min_D":float(D[jD]),"min_D_ln_a":float(N[jD]),
