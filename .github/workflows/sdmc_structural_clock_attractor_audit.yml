@@ -503,6 +503,62 @@ jobs:
           print('NATIVE_FUTURE_GATE_PASS')
           PY
 
+      - name: Extend legacy-canonical native horizon to ln(a)=10
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 sdmc/patch_future_background_endpoint.py --loga-final 10
+          python3 sdmc/install_future_logstruct_tail.py --candidate legacy_canonical --psi-max 12 --future-points 2600
+          make clean && make -j2 class
+          cp output/native_future.ini output/native_future_canonical_long.ini
+          echo 'root = output/native_future_canonical_long_' >> output/native_future_canonical_long.ini
+          set +e
+          ./class output/native_future_canonical_long.ini > output/native_future_canonical_long.log 2>&1
+          rc=$?
+          echo "$rc" > output/native_future_canonical_long.rc
+          cat output/native_future_canonical_long.log
+          exit $rc
+
+      - name: Propagate legacy-canonical perturbations to ln(a)=10
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 sdmc/install_future_logstruct_tail.py --candidate legacy_canonical --psi-max 12 --future-points 2600
+          make clean && make -j2 class
+          cp output/native_future.ini output/native_future_perturb_canonical_long.ini
+          sed -i 's/^input_verbose = 0$/input_verbose = 2/; s/^perturbations_verbose = 0$/perturbations_verbose = 1/; s/^output_verbose = 0$/output_verbose = 1/' output/native_future_perturb_canonical_long.ini
+          cat >> output/native_future_perturb_canonical_long.ini <<'EOF'
+          modes = s
+          output = mPk
+          P_k_max_h/Mpc = 0.02
+          z_pk = 0
+          k_output_values = 0.0001, 0.001, 0.01
+          write parameters = yes
+          write warnings = yes
+          root = output/native_future_perturb_canonical_long_
+          EOF
+          set +e
+          ./class output/native_future_perturb_canonical_long.ini > output/native_future_perturb_canonical_long.log 2>&1
+          rc=$?
+          echo "$rc" > output/native_future_perturb_canonical_long.rc
+          cat output/native_future_perturb_canonical_long.log
+          exit $rc
+
+      - name: Enforce long-horizon canonical closure
+        if: always()
+        run: |
+          python3 sdmc/run_native_canonical_long_horizon_summary.py
+          cat output/native_canonical_long_horizon_summary.json
+          python3 - <<'PY'
+          import json,sys
+          p='output/native_canonical_long_horizon_summary.json'
+          d=json.load(open(p))
+          if not d.get('all_long_horizon_gates_pass',False):
+              print('NATIVE_CANONICAL_LONG_HORIZON_GATE_FAILURE')
+              sys.exit(1)
+          print('NATIVE_CANONICAL_LONG_HORIZON_GATE_PASS')
+          PY
+
       - name: Preserve result
         if: always()
         uses: actions/upload-artifact@v4
