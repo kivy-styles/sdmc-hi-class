@@ -319,6 +319,7 @@ jobs:
           python3 sdmc/install_future_logstruct_tail.py --candidate matched_chi_F --psi-max 8
           make clean && make -j2 class
           cp output/native_future.ini output/native_future_perturb_matched.ini
+          sed -i 's/^input_verbose = 0$/input_verbose = 3/; s/^perturbations_verbose = 0$/perturbations_verbose = 2/; s/^output_verbose = 0$/output_verbose = 2/' output/native_future_perturb_matched.ini
           cat >> output/native_future_perturb_matched.ini <<'EOF'
           modes = s
           output = mPk
@@ -339,6 +340,8 @@ jobs:
           echo "NATIVE_FUTURE_OUTPUT_FILE_LIST"
           find output -maxdepth 1 -type f -printf '%f\n' | sort | grep -E 'native_future|perturbations' || true
           cat output/native_future_perturb_matched.log
+          echo 'NATIVE_FUTURE_PERTURB_MATCHED_FILES'
+          find output -maxdepth 1 -type f -name 'native_future_perturb_matched_*' -printf '%f\n' | sort
           exit $rc
 
       - name: Native future scalar perturbations bounded endpoint
@@ -349,6 +352,7 @@ jobs:
           python3 sdmc/install_future_logstruct_tail.py --candidate bounded_chi --psi-max 8
           make clean && make -j2 class
           cp output/native_future.ini output/native_future_perturb_bounded.ini
+          sed -i 's/^input_verbose = 0$/input_verbose = 3/; s/^perturbations_verbose = 0$/perturbations_verbose = 2/; s/^output_verbose = 0$/output_verbose = 2/' output/native_future_perturb_bounded.ini
           cat >> output/native_future_perturb_bounded.ini <<'EOF'
           modes = s
           output = mPk
@@ -369,6 +373,8 @@ jobs:
           echo "NATIVE_FUTURE_OUTPUT_FILE_LIST"
           find output -maxdepth 1 -type f -printf '%f\n' | sort | grep -E 'native_future|perturbations' || true
           cat output/native_future_perturb_bounded.log
+          echo 'NATIVE_FUTURE_PERTURB_BOUNDED_FILES'
+          find output -maxdepth 1 -type f -name 'native_future_perturb_bounded_*' -printf '%f\n' | sort
           exit $rc
 
       - name: Summarize native future perturbations
