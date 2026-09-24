@@ -334,6 +334,20 @@ jobs:
           cat output/native_future_bounded.log
           exit $rc
 
+      - name: Native future hi_class legacy-canonical endpoint
+        continue-on-error: true
+        run: |
+          python3 sdmc/install_future_logstruct_tail.py --candidate legacy_canonical --psi-max 8
+          make clean && make -j2 class
+          cp output/native_future.ini output/native_future_canonical.ini
+          echo 'root = output/native_future_canonical_' >> output/native_future_canonical.ini
+          set +e
+          ./class output/native_future_canonical.ini > output/native_future_canonical.log 2>&1
+          rc=$?
+          echo "$rc" > output/native_future_canonical.rc
+          cat output/native_future_canonical.log
+          exit $rc
+
       - name: Summarize native future health
         if: always()
         run: |
@@ -403,6 +417,36 @@ jobs:
           cat output/native_future_perturb_bounded.log
           echo 'NATIVE_FUTURE_PERTURB_BOUNDED_FILES'
           find output -maxdepth 1 -type f -name 'native_future_perturb_bounded_*' -printf '%f\n' | sort
+          exit $rc
+
+      - name: Native future scalar perturbations legacy-canonical endpoint
+        id: future_pert_canonical
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 sdmc/install_future_logstruct_tail.py --candidate legacy_canonical --psi-max 8
+          make clean && make -j2 class
+          cp output/native_future.ini output/native_future_perturb_canonical.ini
+          sed -i 's/^input_verbose = 0$/input_verbose = 3/; s/^perturbations_verbose = 0$/perturbations_verbose = 2/; s/^output_verbose = 0$/output_verbose = 2/' output/native_future_perturb_canonical.ini
+          cat >> output/native_future_perturb_canonical.ini <<'EOF'
+          modes = s
+          output = mPk
+          P_k_max_h/Mpc = 0.02
+          z_pk = 0
+          k_output_values = 0.0001, 0.001, 0.01
+          write parameters = yes
+          write warnings = yes
+          root = output/native_future_perturb_canonical_
+          EOF
+          set +e
+          ./class output/native_future_perturb_canonical.ini > output/native_future_perturb_canonical.log 2>&1
+          rc=$?
+          echo "$rc" > output/native_future_perturb_canonical.rc
+          echo "NATIVE_FUTURE_OUTPUT_FILE_LIST"
+          find output -maxdepth 1 -type f -printf '%f\n' | sort | grep -E 'native_future|perturbations' || true
+          cat output/native_future_perturb_canonical.log
+          echo 'NATIVE_FUTURE_PERTURB_CANONICAL_FILES'
+          find output -maxdepth 1 -type f -name 'native_future_perturb_canonical_*' -printf '%f\n' | sort
           exit $rc
 
       - name: Summarize native future perturbations
@@ -476,12 +520,18 @@ jobs:
             output/native_future_bounded.log
             output/native_future_bounded.rc
             output/native_future_bounded_00_background.dat
+            output/native_future_canonical.log
+            output/native_future_canonical.rc
+            output/native_future_canonical_00_background.dat
             output/native_future_perturb_matched.log
             output/native_future_perturb_matched.rc
             output/native_future_perturb_matched_*perturbations_k*_s.dat
             output/native_future_perturb_bounded.log
             output/native_future_perturb_bounded.rc
             output/native_future_perturb_bounded_*perturbations_k*_s.dat
+            output/native_future_perturb_canonical.log
+            output/native_future_perturb_canonical.rc
+            output/native_future_perturb_canonical_*perturbations_k*_s.dat
             output/structural_clock_attractor/structural_clock_attractor_audit.json
             output/structural_clock_attractor/*.log
             output/structural_clock_attractor/*_00_background.dat
