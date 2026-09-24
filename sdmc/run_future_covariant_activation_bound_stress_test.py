@@ -39,7 +39,13 @@ for mu in MU_GRID:
     model=aud.build_candidate(spec)
     NN,yy,diag=aud.release_trajectory(model,Nmax=10.,npts=2001)
     result=aud.evolve(model,Nmax=10.,npts=2001)
-    gamma=np.asarray([x["chi_action"]/x["F"] for x in diag])
+
+    # release_trajectory returns raw rhs diagnostics; reconstruct the positive
+    # structural activation exactly as evolve() does:
+    #   chi/chi0=(rhoX_struct/rhoX_struct,0)*sigma^2.
+    rhoXa=np.asarray([x["rhoX_structural"] for x in diag])
+    chi=aud.CHI0*(rhoXa/rhoXa[0])*yy[0]*yy[0]
+    gamma=chi/np.asarray([x["F"] for x in diag])
     imax=int(np.argmax(gamma))
     h=result["health_diagnostics"]
     f=result["future_kinematics"]
