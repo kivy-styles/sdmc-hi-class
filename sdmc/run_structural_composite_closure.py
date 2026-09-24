@@ -217,9 +217,28 @@ out=dict(
                  N_lapse=float(N_chrono[i0]),chi=float(chi_chrono[i0])),
     N_lapse_min=float(np.min(N_chrono)),N_lapse_max=float(np.max(N_chrono)),
     Achi_min=float(np.min(Achi_chrono)),
-    z_Achi_min=float(z[int(np.argmin(Achi_chrono))])
+    Achi_max=float(np.max(Achi_chrono)),
+    z_Achi_min=float(z[int(np.argmin(Achi_chrono))]),
+    z_Achi_max=float(z[int(np.argmax(Achi_chrono))]),
+    chi_min=float(np.min(chi_chrono)),
+    chi_max=float(np.max(chi_chrono)),
+    z_chi_min=float(z[int(np.argmin(chi_chrono))]),
+    z_chi_max=float(z[int(np.argmax(chi_chrono))]),
+    chi_bounded_0_1=bool(np.all((chi_chrono>=0.)&(chi_chrono<=1.)))
   ),
   samples=[sample(q) for q in [1e7,1e6,1e5,1e4,3400,1090,1000,300,100,30,20,10,6.8,5,3,2,1,.7,.5,.3,.1,0]]
 )
+# Comparison with the historical Part-II numerical hierarchy.
+legacy=dict(N0=3.37,Km0=2.19e20,Kp0=1.18e20,lambda0=1.209e-4,source_factor0=1.766e-12)
+out["legacy_comparison_percent"]=dict(
+ N0=100.*(N_chrono[i0]/legacy["N0"]-1.),
+ Km0=100.*(Km0/legacy["Km0"]-1.),
+ Kp0=100.*(Kp0/legacy["Kp0"]-1.),
+ lambda0=100.*(lambda0/legacy["lambda0"]-1.),
+ source_factor0=100.*(source_factor0/legacy["source_factor0"]-1.),
+ lambda0_if_N337=100.*((Km0_N337**(-1./6.)/N0_benchmark)/legacy["lambda0"]-1.),
+ source_factor0_if_N337=100.*(((Km0_N337**(-1./6.)/N0_benchmark)**3)/legacy["source_factor0"]-1.)
+)
+
 Path(a.out).write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print(json.dumps(out,indent=2,sort_keys=True))
