@@ -38,7 +38,8 @@ jobs:
             sdmc/patch_future_shooting_today.py \
             sdmc/patch_future_perturbation_endpoint.py \
             sdmc/patch_future_thermodynamics_extrapolation.py \
-            sdmc/run_native_future_health_summary.py
+            sdmc/run_native_future_health_summary.py \
+            sdmc/run_native_future_perturbation_summary.py
 
       - name: Build parameterized late266 target
         run: |
@@ -356,6 +357,12 @@ jobs:
           cat output/native_future_perturb_bounded.log
           exit $rc
 
+      - name: Summarize native future perturbations
+        if: always()
+        run: |
+          python3 sdmc/run_native_future_perturbation_summary.py || true
+          test -f output/native_future_perturbation_summary.json && cat output/native_future_perturbation_summary.json || true
+
       - name: Preserve result
         if: always()
         uses: actions/upload-artifact@v4
@@ -380,12 +387,19 @@ jobs:
             output/mature_fixed_point_basin.json
             output/future_logstruct_tail_install.json
             output/native_future_health_summary.json
+            output/native_future_perturbation_summary.json
             output/native_future_matched.log
             output/native_future_matched.rc
             output/native_future_matched_00_background.dat
             output/native_future_bounded.log
             output/native_future_bounded.rc
             output/native_future_bounded_00_background.dat
+            output/native_future_perturb_matched.log
+            output/native_future_perturb_matched.rc
+            output/native_future_perturb_matched_perturbations_k*_s.dat
+            output/native_future_perturb_bounded.log
+            output/native_future_perturb_bounded.rc
+            output/native_future_perturb_bounded_perturbations_k*_s.dat
             output/structural_clock_attractor/structural_clock_attractor_audit.json
             output/structural_clock_attractor/*.log
             output/structural_clock_attractor/*_00_background.dat
