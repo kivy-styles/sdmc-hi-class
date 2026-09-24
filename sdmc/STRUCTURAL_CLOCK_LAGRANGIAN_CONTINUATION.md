@@ -1729,3 +1729,475 @@ eternally accelerating.
 The future asymptotic sign of \(q\) is therefore no longer merely qualitative:
 once the microscopic flow of \(\chi\), \(p\), and \(F\) is specified, the lapse
 evolution equation fixes the integrated approach to the mature coasting branch.
+
+
+## 21. Reconciliation with the earlier 2.8944 asymptotic endpoint
+
+The future-lapse result obtained above is not an isolated new number.  Part III
+already derived, under its flat canonical scalar closure,
+
+\[
+{\cal N}
+=
+\Xi_v\,\frac{p}{\sqrt{\Omega_\phi}},
+\qquad
+\Xi_v=\sqrt{\frac{8\pi}{3}}\simeq2.894405,
+\]
+
+and therefore obtained the late scalar-dominated endpoint
+
+\[
+\boxed{
+{\cal N}_\infty=\Xi_v\simeq2.8944.
+}
+\]
+
+The current covariant density identity,
+
+\[
+{\cal N}
+=
+p\,\Xi_P
+\sqrt{\frac{\chi}{\Omega_X}},
+\]
+
+is the active/bare generalization of that earlier relation.  In the canonical
+limit \(\chi\to1\), \(F\to1\), and \(\Omega_X\to1\), the two formulas coincide.
+
+Thus the present action-level development has recovered a result that was
+already present in the earlier manuscript from a different route.  The current
+value \({\cal N}_0=3.4135\) belongs to the matter-containing, activation-driven
+present branch; the ideal \(2.8944\) value belongs to the asymptotic
+scalar-dominated structural branch.
+
+This distinction should not be confused with the unrelated numerical value
+
+\[
+\Delta\chi^2_{\rm fair,Planck+DESI}=+2.84892452
+\]
+
+that appeared at an earlier Part IX likelihood milestone before the
+Planck+DESI residual was subsequently driven through zero.
+
+## 22. General scale-covariant fixed-point theorem
+
+The polynomial normal form of Section 16 is a special case of a more general
+result.
+
+Let the asymptotic scalar sector have
+
+\[
+\boxed{
+G_2(\sigma,Z)=\sigma^{-m}f(Z),
+}
+\]
+
+with constant \(F\), negligible \(G_3\), and a homogeneous constant-velocity
+orbit
+
+\[
+\dot\sigma=v_\star=\text{constant},
+\qquad
+Z_\star=\frac12v_\star^2.
+\]
+
+Suppose simultaneously that
+
+\[
+a(t)\propto t^h.
+\]
+
+Since \(\sigma\propto t\),
+
+\[
+H=\frac{h}{t}=\frac{hv_\star}{\sigma}.
+\]
+
+The scalar equation
+
+\[
+\frac{d}{dt}(G_{2,Z}\dot\sigma)
++3HG_{2,Z}\dot\sigma
+-G_{2,\sigma}=0
+\]
+
+reduces exactly to
+
+\[
+\boxed{
+2Z_\star(3h-m)f_{,Z}
++
+m f
+=
+0.
+}
+\]
+
+Meanwhile,
+
+\[
+\rho_\sigma
+=
+\sigma^{-m}
+\left(
+2Z_\star f_{,Z}-f
+\right).
+\]
+
+But the Friedmann side satisfies
+
+\[
+H^2\propto\sigma^{-2}.
+\]
+
+For a scalar-dominated constant-\(F\) solution with nonzero finite amplitude,
+the powers can agree only if
+
+\[
+\boxed{
+m=2.
+}
+\]
+
+Thus the inverse-square structural dependence is not merely a convenient
+choice for a constant-velocity power-law cosmology: it is the unique monomial
+field scaling compatible with the flat Friedmann equation under those
+assumptions.
+
+With \(m=2\), the scalar equation becomes
+
+\[
+\boxed{
+f+(3h-2)Z_\star f_{,Z}=0.
+}
+\]
+
+The equation of state is then
+
+\[
+w_\sigma
+=
+\frac{f}{2Z_\star f_{,Z}-f}
+=
+-\frac{3h-2}{3h},
+\]
+
+hence
+
+\[
+\boxed{
+w_\sigma=-1+\frac{2}{3h}.
+}
+\]
+
+Because
+
+\[
+p
+=
+\frac{d\ln\sigma}{d\ln a}
+=
+\frac1h,
+\]
+
+we obtain
+
+\[
+\boxed{
+w_\sigma=-1+\frac{2p}{3}.
+}
+\]
+
+This is precisely the SDMC inverse-square structural equation-of-state relation
+previously obtained from density scaling.  It now follows directly from the
+scale-covariant Lagrangian fixed point.
+
+The flat Friedmann amplitude gives a second exact relation.  Using
+
+\[
+3F H^2=\rho_\sigma
+\]
+
+together with the scalar equation yields
+
+\[
+\boxed{
+f_{,Z}(Z_\star)=2Fh=\frac{2F}{p}.
+}
+\]
+
+Therefore the structural exponent itself is encoded in the kinetic slope:
+
+\[
+\boxed{
+p=\frac{2F}{f_{,Z}(Z_\star)}.
+}
+\]
+
+For mature coasting,
+
+\[
+h=1,\qquad p=1,
+\]
+
+so the two fixed-point conditions reduce to
+
+\[
+\boxed{
+f+Z_\star f_{,Z}=0,
+\qquad
+f_{,Z}=2F.
+}
+\]
+
+For
+
+\[
+f(Z)=\kappa_1Z+\kappa_2Z^2-U_0,
+\]
+
+these reproduce exactly
+
+\[
+U_0=2\kappa_1Z_\star+3\kappa_2Z_\star^2,
+\]
+
+and
+
+\[
+\kappa_1+2\kappa_2Z_\star=2F.
+\]
+
+## 23. Running structural exponent and activation flow
+
+The accepted action provides a direct variable that measures how far the
+active source is from the inverse-square fixed point. Define
+
+\[
+\boxed{
+m_X
+\equiv
+-\frac{d\ln\rho_X}{d\ln\sigma}.
+}
+\]
+
+Since
+
+\[
+p_X
+=
+-\frac12\frac{d\ln\rho_X}{d\ln a},
+\qquad
+p=\frac{d\ln\sigma}{d\ln a},
+\]
+
+we have
+
+\[
+\boxed{
+m_X=\frac{2p_X}{p}.
+}
+\]
+
+The activation beta function satisfies
+
+\[
+\boxed{
+\beta_\chi
+\equiv
+\frac{d\ln\chi}{d\ln\sigma}
+=
+\frac{A_\chi}{p}
+=
+2-m_X.
+}
+\]
+
+Thus
+
+\[
+\boxed{
+m_X+\beta_\chi=2
+}
+\]
+
+is an exact consequence of \(\rho_X=\chi\rho_P/(S_0^2\sigma^2)\).
+
+At the accepted present point,
+
+\[
+p_0=1.03421566,
+\qquad
+p_{X0}=0.03503109,
+\]
+
+so
+
+\[
+\boxed{
+m_{X0}\simeq0.0677443,
+}
+\]
+
+and
+
+\[
+\boxed{
+\beta_{\chi0}\simeq1.932256.
+}
+\]
+
+The active source is therefore still much closer to the
+\(m_X=0\) cosmological-constant-like side than to the mature inverse-square
+fixed point \(m_X=2\).
+
+The effective equation of state can be written
+
+\[
+\boxed{
+w_X
+=
+-1+\frac{2p_X}{3}
+=
+-1+\frac{p\,m_X}{3}.
+}
+\]
+
+At the present point this gives
+
+\[
+w_{X0}\simeq-0.97665,
+\]
+
+while the mature limit
+
+\[
+p\to1,\qquad m_X\to2
+\]
+
+gives
+
+\[
+w_X\to-\frac13.
+\]
+
+A minimal autonomous fixed-point model for the future action flow is
+
+\[
+\boxed{
+\frac{dm_X}{d\ln\sigma}
+=
+\gamma\,m_X(2-m_X),
+\qquad
+\gamma>0.
+}
+\]
+
+It has
+
+\[
+m_X=0
+\]
+
+as an unstable de-Sitter-like fixed point and
+
+\[
+m_X=2
+\]
+
+as a stable inverse-square fixed point.  Equivalently,
+
+\[
+\frac{d\beta_\chi}{d\ln\sigma}
+=
+-\gamma\,\beta_\chi(2-\beta_\chi).
+\]
+
+The exact solution starting from \(m_{X0}\) at \(\sigma=1\) is
+
+\[
+\boxed{
+m_X(\sigma)
+=
+\frac{2}
+{1+C\sigma^{-2\gamma}},
+\qquad
+C=\frac{2-m_{X0}}{m_{X0}}.
+}
+\]
+
+The corresponding activation growth is finite:
+
+\[
+\boxed{
+\ln\frac{\chi_\infty}{\chi_0}
+=
+\frac{1}{\gamma}\ln(1+C).
+}
+\]
+
+Therefore specifying the asymptotic activation normalization fixes the flow
+rate,
+
+\[
+\boxed{
+\gamma
+=
+\frac{\ln(1+C)}
+{\ln(\chi_\infty/\chi_0)}.
+}
+\]
+
+For a literal bounded activation with
+
+\[
+\chi_\infty=1,
+\]
+
+the present values imply approximately
+
+\[
+\gamma\simeq55.75.
+\]
+
+If instead the effective activation saturates near the current accepted
+Planck-mass asymptote,
+
+\[
+F_\infty=e^{A_F}\simeq1.02389,
+\qquad
+\chi_\infty=F_\infty,
+\]
+
+then
+
+\[
+\gamma\simeq40.15.
+\]
+
+These large values quantify the statement already made in the manuscript:
+because the present activation is close to saturation while
+\(A_{\chi0}\simeq2\), the activation rate must fall rapidly in the future.
+
+This autonomous equation is not yet claimed as the microscopic law.  It is a
+compact normal-form candidate whose fixed points exactly match the two
+action-level regimes now identified:
+
+\[
+\text{present nearly constant active density}
+\quad
+m_X\simeq0
+\]
+
+flowing toward
+
+\[
+\text{mature inverse-square structural density}
+\quad
+m_X=2.
+\]
+
+The next covariant task is to realize this \(m_X\) flow through smooth
+future extensions of \(k_1(\sigma)\), \(k_2(\sigma)\), \(V(\sigma)\),
+\(g(\sigma)\), and \(F(\sigma)\), and then release the extension under native
+hi_class evolution rather than imposing \(m_X(\sigma)\) directly.
