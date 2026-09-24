@@ -68,7 +68,6 @@ insert="""  /* Future-only SDMC perturbation audit.  The standard thermodynamics
 
     /* No future line-of-sight visibility source is required for this
        non-CMB diagnostic. */
-    pvecthermo[pth->index_th_kappa] = 0.;
     pvecthermo[pth->index_th_exp_m_kappa] = 1.;
     pvecthermo[pth->index_th_g] = 0.;
     pvecthermo[pth->index_th_dg] = 0.;
