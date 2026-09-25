@@ -26,7 +26,7 @@ from cobaya.likelihoods.planck_2018_lowl.TT import TT
 from cobaya.likelihoods.planck_2018_lowl.EE import EE
 from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
 
-OUT=Path("output/s117_growth_pareto"); OUT.mkdir(parents=True,exist_ok=True)
+OUT=Path("output/s117_g073_structural_refine"); OUT.mkdir(parents=True,exist_ok=True)
 TCMB=2.7255; CAL_SIGMA=.0025; OR=4.17998772e-5
 
 # Exact S117 cosmological/background sector.
@@ -46,13 +46,13 @@ B_LATE=0.01264704344701022
 TAUB=1.5
 
 # Exact S117 structural center.
-AF0=0.02114389337040484
-ZC0=3.715736017236486
-W0=0.35696151830255984
-DF0=0.052829781055450435
+AF0=0.020284758737310768
+ZC0=3.6509963892400266
+W0=0.35059972247108817
+DF0=0.05064729745686054
 
-S117_LITE=1020.917005539309
-S117_S8=0.8408471470723361
+S117_LITE=1020.658201861972
+S117_S8=0.840968957
 
 high=TTTEEE_lite_native(packages_path="planck_packages")
 lowT=TT(packages_path="planck_packages")
@@ -175,7 +175,7 @@ def run(label,AF,ZC,W,DF):
             rec["error"]=repr(e)
     if rec["status"]!="OK":
         rec["error"]=rec.get("error",cp.stdout[-700:].replace("\n"," | "))
-    print("S117_GROWTH_POINT",json.dumps(rec,sort_keys=True),flush=True)
+    print("S117_G073_REFINE_POINT",json.dumps(rec,sort_keys=True),flush=True)
     for p in OUT.glob(label+"_*"):
         try:p.unlink()
         except:pass
@@ -185,27 +185,25 @@ def run(label,AF,ZC,W,DF):
 
 # Center + the strongest neighboring structures from the preceding 128-point rescue.
 known=[
- ("s117",AF0,ZC0,W0,DF0),
- ("s101",0.0208535483460873,3.928097246447578,0.3063027975708246,0.0486020499616861),
- ("s077",0.0214383184257894,3.973917078739032,0.3430211399495602,0.0573915100693702),
- ("s013",0.021564,3.691444,0.0,0.0),
- ("s045",0.021277,3.835670,0.0,0.0)
+ ("g073",AF0,ZC0,W0,DF0),
+ ("g109",0.020244,3.748068,0.344728,0.048076),
+ ("g022",0.02048146490100771,3.927876388467848,0.33114133956842123,0.05181542627513409)
 ]
 # Replace abbreviated two entries with exact values only if read from deterministic scan is unnecessary;
 # the Sobol cloud below covers them. Keep the first three exact known seeds.
 rows=[]
-for item in known[:3]:
+for item in known:
     rows.append(run(*item))
 
 # 128-point local Sobol map around S117.
-low=np.array([0.0190,3.50,0.300,0.045])
-highb=np.array([0.0240,4.10,0.410,0.061])
-sob=qmc.Sobol(d=4,scramble=True,seed=117808)
-for i,x in enumerate(qmc.scale(sob.random_base2(m=7),low,highb)):
+low=np.array([0.0185,3.48,0.325,0.045])
+highb=np.array([0.0212,3.84,0.378,0.056])
+sob=qmc.Sobol(d=4,scramble=True,seed=25092026)
+for i,x in enumerate(qmc.scale(sob.random_base2(m=6),low,highb)):
     rows.append(run(f"g{i:03d}",*map(float,x)))
 
 df=pd.DataFrame(rows)
-df.to_csv(OUT/"s117_growth_pareto.csv",index=False)
+df.to_csv(OUT/"s117_g073_refine.csv",index=False)
 ok=df[df.status=="OK"].copy()
 
 # Non-dominated Pareto frontier in (Planck chi2, S8).
@@ -215,13 +213,13 @@ for idx,r in ok.iterrows():
                ((ok.chi2_planck<r.chi2_planck)|(ok.S8<r.S8))).any()
     if not dominated: front.append(idx)
 pareto=ok.loc[front].sort_values(["chi2_planck","S8"])
-pareto.to_csv(OUT/"s117_growth_pareto_front.csv",index=False)
+pareto.to_csv(OUT/"s117_g073_refine_front.csv",index=False)
 
 # Promotion sets: preserve Planck quality first, then look for growth relief.
 near=ok[ok.chi2_planck<=S117_LITE+0.08].sort_values(["S8","chi2_planck"]).head(15)
 buffer=ok[ok.chi2_planck<S117_LITE].sort_values(["S8","chi2_planck"]).head(15)
 summary={
- "s117_center":{"chi2_planck_lite":S117_LITE,"S8":S117_S8,
+ "g073_center":{"chi2_planck_lite":S117_LITE,"S8":S117_S8,
                 "A_F":AF0,"z_c":ZC0,"width":W0,"D_floor":DF0},
  "n_ok":int(len(ok)),
  "pareto":pareto.head(30).to_dict("records"),
@@ -229,5 +227,5 @@ summary={
  "planck_better_than_s117":buffer.to_dict("records"),
  "promotion_rule":"No point supersedes S117 until exact full-Plik and raw-DESI are rerun; fixed S117 background preserves the SN/SH0ES geometry."
 }
-(OUT/"s117_growth_pareto_summary.json").write_text(json.dumps(summary,indent=2))
-print("S117_GROWTH_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
+(OUT/"s117_g073_refine_summary.json").write_text(json.dumps(summary,indent=2))
+print("S117_G073_REFINE_SUMMARY",json.dumps(summary,sort_keys=True),flush=True)
