@@ -1,0 +1,135 @@
+name: SDMC O4D030 early-cs exact SN replay
+
+on:
+  push:
+    branches:
+      - sdmc-discussion-nkp-o4d030-earlycs-promote
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  exact-sn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y python3 python3-pip git gh >/dev/null
+          python3 -m pip install -q --upgrade pip
+          python3 -m pip install -q numpy scipy pandas
+
+      - name: Download exact O4D030 early-cs background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf input_cov
+          mkdir -p input_cov
+          gh run download 36163541693 \
+            --repo "${{ github.repository }}" \
+            --name o4d030-earlycs-desi-cs0 \
+            --dir input_cov
+          find input_cov -maxdepth 3 -type f | sort
+          test -n "$(find input_cov -name covariant_replay_00_background.dat -print -quit)"
+
+      - name: Install SN data
+        run: |
+          rm -rf sn_data
+          git clone -q --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+
+      - name: Score Pantheon+, Union3, and DES-Y5
+        run: |
+          mkdir -p output/exact_sn
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json
+          import numpy as np
+          import pandas as pd
+          from scipy.linalg import cho_factor,cho_solve
+
+          DATA=Path("sn_data")
+          bgpath=next(Path("input_cov").rglob("covariant_replay_00_background.dat"))
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith("#") and re.search(r"1\s*:",l)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values("z")
+
+          def read_cov(path,n):
+              a=np.asarray(np.loadtxt(path),float).reshape(-1)
+              if len(a)==n*n+1 and int(round(a[0]))==n: a=a[1:]
+              if len(a)!=n*n: raise RuntimeError("covariance size mismatch "+str(path))
+              return a.reshape(n,n)
+
+          def setup(C):
+              cf=cho_factor(C,lower=True,check_finite=False)
+              one=np.ones(C.shape[0]);u=cho_solve(cf,one,check_finite=False)
+              return cf,one,float(one.dot(u))
+
+          def chi(pack,r):
+              cf,one,den=pack
+              y=cho_solve(cf,r,check_finite=False)
+              return float(r.dot(y)-(one.dot(y))**2/den)
+
+          def mu(bg,z,zh):
+              DM=np.interp(z,bg.z,bg["comov. dist."])
+              DA=DM/(1.+z)
+              return 5.*np.log10((1.+zh)*(1.+z)*DA)
+
+          pp=pd.read_csv(DATA/"PantheonPlus/Pantheon+SH0ES.dat",sep=r"\s+",header=0,engine="python")
+          ppm=pp["m_b_corr"].to_numpy(float);ppz=pp["zHD"].to_numpy(float);ppzh=pp["zHEL"].to_numpy(float)
+          C=read_cov(DATA/"PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov",len(ppm))
+          m=ppz>0.01; ppm,ppz,ppzh,C=ppm[m],ppz[m],ppzh[m],C[np.ix_(m,m)]
+          ppp=setup(C)
+
+          p=DATA/"Union3/lcparam_full.txt"
+          cols=p.read_text().splitlines()[0].removeprefix("#").split()
+          un=pd.read_csv(p,sep=r"\s+",comment="#",names=cols,engine="python")
+          cm={c.lower():c for c in un.columns}
+          unm=un[cm["mb"]].to_numpy(float);unz=un[cm["zcmb"]].to_numpy(float)
+          unp=setup(read_cov(DATA/"Union3/mag_covmat.txt",len(unm)))
+
+          de=pd.read_csv(DATA/"DESY5/DES-SN5YR_HD.csv")
+          cm={c.lower():c for c in de.columns}
+          dem=de[cm["mu"]].to_numpy(float);dez=de[cm["zhd"]].to_numpy(float);dezh=de[cm["zhel"]].to_numpy(float)
+          derr=de[cm["muerr_final"]].to_numpy(float)
+          dep=setup(read_cov(DATA/"DESY5/covsys_000.txt",len(dem))+np.diag(derr*derr))
+
+          bg=table(bgpath)
+          cand={
+            "pantheonplus":chi(ppp,ppm-mu(bg,ppz,ppzh)),
+            "union3":chi(unp,unm-mu(bg,unz,unz)),
+            "desy5":chi(dep,dem-mu(bg,dez,dezh)),
+          }
+          local={"pantheonplus":1406.214941392187,"union3":28.78345144550258,"desy5":1650.6363433003426}
+          fair={k:cand[k]-local[k] for k in cand}
+          out={"candidate":cand,"local021":local,"candidate_minus_local021":fair}
+          print("O4D030_EARLYCS_EXACT_SN",json.dumps(out,sort_keys=True),flush=True)
+
+          planck=-20.164716497350582
+          desi=-14.011541610983215
+          local_pd=-31.15223224
+          fair_pd=planck+desi-local_pd
+          ledger={"planck":planck,"desi":desi,"pd_total":planck+desi,"fair_pd":fair_pd}
+          for k in cand:
+              ledger["fair_pd_"+k]=fair_pd+fair[k]
+          print("O4D030_EARLYCS_FAIR_LEDGER",json.dumps(ledger,sort_keys=True),flush=True)
+          Path("output/exact_sn/o4d030_earlycs_sn.json").write_text(json.dumps(out,indent=2)+"\n")
+          Path("output/exact_sn/o4d030_earlycs_ledger.json").write_text(json.dumps(ledger,indent=2)+"\n")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: o4d030-earlycs-exact-sn
+          path: output/exact_sn/*
+          if-no-files-found: warn
