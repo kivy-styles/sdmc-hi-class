@@ -131,8 +131,8 @@ jobs:
           p.write_text(s2)
           PY
 
-          python3 sdmc/apply_sdmc_kp_common_force_patch.py \
-            --cmin ${{ matrix.cmin }} --zoff ${{ matrix.zoff }} --zon ${{ matrix.zon }} --dz ${{ matrix.dz }}
+          python3 sdmc/apply_sdmc_kp_velocity_weighted_patch.py \
+            --cb ${{ matrix.cb }} --zoff ${{ matrix.zoff }} --zon ${{ matrix.zon }} --dz ${{ matrix.dz }}
 
           make clean >/dev/null && make -j2 class >/dev/null
 
