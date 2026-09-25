@@ -1,0 +1,245 @@
+name: SDMC NKp O4D030-S117 action corridor
+
+on:
+  push:
+    branches:
+      - sdmc-discussion-nkp-o4d030-s117-corridor
+  workflow_dispatch:
+
+jobs:
+  corridor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: "t000", t: "0.000" }
+          - { label: "t0125", t: "0.125" }
+          - { label: "t025", t: "0.250" }
+          - { label: "t0375", t: "0.375" }
+          - { label: "t050", t: "0.500" }
+          - { label: "t0625", t: "0.625" }
+          - { label: "t075", t: "0.750" }
+          - { label: "t0875", t: "0.875" }
+          - { label: "t100", t: "1.000" }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential git >/dev/null
+          python3 -m pip install -q --upgrade pip
+          python3 -m pip install -q numpy scipy pandas cobaya
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          git clone --depth 1 https://github.com/CobayaSampler/bao_data.git bao_data
+
+      - name: Install Planck native likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              if not cls.install(path="planck_packages",no_progress_bars=True):
+                  raise SystemExit(2)
+          PY
+
+      - name: Build interpolated SDMC action
+        env:
+          TBLEND: ${{ matrix.t }}
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          mkdir -p output
+          python3 - <<'PY'
+          import os,json
+          t=float(os.environ["TBLEND"])
+          A=dict(H0=69.71482083084993,ob=0.022083219194622913,oc=0.12299536722293603,As=2.117602412937069e-9,ns=0.9625227132590487,
+                 af=0.02048146490100771,zc=3.927876388467848,width=0.33114133956842123,d0=0.34231919445927034,power=1.0,dfloor=0.05181542627513409,
+                 Ox=0.7014079815036496,le=18.40625,zt=16.19317622240633,dNt=0.5,ampA=0.024822032167576252,tauA=0.25,ampB=0.01264704344701022,tauB=1.5)
+          B=dict(H0=71.21322578595301,ob=0.022215084896497428,oc=0.12228109714277088,As=2.120753981008663e-9,ns=0.9647922897702084,
+                 af=0.03773318954370916,zc=3.6879637566395105,width=0.4136390263400972,d0=0.34231919445927034,power=1.0,dfloor=0.04570108858030289,
+                 Ox=0.7149896251906067,le=18.40625,zt=16.12245249159634,dNt=0.5,ampA=0.01105624999,tauA=0.25,ampB=0.01951933685,tauB=1.5)
+          C={k:A[k]+t*(B[k]-A[k]) for k in A}
+          txt=f"""
+          H0 = {C['H0']}
+          omega_b = {C['ob']}
+          omega_cdm = {C['oc']}
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = {C['As']}
+          n_s = {C['ns']}
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = {C['af']}, {C['zc']}, {C['width']}, {C['d0']}, {C['power']}, {C['dfloor']}
+          expansion_model = sdmc_full
+          expansion_smg = {C['Ox']}, {C['le']}, {C['zt']}, {C['dNt']}, {C['ampA']}, {C['tauA']}, {C['ampB']}, {C['tauB']}
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 2.0
+          z_pk = 0
+          write background = yes
+          write thermodynamics = yes
+          root = output/corridor_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          """
+          open("output/candidate.ini","w").write(txt)
+          open("output/candidate_params.json","w").write(json.dumps(dict(t=t,**C),indent=2))
+          PY
+          make clean >/dev/null && make -j2 class >/dev/null
+          ./class output/candidate.ini > output/corridor.log 2>&1
+
+      - name: Score Planck SN BAO and health
+        env:
+          LABEL: ${{ matrix.label }}
+          TBLEND: ${{ matrix.t }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,json,re
+          import numpy as np,pandas as pd
+          from scipy.optimize import minimize_scalar
+          from scipy.linalg import cho_factor,cho_solve
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+
+          root="output/corridor_"; T=2.7255; sig=.0025
+          high=TTTEEE_lite_native(packages_path="planck_packages")
+          lowT=TT(packages_path="planck_packages"); lowE=EE(packages_path="planck_packages")
+          lens=LensingNative(packages_path="planck_packages")
+          a=np.loadtxt(root+"00_cl_lensed.dat"); ell=a[:,0].astype(int); n=int(ell.max())+1; conv=(T*1e6)**2
+          tt=np.zeros(n); ee=np.zeros(n); te=np.zeros(n); pp=np.zeros(n)
+          tt[ell]=a[:,1]*conv; ee[ell]=a[:,2]*conv; te[ell]=a[:,3]*conv
+          L=ell.astype(float); pp[ell]=a[:,5]*L*(L+1)
+          ha=np.column_stack([ell,tt[ell],te[ell],ee[ell]]); spectra={"tt":tt,"te":te,"ee":ee,"pp":pp}
+          def pf(A):
+              v=float(high.chi_squared(ha,A_planck=A))
+              v+=float(-2*lowT.log_likelihood(tt,calib=A))+float(-2*lowE.log_likelihood(ee,calib=A))
+              lp={lens.calibration_param:A} if getattr(lens,"calibration_param",None) else {}
+              v+=float(-2*lens.log_likelihood(spectra,**lp))+((A-1)/sig)**2
+              return v
+          op=minimize_scalar(pf,bounds=(.97,1.03),method="bounded",options={"xatol":1e-9})
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith("#") and re.search(r"1\s*:",l)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr); names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values("z")
+          bg=table(root+"00_background.dat"); th=table(root+"00_thermodynamics.dat")
+          D=bg["kin (D)"].to_numpy(); cs=bg["c_s^2"].to_numpy()
+          nos=float(np.max(np.abs(bg["braiding_smg"]+2*bg["M2_running_smg"])))
+
+          def read_cov(path,n):
+              q=np.asarray(np.loadtxt(path),float).reshape(-1)
+              if len(q)==n*n+1 and int(round(q[0]))==n:q=q[1:]
+              return q.reshape(n,n)
+          def pack(C):
+              cf=cho_factor(C,lower=True,check_finite=False); one=np.ones(C.shape[0]); u=cho_solve(cf,one,check_finite=False)
+              return cf,one,float(one@u)
+          def prof(pk,r):
+              cf,one,den=pk; y=cho_solve(cf,r,check_finite=False); return float(r@y-(one@y)**2/den)
+          def mu(z,zh):
+              DM=np.interp(z,bg.z,bg["comov. dist."]); DA=DM/(1+z)
+              return 5*np.log10((1+zh)*(1+z)*DA)
+
+          ppd=pd.read_csv("sn_data/PantheonPlus/Pantheon+SH0ES.dat",sep=r"\s+",engine="python")
+          pm=ppd["m_b_corr"].to_numpy(float); pz=ppd["zHD"].to_numpy(float); pzh=ppd["zHEL"].to_numpy(float)
+          C=read_cov("sn_data/PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov",len(pm)); m=pz>0.01
+          pm,pz,pzh,C=pm[m],pz[m],pzh[m],C[np.ix_(m,m)]
+          cpp=prof(pack(C),pm-mu(pz,pzh))
+
+          p=Path("sn_data/Union3/lcparam_full.txt"); cols=p.read_text().splitlines()[0].removeprefix("#").split()
+          un=pd.read_csv(p,sep=r"\s+",comment="#",names=cols,engine="python"); cm={c.lower():c for c in un.columns}
+          um=un[cm["mb"]].to_numpy(float); uz=un[cm["zcmb"]].to_numpy(float)
+          cu3=prof(pack(read_cov("sn_data/Union3/mag_covmat.txt",len(um))),um-mu(uz,uz))
+
+          de=pd.read_csv("sn_data/DESY5/DES-SN5YR_HD.csv"); cm={c.lower():c for c in de.columns}
+          dm=de[cm["mu"]].to_numpy(float); dz=de[cm["zhd"]].to_numpy(float); dzh=de[cm["zhel"]].to_numpy(float)
+          derr=de[cm["muerr_final"]].to_numpy(float)
+          cde=prof(pack(read_cov("sn_data/DESY5/covsys_000.txt",len(dm))+np.diag(derr*derr)),dm-mu(dz,dzh))
+          local={"pp":1406.2147033223882,"u3":28.783140002196888,"de":1650.6353947147727}
+
+          rows=[]
+          for ln in Path("bao_data/desi_2024_gaussian_bao_ALL_GCcomb_mean.txt").read_text().splitlines():
+              if ln.strip() and not ln.startswith("#"):
+                  z,v,q=ln.split(); rows.append((float(z),float(v),q))
+          cov=np.loadtxt("bao_data/desi_2024_gaussian_bao_ALL_GCcomb_cov.txt"); inv=np.linalg.inv(cov)
+          obs=np.array([x[1] for x in rows])
+          zz=th.z.to_numpy(); kb=th.kappa_b.to_numpy(); crosses=[]
+          for i in range(len(zz)-1):
+              if (kb[i]-1)*(kb[i+1]-1)<=0 and kb[i]!=kb[i+1]:
+                  q=(1-kb[i])/(kb[i+1]-kb[i]); crosses.append(zz[i]+q*(zz[i+1]-zz[i]))
+          zd=float(crosses[0]); rd=float(np.interp(zd,bg.z,bg["comov.snd.hrz."]))
+          pred=[]
+          for z,_,q in rows:
+              DM=float(np.interp(z,bg.z,bg["comov. dist."])); H=float(np.interp(z,bg.z,bg["H [1/Mpc]"]))
+              DH=1/H; DV=(z*DM*DM*DH)**(1/3)
+              pred.append({"DM_over_rs":DM/rd,"DH_over_rs":DH/rd,"DV_over_rs":DV/rd}[q])
+          dd=np.array(pred)-obs; baochi=float(dd@inv@dd)
+
+          out=dict(label=os.environ["LABEL"],t=float(os.environ["TBLEND"]),
+                   chi2_planck_native_lite=float(op.fun),A_planck=float(op.x),
+                   sn_pp_delta_local021=float(cpp-local["pp"]),
+                   sn_u3_delta_local021=float(cu3-local["u3"]),
+                   sn_desy5_delta_local021=float(cde-local["de"]),
+                   sn_worst_delta_local021=float(max(cpp-local["pp"],cu3-local["u3"],cde-local["de"])),
+                   bao_chi2=baochi,bao_delta_local021=float(baochi-13.400290718544086),
+                   rd_Mpc=rd,D_min=float(D.min()),D_max=float(D.max()),
+                   cs2_min=float(cs.min()),cs2_max=float(cs.max()),noslip_max=nos)
+          Path("output/score.json").write_text(json.dumps(out,indent=2)+"\n")
+          print("CORRIDOR_SCORE",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corridor-${{ matrix.label }}
+          path: |
+            output/score.json
+            output/candidate_params.json
+            output/corridor.log
+            output/corridor_00_background.dat
+            output/corridor_00_thermodynamics.dat
+            output/corridor_00_cl_lensed.dat
+            output/corridor_00_z1_pk.dat
+          if-no-files-found: ignore
