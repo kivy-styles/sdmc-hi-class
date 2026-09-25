@@ -14272,3 +14272,587 @@ entire present-to-future trajectory one-dimensional.
 
 It must instead explain why the multi-operator matching flow is attracted onto
 the canonical infrared manifold.
+
+
+## 72. Emergent Lyapunov flow and normal attraction of the canonical infrared manifold
+
+The refined closure-plane audit can now be sharpened beyond the result of
+Section 70.
+
+The complete interval beginning exactly at the present boundary does not admit
+one constant-metric quadratic Lyapunov function because the immediate matching
+jet produces a very short causal-shape excursion.  However, this obstruction
+is confined to the boundary layer itself.
+
+Use the natural logarithmic closure coordinates
+
+\[
+u\equiv\ln\Gamma,
+\qquad
+v\equiv-\ln c_s^2
+=
+\ln(1+2r_{\rm cone}),
+\]
+
+and the equal-weight distance
+
+\[
+\boxed{
+{\cal L}
+=
+\frac12
+\left(
+u^2+v^2
+\right).
+}
+\]
+
+The new moving-window audit finds that after
+
+\[
+\boxed{
+\ln a\simeq0.005,
+}
+\]
+
+the quantity \({\cal L}\) decreases monotonically throughout the tested
+interval to
+
+\[
+\ln a=9.8.
+\]
+
+The corresponding scale factor is only
+
+\[
+\boxed{
+a\simeq1.0050125,
+}
+\]
+
+approximately a \(0.50\%\) increase beyond its present normalization.
+
+For the present accepted \(H_0\), this corresponds roughly to
+
+\[
+\boxed{
+\Delta t\sim7\times10^7\ {\rm yr},
+}
+\]
+
+with the precise value depending on the short future variation of \(H\).
+
+Thus the failure of a common Lyapunov distance is localized to an extremely
+thin matching layer.  Once that layer is crossed, the demonstrated canonical
+future path already behaves as a genuine relaxation flow even though
+\(\Gamma\) itself still executes its broader non-monotonic excursion.
+
+This distinction is important:
+
+\[
+\boxed{
+\text{individual coordinates need not be monotonic for the total
+distance to the attractor to decrease monotonically.}
+}
+\]
+
+### 72.1 Tangent and transverse coordinates
+
+After calibration of the tiny fixed normalization offset found in Section 71,
+define the tangent displacement
+
+\[
+\boxed{
+\epsilon_\parallel
+\equiv
+\left|
+1-\frac{\Gamma}{C_{\rm cal}}
+\right|,
+}
+\]
+
+and the transverse kinetic-shape displacement
+
+\[
+\boxed{
+\epsilon_\perp
+\equiv
+|r_{\rm cone}|.
+}
+\]
+
+The first measures motion **along** the matter-loaded canonical infrared
+manifold.
+
+The second measures departure **away from** the canonical luminal surface.
+
+The fitted tangent decay exponent approaches unity:
+
+\[
+\epsilon_\parallel\propto a^{-\nu_\parallel},
+\]
+
+with
+
+\[
+\nu_\parallel
+=
+0.9812
+\quad
+(\ln a=2\text{--}3),
+\]
+
+\[
+\nu_\parallel
+=
+1.0097
+\quad
+(\ln a=3\text{--}4),
+\]
+
+and
+
+\[
+\nu_\parallel
+=
+1.0094
+\quad
+(\ln a=4\text{--}5).
+\]
+
+This reproduces the independently derived matter eigenvalue
+
+\[
+\boxed{
+\nu_\parallel\to1.
+}
+\]
+
+The transverse causal-shape mode decays much faster:
+
+\[
+\epsilon_\perp\propto a^{-\nu_\perp},
+\]
+
+with
+
+\[
+\nu_\perp
+=
+3.989
+\quad
+(\ln a=2\text{--}3),
+\]
+
+\[
+\nu_\perp
+=
+4.342
+\quad
+(\ln a=3\text{--}4),
+\]
+
+and
+
+\[
+\nu_\perp
+=
+4.518
+\quad
+(\ln a=4\text{--}5).
+\]
+
+The local logarithmic rate reaches approximately
+
+\[
+\boxed{
+\nu_\perp\simeq4.66
+}
+\]
+
+by
+
+\[
+\ln a=6,
+\]
+
+while
+
+\[
+\nu_\parallel\simeq1.00.
+\]
+
+The numerical trend is therefore toward the expected transition-tail
+hierarchy
+
+\[
+\boxed{
+\nu_\perp\to5,
+\qquad
+\nu_\parallel\to1,
+}
+\]
+
+consistent with the relative \(k_2\) suppression
+
+\[
+k_2Z^2/G_{2,\rm lead}\sim a^{-5}
+\]
+
+derived in Section 66.
+
+### 72.2 Asymptotic normal attraction
+
+The ratio of local contraction rates grows from approximately
+
+\[
+4.0
+\]
+
+near
+
+\[
+\ln a\simeq2
+\]
+
+to
+
+\[
+\boxed{
+4.64
+}
+\]
+
+by
+
+\[
+\ln a=6.
+\]
+
+Therefore departures transverse to the canonical manifold disappear several
+times faster than the residual matter motion tangent to it.
+
+This supplies numerical evidence that the canonical infrared manifold is
+**asymptotically normally attractive**:
+
+\[
+\boxed{
+|\nu_\perp|>|\nu_\parallel|.
+}
+\]
+
+In dynamical-systems language, the fast variables
+
+\[
+F_{,\sigma},
+\quad
+G_3,
+\quad
+k_2,
+\quad
+r_{\rm cone}
+\]
+
+collapse rapidly onto a slow manifold, while the remaining matter-loaded
+normalization coordinate evolves with the much smaller eigenvalue \(1\).
+
+Thus the future hierarchy is not merely
+
+\[
+\text{two-dimensional}\to\text{one-dimensional}
+\]
+
+kinematically.  It is dynamically hierarchical:
+
+\[
+\boxed{
+\text{fast canonicalization}
+\quad\longrightarrow\quad
+\text{slow matter relaxation}.
+}
+\]
+
+This is precisely the structure expected if the mature canonical theory is an
+infrared attractor rather than an externally imposed endpoint.
+
+## 73. Exact canonical-manifold beta law and infrared Lyapunov exponent
+
+The one-dimensional infrared manifold also permits an analytic flow equation.
+
+Use the standard canonical exponential variables
+
+\[
+x
+=
+\frac{\dot{\widehat\phi}}{\sqrt6H},
+\qquad
+y
+=
+\frac{\sqrt V}{\sqrt3H},
+\]
+
+with
+
+\[
+\lambda_\ell=\sqrt2.
+\]
+
+For pressureless matter,
+
+\[
+x'
+=
+-3x+\sqrt3\,y^2
++\frac32x(1+x^2-y^2),
+\]
+
+\[
+y'
+=
+-\sqrt3\,xy
++\frac32y(1+x^2-y^2).
+\]
+
+Define
+
+\[
+n
+\equiv
+\frac{{\cal N}}{{\cal N}_\infty}.
+\]
+
+The canonical structural identities give
+
+\[
+\boxed{
+n=\frac{\sqrt2\,x}{y}
+}
+\]
+
+and
+
+\[
+\boxed{
+\Gamma
+=
+\frac{2+n^2}{3}.
+}
+\]
+
+Taking a logarithmic derivative of \(n\),
+
+\[
+\frac{n'}{n}
+=
+\frac{x'}x-\frac{y'}y,
+\]
+
+and inserting the autonomous equations yields
+
+\[
+\frac{n'}n
+=
+-3
++
+\sqrt3
+\left(
+x+\frac{y^2}{x}
+\right).
+\]
+
+Since
+
+\[
+p=\sqrt3\,x
+\]
+
+and
+
+\[
+\frac{y^2}{x}
+=
+\frac{2x}{n^2},
+\]
+
+one obtains the exact dust-era canonical relation
+
+\[
+\boxed{
+\frac{n'}n
+=
+-3
++
+p
+\left(
+1+\frac2{n^2}
+\right).
+}
+\]
+
+Using
+
+\[
+n^2=3\Gamma-2,
+\]
+
+the normalization coordinate therefore obeys
+
+\[
+\boxed{
+\Gamma'
+=
+2
+\left[
+2+(p-3)\Gamma
+\right].
+}
+\]
+
+This equation is exact on the pure canonical dust manifold.  Radiation adds
+only a rapidly vanishing late-time correction.
+
+### 73.1 Universal infrared beta function
+
+The resonant matter expansion gives
+
+\[
+\Gamma
+=
+1-m_1a^{-1}
++
+O(a^{-2}\ln a),
+\]
+
+and
+
+\[
+p
+=
+1-\frac32m_1a^{-1}
++
+O(a^{-2}\ln a).
+\]
+
+Let
+
+\[
+\epsilon
+\equiv
+1-\Gamma.
+\]
+
+Then the exact manifold equation reduces to
+
+\[
+\boxed{
+\epsilon'
+=
+-\epsilon
++
+O(\epsilon^2\ln\epsilon).
+}
+\]
+
+Hence the tangent infrared eigenvalue is exactly
+
+\[
+\boxed{
+\lambda_{\rm IR}=1.
+}
+\]
+
+The normalization beta function becomes
+
+\[
+\boxed{
+\beta_\Gamma
+=
+\frac{d\ln\Gamma}{d\ln\sigma}
+=
+1-\Gamma
++
+O\!\left(
+(1-\Gamma)^2\ln(1-\Gamma)
+\right).
+}
+\]
+
+Thus the canonical infrared flow possesses a universal leading beta law
+independent of the fitted interpolation rates.
+
+Those rates control how rapidly the theory reaches the manifold; they do not
+control the final matter relaxation once the manifold has been reached.
+
+### 73.2 Analytic infrared Lyapunov function
+
+A minimal one-dimensional Lyapunov function is
+
+\[
+\boxed{
+{\cal V}_{\rm IR}
+=
+\frac12
+(1-\Gamma)^2.
+}
+\]
+
+Using
+
+\[
+\epsilon'=-\epsilon+\cdots,
+\]
+
+one obtains
+
+\[
+\frac{d{\cal V}_{\rm IR}}{dN}
+=
+\epsilon\epsilon'
+=
+-\epsilon^2
++
+O(\epsilon^3\ln\epsilon).
+\]
+
+Therefore
+
+\[
+\boxed{
+\frac{d{\cal V}_{\rm IR}}{dN}
+=
+-2{\cal V}_{\rm IR}
++
+O({\cal V}_{\rm IR}^{3/2}\ln{\cal V}_{\rm IR}).
+}
+\]
+
+To leading order,
+
+\[
+\boxed{
+{\cal V}_{\rm IR}\propto a^{-2}.
+}
+\]
+
+This \(a^{-2}\) decay of the Lyapunov distance is the square of the physical
+matter eigenmode
+
+\[
+1-\Gamma\propto a^{-1}.
+\]
+
+The result supplies the analytic counterpart of the numerical closure-plane
+audit:
+
+\[
+\boxed{
+\text{the finite handoff is multi-operator, but the mature canonical
+infrared flow has a simple one-dimensional Lyapunov law.}
+}
+\]
+
+The remaining microscopic task is therefore reduced still further.  A deeper
+SDMC completion must explain the fast transverse attraction onto the canonical
+manifold.  Once that attraction has occurred, the subsequent normalization
+flow is already fixed by the canonical action and ordinary matter
+conservation.
