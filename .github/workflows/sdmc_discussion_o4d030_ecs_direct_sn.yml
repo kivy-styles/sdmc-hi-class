@@ -1,0 +1,235 @@
+name: SDMC O4D030 ECS direct exact SN replay
+
+on:
+  push:
+    branches:
+      - sdmc-discussion-nkp-o4d030-earlycs-snfix
+  workflow_dispatch:
+
+jobs:
+  direct-sn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential git >/dev/null
+          python3 -m pip install -q --upgrade pip
+          python3 -m pip install -q numpy scipy pandas
+
+      - name: Reconstruct exact O4D030 ECS background
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean >/dev/null && make -j2 class >/dev/null
+          mkdir -p output
+
+          cat > output/target.ini <<'EOF'
+          H0 = 71.21322578595301
+          omega_b = 0.022215084896497428
+          omega_cdm = 0.12228109714277088
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.120753981008663e-9
+          n_s = 0.9647922897702084
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.00001
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.03773318954370916, 3.6879637566395105, 0.4136390263400972, 0.34231919445927034, 1.0, 0.04570108858030289
+          expansion_model = sdmc_full
+          expansion_smg = 0.7149896251906067, 18.40625, 16.12245249159634, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          root = output/target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/target.ini >/dev/null
+          python3 sdmc/run_r032_partial_zeq_ztbest_covariant.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("source/background.c"); s=p.read_text()
+          pat=re.compile(
+              r'double Ox\s*=\s*pba->parameters_smg\[0\];\s*'
+              r'double lambda_e\s*=\s*pba->parameters_smg\[1\];\s*'
+              r'double zt\s*=\s*pba->parameters_smg\[2\];\s*'
+              r'double dNt\s*=\s*pba->parameters_smg\[3\];\s*'
+              r'double A\s*=\s*pba->parameters_smg\[4\];\s*'
+              r'double tauA\s*=\s*pba->parameters_smg\[5\];\s*'
+              r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
+              r'double tauB\s*=\s*pba->parameters_smg\[7\];'
+          )
+          repl='''double Ox = 0.7149896251906067;
+            double lambda_e = 18.40625;
+            double zt = 16.12245249159634;
+            double dNt = 0.5;
+            double A = 0.01105624999;
+            double tauA = 0.25;
+            double B = 0.01951933685;
+            double tauB = 1.5;'''
+          s2,n=pat.subn(repl,s,count=1)
+          if n != 1: raise RuntimeError(f"tracker replacement count={n}")
+          p.write_text(s2)
+          PY
+          make clean >/dev/null && make -j2 class >/dev/null
+
+          cat > output/exact.ini <<'EOF'
+          H0 = 71.21322578595301
+          omega_b = 0.022215084896497428
+          omega_cdm = 0.12228109714277088
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.120753981008663e-9
+          n_s = 0.9647922897702084
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.00001
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_exact
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          root = output/ecs_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/exact.ini >/dev/null
+
+      - name: Install SN data
+        run: |
+          rm -rf sn_data
+          git clone -q --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+
+      - name: Score Pantheon+, Union3, DES-Y5
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json
+          import numpy as np
+          import pandas as pd
+          from scipy.linalg import cho_factor,cho_solve
+
+          DATA=Path("sn_data"); bgpath=Path("output/ecs_00_background.dat")
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith("#") and re.search(r"1\s*:",l)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values("z")
+
+          def read_cov(path,n):
+              a=np.asarray(np.loadtxt(path),float).reshape(-1)
+              if len(a)==n*n+1 and int(round(a[0]))==n: a=a[1:]
+              if len(a)!=n*n: raise RuntimeError(f"covariance size mismatch {path}: {len(a)} vs {n*n}")
+              return a.reshape(n,n)
+
+          def setup(C):
+              cf=cho_factor(C,lower=True,check_finite=False)
+              one=np.ones(C.shape[0]); u=cho_solve(cf,one,check_finite=False)
+              return cf,one,float(one.dot(u))
+
+          def chi(pack,r):
+              cf,one,den=pack
+              y=cho_solve(cf,r,check_finite=False)
+              return float(r.dot(y)-(one.dot(y))**2/den)
+
+          def mu(bg,z,zh):
+              DM=np.interp(z,bg.z,bg["comov. dist."])
+              DA=DM/(1.+z)
+              return 5.*np.log10((1.+zh)*(1.+z)*DA)
+
+          bg=table(bgpath)
+
+          pp=pd.read_csv(DATA/"PantheonPlus/Pantheon+SH0ES.dat",sep=r"\s+",header=0,engine="python")
+          ppm=pp["m_b_corr"].to_numpy(float); ppz=pp["zHD"].to_numpy(float); ppzh=pp["zHEL"].to_numpy(float)
+          C=read_cov(DATA/"PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov",len(ppm))
+          m=ppz>0.01; ppm,ppz,ppzh,C=ppm[m],ppz[m],ppzh[m],C[np.ix_(m,m)]
+          ppchi=chi(setup(C),ppm-mu(bg,ppz,ppzh))
+
+          p=DATA/"Union3/lcparam_full.txt"
+          cols=p.read_text().splitlines()[0].removeprefix("#").split()
+          un=pd.read_csv(p,sep=r"\s+",comment="#",names=cols,engine="python")
+          cm={c.lower():c for c in un.columns}
+          unm=un[cm["mb"]].to_numpy(float); unz=un[cm["zcmb"]].to_numpy(float)
+          unchi=chi(setup(read_cov(DATA/"Union3/mag_covmat.txt",len(unm))),unm-mu(bg,unz,unz))
+
+          de=pd.read_csv(DATA/"DESY5/DES-SN5YR_HD.csv")
+          cm={c.lower():c for c in de.columns}
+          dem=de[cm["mu"]].to_numpy(float); dez=de[cm["zhd"]].to_numpy(float); dezh=de[cm["zhel"]].to_numpy(float)
+          derr=de[cm["muerr_final"]].to_numpy(float)
+          dechi=chi(setup(read_cov(DATA/"DESY5/covsys_000.txt",len(dem))+np.diag(derr*derr)),
+                    dem-mu(bg,dez,dezh))
+
+          cand={"pantheonplus":ppchi,"union3":unchi,"desy5":dechi}
+          local={"pantheonplus":1406.214941392187,"union3":28.78345144550258,"desy5":1650.6363433003426}
+          fair={k:cand[k]-local[k] for k in cand}
+
+          planck0=-20.164716497350582; desi0=-14.010970724183892
+          planck1=-20.10853101454495; desi1=-14.033991522554118
+          local_pd=-31.15223224
+          ledger={
+            "cs0":{"planck":planck0,"desi":desi0,"fair_pd":planck0+desi0-local_pd},
+            "cs1e5":{"planck":planck1,"desi":desi1,"fair_pd":planck1+desi1-local_pd}
+          }
+          for x in ledger.values():
+              for k,v in fair.items(): x["fair_pd_"+k]=x["fair_pd"]+v
+
+          out={"candidate_sn_chi2":cand,"local021_sn_chi2":local,"candidate_minus_local021":fair,"ledger":ledger}
+          print("O4D030_ECS_DIRECT_SN",json.dumps(out,sort_keys=True),flush=True)
+          Path("output/ecs_sn_result.json").write_text(json.dumps(out,indent=2)+"\n")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: o4d030-ecs-direct-sn
+          path: output/ecs_sn_result.json
+          if-no-files-found: warn
