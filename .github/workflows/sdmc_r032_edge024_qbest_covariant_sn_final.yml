@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure029 S117 g022 exact-covariant SN final
+name: SDMC discussion O16 sobol009 exact-covariant SN
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure029-s117-g022-covariant-sn-final
+      - sdmc-discussion-o16-sobol009-covariant-sn
   workflow_dispatch:
 
 permissions:
@@ -31,13 +31,13 @@ jobs:
         run: |
           rm -rf input_cov
           mkdir -p input_cov
-          gh run download 35821019581 \
+          gh run download 35794878424 \
             --repo "${{ github.repository }}" \
-            --name sdmc-r032-snclosure029-s117-g022-covariant-desi \
+            --name sdmc-r032-snclosure223-o16-sobol009-covariant-desi \
             --dir input_cov
           test -f input_cov/desi_cov_00_background.dat
           test -f input_cov/desi_lcdm_00_background.dat
-          echo "S117_G022_COV_SN_BACKGROUNDS_READY"
+          echo "O16_SOBOL009_COV_SN_BACKGROUNDS_READY"
 
       - name: Install SN data
         run: |
@@ -46,7 +46,7 @@ jobs:
 
       - name: Score exact-covariant SN compilations
         run: |
-          mkdir -p output/s117_g022_cov_sn
+          mkdir -p output/o16_sobol009_cov_sn
           python3 - <<'PY'
           from pathlib import Path
           import re, json
@@ -55,7 +55,7 @@ jobs:
           from scipy.linalg import cho_factor, cho_solve
 
           DATA=Path('sn_data')
-          OUT=Path('output/s117_g022_cov_sn')
+          OUT=Path('output/o16_sobol009_cov_sn')
 
           def table(path):
               lines=Path(path).read_text().splitlines()
@@ -125,8 +125,8 @@ jobs:
           l=table('input_cov/desi_lcdm_00_background.dat')
           ss=scores(s); ll=scores(l)
           out={k:{'sdmc':ss[k],'lcdm_reference':ll[k],'delta_vs_reference':ss[k]-ll[k]} for k in ss}
-          planck=-20.246683132346334
-          desi=-11.015343697114531
+          planck=-19.915576469594725
+          desi=-12.027048166846214
           pd_total=planck+desi
           lcdm_local021_planck=-22.557091181603937
           lcdm_local021_desi=-8.59514105435187
@@ -161,14 +161,14 @@ jobs:
               'fair_gap_union3_sdmc_minus_lcdm':(pd_total+out['union3']['delta_vs_reference'])-(fair_lcdm_pd+l21_u3),
               'fair_gap_desy5_sdmc_minus_lcdm':(pd_total+out['desy5']['delta_vs_reference'])-(fair_lcdm_pd+l21_dy),
           }
-          print('S117_G022_FAIR_LEDGER',json.dumps(ledger,sort_keys=True),flush=True)
-          (OUT/'s117_g022_fair_ledger.json').write_text(json.dumps(ledger,indent=2))
-          print('S117_G022_COV_SN',json.dumps(out,sort_keys=True),flush=True)
+          print('O16_SOBOL009_FAIR_LEDGER',json.dumps(ledger,sort_keys=True),flush=True)
+          (OUT/'o16_sobol009_fair_ledger.json').write_text(json.dumps(ledger,indent=2))
+          print('O16_SOBOL009_COV_SN',json.dumps(out,sort_keys=True),flush=True)
           pd.DataFrame([
               dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm_reference'],delta_chi2=v['delta_vs_reference'])
               for k,v in out.items()
-          ]).to_csv(OUT/'s117_g022_covariant_sn.csv',index=False)
-          (OUT/'s117_g022_covariant_sn.json').write_text(json.dumps(out,indent=2))
+          ]).to_csv(OUT/'o16_sobol009_covariant_sn.csv',index=False)
+          (OUT/'o16_sobol009_covariant_sn.json').write_text(json.dumps(out,indent=2))
           PY
 
       - name: Preserve exact-covariant Q-best SN
@@ -176,5 +176,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sdmc-r032-snclosure029-s117-g022-covariant-sn-final
-          path: output/s117_g022_cov_sn/*
+          path: output/o16_sobol009_cov_sn/*
           if-no-files-found: warn
