@@ -14,17 +14,30 @@ late-time check is that both metric potentials remain finite and do not develop
 a late exponential runaway between ln(a)=5 and ln(a)=10.
 """
 from pathlib import Path
-import json,math,re
+import argparse,json,math,re
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-OUT=Path("output/native_canonical_long_horizon_summary.json")
-BG=Path("output/native_future_canonical_long_00_background.dat")
-BGRC=Path("output/native_future_canonical_long.rc")
-BLOG=Path("output/native_future_canonical_long.log")
-PPREFIX="native_future_perturb_canonical_long_"
-PRC=Path("output/native_future_perturb_canonical_long.rc")
-PLOG=Path("output/native_future_perturb_canonical_long.log")
+ap=argparse.ArgumentParser()
+ap.add_argument("--branch",choices=["fast","slowroot"],default="fast")
+args=ap.parse_args()
+
+if args.branch=="slowroot":
+    OUT=Path("output/native_canonical_slowroot_long_horizon_summary.json")
+    BG=Path("output/native_future_canonical_slowroot_long_00_background.dat")
+    BGRC=Path("output/native_future_canonical_slowroot_long.rc")
+    BLOG=Path("output/native_future_canonical_slowroot_long.log")
+    PPREFIX="native_future_perturb_canonical_slowroot_long_"
+    PRC=Path("output/native_future_perturb_canonical_slowroot_long.rc")
+    PLOG=Path("output/native_future_perturb_canonical_slowroot_long.log")
+else:
+    OUT=Path("output/native_canonical_long_horizon_summary.json")
+    BG=Path("output/native_future_canonical_long_00_background.dat")
+    BGRC=Path("output/native_future_canonical_long.rc")
+    BLOG=Path("output/native_future_canonical_long.log")
+    PPREFIX="native_future_perturb_canonical_long_"
+    PRC=Path("output/native_future_perturb_canonical_long.rc")
+    PLOG=Path("output/native_future_perturb_canonical_long.log")
 REF=Path("output/legacy_canonical_split_rate_refinement.json")
 
 TP=5.391247e-44
@@ -76,7 +89,7 @@ if REF.exists():
         ref_best=None
 
 out={
-  "status":"native canonical long-horizon closure audit",
+  "status":f"native canonical long-horizon closure audit ({args.branch})",
   "analytic_target":{
     "ln_a":10.0,"N_inf":XI,"p_inf":1.0,"q_inf":0.0,
     "D_inf":2.0,"cs2_inf":1.0
