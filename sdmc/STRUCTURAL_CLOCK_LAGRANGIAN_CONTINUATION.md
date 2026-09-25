@@ -13464,3 +13464,166 @@ sharply:
 
 Any future microscopic completion should explain both flows, rather than only
 reproducing the final background expansion.
+
+
+## 69. Two-beta form of the remaining microscopic closure
+
+The late structural state is now described by two independent coordinates,
+
+\[
+\Gamma=\frac{\chi}{F},
+\qquad
+r_{\rm cone}
+=
+\frac12\left(\frac1{c_s^2}-1\right).
+\]
+
+The closed canonical endpoint is
+
+\[
+\boxed{(\Gamma,r_{\rm cone})=(1,0)}.
+\]
+
+For the normalization sector,
+
+\[
+\boxed{
+\beta_\Gamma
+\equiv
+\frac{d\ln\Gamma}{d\ln\sigma}
+=
+2-m_X-\frac{\alpha_M}{p}.
+}
+\]
+
+Since \(d\ln\sigma=p\,dN\),
+
+\[
+\boxed{
+\frac{d\Gamma}{dN}
+=
+p\Gamma\beta_\Gamma.
+}
+\]
+
+For the causal-shape sector,
+
+\[
+1+2r_{\rm cone}=\frac1{c_s^2},
+\]
+
+so
+
+\[
+\boxed{
+\frac{dr_{\rm cone}}{dN}
+=
+-\frac{1+2r_{\rm cone}}{2}
+\frac{d\ln c_s^2}{dN}.
+}
+\]
+
+Equivalently,
+
+\[
+\boxed{
+\beta_r
+\equiv
+\frac{dr_{\rm cone}}{d\ln\sigma}
+=
+-\frac{1+2r_{\rm cone}}{2p}
+\frac{d\ln c_s^2}{dN}.
+}
+\]
+
+Thus the unresolved microscopic problem can be written as a two-dimensional
+flow toward \((1,0)\).
+
+Let
+
+\[
+\epsilon_\Gamma=1-\Gamma,
+\qquad
+\epsilon_r=r_{\rm cone}.
+\]
+
+Near the mature state, a general linear relaxation law has the form
+
+\[
+\frac{d}{dN}
+\begin{pmatrix}
+\epsilon_\Gamma\\
+\epsilon_r
+\end{pmatrix}
+=
+-
+\begin{pmatrix}
+\lambda_{\Gamma\Gamma}&\lambda_{\Gamma r}\\
+\lambda_{r\Gamma}&\lambda_{rr}
+\end{pmatrix}
+\begin{pmatrix}
+\epsilon_\Gamma\\
+\epsilon_r
+\end{pmatrix}
++
+O(\epsilon^2).
+\]
+
+Local attraction requires the relaxation matrix to have eigenvalues with
+positive real parts.  For a real two-dimensional system this is equivalent to
+
+\[
+\boxed{{\rm tr}\,{\bf M}>0},
+\qquad
+\boxed{\det{\bf M}>0}.
+\]
+
+If the flow is approximately diagonal,
+
+\[
+\epsilon_\Gamma'\simeq-\lambda_\Gamma\epsilon_\Gamma,
+\qquad
+\epsilon_r'\simeq-\lambda_r\epsilon_r,
+\]
+
+with positive rates, then
+
+\[
+{\cal L}
+=
+\frac12
+\left(
+\epsilon_\Gamma^2+\eta\epsilon_r^2
+\right),
+\qquad \eta>0,
+\]
+
+decreases locally as
+
+\[
+\frac{d{\cal L}}{dN}
+=
+-\lambda_\Gamma\epsilon_\Gamma^2
+-\eta\lambda_r\epsilon_r^2
++O(\epsilon^3).
+\]
+
+This gives a precise target for a microscopic completion: derive the beta
+functions that make the Balanced-Identity normalization and canonical causal
+shape a joint attractor.
+
+The successful future continuation already proves that at least one healthy
+trajectory exists with
+
+\[
+\Gamma\to1,
+\qquad
+r_{\rm cone}\to0,
+\]
+
+while retaining positive \(F\), positive kinetic determinant, positive scalar
+sound speed, No-Slip closure, and finite native perturbations.
+
+What remains unknown is whether the two beta functions arise from one common
+structural order parameter or from two coupled relaxation sectors.  This is
+now the cleanest formulation of the remaining microscopic question.
