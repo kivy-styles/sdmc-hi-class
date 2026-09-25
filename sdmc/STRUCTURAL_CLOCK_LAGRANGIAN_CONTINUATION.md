@@ -13123,3 +13123,344 @@ causal cone over nearby matter-loaded states?}
 Answering that question would explain dynamically why the higher-order
 kinetic operators flow away rather than merely documenting that a healthy
 future interpolation can make them do so.
+
+
+## 68. Causal-cone shape modulus and the meaning of the \(3.1144\) value
+
+The mature kinetic-shape modulus has a direct causal interpretation.
+
+For the constant-\(F\), unbraided mature action
+
+\[
+G_2=\frac{f(Z)}{\sigma^2},
+\]
+
+the exact scalar sound speed is
+
+\[
+c_s^2
+=
+\frac{f_{,Z}}
+{f_{,Z}+2Zf_{,ZZ}}.
+\]
+
+Define the dimensionless causal-shape variable
+
+\[
+\boxed{
+r_{\rm cone}
+\equiv
+\frac12
+\left(
+\frac1{c_s^2}-1
+\right).
+}
+\]
+
+Then
+
+\[
+\boxed{
+r_{\rm cone}
+=
+\frac{Zf_{,ZZ}}{f_{,Z}}.
+}
+\]
+
+For the quadratic mature family,
+
+\[
+f(Z)
+=
+\kappa_1Z+\kappa_2Z^2-U_0,
+\]
+
+this becomes, at the fixed point,
+
+\[
+\boxed{
+r_{\rm cone}=r.
+}
+\]
+
+So the shape parameter that previously appeared algebraically in
+
+\[
+\kappa_2
+=
+\frac{rF_\infty}{Z_\star}
+\]
+
+is exactly the amount by which the scalar causal cone is narrowed relative to
+the luminal canonical cone.
+
+The relation may be inverted as
+
+\[
+\boxed{
+c_{s,\infty}^2
+=
+\frac1{1+2r}.
+}
+\]
+
+This immediately reproduces the two noncanonical mature reference tails.
+
+For the \(F_\infty\)-matched tail,
+
+\[
+r=3.75611884,
+\]
+
+so
+
+\[
+c_{s,\infty}^2
+=
+0.1174779\ldots .
+\]
+
+For the bounded-\(\chi\) reference tail,
+
+\[
+r=3.43684444,
+\]
+
+giving
+
+\[
+c_{s,\infty}^2
+=
+0.127005\ldots .
+\]
+
+And for the canonical branch,
+
+\[
+\boxed{
+r=0
+\quad\Longleftrightarrow\quad
+c_s^2=1.
+}
+\]
+
+### 68.1 The present \(3.114415\) number
+
+The accepted present action has
+
+\[
+\boxed{
+c_{s,0}^2
+=
+0.13833496979.
+}
+\]
+
+If one translates that present causal-cone width into the equivalent
+k-essence curvature using the definition above, one finds
+
+\[
+\boxed{
+r_{{\rm cone},0}^{\rm equiv}
+=
+\frac12
+\left(
+\frac1{0.13833496979}-1
+\right)
+=
+3.11441507.
+}
+\]
+
+This explains the recurring value near
+
+\[
+\boxed{3.1144}
+\]
+
+seen during the earlier action investigation.
+
+It is important, however, not to overinterpret it.
+
+At the accepted present epoch,
+
+\[
+\alpha_M\neq0,
+\qquad
+\alpha_B\neq0,
+\]
+
+and the scalar is still described by the full Horndeski system rather than the
+constant-\(F\), \(G_3=0\) mature k-essence limit.
+
+Therefore
+
+\[
+\boxed{
+3.11441507
+}
+\]
+
+is a **causal-cone-equivalent shape diagnostic** at the present epoch, not the
+literal mature quadratic coefficient \(r\).
+
+Only after
+
+\[
+F_{,\sigma}\to0,
+\qquad
+G_3\to0
+\]
+
+does
+
+\[
+r_{\rm cone}
+\]
+
+become identical to the action's kinetic-shape modulus.
+
+### 68.2 A direct observable measure of shape relaxation
+
+The relation
+
+\[
+1+2r_{\rm cone}
+=
+\frac1{c_s^2}
+\]
+
+gives
+
+\[
+\boxed{
+\frac{d\ln(1+2r_{\rm cone})}{dN}
+=
+-
+\frac{d\ln c_s^2}{dN}.
+}
+\]
+
+Thus the entire mature shape relaxation can be tracked directly through the
+scalar sound-speed history.
+
+The canonical future completion has
+
+\[
+r_{\rm cone}\to0,
+\]
+
+while the old noncanonical tails approach finite positive constants.
+
+This gives a useful conceptual separation:
+
+\[
+\boxed{
+\Gamma
+=
+\frac{\chi}{F}
+}
+\]
+
+measures **background normalization relaxation**, while
+
+\[
+\boxed{
+r_{\rm cone}
+}
+\]
+
+measures **kinetic causal-shape relaxation**.
+
+The mature canonical SDMC endpoint is therefore the simultaneous limit
+
+\[
+\boxed{
+\Gamma\to1,
+\qquad
+r_{\rm cone}\to0.
+}
+\]
+
+The first condition restores the covariant Unified Balanced Identity,
+
+\[
+G_{\rm eff}\rho_XR^2/c^2=1,
+\]
+
+while the second restores the undeformed scalar causal cone.
+
+### 68.3 Two-dimensional closure plane
+
+It is therefore useful to regard the late structural theory as evolving in a
+two-dimensional closure plane,
+
+\[
+\boxed{
+(\Gamma,r_{\rm cone}).
+}
+\]
+
+The important mature states occupy different points:
+
+\[
+\text{bounded-source noncanonical}
+\quad\to\quad
+\left(
+\frac1{F_\infty},
+\,3.43684
+\right),
+\]
+
+\[
+\text{Balanced-Identity noncanonical}
+\quad\to\quad
+\left(
+1,
+\,3.75612
+\right),
+\]
+
+whereas the legacy-preserving canonical closure is
+
+\[
+\boxed{
+(\Gamma_\infty,r_{\rm cone,\infty})
+=
+(1,0).
+}
+\]
+
+This representation makes clear why background normalization and kinetic shape
+were initially independent.
+
+The Unified Balanced Identity fixes the horizontal coordinate,
+
+\[
+\Gamma_\infty=1,
+\]
+
+but does not determine the causal curvature coordinate.
+
+Robust luminality fixes the vertical coordinate,
+
+\[
+r_{\rm cone,\infty}=0.
+\]
+
+Only together do they select the closed canonical mature action.
+
+The outstanding microscopic problem can therefore be stated even more
+sharply:
+
+\[
+\boxed{
+\text{What underlying structural dynamics drives }
+(\Gamma,r_{\rm cone})
+\to
+(1,0)?
+}
+\]
+
+Any future microscopic completion should explain both flows, rather than only
+reproducing the final background expansion.
