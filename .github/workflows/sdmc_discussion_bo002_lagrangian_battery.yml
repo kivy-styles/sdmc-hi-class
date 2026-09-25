@@ -1,0 +1,213 @@
+name: SDMC exact bo002 local021 Lagrangian battery
+
+on:
+  push:
+    branches:
+      - sdmc-discussion-bo002-lagrangian-battery
+  workflow_dispatch:
+
+jobs:
+  battery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential git >/dev/null
+          python3 -m pip install -q --upgrade pip
+          python3 -m pip install -q numpy scipy pandas camb
+
+      - name: Reconstruct exact promoted bo002 action
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean >/dev/null && make -j2 class >/dev/null
+          mkdir -p output inputs/bo002
+
+          cat > output/cov_exact_target.ini <<'EOF'
+          H0 = 69.69978430196643
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.117602412937069e-9
+          n_s = 0.9625227132590487
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.024290704212870225, 3.6096407580714724, 0.3631213944496205, 0.34231919445927034, 1.0, 0.04602317962943721
+          expansion_model = sdmc_full
+          expansion_smg = 0.7012791354289403, 18.40625, 16.173189924377947, 0.5, 0.02291857772739604, 0.25, 0.012927192327566447, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          root = output/cov_exact_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/cov_exact_target.ini >/dev/null
+
+          python3 sdmc/run_r032_partial_zeq_ztbest_covariant.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("source/background.c"); s=p.read_text()
+          pat=re.compile(
+              r'double Ox\s*=\s*pba->parameters_smg\[0\];\s*'
+              r'double lambda_e\s*=\s*pba->parameters_smg\[1\];\s*'
+              r'double zt\s*=\s*pba->parameters_smg\[2\];\s*'
+              r'double dNt\s*=\s*pba->parameters_smg\[3\];\s*'
+              r'double A\s*=\s*pba->parameters_smg\[4\];\s*'
+              r'double tauA\s*=\s*pba->parameters_smg\[5\];\s*'
+              r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
+              r'double tauB\s*=\s*pba->parameters_smg\[7\];'
+          )
+          repl='''double Ox = 0.7012791354289403;
+            double lambda_e = 18.40625;
+            double zt = 16.173189924377947;
+            double dNt = 0.5;
+            double A = 0.02291857772739604;
+            double tauA = 0.25;
+            double B = 0.012927192327566447;
+            double tauB = 1.5;'''
+          s2,n=pat.subn(repl,s,count=1)
+          if n != 1: raise RuntimeError(f"tracker helper replacement count={n}")
+          p.write_text(s2)
+          PY
+
+          make clean >/dev/null && make -j2 class >/dev/null
+
+          cat > inputs/bo002/candidate.ini <<'EOF'
+          H0 = 69.69978430196643
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.117602412937069e-9
+          n_s = 0.9625227132590487
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_exact
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = mPk
+          P_k_max_h/Mpc = 3.0
+          z_pk = 0
+          write background = yes
+          write thermodynamics = yes
+          root = inputs/bo002/desi_cov_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class inputs/bo002/candidate.ini > output/bo002_exact.log 2>&1
+          test -f inputs/bo002/desi_cov_00_background.dat
+          test -f inputs/bo002/desi_cov_00_thermodynamics.dat
+          test -f inputs/bo002/desi_cov_00_z1_pk.dat
+
+      - name: Enforce SDMC Lagrangian and perturbation health gates
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          import numpy as np
+          import pandas as pd
+          p=Path("inputs/bo002/desi_cov_00_background.dat")
+          lines=p.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          bg=pd.DataFrame(np.loadtxt(p),columns=names)
+          out={
+            "D_min":float(bg["kin (D)"].min()),
+            "D_max":float(bg["kin (D)"].max()),
+            "cs2_min":float(bg["c_s^2"].min()),
+            "cs2_max":float(bg["c_s^2"].max()),
+            "noslip_max":float(np.max(np.abs(bg["braiding_smg"]+2*bg["M2_running_smg"]))),
+          }
+          out["rcone_min"]=float(np.min(.5*(1/np.maximum(bg["c_s^2"].to_numpy(),1e-300)-1)))
+          out["rcone_max"]=float(np.max(.5*(1/np.maximum(bg["c_s^2"].to_numpy(),1e-300)-1)))
+          print("BO002_LAGRANGIAN_HEALTH",json.dumps(out,sort_keys=True))
+          Path("output/bo002_lagrangian_health.json").write_text(json.dumps(out,indent=2)+"\n")
+          if not (out["D_min"]>0 and out["cs2_min"]>0 and out["cs2_max"]<=1.000001):
+              raise SystemExit("Lagrangian health gate failed")
+          PY
+
+      - name: Install public SN and DESI Gaussian BAO data
+        run: |
+          rm -rf sn_data bao_data
+          git clone -q --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          git clone -q --depth 1 https://github.com/CobayaSampler/bao_data.git bao_data
+          test -f sn_data/PantheonPlus/Pantheon+SH0ES.dat
+          test -f sn_data/Union3/lcparam_full.txt
+          test -f sn_data/DESY5/DES-SN5YR_HD.csv
+          test -f bao_data/desi_2024_gaussian_bao_ALL_GCcomb_mean.txt
+
+      - name: Run exact local021 battery
+        run: |
+          python3 sdmc/run_bo002_exact_local021_battery.py
+          cat output/uniform_battery/successful_candidates_uniform_battery.csv
+          echo "--- exact local021 verdict ---"
+          cat output/uniform_battery/uniform_gate_verdict.csv
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bo002-exact-local021-lagrangian-battery
+          path: |
+            output/bo002_lagrangian_health.json
+            output/bo002_exact.log
+            output/uniform_battery/*
+            inputs/bo002/desi_cov_00_background.dat
+            inputs/bo002/desi_cov_00_thermodynamics.dat
+            inputs/bo002/desi_cov_00_z1_pk.dat
+          if-no-files-found: ignore
