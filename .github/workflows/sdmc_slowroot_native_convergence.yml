@@ -94,6 +94,9 @@ jobs:
           output_verbose = 0
           EOF
           ./class output/target.ini >/dev/null
+          cp output/target.ini output/linear_cov_target.ini
+          python3 sdmc/run_r032_late266_linear_covariant.py
+          make clean >/dev/null && make -j2 class >/dev/null
 
       - name: Install accepted structural-clock action and future patches
         run: |
