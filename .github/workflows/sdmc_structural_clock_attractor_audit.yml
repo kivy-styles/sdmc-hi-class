@@ -266,6 +266,11 @@ jobs:
         run: |
           python3 sdmc/run_canonical_tail_root_memory_audit.py
 
+      - name: Compare canonical tail-root infrared rates
+        run: |
+          python3 sdmc/run_canonical_tail_root_rate_comparison.py
+
+
 
 
 
@@ -738,6 +743,7 @@ jobs:
             output/canonical_planck_braiding_tail_root_audit.json
             output/canonical_tail_root_branch_audit.json
             output/canonical_tail_root_memory_audit.json
+            output/canonical_tail_root_rate_comparison.json
             output/canonical_mapper_resonance_closure.json
             output/structural_lapse_mapper_asymptotic_audit.json
             output/covariant_balanced_identity_closure_audit.json
