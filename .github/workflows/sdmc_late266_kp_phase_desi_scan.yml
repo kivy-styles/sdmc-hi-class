@@ -1,0 +1,110 @@
+name: SDMC late266 partial-Kp DESI phase scan
+
+on:
+  push:
+    branches:
+      - sdmc-structural-clock-attractor-audit
+    paths:
+      - "sdmc/run_late266_kp_phase_desi_scan.py"
+      - ".github/workflows/sdmc_late266_kp_phase_desi_scan.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  kp-phase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        env:
+          PIP_DEFAULT_TIMEOUT: "45"
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y git curl unzip >/dev/null
+          python3 -m pip install --upgrade pip >/dev/null
+          python3 -m pip install --retries 4 numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
+          for PKG in \
+            git+https://github.com/cosmodesi/cosmoprimo.git \
+            git+https://github.com/adematti/lsstypes.git \
+            git+https://github.com/sfschen/velocileptors.git
+          do
+            ok=0
+            for attempt in 1 2 3
+            do
+              if timeout 180 python3 -m pip install --retries 2 "$PKG"; then ok=1; break; fi
+              sleep $((attempt*4))
+            done
+            test "$ok" -eq 1
+          done
+
+      - name: Download audited late266 DESI transfer artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh api repos/${{ github.repository }}/actions/artifacts/10739531917/zip > /tmp/late266.zip
+          unzip -o /tmp/late266.zip -d output >/dev/null
+          test -f output/desi_cov_00_background.dat
+          test -f output/desi_cov_00_z1_pk.dat
+          test -f output/desi_lcdm_00_background.dat
+          test -f output/desi_zeff.json
+          echo AUDITED_TRANSFER_ARTIFACT_READY
+
+      - name: Install official DESI DR1 full-shape likelihood data
+        run: |
+          rm -rf desi-kp-cosmological-likelihoods
+          ok=0
+          for attempt in 1 2 3
+          do
+            if timeout 120 git clone --depth 1 https://github.com/cosmodesi/desi-kp-cosmological-likelihoods.git; then ok=1; break; fi
+            rm -rf desi-kp-cosmological-likelihoods
+            sleep $((attempt*4))
+          done
+          test "$ok" -eq 1
+          mkdir -p desi_likelihood
+          BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          for FN in \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.6-0.8_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.8-1.1_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_ELG_LOPnotqso_GCcomb_z1.1-1.6_thetacut0.05.h5 \
+            likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_QSO_GCcomb_z0.8-2.1_thetacut0.05.h5
+          do
+            ok=0
+            for attempt in 1 2 3 4
+            do
+              for BASE in "$BASE_PRIMARY" "$BASE_MIRROR"
+              do
+                if curl -L --fail --retry 3 --retry-all-errors --retry-delay 3 \
+                     --connect-timeout 30 --max-time 240 \
+                     -o "desi_likelihood/$FN" "$BASE/$FN"; then
+                  ok=1
+                  break 2
+                fi
+              done
+              sleep $((attempt*5))
+            done
+            test "$ok" -eq 1
+          done
+
+      - name: Scan partial-Kp matter-domain phase map
+        run: |
+          python3 sdmc/run_late266_kp_phase_desi_scan.py
+          cat output/late266_kp_phase_best.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late266-partial-kp-phase-desi-scan
+          path: |
+            output/late266_kp_phase_scan_summary.csv
+            output/late266_kp_phase_scan_blocks.csv
+            output/late266_kp_phase_best.json
+          if-no-files-found: warn
