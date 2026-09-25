@@ -57,6 +57,14 @@ CANDIDATES={
                           mu_k2=5.0,
                           mu_V=120.0,
                           grid_power=2.0),
+  "legacy_canonical_slowroot":dict(chi_inf=FINF,
+                          r=0.0,
+                          muQ=50.0,
+                          mu_k1=50.0,
+                          mu_k2=5.0,
+                          mu_V=120.0,
+                          muF_override=2.8610674139117047,
+                          grid_power=2.0),
 }
 
 SEC_PER_GYR=1e9*365.25*86400.
@@ -207,7 +215,13 @@ def asym_Z_from_mu(mu):
     Agc=coeffs_match(g_xder,0.,mug)
     return mu*AFc[3]/(2.*Agc[3])
 
-muF=brentq(lambda mu:asym_Z_from_mu(mu)-Zinf,5.0,6.2)
+if "muF_override" in spec:
+    muF=float(spec["muF_override"])
+    root_res=asym_Z_from_mu(muF)-Zinf
+    if abs(root_res) > 1e-6*max(1.,abs(Zinf)):
+        raise RuntimeError(f"muF_override={muF} is not a C3 No-Slip tail root")
+else:
+    muF=brentq(lambda mu:asym_Z_from_mu(mu)-Zinf,5.0,6.2)
 mug=muF+1.
 AFc=coeffs_match(bars["F"],FINF,muF)
 Agc=coeffs_match(g_xder,0.,mug)
