@@ -258,6 +258,11 @@ jobs:
         run: |
           python3 sdmc/run_canonical_planck_braiding_tail_root_audit.py
 
+      - name: Compare both positive canonical tail-root branches
+        run: |
+          python3 sdmc/run_canonical_tail_root_branch_audit.py
+
+
 
 
 
@@ -628,6 +633,7 @@ jobs:
             output/canonical_ir_manifold_audit.json
             output/canonical_ir_rate_hierarchy_audit.json
             output/canonical_planck_braiding_tail_root_audit.json
+            output/canonical_tail_root_branch_audit.json
             output/canonical_mapper_resonance_closure.json
             output/structural_lapse_mapper_asymptotic_audit.json
             output/covariant_balanced_identity_closure_audit.json
