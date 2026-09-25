@@ -34,6 +34,11 @@ RUNS={
     "rc":Path("output/native_future_perturb_canonical.rc"),
     "log":Path("output/native_future_perturb_canonical.log"),
   },
+  "legacy_canonical_slowroot":{
+    "prefix":"native_future_perturb_canonical_slowroot_",
+    "rc":Path("output/native_future_perturb_canonical_slowroot.rc"),
+    "log":Path("output/native_future_perturb_canonical_slowroot.log"),
+  },
 }
 
 def read_titles(path):
