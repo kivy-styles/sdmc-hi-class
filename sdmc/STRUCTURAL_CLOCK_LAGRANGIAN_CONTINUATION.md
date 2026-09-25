@@ -13627,3 +13627,266 @@ sound speed, No-Slip closure, and finite native perturbations.
 What remains unknown is whether the two beta functions arise from one common
 structural order parameter or from two coupled relaxation sectors.  This is
 now the cleanest formulation of the remaining microscopic question.
+
+
+## 70. The finite canonical handoff is genuinely two-dimensional
+
+The two-beta formulation raises a natural question: can the successful
+canonical trajectory actually be reduced to one global order parameter?
+
+The completed closure-plane audit answers this in the negative for the full
+future handoff.
+
+Define
+
+\[
+u\equiv\ln\Gamma
+\]
+
+and
+
+\[
+v\equiv
+\ln(1+2r_{\rm cone})
+=
+-\ln c_s^2.
+\]
+
+A particularly simple candidate common relaxation measure is
+
+\[
+\boxed{
+{\cal L}_\lambda
+=
+\frac12
+\left(
+u^2+\lambda v^2
+\right),
+\qquad
+\lambda>0.
+}
+\]
+
+Its derivative is
+
+\[
+\frac{d{\cal L}_\lambda}{dN}
+=
+u\,u'
++
+\lambda v\,v'.
+\]
+
+If one constant positive \(\lambda\) made this quantity non-positive over the
+entire transition, the demonstrated future path would admit a simple global
+quadratic Lyapunov distance to the canonical point.
+
+The numerical audit finds that no such constant exists over the complete
+interval beginning at the present boundary.
+
+The pointwise inequalities require simultaneously
+
+\[
+\boxed{
+\lambda
+\gtrsim0.9452
+}
+\]
+
+from one part of the trajectory, while another part requires
+
+\[
+\boxed{
+\lambda
+\lesssim3.07\times10^{-4}.
+}
+\]
+
+These conditions are incompatible.
+
+Therefore
+
+\[
+\boxed{
+\text{the complete finite handoff is not described by a single
+constant-metric quadratic relaxation distance in }
+(\ln\Gamma,-\ln c_s^2).
+}
+\]
+
+This is not a failure of the canonical endpoint.  It means that the rapid
+matching layer contains genuinely multi-component dynamics.
+
+### 70.1 Neither closure coordinate is globally monotone
+
+The normalization coordinate itself is not monotonic through the complete
+handoff.
+
+Starting from
+
+\[
+\Gamma_0=0.91951178,
+\]
+
+the refined canonical path first rises to approximately
+
+\[
+\Gamma\simeq0.98455
+\]
+
+near
+
+\[
+\ln a\simeq0.07,
+\]
+
+then falls to approximately
+
+\[
+\Gamma\simeq0.92912
+\]
+
+near
+
+\[
+\ln a\simeq0.69,
+\]
+
+before turning again and finally approaching
+
+\[
+\Gamma_\infty=1.
+\]
+
+Thus the derivative of \(\Gamma\) changes sign twice.
+
+The causal-shape coordinate is even more dramatic in the immediate matching
+layer.  Although its accepted present value is
+
+\[
+r_{{\rm cone},0}\simeq3.11439,
+\]
+
+the rapid future coefficient release produces a short positive excursion to
+
+\[
+\boxed{
+r_{\rm cone}\simeq9.97646
+}
+\]
+
+near
+
+\[
+\ln a\simeq0.005,
+\]
+
+after which it rapidly collapses toward zero.
+
+The scalar sound speed remains positive during this excursion.  The feature is
+therefore a transient narrowing of the scalar cone, not a ghost or gradient
+instability.
+
+### 70.2 \(\Gamma\) cannot be the hidden common order parameter
+
+The same value of \(\Gamma\) can occur at very different kinetic shapes.
+
+For example, the audit finds two points with nearly equal normalization,
+
+\[
+\Gamma\simeq0.929,
+\]
+
+but with
+
+\[
+r_{\rm cone}\simeq9.98
+\]
+
+in the immediate handoff and
+
+\[
+r_{\rm cone}\simeq1.8\times10^{-2}
+\]
+
+later in the relaxation.
+
+Hence
+
+\[
+\boxed{
+r_{\rm cone}\neq r_{\rm cone}(\Gamma)
+}
+\]
+
+as a single-valued global relation through the complete transition.
+
+Therefore the normalization variable \(\Gamma\) by itself cannot serve as the
+microscopic order parameter controlling both background and kinetic closure.
+
+The reverse reduction also fails because \(r_{\rm cone}\) is not globally
+monotonic.
+
+### 70.3 Physical interpretation
+
+The result divides the future evolution into two conceptually distinct stages.
+
+First comes a **matching layer**, during which the accepted present Horndeski
+jet is rearranged:
+
+\[
+F_{,\sigma},
+\quad
+G_3,
+\quad
+k_1,
+\quad
+k_2,
+\quad
+V
+\]
+
+all relax at different rates while continuity through the present boundary is
+maintained.
+
+During this stage, normalization and causal shape can move in different
+directions.
+
+After that layer, the higher Horndeski operators become small and the
+trajectory enters the **mature relaxation regime**, where both closure
+coordinates approach
+
+\[
+(\Gamma,r_{\rm cone})=(1,0).
+\]
+
+Thus a microscopic theory need not possess a one-dimensional order parameter
+valid from the present epoch onward.
+
+A more realistic possibility is
+
+\[
+\boxed{
+\text{multi-field/multi-operator matching}
+\quad\longrightarrow\quad
+\text{lower-dimensional infrared relaxation}.
+}
+\]
+
+This is compatible with the decoupling hierarchy of Section 66: several
+finite-activation operators are important during the matching layer, but they
+become irrelevant much faster than the residual matter eigenmode.
+
+The next question is therefore more precise than asking for a global common
+order parameter:
+
+\[
+\boxed{
+\text{Does a genuine Lyapunov description emerge after the finite
+matching layer has ended?}
+}
+\]
+
+That question can be tested directly by moving the lower boundary of the
+closure-plane audit forward in \(\ln a\) and searching for the first interval
+on which a single positive quadratic metric becomes monotonic.
