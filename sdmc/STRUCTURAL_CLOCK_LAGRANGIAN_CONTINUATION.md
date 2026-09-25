@@ -15335,3 +15335,287 @@ finite path by which the accepted late-time Horndeski theory reaches it.}
 This is useful rather than problematic: it identifies exactly which parts of
 the current future construction are physical predictions and which remain
 interpolation freedom.
+
+
+## 75. Canonical universality class versus finite transition memory
+
+The two positive Planck/braiding roots found in Section 74 clarify which
+quantities belong to the infrared theory itself and which quantities retain a
+memory of the finite route into that theory.
+
+The canonical endpoint is common to both branches:
+
+\[
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}},
+\]
+
+\[
+p_\infty=1,
+\qquad
+q_\infty=0,
+\]
+
+\[
+D_\infty=2,
+\qquad
+c_{s,\infty}^2=1,
+\]
+
+\[
+r_{\rm cone,\infty}=0.
+\]
+
+The tangent infrared eigenvalue is also common,
+
+\[
+\boxed{
+\lambda_{\rm IR}=1.
+}
+\]
+
+These are therefore **universal infrared data** of the mature canonical
+action.
+
+By contrast, the frozen mapper
+
+\[
+M_\infty
+=
+\lim_{a\to\infty}\frac{\sigma}{a}
+\]
+
+retains information about the finite transition.
+
+Section 64 showed that the amplitude of the physical matter eigenmode is
+
+\[
+\boxed{
+m_1
+=
+\frac{
+\Omega_{m0}M_\infty^2
+}{
+F_\infty p_0^2
+}
+\left(
+\frac{{\cal N}_0}{{\cal N}_\infty}
+\right)^2.
+}
+\]
+
+Therefore two healthy future histories that share the same accepted present
+normalization and the same mature endpoint can still have slightly different
+late matter-mode amplitudes if their frozen mapper memories differ.
+
+For two branches \(A\) and \(B\),
+
+\[
+\boxed{
+\frac{m_1^{(B)}}{m_1^{(A)}}
+=
+\left(
+\frac{M_\infty^{(B)}}{M_\infty^{(A)}}
+\right)^2.
+}
+\]
+
+For a small mapper difference,
+
+\[
+\boxed{
+\frac{\delta m_1}{m_1}
+=
+2\frac{\delta M_\infty}{M_\infty}
++
+O\!\left[
+\left(\frac{\delta M_\infty}{M_\infty}\right)^2
+\right].
+}
+\]
+
+The action-level branch comparison already shows this effect at
+\(\ln a=10\).  The mapper values there are approximately
+
+\[
+M_{10}^{(-)}
+=
+0.7588342511
+\]
+
+for the slow Planck root and
+
+\[
+M_{10}^{(+)}
+=
+0.7588174881
+\]
+
+for the fast root.
+
+Their fractional difference is only
+
+\[
+\boxed{
+\frac{
+M_{10}^{(+)}
+}{
+M_{10}^{(-)}
+}
+-1
+\simeq
+-2.21\times10^{-5}.
+}
+\]
+
+The corresponding expected fractional shift in the asymptotic matter-mode
+amplitude is therefore of order
+
+\[
+\boxed{
+\frac{
+m_1^{(+)}
+}{
+m_1^{(-)}
+}
+-1
+\simeq
+-4.42\times10^{-5},
+}
+\]
+
+up to the tiny remaining difference between \(M_{10}\) and the exact frozen
+\(M_\infty\).
+
+This is small enough that the two branches are essentially
+indistinguishable at the level of the mature background endpoint, while still
+being mathematically distinct histories.
+
+### 75.1 Universal exponents, non-universal amplitudes
+
+The canonical matter-loaded infrared flow has the generic form
+
+\[
+1-\Gamma
+=
+m_1a^{-1}
++\cdots,
+\]
+
+\[
+1-\frac{{\cal N}}{{\cal N}_\infty}
+=
+\frac32m_1a^{-1}
++\cdots.
+\]
+
+The exponent
+
+\[
+a^{-1}
+\]
+
+is universal because it is fixed by the canonical dust eigenvalue.
+
+The coefficient
+
+\[
+m_1
+\]
+
+is not fully universal because it contains \(M_\infty\), which remembers the
+finite transition.
+
+Thus the clean dynamical distinction is
+
+\[
+\boxed{
+\text{infrared exponent}
+=
+\text{universal},
+}
+\]
+
+while
+
+\[
+\boxed{
+\text{infrared amplitude}
+=
+\text{transition-memory dependent}.
+}
+\]
+
+This is the same pattern familiar in many attractor systems: different
+trajectories can fall into the same fixed point with the same critical
+exponents while carrying different amplitudes along the allowed decaying
+modes.
+
+### 75.2 The intrinsic scalar amplitude can also retain path memory
+
+The resonant second-order expansion contains an independent scalar-mode
+coefficient \(s_2\),
+
+\[
+a^{-2}
+\]
+
+together with the matter-generated resonant contribution
+
+\[
+a^{-2}\ln a.
+\]
+
+The eigenvalue \(-2\) is fixed by the mature canonical action, but its free
+homogeneous amplitude is set by how the finite transition enters the canonical
+basin.
+
+Therefore the expected hierarchy is
+
+\[
+\boxed{
+\lambda_1=1,
+\qquad
+\lambda_2=2
+}
+\]
+
+as universal infrared eigenvalues, while
+
+\[
+\boxed{
+m_1,
+\qquad
+s_2
+}
+\]
+
+can retain small branch-dependent memories.
+
+The dedicated tail-root memory audit now measures these quantities
+independently for both positive roots.
+
+### 75.3 What a microscopic selector would have to determine
+
+A microscopic theory that selects one Planck/braiding root over the other
+would therefore not be changing the mature canonical Lagrangian.
+
+It would be selecting the **basin-entry history**, and hence the amplitudes
+with which the universal infrared modes are excited.
+
+That is a much narrower task than deriving the endpoint itself.
+
+The current picture is therefore
+
+\[
+\boxed{
+\text{many admissible finite handoffs}
+\longrightarrow
+\text{one canonical infrared universality class}.
+}
+\]
+
+A future microscopic principle may choose a preferred handoff, but the
+canonical endpoint and its physical infrared exponents do not depend on that
+choice.
