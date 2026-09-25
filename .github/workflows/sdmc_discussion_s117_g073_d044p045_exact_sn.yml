@@ -1,0 +1,137 @@
+name: SDMC S117 g073 D044P045 exact SN replay
+
+on:
+  push:
+    branches:
+      - sdmc-discussion-s117-g073-d044p045-exact-sn
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  exact-sn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y python3 python3-pip git >/dev/null
+          python3 -m pip install -q numpy scipy pandas
+
+      - name: Download exact D044P045 DESI background artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf input_cov
+          mkdir -p input_cov
+          gh run download 36167249409 \
+            --repo "${{ github.repository }}" \
+            --name sdmc-discussion-s117-g073-d044p045-exact-desi \
+            --dir input_cov
+          test -f input_cov/desi_cov_00_background.dat
+          test -f input_cov/desi_lcdm_00_background.dat
+          echo "D044P045_SN_BACKGROUNDS_READY"
+
+      - name: Install SN data
+        run: |
+          rm -rf sn_data
+          git clone -q --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+
+      - name: Score all three alternative SN compilations
+        run: |
+          mkdir -p output/d044p045_sn
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json
+          import numpy as np
+          import pandas as pd
+          from scipy.linalg import cho_factor,cho_solve
+
+          DATA=Path("sn_data"); OUT=Path("output/d044p045_sn")
+
+          def table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith("#") and re.search(r"1\s*:",l)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values("z")
+
+          def read_cov(path,n):
+              a=np.asarray(np.loadtxt(path),float).reshape(-1)
+              if len(a)==n*n+1 and int(round(a[0]))==n: a=a[1:]
+              if len(a)!=n*n: raise RuntimeError(f"covariance size mismatch {path}")
+              return a.reshape(n,n)
+
+          def setup(C):
+              cf=cho_factor(C,lower=True,check_finite=False)
+              one=np.ones(C.shape[0]); u=cho_solve(cf,one,check_finite=False)
+              return cf,one,float(one.dot(u))
+
+          def chi(pack,r):
+              cf,one,den=pack
+              y=cho_solve(cf,r,check_finite=False)
+              return float(r.dot(y)-(one.dot(y))**2/den)
+
+          def mu(bg,z,zh):
+              DM=np.interp(z,bg.z,bg["comov. dist."])
+              DA=DM/(1.+z)
+              return 5.*np.log10((1.+zh)*(1.+z)*DA)
+
+          pp=pd.read_csv(DATA/"PantheonPlus/Pantheon+SH0ES.dat",sep=r"\s+",header=0,engine="python")
+          ppm=pp["m_b_corr"].to_numpy(float); ppz=pp["zHD"].to_numpy(float); ppzh=pp["zHEL"].to_numpy(float)
+          C=read_cov(DATA/"PantheonPlus/Pantheon+SH0ES_STAT+SYS.cov",len(ppm))
+          m=ppz>0.01; ppm,ppz,ppzh,C=ppm[m],ppz[m],ppzh[m],C[np.ix_(m,m)]
+          ppp=setup(C)
+
+          p=DATA/"Union3/lcparam_full.txt"
+          cols=p.read_text().splitlines()[0].removeprefix("#").split()
+          un=pd.read_csv(p,sep=r"\s+",comment="#",names=cols,engine="python")
+          cm={c.lower():c for c in un.columns}
+          unm=un[cm["mb"]].to_numpy(float); unz=un[cm["zcmb"]].to_numpy(float)
+          unp=setup(read_cov(DATA/"Union3/mag_covmat.txt",len(unm)))
+
+          de=pd.read_csv(DATA/"DESY5/DES-SN5YR_HD.csv")
+          cm={c.lower():c for c in de.columns}
+          dem=de[cm["mu"]].to_numpy(float); dez=de[cm["zhd"]].to_numpy(float); dezh=de[cm["zhel"]].to_numpy(float)
+          derr=de[cm["muerr_final"]].to_numpy(float)
+          dep=setup(read_cov(DATA/"DESY5/covsys_000.txt",len(dem))+np.diag(derr*derr))
+
+          def scores(bg):
+              return dict(
+                pantheonplus=chi(ppp,ppm-mu(bg,ppz,ppzh)),
+                union3=chi(unp,unm-mu(bg,unz,unz)),
+                desy5=chi(dep,dem-mu(bg,dez,dezh))
+              )
+
+          s=table("input_cov/desi_cov_00_background.dat")
+          l=table("input_cov/desi_lcdm_00_background.dat")
+          ss=scores(s); ll=scores(l)
+          delta={k:ss[k]-ll[k] for k in ss}
+
+          # local021 shifts relative to the same fixed reference models, from
+          # the manuscript's exact SN ledger.
+          l21=dict(
+            pantheonplus=1406.214941392187-1403.8851876016706,
+            union3=28.78345144551713-26.54733349144226,
+            desy5=1650.6363433077931-1645.4675567224622
+          )
+          sn_fair={k:delta[k]-l21[k] for k in delta}
+          out=dict(sdmc_chi2=ss,reference_chi2=ll,delta_vs_reference=delta,
+                   local021_delta_vs_reference=l21,sn_fair_increment=sn_fair)
+          OUT.joinpath("sn_score.json").write_text(json.dumps(out,indent=2)+"\n")
+          print("D044P045_EXACT_SN_SCORE",json.dumps(out,sort_keys=True),flush=True)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-discussion-s117-g073-d044p045-exact-sn
+          path: output/d044p045_sn/*
+          if-no-files-found: warn
