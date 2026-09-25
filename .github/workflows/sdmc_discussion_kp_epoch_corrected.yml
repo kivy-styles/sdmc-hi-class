@@ -1,0 +1,199 @@
+name: SDMC discussion epoch-corrected Kp narrow-window screen
+
+on:
+  push:
+    branches:
+      - sdmc-discussion-kp-epoch-corrected
+  workflow_dispatch:
+
+jobs:
+  kp-screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Current Lagrangian derivation:
+          # Kp/Km = f_b^(1/3) = 0.53395806.
+          # Kp(z*) = 3.4604068e18 and Km(z*) = 6.4806716e18.
+          # The absolute mapper is NOT multiplied into a local thermal sound horizon;
+          # only the direct-domain ratio is tested here, over a deliberately narrow terminal window.
+          - { label: "null", cmin: "1.00000000", zoff: "1088.00", zon: "1088.20", dz: "0.03" }
+          - { label: "w01a", cmin: "0.53395806", zoff: "1088.65", zon: "1088.75", dz: "0.015" }
+          - { label: "w01b", cmin: "0.53395806", zoff: "1088.50", zon: "1088.60", dz: "0.015" }
+          - { label: "w01c", cmin: "0.53395806", zoff: "1088.30", zon: "1088.40", dz: "0.015" }
+          - { label: "w02a", cmin: "0.53395806", zoff: "1088.55", zon: "1088.75", dz: "0.020" }
+          - { label: "w02b", cmin: "0.53395806", zoff: "1088.25", zon: "1088.45", dz: "0.020" }
+          - { label: "w03a", cmin: "0.53395806", zoff: "1088.40", zon: "1088.70", dz: "0.025" }
+          - { label: "w03b", cmin: "0.53395806", zoff: "1088.05", zon: "1088.35", dz: "0.025" }
+          - { label: "w05a", cmin: "0.53395806", zoff: "1088.10", zon: "1088.60", dz: "0.040" }
+          - { label: "w05b", cmin: "0.53395806", zoff: "1087.70", zon: "1088.20", dz: "0.040" }
+          - { label: "w10a", cmin: "0.53395806", zoff: "1087.50", zon: "1088.50", dz: "0.060" }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential python3 python3-pip >/dev/null
+          python3 -m pip install -q --upgrade pip
+          python3 -m pip install -q numpy scipy pandas cobaya
+
+      - name: Install Planck native likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              ok=cls.install(path='planck_packages',no_progress_bars=True)
+              if not ok: raise SystemExit(2)
+          print("PLANCK_READY")
+          PY
+
+      - name: Build exact-covariant SN-friendly candidate
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          python3 sdmc/apply_sdmc_kp_common_force_patch.py \
+            --cmin ${{ matrix.cmin }} --dz ${{ matrix.dz }} --zon ${{ matrix.zon }} --zoff ${{ matrix.zoff }}
+          make clean >/dev/null && make -j2 class >/dev/null
+          mkdir -p output
+
+          cat > output/kp_candidate.ini <<EOF
+          H0 = 69.65713294670206
+          omega_b = 0.02210665947087109
+          omega_cdm = 0.12360133596416563
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1204932504106098e-9
+          n_s = 0.9629559406703339
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.03200255395658314, 4.007449422683567, 0.34799921004101636, 0.34231919445927034, 1.0, 0.04607192634791136
+          expansion_model = sdmc_full
+          expansion_smg = 0.6996160227928192, 18.40625, 16.173189924377947, 0.5, 0.018589897081255913, 0.25, 0.013815921754576268, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 2.0
+          z_pk = 0
+          write background = yes
+          write thermodynamics = yes
+          root = output/kp_${{ matrix.label }}_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+
+          set +e
+          ./class output/kp_candidate.ini > output/kp_${{ matrix.label }}.log 2>&1
+          rc=$?
+          set -e
+          echo "$rc" > output/kp_${{ matrix.label }}.rc
+          if [ "$rc" -ne 0 ]; then
+            tail -80 output/kp_${{ matrix.label }}.log
+            exit "$rc"
+          fi
+
+      - name: Score Planck and physical gates
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          import numpy as np
+          import pandas as pd
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+
+          label="${{ matrix.label }}"; T=2.7255; sig=.0025
+          root=f"output/kp_{label}_"
+          high=TTTEEE_lite_native(packages_path="planck_packages")
+          lowT=TT(packages_path="planck_packages")
+          lowE=EE(packages_path="planck_packages")
+          lens=LensingNative(packages_path="planck_packages")
+
+          a=np.loadtxt(root+"00_cl_lensed.dat")
+          ell=a[:,0].astype(int); n=int(ell.max())+1; conv=(T*1e6)**2
+          tt=np.zeros(n); ee=np.zeros(n); te=np.zeros(n); pp=np.zeros(n)
+          tt[ell]=a[:,1]*conv; ee[ell]=a[:,2]*conv; te[ell]=a[:,3]*conv
+          L=ell.astype(float); pp[ell]=a[:,5]*L*(L+1)
+          ha=np.column_stack([ell,tt[ell],te[ell],ee[ell]])
+          spectra={"tt":tt,"te":te,"ee":ee,"pp":pp}
+          def f(A):
+              x=float(high.chi_squared(ha,A_planck=A))
+              x+=float(-2*lowT.log_likelihood(tt,calib=A))
+              x+=float(-2*lowE.log_likelihood(ee,calib=A))
+              lp={lens.calibration_param:A} if getattr(lens,"calibration_param",None) else {}
+              x+=float(-2*lens.log_likelihood(spectra,**lp))
+              x+=((A-1)/sig)**2
+              return x
+          op=minimize_scalar(f,bounds=(.97,1.03),method="bounded",options={"xatol":1e-9})
+
+          lines=Path(root+"00_background.dat").read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          bg=pd.DataFrame(np.loadtxt(root+"00_background.dat"),columns=names)
+          gate={}
+          for key in ["kin (D)","c_s^2"]:
+              if key in bg: gate[key+"_min"]=float(bg[key].min())
+          if "c_s^2" in bg: gate["c_s^2_max"]=float(bg["c_s^2"].max())
+          if "braiding_smg" in bg and "M2_running_smg" in bg:
+              gate["noslip_max"]=float(np.max(np.abs(bg["braiding_smg"]+2*bg["M2_running_smg"])))
+          out=dict(label=label,cmin=float("${{ matrix.cmin }}"),dz=float("${{ matrix.dz }}"),zon=float("${{ matrix.zon }}"),zoff=float("${{ matrix.zoff }}"),
+                   A_planck=float(op.x),chi2_planck_native_lite=float(op.fun),**gate)
+          Path(f"output/kp_{label}_score.json").write_text(json.dumps(out,indent=2)+"\n")
+          print("KP_REPAIR_SCORE",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kp-repair-${{ matrix.label }}
+          path: |
+            output/kp_${{ matrix.label }}_score.json
+            output/kp_${{ matrix.label }}.log
+            output/kp_${{ matrix.label }}.rc
+            output/kp_${{ matrix.label }}_00_background.dat
+            output/kp_${{ matrix.label }}_00_thermodynamics.dat
+            output/kp_${{ matrix.label }}_00_cl_lensed.dat
+            output/kp_${{ matrix.label }}_00_z1_pk.dat
+          if-no-files-found: ignore
