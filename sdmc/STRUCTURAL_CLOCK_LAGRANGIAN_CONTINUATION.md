@@ -13890,3 +13890,385 @@ matching layer has ended?}
 That question can be tested directly by moving the lower boundary of the
 closure-plane audit forward in \(\ln a\) and searching for the first interval
 on which a single positive quadratic metric becomes monotonic.
+
+
+## 71. Collapse onto a one-dimensional canonical infrared manifold
+
+The failure of a global one-parameter description in Section 70 applies to the
+finite matching layer.  Once the higher Horndeski operators have decoupled,
+the situation simplifies dramatically.
+
+For the mature canonical action,
+
+\[
+G_{2,\infty}
+=
+\frac1{\sigma^2}
+\left(
+2F_\infty Z
+-
+4F_\infty Z_\star
+\right),
+\]
+
+with
+
+\[
+Z_\star=Z_{\rm BI},
+\]
+
+the positive structural source is exactly
+
+\[
+\rho_X
+=
+2ZG_{2,Z}-G_2
+=
+\frac{
+2F_\infty
+\left(
+Z+2Z_\star
+\right)
+}{
+\sigma^2
+}.
+\]
+
+At the Balanced-Identity fixed point,
+
+\[
+Z=Z_\star,
+\]
+
+so
+
+\[
+\rho_{X,\star}
+=
+\frac{
+6F_\infty Z_\star
+}{
+\sigma^2
+}.
+\]
+
+The corresponding bare inverse-square structural source is therefore
+
+\[
+\boxed{
+\rho_v
+=
+\frac{
+6Z_\star
+}{
+\sigma^2
+}.
+}
+\]
+
+Consequently, throughout the canonical mature action,
+
+\[
+\Gamma
+=
+\frac{\rho_X/F_\infty}{\rho_v}
+\]
+
+obeys
+
+\[
+\boxed{
+\Gamma_{\rm can}
+=
+\frac13
+\left(
+2+\frac{Z}{Z_\star}
+\right).
+}
+\]
+
+But the structural lapse satisfies
+
+\[
+{\cal N}
+=
+t_PS_0\sqrt{2Z},
+\]
+
+so
+
+\[
+\frac{Z}{Z_\star}
+=
+\left(
+\frac{{\cal N}}{{\cal N}_\infty}
+\right)^2.
+\]
+
+Hence the canonical infrared manifold is
+
+\[
+\boxed{
+\Gamma_{\rm can}
+=
+\frac13
+\left[
+2+
+\left(
+\frac{{\cal N}}{{\cal N}_\infty}
+\right)^2
+\right].
+}
+\]
+
+This is an exact action-level relation once the pure canonical mature normal
+form has been reached.
+
+At the same time,
+
+\[
+\boxed{
+r_{\rm cone}=0
+}
+\]
+
+identically.
+
+Thus the two-dimensional closure plane collapses onto the one-dimensional
+canonical manifold
+
+\[
+\boxed{
+\left(
+\Gamma,r_{\rm cone}
+\right)
+=
+\left(
+\frac{
+2+({\cal N}/{\cal N}_\infty)^2
+}{3},
+\,0
+\right).
+}
+\]
+
+The finite handoff is therefore genuinely two-dimensional, but the infrared
+relaxation is one-dimensional.
+
+### 71.1 Matter controls the remaining coordinate
+
+Using the resonant canonical expansion
+
+\[
+\frac{{\cal N}}{{\cal N}_\infty}
+=
+1
+-\frac32m_1a^{-1}
++
+O(a^{-2}\ln a),
+\]
+
+the exact manifold relation gives
+
+\[
+\boxed{
+\Gamma_{\rm can}
+=
+1
+-
+m_1a^{-1}
++
+O(a^{-2}\ln a).
+}
+\]
+
+At second order,
+
+\[
+\boxed{
+\Gamma_{\rm can}
+=
+1
+-m_1u
++
+u^2
+\left[
+\frac94m_1^2\ln u
+-
+3m_1^2
+-
+\sqrt6\,s_2
+\right]
++\cdots,
+}
+\]
+
+where
+
+\[
+u=a^{-1}.
+\]
+
+Thus after the kinetic shape has relaxed,
+
+\[
+r_{\rm cone}=0,
+\]
+
+the remaining normalization displacement
+
+\[
+1-\Gamma
+\]
+
+is simply another representation of the residual matter eigenmode.
+
+The late canonical theory therefore needs only one dynamical relaxation
+coordinate.
+
+### 71.2 The reconstructed trajectory reveals a constant calibration factor
+
+The numerical structural source is normalized to the independently
+reconstructed accepted present value
+
+\[
+\chi_0=0.941089569\ldots .
+\]
+
+When the refined canonical trajectory is compared with the ideal manifold, the
+late samples satisfy
+
+\[
+\Gamma_{\rm action}
+=
+C_{\rm cal}
+\,
+\frac{
+2+({\cal N}/{\cal N}_\infty)^2
+}{3}
+\]
+
+with an essentially constant factor
+
+\[
+\boxed{
+C_{\rm cal}
+\simeq
+0.9999704552.
+}
+\]
+
+For example, the inferred factor is approximately
+
+\[
+0.9999704558
+\]
+
+at
+
+\[
+\ln a=5,
+\]
+
+\[
+0.9999704552
+\]
+
+at
+
+\[
+\ln a=8,
+\]
+
+and
+
+\[
+0.9999704552
+\]
+
+at
+
+\[
+\ln a=10.
+\]
+
+Its stability over the mature interval shows that this is not another
+late-time dynamical mode.
+
+It is a fixed normalization offset between the reconstructed
+present-calibrated \(\chi\) convention and the ideal canonical
+Balanced-Identity normalization.
+
+The size of the offset is
+
+\[
+\boxed{
+C_{\rm cal}-1
+\simeq
+-2.95\times10^{-5}.
+}
+\]
+
+The ideal continuum closure corresponds to
+
+\[
+C_{\rm cal}=1.
+\]
+
+Whether the remaining \(2.95\times10^{-5}\) should be absorbed into a refined
+present normalization or retained as reconstruction uncertainty is a
+calibration question, not a change of the mature equations of motion.
+
+### 71.3 Three-stage structure of the future solution
+
+The complete future development can therefore be organized into three stages.
+
+First is the **multi-operator matching layer**,
+
+\[
+(\Gamma,r_{\rm cone})
+\quad\text{genuinely two-dimensional},
+\]
+
+during which the present Horndeski jet is rearranged.
+
+Second is the **canonicalization layer**,
+
+\[
+r_{\rm cone}\to0,
+\qquad
+F_{,\sigma}\to0,
+\qquad
+G_3\to0,
+\qquad
+k_2\to0.
+\]
+
+Third is the **matter-loaded canonical infrared flow**,
+
+\[
+\boxed{
+r_{\rm cone}=0,
+\qquad
+\Gamma\to1,
+}
+\]
+
+with
+
+\[
+1-\Gamma
+\sim
+m_1a^{-1}.
+\]
+
+This resolves the apparent tension between Sections 69 and 70.
+
+A single global order parameter does not describe the complete handoff, but a
+one-dimensional order parameter emerges naturally after canonicalization.
+
+The remaining microscopic problem is therefore not required to make the
+entire present-to-future trajectory one-dimensional.
+
+It must instead explain why the multi-operator matching flow is attracted onto
+the canonical infrared manifold.
