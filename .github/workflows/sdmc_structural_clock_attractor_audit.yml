@@ -238,6 +238,11 @@ jobs:
         run: |
           python3 sdmc/run_canonical_resonant_asymptotic_audit.py
 
+      - name: Run causal-cone shape modulus audit
+        run: |
+          python3 sdmc/run_causal_shape_modulus_audit.py
+
+
       - name: Close canonical matter mode against mapper endpoint
         run: |
           python3 sdmc/run_canonical_mapper_resonance_closure.py
@@ -598,6 +603,7 @@ jobs:
             output/matter_loaded_coasting_bridge.json
             output/mature_matter_forced_asymptotics.json
             output/canonical_resonant_asymptotic_audit.json
+            output/causal_shape_modulus_audit.json
             output/canonical_mapper_resonance_closure.json
             output/structural_lapse_mapper_asymptotic_audit.json
             output/covariant_balanced_identity_closure_audit.json
