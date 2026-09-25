@@ -96,6 +96,10 @@ for name,cfg in RUNS.items():
         except Exception: pass
     log_tail=cfg["log"].read_text(errors="replace").splitlines()[-30:] if cfg["log"].exists() else []
     files=sorted(Path("output").glob(cfg["prefix"]+"*perturbations_k*_s.dat"))
+    # The fast canonical prefix is a lexical prefix of the slow-root prefix.
+    # Keep the two physical branches disjoint in the summary.
+    if name=="legacy_canonical":
+        files=[p for p in files if "slowroot" not in p.name]
     run={"returncode":rc,"log_tail":log_tail,"files":[]}
     if not files:
         run["status"]="missing_perturbation_files"
