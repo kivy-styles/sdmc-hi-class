@@ -64,7 +64,7 @@ jobs:
           a_min_stability_test_smg = 1.e-8
           output_background_smg = 3
           write background = yes
-          root = output/target_
+          root = output/cov_exact_target_
           format = class
           input_verbose = 0
           background_verbose = 0
