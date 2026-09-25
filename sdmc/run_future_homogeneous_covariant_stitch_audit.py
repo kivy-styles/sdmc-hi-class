@@ -234,11 +234,18 @@ def build_candidate(spec):
     kappa2=r*FINF/Zinf
     U0=FINF*Zinf*(4.-r)
 
-    # The C3 asymptotic equation has multiple positive roots.  Use the
-    # fastest branch near mu_F~5.6; the slower branches leave a longer
-    # modified-gravity transient while reaching the same fixed point.
+    # The C3 asymptotic equation has multiple positive roots.  The default
+    # production branch is the fast root near mu_F~5.6.  An explicit override
+    # is accepted for branch-comparison audits; it changes only the unobserved
+    # future Planck/braiding interpolation, not the accepted present C3 jet or
+    # the mature canonical endpoint.
     rootfun=lambda mu: asym_Z_from_mu(mu)-Zinf
-    muF=brentq(rootfun,5.0,6.2)
+    if "muF_override" in spec:
+        muF=float(spec["muF_override"])
+        if abs(rootfun(muF)) > 1e-6*max(1.,abs(Zinf)):
+            raise RuntimeError(f"muF_override={muF} is not a C3 No-Slip tail root")
+    else:
+        muF=brentq(rootfun,5.0,6.2)
     mug=muF+1.
 
     AFc=coeffs_match(bars["F"],FINF,muF)
