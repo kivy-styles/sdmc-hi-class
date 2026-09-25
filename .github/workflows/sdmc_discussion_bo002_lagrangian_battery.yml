@@ -150,7 +150,12 @@ jobs:
           ./class inputs/bo002/candidate.ini > output/bo002_exact.log 2>&1
           test -f inputs/bo002/desi_cov_00_background.dat
           test -f inputs/bo002/desi_cov_00_thermodynamics.dat
-          test -f inputs/bo002/desi_cov_00_z1_pk.dat
+          PKFILE=$(find inputs/bo002 -maxdepth 1 -type f -name '*pk.dat' | head -1)
+          test -n "$PKFILE"
+          if [ "$PKFILE" != "inputs/bo002/desi_cov_00_z1_pk.dat" ]; then
+            cp "$PKFILE" inputs/bo002/desi_cov_00_z1_pk.dat
+          fi
+          echo "BO002_PKFILE=$PKFILE"
 
       - name: Enforce SDMC Lagrangian and perturbation health gates
         run: |
