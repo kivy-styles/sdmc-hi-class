@@ -60,7 +60,7 @@ jobs:
           test "$ok" -eq 1
 
       - name: Run S117 growth Pareto scan
-        run: python3 sdmc/run_r032_s117_g073_structural_refine.py
+        run: python3 sdmc/run_r032_s117_growth_pareto.py
 
       - name: Print Pareto summary
         if: always()
