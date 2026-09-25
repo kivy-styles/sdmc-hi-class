@@ -33,6 +33,11 @@ RUNS={
     "rc":Path("output/native_future_canonical.rc"),
     "log":Path("output/native_future_canonical.log"),
   },
+  "legacy_canonical_slowroot":{
+    "background":Path("output/native_future_canonical_slowroot_00_background.dat"),
+    "rc":Path("output/native_future_canonical_slowroot.rc"),
+    "log":Path("output/native_future_canonical_slowroot.log"),
+  },
 }
 
 def read(path):
