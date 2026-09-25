@@ -15621,7 +15621,7 @@ canonical endpoint and its physical infrared exponents do not depend on that
 choice.
 
 
-## 76. Long-horizon native validation selects the fast root operationally
+## 76. Long-horizon native branch discrimination and convergence caution
 
 The two positive C3 Planck/braiding roots remain almost indistinguishable in
 the exact homogeneous action equations, and both survive the native
@@ -15999,6 +15999,139 @@ but
 The next audit should locate the slow-root native failure boundary and test its
 convergence with future-table resolution before deciding whether the
 long-horizon failure is physical or numerical.
+
+
+## 76A. Focused convergence scan revises the slow-root native verdict
+
+A dedicated standalone convergence matrix was subsequently run after
+reconstructing the same accepted target and free structural background used by
+the full audit.
+
+The slow root was tested at
+
+\[
+\ln a=
+6,\ 7,\ 8,\ 9,\ 10
+\]
+
+with
+
+\[
+2600
+\]
+
+future table points, and again at
+
+\[
+\ln a=10
+\]
+
+with
+
+\[
+5200
+\]
+
+future table points.
+
+The resulting pattern was
+
+\[
+\boxed{
+\ln a=6:\ {\rm pass},
+}
+\]
+
+\[
+\boxed{
+\ln a=7:\ {\rm interpolation/background\ lookup\ failure},
+}
+\]
+
+\[
+\boxed{
+\ln a=8:\ {\rm pass},
+}
+\]
+
+\[
+\boxed{
+\ln a=9:\ {\rm interpolation/background\ lookup\ failure},
+}
+\]
+
+and
+
+\[
+\boxed{
+\ln a=10:\ {\rm pass}
+}
+\]
+
+at **both**
+
+\[
+2600
+\]
+
+and
+
+\[
+5200
+\]
+
+future points.
+
+The successful \(\ln a=10\) runs return
+
+\[
+{\tt returncode}=0
+\]
+
+and produce the full native background table.
+
+The failures at \(\ln a=7\) and \(9\) occur in the future
+\({\tt background\_at\_tau/background\_at\_z}\) lookup rather than through a
+monotonic loss of
+
+\[
+F>0,\quad D>0,\quad c_s^2>0
+\]
+
+or through a reproducible negative critical density.
+
+Because a physically unstable branch should not generically fail at 7, recover
+at 8, fail at 9, and then recover at 10 at two independent table resolutions,
+the focused scan changes the interpretation.
+
+The scientifically supported conclusion is now
+
+\[
+\boxed{
+\text{the earlier slow-root long-horizon failure was not a robust physical
+branch exclusion.}
+}
+\]
+
+Instead, the current native future extension contains discrete endpoint
+sensitivity in its post-present interpolation/bookkeeping layer.
+
+Therefore the fast root remains the conservative production branch because it
+has the cleanest uninterrupted native history, but the slow root is **not**
+excluded by the \(\ln a=10\) background test.
+
+The final branch distinction must therefore be stated as
+
+\[
+\boxed{
+\text{same canonical infrared endpoint, with different finite transition
+rates and small transition-memory amplitudes.}
+}
+\]
+
+A final focused scalar-perturbation run at \(\ln a=10\) is used below to
+decide whether any operational preference for the fast root remains after this
+background convergence correction.
 
 
 ## 77. Consolidated closed equation set for the final discussion
