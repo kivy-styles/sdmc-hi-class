@@ -22,12 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { tag: "n6_r2600", endpoint: 6.0, points: 2600, psimax: 12.0 }
-          - { tag: "n7_r2600", endpoint: 7.0, points: 2600, psimax: 12.0 }
-          - { tag: "n8_r2600", endpoint: 8.0, points: 2600, psimax: 12.0 }
-          - { tag: "n9_r2600", endpoint: 9.0, points: 2600, psimax: 12.0 }
-          - { tag: "n10_r2600", endpoint: 10.0, points: 2600, psimax: 12.0 }
-          - { tag: "n10_r5200", endpoint: 10.0, points: 5200, psimax: 12.0 }
+          - { tag: "n10_full", endpoint: 10.0, points: 2600, psimax: 12.0 }
 
     steps:
       - uses: actions/checkout@v4
@@ -180,41 +175,67 @@ jobs:
           output_verbose = 0
           EOF
 
-      - name: Run slow-root native endpoint
+      - name: Run slow-root native background and perturbations
         run: |
           python3 sdmc/install_future_logstruct_tail.py \
             --candidate legacy_canonical_slowroot \
             --psi-max ${{ matrix.psimax }} \
             --future-points ${{ matrix.points }}
           make clean >/dev/null && make -j2 class >/dev/null
-          cp output/native_future.ini output/scan.ini
-          echo 'root = output/scan_' >> output/scan.ini
+          cp output/native_future.ini output/native_future_canonical_slowroot_long.ini
+          echo 'root = output/native_future_canonical_slowroot_long_' >> output/native_future_canonical_slowroot_long.ini
           set +e
-          ./class output/scan.ini > output/scan.log 2>&1
-          rc=$?
+          ./class output/native_future_canonical_slowroot_long.ini > output/native_future_canonical_slowroot_long.log 2>&1
+          brc=$?
           set -e
-          echo "$rc" > output/scan.rc
+          echo "$brc" > output/native_future_canonical_slowroot_long.rc
+          if [ "$brc" -ne 0 ]; then
+            cat output/native_future_canonical_slowroot_long.log
+            exit "$brc"
+          fi
+
+          python3 sdmc/patch_future_perturbation_endpoint.py
+          python3 sdmc/patch_future_thermodynamics_extrapolation.py
+          python3 sdmc/install_future_logstruct_tail.py \
+            --candidate legacy_canonical_slowroot \
+            --psi-max ${{ matrix.psimax }} \
+            --future-points ${{ matrix.points }}
+          make clean >/dev/null && make -j2 class >/dev/null
+          cp output/native_future.ini output/native_future_perturb_canonical_slowroot_long.ini
+          cat >> output/native_future_perturb_canonical_slowroot_long.ini <<'EOF'
+          modes = s
+          output = mPk
+          P_k_max_h/Mpc = 0.02
+          z_pk = 0
+          k_output_values = 0.0001, 0.001, 0.01
+          write parameters = yes
+          write warnings = yes
+          root = output/native_future_perturb_canonical_slowroot_long_
+          EOF
+          set +e
+          ./class output/native_future_perturb_canonical_slowroot_long.ini > output/native_future_perturb_canonical_slowroot_long.log 2>&1
+          prc=$?
+          set -e
+          echo "$prc" > output/native_future_perturb_canonical_slowroot_long.rc
+          if [ "$prc" -ne 0 ]; then
+            cat output/native_future_perturb_canonical_slowroot_long.log
+            exit "$prc"
+          fi
+
+          python3 sdmc/run_native_canonical_long_horizon_summary.py --branch slowroot
+          cat output/native_canonical_slowroot_long_horizon_summary.json
           python3 - <<'PY'
-          import json,re
-          from pathlib import Path
-          tag="${{ matrix.tag }}"
-          endpoint=float("${{ matrix.endpoint }}")
-          points=int("${{ matrix.points }}")
-          rc=int(Path("output/scan.rc").read_text().strip())
-          log=Path("output/scan.log").read_text(errors="replace")
-          m=re.findall(r"rho_crit = ([-+0-9.eE]+)",log)
-          rho=float(m[-1]) if m else None
-          err=[x for x in log.splitlines() if "error" in x.lower() or "failed" in x.lower()]
-          bg=Path("output/scan_00_background.dat")
-          out={
-            "tag":tag,"endpoint":endpoint,"future_points":points,
-            "returncode":rc,"success":rc==0 and bg.exists(),
-            "rho_crit_failure":rho,
-            "error_tail":err[-8:],
-            "background_exists":bg.exists(),
-          }
-          Path("output/convergence.json").write_text(json.dumps(out,indent=2)+"\n")
-          print("SLOWROOT_CONVERGENCE",json.dumps(out,sort_keys=True))
+          import json,sys
+          p="output/native_canonical_slowroot_long_horizon_summary.json"
+          d=json.load(open(p))
+          print("SLOWROOT_LONG_FINAL",json.dumps({
+            "background":d.get("background"),
+            "perturbations":d.get("perturbations"),
+            "all_long_horizon_gates_pass":d.get("all_long_horizon_gates_pass")
+          },sort_keys=True))
+          if not d.get("all_long_horizon_gates_pass",False):
+              sys.exit(1)
+          print("NATIVE_CANONICAL_SLOWROOT_LONG_HORIZON_GATE_PASS")
           PY
 
       - uses: actions/upload-artifact@v4
@@ -222,8 +243,11 @@ jobs:
         with:
           name: slowroot-${{ matrix.tag }}
           path: |
-            output/convergence.json
-            output/scan.log
-            output/scan.rc
-            output/future_logstruct_tail_install.json
+            output/native_canonical_slowroot_long_horizon_summary.json
+            output/native_future_canonical_slowroot_long.log
+            output/native_future_canonical_slowroot_long.rc
+            output/native_future_canonical_slowroot_long_00_background.dat
+            output/native_future_perturb_canonical_slowroot_long.log
+            output/native_future_perturb_canonical_slowroot_long.rc
+            output/native_future_perturb_canonical_slowroot_long_*perturbations_k*_s.dat
           if-no-files-found: ignore
