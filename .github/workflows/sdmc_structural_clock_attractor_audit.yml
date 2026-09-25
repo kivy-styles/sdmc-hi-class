@@ -254,6 +254,11 @@ jobs:
         run: |
           python3 sdmc/run_canonical_ir_rate_hierarchy_audit.py
 
+      - name: Run canonical Planck-braiding tail root audit
+        run: |
+          python3 sdmc/run_canonical_planck_braiding_tail_root_audit.py
+
+
 
 
 
@@ -622,6 +627,7 @@ jobs:
             output/canonical_closure_lyapunov_audit.json
             output/canonical_ir_manifold_audit.json
             output/canonical_ir_rate_hierarchy_audit.json
+            output/canonical_planck_braiding_tail_root_audit.json
             output/canonical_mapper_resonance_closure.json
             output/structural_lapse_mapper_asymptotic_audit.json
             output/covariant_balanced_identity_closure_audit.json
