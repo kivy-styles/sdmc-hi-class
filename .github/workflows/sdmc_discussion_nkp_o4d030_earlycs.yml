@@ -1,0 +1,246 @@
+name: SDMC O4D030 exact early-structure cs2 scan
+
+on:
+  push:
+    branches:
+      - sdmc-discussion-nkp-o4d030-earlycs
+  workflow_dispatch:
+
+jobs:
+  earlycs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: "cs0",      cs: "0.0" }
+          - { label: "cs1e5",    cs: "0.00001" }
+          - { label: "cs1e4",    cs: "0.0001" }
+          - { label: "cs3e4",    cs: "0.0003" }
+          - { label: "cs1e3",    cs: "0.001" }
+          - { label: "cs2e3",    cs: "0.002" }
+          - { label: "base",     cs: "0.003" }
+          - { label: "cs5e3",    cs: "0.005" }
+          - { label: "cs1e2",    cs: "0.01" }
+          - { label: "cs3e2",    cs: "0.03" }
+          - { label: "cs1e1",    cs: "0.1" }
+          - { label: "cs1",      cs: "1.0" }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential >/dev/null
+          python3 -m pip install -q --upgrade pip
+          python3 -m pip install -q numpy scipy pandas cobaya
+
+      - name: Install native Planck likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              if not cls.install(path="planck_packages",no_progress_bars=True):
+                  raise SystemExit(2)
+          PY
+
+      - name: Reconstruct exact O4D030 Lagrangian
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean >/dev/null && make -j2 class >/dev/null
+          mkdir -p output
+
+          cat > output/cov_exact_target.ini <<EOF
+          H0 = 71.21322578595301
+          omega_b = 0.022215084896497428
+          omega_cdm = 0.12228109714277088
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.120753981008663e-9
+          n_s = 0.9647922897702084
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = ${{ matrix.cs }}
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.03773318954370916, 3.6879637566395105, 0.4136390263400972, 0.34231919445927034, 1.0, 0.04570108858030289
+          expansion_model = sdmc_full
+          expansion_smg = 0.7149896251906067, 18.40625, 16.12245249159634, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          root = output/cov_exact_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/cov_exact_target.ini >/dev/null
+
+          python3 sdmc/run_r032_partial_zeq_ztbest_covariant.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("source/background.c"); s=p.read_text()
+          pat=re.compile(
+              r'double Ox\s*=\s*pba->parameters_smg\[0\];\s*'
+              r'double lambda_e\s*=\s*pba->parameters_smg\[1\];\s*'
+              r'double zt\s*=\s*pba->parameters_smg\[2\];\s*'
+              r'double dNt\s*=\s*pba->parameters_smg\[3\];\s*'
+              r'double A\s*=\s*pba->parameters_smg\[4\];\s*'
+              r'double tauA\s*=\s*pba->parameters_smg\[5\];\s*'
+              r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
+              r'double tauB\s*=\s*pba->parameters_smg\[7\];'
+          )
+          repl='''double Ox = 0.7149896251906067;
+            double lambda_e = 18.40625;
+            double zt = 16.12245249159634;
+            double dNt = 0.5;
+            double A = 0.01105624999;
+            double tauA = 0.25;
+            double B = 0.01951933685;
+            double tauB = 1.5;'''
+          s2,n=pat.subn(repl,s,count=1)
+          if n != 1: raise RuntimeError(f"tracker helper replacement count={n}")
+          p.write_text(s2)
+          PY
+
+          make clean >/dev/null && make -j2 class >/dev/null
+
+          cat > output/exact.ini <<EOF
+          H0 = 71.21322578595301
+          omega_b = 0.022215084896497428
+          omega_cdm = 0.12228109714277088
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.120753981008663e-9
+          n_s = 0.9647922897702084
+          tau_reio = 0.055202901571989066
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = ${{ matrix.cs }}
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_exact
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 2.0
+          z_pk = 0
+          write background = yes
+          write thermodynamics = yes
+          root = output/earlycs_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/exact.ini > output/earlycs.log 2>&1
+
+      - name: Profile native Planck components
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          import numpy as np
+          import pandas as pd
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          root="output/earlycs_"; T=2.7255; sig=.0025
+          high=TTTEEE_lite_native(packages_path="planck_packages")
+          lowT=TT(packages_path="planck_packages")
+          lowE=EE(packages_path="planck_packages")
+          lens=LensingNative(packages_path="planck_packages")
+          a=np.loadtxt(root+"00_cl_lensed.dat"); ell=a[:,0].astype(int); n=int(ell.max())+1; conv=(T*1e6)**2
+          tt=np.zeros(n); ee=np.zeros(n); te=np.zeros(n); pp=np.zeros(n)
+          tt[ell]=a[:,1]*conv; ee[ell]=a[:,2]*conv; te[ell]=a[:,3]*conv
+          L=ell.astype(float); pp[ell]=a[:,5]*L*(L+1)
+          ha=np.column_stack([ell,tt[ell],te[ell],ee[ell]])
+          spectra={"tt":tt,"te":te,"ee":ee,"pp":pp}
+          def pieces(A):
+              hi=float(high.chi_squared(ha,A_planck=A))
+              lt=float(-2*lowT.log_likelihood(tt,calib=A))
+              le=float(-2*lowE.log_likelihood(ee,calib=A))
+              lp={lens.calibration_param:A} if getattr(lens,"calibration_param",None) else {}
+              ll=float(-2*lens.log_likelihood(spectra,**lp))
+              cal=((A-1)/sig)**2
+              return hi,lt,le,ll,cal
+          def f(A): return sum(pieces(A))
+          op=minimize_scalar(f,bounds=(.97,1.03),method="bounded",options={"xatol":1e-9})
+          hi,lt,le,ll,cal=pieces(op.x)
+          lines=Path(root+"00_background.dat").read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          bg=pd.DataFrame(np.loadtxt(root+"00_background.dat"),columns=names)
+          out={
+            "label":"${{ matrix.label }}","cs2_fld":float("${{ matrix.cs }}"),"A_planck":float(op.x),
+            "chi2_total":float(op.fun),"chi2_high":hi,"chi2_lowT":lt,"chi2_lowE":le,
+            "chi2_lensing":ll,"chi2_cal":cal,
+            "D_min":float(bg["kin (D)"].min()),"cs2_smg_min":float(bg["c_s^2"].min()),
+            "cs2_smg_max":float(bg["c_s^2"].max()),
+            "noslip_max":float(np.max(np.abs(bg["braiding_smg"]+2*bg["M2_running_smg"])))
+          }
+          Path("output/score.json").write_text(json.dumps(out,indent=2)+"\n")
+          print("O4D030_EARLYCS_SCORE",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: earlycs-${{ matrix.label }}
+          path: |
+            output/score.json
+            output/earlycs.log
+            output/earlycs_00_background.dat
+            output/earlycs_00_cl_lensed.dat
+            output/earlycs_00_z1_pk.dat
+          if-no-files-found: ignore
