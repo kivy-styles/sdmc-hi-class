@@ -12779,3 +12779,347 @@ late-time expansion.}
 \]
 
 The current continuation satisfies that requirement by a wide margin.
+
+
+## 67. Robust-luminality theorem for the mature structural vacuum
+
+Section 62 showed that exact luminality at a **single** fixed point,
+
+\[
+c_s^2(Z_\star)=1,
+\]
+
+only constrains the local curvature
+
+\[
+f_{,ZZ}(Z_\star)=0.
+\]
+
+That still leaves open the logical possibility that higher-order kinetic
+operators conspire to have zero curvature at one special value of \(Z\).
+
+The matter-loaded canonical attractor supplies a stronger condition.
+
+Even after the finite Horndeski activation has disappeared, residual conserved
+matter perturbs the mature solution away from the exact fixed point.  Therefore
+the late trajectory samples a continuous interval of kinetic values,
+
+\[
+Z=Z_\star+\delta Z(a),
+\qquad
+\delta Z\neq0
+\]
+
+for every finite \(a\), with
+
+\[
+\delta Z\to0
+\]
+
+only asymptotically.
+
+For the mature constant-\(F\), \(G_3=0\) structural action
+
+\[
+G_2=\frac{f(Z)}{\sigma^2},
+\]
+
+the exact scalar sound speed is
+
+\[
+\boxed{
+c_s^2(Z)
+=
+\frac{f_{,Z}}
+{f_{,Z}+2Zf_{,ZZ}}.
+}
+\]
+
+Suppose the fully relaxed structural vacuum is required to recover the
+undeformed scalar causal cone not only at the exact fixed point but throughout
+a neighborhood sampled by the residual-matter trajectory,
+
+\[
+\boxed{
+c_s^2(Z)=1
+\quad
+\text{for all }
+Z\in I
+}
+\]
+
+for some open interval \(I\) containing \(Z_\star\).
+
+Assuming
+
+\[
+Z>0
+\]
+
+and a nondegenerate kinetic response
+
+\[
+f_{,Z}\neq0,
+\]
+
+the sound-speed equation gives
+
+\[
+f_{,Z}
+=
+f_{,Z}+2Zf_{,ZZ},
+\]
+
+hence
+
+\[
+\boxed{
+f_{,ZZ}(Z)=0
+\qquad
+\forall Z\in I.
+}
+\]
+
+Therefore
+
+\[
+\boxed{
+f(Z)=AZ-B
+}
+\]
+
+throughout that interval.
+
+If \(f\) is analytic on the mature branch, this local result extends to the
+connected mature domain.
+
+Thus **robust mature luminality** uniquely selects the canonical kinetic shape
+without separately assuming a polynomial truncation or two-derivative
+minimality.
+
+### 67.1 Why a single-point condition is weaker
+
+For a general analytic expansion
+
+\[
+f(Z)
+=
+\sum_{n=0}^{\infty}c_n Z^n,
+\]
+
+the single-point condition
+
+\[
+f_{,ZZ}(Z_\star)=0
+\]
+
+is only
+
+\[
+\sum_{n\ge2}
+n(n-1)c_n Z_\star^{\,n-2}
+=
+0.
+\]
+
+Different higher-order coefficients can cancel in this one equation.
+
+So
+
+\[
+c_s^2(Z_\star)=1
+\]
+
+alone does **not** prove
+
+\[
+c_{n\ge2}=0.
+\]
+
+By contrast, if
+
+\[
+f_{,ZZ}(Z)=0
+\]
+
+on an open interval, analyticity requires every higher derivative contribution
+to vanish there, giving
+
+\[
+\boxed{
+c_{n\ge2}=0
+}
+\]
+
+for the mature analytic branch.
+
+This strengthens the shape-selection statement substantially.
+
+### 67.2 Connection to the matter-forced orbit
+
+For the canonical attractor,
+
+\[
+\Omega_m
+=
+m_1a^{-1}
++
+3m_1^2a^{-2}
++\cdots,
+\]
+
+and the scalar velocity is correspondingly displaced from its exact fixed-point
+value.
+
+Therefore the residual-matter universe naturally performs the required
+neighborhood test: it approaches \(Z_\star\) continuously rather than sitting
+at one isolated value.
+
+The successful native trajectory simultaneously shows
+
+\[
+c_s^2\to1,
+\]
+
+while the exact mature canonical normal form gives
+
+\[
+c_s^2\equiv1
+\]
+
+for every \(Z\) after the finite activation operators have decoupled.
+
+Hence the canonical completion passes the stronger criterion automatically.
+
+### 67.3 Scale covariance alone does not suppress higher powers of \(Z\)
+
+This also exposes a useful limitation.
+
+Consider the general scale-covariant mature action
+
+\[
+G_2
+=
+\frac1{\sigma^2}
+\sum_{n=0}^{\infty}c_n Z^n.
+\]
+
+At the coasting fixed point,
+
+\[
+Z\to Z_\star=\text{constant}.
+\]
+
+Every term therefore scales as
+
+\[
+\frac{c_n Z_\star^n}{\sigma^2}.
+\]
+
+Consequently all powers \(Z^n\) have the **same cosmological**
+\(\sigma^{-2}\) scaling on the fixed-point background.
+
+Therefore
+
+\[
+\boxed{
+\text{inverse-square scale covariance by itself does not make }
+Z^2,Z^3,\ldots
+\text{ irrelevant}.
+}
+\]
+
+The disappearance of the higher-kinetic sector in the successful future
+completion is a genuine coefficient flow,
+
+\[
+c_{n\ge2}\to0,
+\]
+
+not a trivial consequence of the background expansion.
+
+This is the sharp form of the remaining microscopic problem.
+
+### 67.4 Strongest current mature-vacuum closure statement
+
+The mature endpoint can now be characterized by two physically distinct but
+tightly connected requirements:
+
+\[
+\boxed{
+{\cal I}_{\rm BI}
+=
+\frac{G_{\rm eff}\rho_XR^2}{c^2}
+=1
+}
+\]
+
+for the background normalization, and
+
+\[
+\boxed{
+c_s^2(Z)=1
+\quad
+\text{through a neighborhood of }
+Z_{\rm BI}
+}
+\]
+
+for the local response.
+
+The first gives
+
+\[
+Z_\star=Z_{\rm BI},
+\]
+
+while the second gives
+
+\[
+f(Z)=AZ-B.
+\]
+
+The coasting equations then fix
+
+\[
+A=2F_\infty,
+\qquad
+B=4F_\infty Z_{\rm BI}.
+\]
+
+Hence
+
+\[
+\boxed{
+G_{2,\infty}
+=
+\frac1{\sigma^2}
+\left(
+2F_\infty Z
+-
+4F_\infty Z_{\rm BI}
+\right),
+}
+\]
+
+with
+
+\[
+G_{3,\infty}=0,
+\qquad
+G_{4,\infty}=\frac{F_\infty}{2}.
+\]
+
+This is stronger than imposing \(c_s^2=1\) at one isolated endpoint and gives a
+precise target for a future microscopic derivation:
+
+\[
+\boxed{
+\text{Why should the relaxed SDMC vacuum recover a robust undeformed scalar
+causal cone over nearby matter-loaded states?}
+}
+\]
+
+Answering that question would explain dynamically why the higher-order
+kinetic operators flow away rather than merely documenting that a healthy
+future interpolation can make them do so.
