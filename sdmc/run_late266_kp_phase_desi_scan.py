@@ -302,9 +302,12 @@ for eta in etas:
     pd_fair=PLANCK_FAIR+dfair
     joints={k:pd_fair+v for k,v in SN_FAIR.items()}
     worst=max(joints.values())
-    info=rows[0]
-    row=dict(eta=eta,Ceff=info['Ceff'],rd_eff=info['rd_eff'],
-             phase_scale=info['phase_scale'],desi_chi2=chi,lcdm_chi2=lcdmchi,
+    cb=cov['fb']**(1./3.)
+    ceff=1.-eta*(1.-cb)
+    rd_eff=cov['rsstar']+ceff*(cov['rd']-cov['rsstar'])
+    phase_scale=rd_eff/cov['rd']
+    row=dict(eta=eta,Ceff=ceff,rd_eff=rd_eff,
+             phase_scale=phase_scale,desi_chi2=chi,lcdm_chi2=lcdmchi,
              delta_desi_vs_fixed=delta_fixed,delta_desi_fair_local021=dfair,
              delta_planck_fair_local021=PLANCK_FAIR,
              delta_PD_fair_local021=pd_fair,
