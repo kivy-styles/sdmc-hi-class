@@ -14856,3 +14856,482 @@ SDMC completion must explain the fast transverse attraction onto the canonical
 manifold.  Once that attraction has occurred, the subsequent normalization
 flow is already fixed by the canonical action and ordinary matter
 conservation.
+
+
+## 74. Planck-braiding tail-root bifurcation and interpolation non-uniqueness
+
+The C3 matching problem for the non-minimal gravitational sector has now been
+solved analytically enough to expose a genuine branch structure.
+
+Let
+
+\[
+x\equiv\ln\sigma,
+\]
+
+and denote by
+
+\[
+F_n
+=
+\left.
+\frac{d^nF}{dx^n}
+\right|_{x=0},
+\qquad
+g_n
+=
+\left.
+\frac{d^ng}{dx^n}
+\right|_{x=0}
+\]
+
+the accepted present C3 jets.
+
+The future Planck-mass tail is written as
+
+\[
+F-F_\infty
+=
+e^{-\mu_Fx}P_F(x),
+\]
+
+while braiding decays as
+
+\[
+g
+=
+e^{-\mu_gx}P_g(x).
+\]
+
+Because
+
+\[
+F_{,\sigma}
+=
+\sigma^{-1}F_{,x},
+\]
+
+asymptotic No-Slip requires
+
+\[
+\boxed{
+\mu_g=\mu_F+1.
+}
+\]
+
+Matching the complete C3 present jet gives the cubic tail coefficients
+
+\[
+A_{F3}(\mu)
+=
+F_3
++
+3\mu F_2
++
+3\mu^2F_1
++
+\mu^3(F_0-F_\infty),
+\]
+
+and
+
+\[
+A_{g3}(\mu+1)
+=
+g_3
++
+3(\mu+1)g_2
++
+3(\mu+1)^2g_1
++
+(\mu+1)^3g_0.
+\]
+
+The leading asymptotic No-Slip relation
+
+\[
+g
+=
+-\frac{F_{,\sigma}}{2Z_\star}
+\]
+
+then reduces to the quartic condition
+
+\[
+\boxed{
+\mu_F A_{F3}(\mu_F)
+=
+2Z_\star
+A_{g3}(\mu_F+1).
+}
+\]
+
+For the accepted present C3 jet and the canonical
+
+\[
+Z_\star=Z_{\rm BI},
+\]
+
+this quartic has two positive real roots,
+
+\[
+\boxed{
+\mu_F^{(-)}
+=
+2.86106741391,
+}
+\]
+
+and
+
+\[
+\boxed{
+\mu_F^{(+)}
+=
+5.57321899721.
+}
+\]
+
+The corresponding braiding exponents are
+
+\[
+\boxed{
+\mu_g^{(-)}
+=
+3.86106741391,
+}
+\]
+
+and
+
+\[
+\boxed{
+\mu_g^{(+)}
+=
+6.57321899721.
+}
+\]
+
+The remaining two quartic roots form a complex-conjugate pair and do not give
+monotonic real exponential tails of the same form.
+
+### 74.1 Both positive roots reach the same mature canonical action
+
+The two positive roots were propagated independently through the exact
+homogeneous action equations while keeping
+
+\[
+r=0,
+\]
+
+\[
+\mu_{k_1}=50,
+\qquad
+\mu_{k_2}=5,
+\qquad
+\mu_V=120,
+\]
+
+and the same accepted present C3 jet.
+
+At
+
+\[
+\ln a=10,
+\]
+
+the slow root gives approximately
+
+\[
+{\cal N}
+=
+2.8943616574,
+\]
+
+\[
+p
+=
+0.9999850199,
+\]
+
+\[
+q
+=
+-1.49816\times10^{-5},
+\]
+
+while the fast root gives
+
+\[
+{\cal N}
+=
+2.8943616597,
+\]
+
+\[
+p
+=
+0.9999850207,
+\]
+
+\[
+q
+=
+-1.49808\times10^{-5}.
+\]
+
+Both have
+
+\[
+D\simeq1.99994008,
+\]
+
+\[
+c_s^2\simeq1,
+\]
+
+and
+
+\[
+\Gamma\simeq0.99996047.
+\]
+
+Thus the difference between the two roots is not a difference in mature
+physics.
+
+They are distinct finite interpolation branches connecting the same accepted
+present jet to the same canonical infrared endpoint.
+
+### 74.2 Native hi_class does not eliminate the slow branch
+
+The slower root has now also been installed directly into the native hi_class
+future table and tested independently.
+
+Its native background reaches
+
+\[
+\ln a=5
+\]
+
+with
+
+\[
+\boxed{
+{\cal N}=2.88788923481,
+}
+\]
+
+\[
+\boxed{
+p=0.99775389658,
+}
+\]
+
+\[
+\boxed{
+q=-0.00225372304,
+}
+\]
+
+\[
+\boxed{
+D=1.9910269831,
+}
+\]
+
+and
+
+\[
+\boxed{
+c_s^2=0.999999521917.
+}
+\]
+
+The corresponding fast branch gives
+
+\[
+{\cal N}=2.88789408597,
+\]
+
+\[
+p=0.99775516727,
+\]
+
+\[
+q=-0.00225182497,
+\]
+
+\[
+D=1.99103075464,
+\]
+
+and
+
+\[
+c_s^2=0.999999997658.
+\]
+
+The differences are tiny.
+
+The slow-root native future also satisfies the same background health gates,
+
+\[
+F>0,
+\qquad
+D>0,
+\qquad
+c_s^2>0,
+\]
+
+and the scalar perturbation propagation for
+
+\[
+k=
+10^{-4},
+\quad
+10^{-3},
+\quad
+10^{-2}\ {\rm Mpc}^{-1}
+\]
+
+completes successfully with finite stored variables.
+
+The native workflow returns
+
+\[
+\boxed{
+\texttt{NATIVE\_FUTURE\_GATE\_PASS}
+}
+\]
+
+with the slow branch included.
+
+Therefore native perturbation propagation does **not** select the fast
+\(\mu_F\simeq5.5732\) root over the slow
+\(\mu_F\simeq2.8611\) root.
+
+### 74.3 What is unique and what is not
+
+The present investigation therefore separates two kinds of uniqueness.
+
+The mature canonical endpoint is strongly fixed:
+
+\[
+\boxed{
+G_{2,\infty}
+=
+\frac1{\sigma^2}
+\left(
+2F_\infty Z
+-
+4F_\infty Z_{\rm BI}
+\right),
+}
+\]
+
+\[
+\boxed{
+G_{3,\infty}=0,
+\qquad
+G_{4,\infty}=\frac{F_\infty}{2}.
+}
+\]
+
+Its structural lapse is
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}.
+}
+\]
+
+Its kinetic shape is
+
+\[
+\boxed{
+r_{\rm cone,\infty}=0.
+}
+\]
+
+Its tangent infrared eigenvalue is
+
+\[
+\boxed{
+\lambda_{\rm IR}=1.
+}
+\]
+
+By contrast, the finite Planck/braiding handoff is not unique within the
+current C3 exponential-polynomial ansatz.
+
+At least two positive real branches satisfy
+
+1. the same accepted present C3 jet;
+2. the same asymptotic No-Slip relation;
+3. the same canonical endpoint;
+4. action-level background and health conditions;
+5. native hi_class background evolution;
+6. native scalar perturbation propagation.
+
+Thus
+
+\[
+\boxed{
+\text{unique endpoint}
+\;\not\Rightarrow\;
+\text{unique interpolation}.
+}
+\]
+
+### 74.4 Consequence for the microscopic problem
+
+The specific value
+
+\[
+\mu_F\simeq5.5732
+\]
+
+must therefore not be promoted to a fundamental SDMC constant on the basis of
+the present evidence.
+
+It is one healthy root of the C3 matching problem.
+
+Likewise,
+
+\[
+\mu_F\simeq2.8611
+\]
+
+is another healthy root.
+
+A deeper microscopic theory may ultimately select one branch, but if so it
+must supply information not contained in
+
+\[
+\text{present C3 matching}
++
+\text{asymptotic No-Slip}
++
+\text{canonical endpoint}
++
+\text{current background/perturbation health}.
+\]
+
+Possible additional selectors include a microscopic action principle, entropy
+or dissipation law, analyticity requirement stronger than C3 matching,
+UV completion, or a dynamical activation equation.
+
+Until such a selector is derived, the scientifically correct statement is
+
+\[
+\boxed{
+\text{the mature canonical action is much more constrained than the
+finite path by which the accepted late-time Horndeski theory reaches it.}
+}
+\]
+
+This is useful rather than problematic: it identifies exactly which parts of
+the current future construction are physical predictions and which remain
+interpolation freedom.
