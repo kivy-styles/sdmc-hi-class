@@ -17500,18 +17500,30 @@ and
 
 Both reach the same action-level canonical endpoint.
 
-The current fully native-validated production branch is
+Both positive real C3 roots are now fully native-validated through
+
+\[
+\ln a=10
+\]
+
+at the background and scalar-perturbation levels:
 
 \[
 \boxed{
+\mu_F^{(-)}
+=
+2.86106741391,
+\qquad
 \mu_F^{(+)}
 =
 5.57321899721.
 }
 \]
 
-The slow branch remains action-level healthy but is subject to the dedicated
-native convergence audit described after Section 76.
+The fast root may remain the default production convention because its
+standard workflow history is cleaner and its transverse canonicalization is
+faster, but current evidence does **not** derive it as the unique physical
+branch.
 
 ### 77.15 Production numerical closure
 
@@ -17583,16 +17595,334 @@ c_s^2\to1.
 }
 \]
 
+For the independently validated slow root, native hi_class reaches
+
+\[
+\ln a=10
+\]
+
+with
+
+\[
+\boxed{
+{\cal N}
+=
+2.89436191833,
+}
+\]
+
+\[
+\boxed{
+p
+=
+0.99998502224,
+}
+\]
+
+\[
+\boxed{
+q
+=
+-1.45899\times10^{-5},
+}
+\]
+
+\[
+\boxed{
+D
+=
+1.99994008613,
+}
+\]
+
+and
+
+\[
+\boxed{
+c_s^2
+=
+0.999999999902.
+}
+\]
+
+The three tested scalar modes
+
+\[
+k=
+10^{-4},
+\quad
+10^{-3},
+\quad
+10^{-2}\ {m Mpc}^{-1}
+\]
+
+all remain finite through the same horizon and pass the long-horizon metric
+potential gates.
+
+Thus both positive C3 branches satisfy the present full native closure tests.
+The branch-dependent quantities are transition rates and small memory
+amplitudes, not the mature Lagrangian or its infrared eigenvalues.
+
 These equations constitute the current closed mathematical core of the
 Lagrangian development.
 
-What remains outside this closed core is not the mature action itself, but
+What remains outside this closed core is now only
 
 1. the microscopic origin of the transverse attraction onto the canonical
    manifold;
-2. the possible microscopic selection of one finite C3 handoff branch;
-3. the numerical convergence classification of the slow-root native
-   long-horizon failure.
+2. whether a deeper microscopic principle selects one finite C3 handoff
+   branch, or whether the interpolation is genuinely non-unique.
 
-Those points should be treated separately in the final discussion rather than
-mixed into the derived mature equations.
+Those points belong in the final discussion rather than in the derived mature
+equations.
+
+
+
+## 78. Final numerical closure of the two canonical C3 branches
+
+A decisive focused native run has now closed the slow-root question.
+
+Using the same accepted target reconstruction, free structural background,
+future bookkeeping patches, and canonical endpoint as the main audit, the slow
+branch
+
+\[
+\mu_F^{(-)}
+=
+2.86106741391
+\]
+
+was propagated to
+
+\[
+\ln a=10
+\]
+
+with native scalar perturbations at
+
+\[
+k=
+10^{-4},
+\quad
+10^{-3},
+\quad
+10^{-2}\ {\rm Mpc}^{-1}.
+\]
+
+The complete long-horizon gate returned
+
+\[
+\boxed{
+\texttt{NATIVE\_CANONICAL\_SLOWROOT\_LONG\_HORIZON\_GATE\_PASS}.
+}
+\]
+
+The final background values are
+
+\[
+\boxed{
+{\cal N}
+=
+2.894361918329,
+}
+\]
+
+\[
+\boxed{
+p
+=
+0.999985022244,
+}
+\]
+
+\[
+\boxed{
+q
+=
+-1.4589935\times10^{-5},
+}
+\]
+
+\[
+\boxed{
+D
+=
+1.999940086128,
+}
+\]
+
+\[
+\boxed{
+c_s^2
+=
+0.9999999999018,
+}
+\]
+
+and
+
+\[
+\boxed{
+\alpha_B+2\alpha_M
+=
+-1.10\times10^{-14}.
+}
+\]
+
+Across the native future history,
+
+\[
+D_{\min}
+=
+0.47923296>0,
+\]
+
+\[
+c_{s,\min}^2
+=
+0.25005021>0,
+\]
+
+and the maximum resolved sound speed is
+
+\[
+c_{s,\max}^2
+=
+1.000000000127,
+\]
+
+consistent with numerical resolution around the exactly luminal mature limit.
+
+All three perturbation files remain finite through
+
+\[
+a=e^{10}\simeq22026.47.
+\]
+
+For the late interval beginning near \(\ln a\simeq5\), the metric-potential
+final/start ratios are approximately
+
+\[
+\boxed{
+0.70405
+}
+\]
+
+for
+
+\[
+k=10^{-4}\ {\rm Mpc}^{-1},
+\]
+
+\[
+\boxed{
+7.64\times10^{-3}
+}
+\]
+
+for
+
+\[
+k=10^{-3}\ {\rm Mpc}^{-1},
+\]
+
+and
+
+\[
+\boxed{
+6.87\times10^{-3}
+}
+\]
+
+for
+
+\[
+k=10^{-2}\ {\rm Mpc}^{-1}.
+\]
+
+Thus no tested scalar mode develops a late metric runaway.
+
+### 78.1 Interpretation of the earlier endpoint failures
+
+The focused convergence scan produced the non-monotonic pattern
+
+\[
+6:\ {\rm pass},
+\qquad
+7:\ {\rm lookup\ failure},
+\qquad
+8:\ {\rm pass},
+\qquad
+9:\ {\rm lookup\ failure},
+\qquad
+10:\ {\rm pass}.
+\]
+
+The \(\ln a=10\) background also passes when the future table resolution is
+doubled from
+
+\[
+2600
+\]
+
+to
+
+\[
+5200
+\]
+
+points.
+
+The isolated 7 and 9 failures occur in the future
+\({\tt background\_at\_tau/background\_at\_z}\) interpolation layer.
+
+This non-monotonic endpoint dependence is incompatible with interpreting the
+earlier failure as a smooth physical loss of stability of the slow branch.
+
+Therefore the previous negative-\(\rho_{\rm crit}\) result must be treated as
+a non-robust numerical realization issue rather than evidence that the slow
+action ceases to exist physically.
+
+### 78.2 Final branch verdict
+
+The two positive C3 Planck/braiding roots are now both supported by
+
+1. the same accepted present C3 jet;
+2. asymptotic No-Slip closure;
+3. the same canonical Balanced-Identity endpoint;
+4. healthy exact homogeneous action evolution to \(\ln a=10\);
+5. positive native background health functions;
+6. native scalar perturbation propagation to \(\ln a=10\);
+7. the same universal infrared matter eigenvalue
+   \(\lambda_{\rm IR}=1\).
+
+They differ in
+
+\[
+\mu_F,\quad
+\mu_g,
+\]
+
+the transverse rate of canonicalization, and small transition-memory
+amplitudes such as
+
+\[
+M_\infty,\quad
+m_1,\quad
+s_2.
+\]
+
+Accordingly,
+
+\[
+\boxed{
+\text{the canonical mature Lagrangian is unique within the present closure,
+but the finite C3 route into it is not uniquely selected by the tests carried
+out so far.}
+}
+\]
+
+This completes the numerical Lagrangian-development stage.
+
+No additional numerical tuning is required before the final discussion.
+
