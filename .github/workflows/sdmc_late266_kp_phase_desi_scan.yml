@@ -27,7 +27,7 @@ jobs:
           sudo apt-get update >/dev/null
           sudo apt-get install -y git curl unzip >/dev/null
           python3 -m pip install --upgrade pip >/dev/null
-          python3 -m pip install --retries 4 numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw
+          python3 -m pip install --retries 4 numpy scipy pandas h5py requests beautifulsoup4 pyyaml camb pyfftw cobaya
           for PKG in \
             git+https://github.com/cosmodesi/cosmoprimo.git \
             git+https://github.com/adematti/lsstypes.git \
