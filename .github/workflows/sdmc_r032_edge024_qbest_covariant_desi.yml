@@ -3,7 +3,7 @@ name: SDMC r032 SN-closure029 S117 g022 clean exact-covariant DESI
 on:
   push:
     branches:
-      - sdmc-discussion-s117-g073-exact-desi
+      - sdmc-discussion-s117-g073-p045-exact-desi
   workflow_dispatch:
 
 jobs:
@@ -54,7 +54,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.020284758737310768, 3.6509963892400266, 0.35059972247108817, 0.34231919445927034, 1.0, 0.05064729745686054
+          parameters_smg = 0.020284758737310768, 3.6509963892400266, 0.35059972247108817, 0.34231919445927034, 0.45, 0.05064729745686054
           expansion_model = sdmc_full
           expansion_smg = 0.7014079815036496, 18.40625, 16.19317622240633, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
           pert_initial_conditions_smg = zero
@@ -106,7 +106,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_SNCLOSURE029_S117_G073_CLEAN_BUILD_READY"
+          echo "COVARIANT_SNCLOSURE029_S117_G073_P045_P045_CLEAN_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         env:
@@ -531,10 +531,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_SNCLOSURE029_S117_G073_CLEAN',cov)
+          covrows,covchi=profile_model('COVARIANT_SNCLOSURE029_S117_G073_P045_P045_CLEAN',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_SNCLOSURE029_S117_G073_CLEAN_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_SNCLOSURE029_S117_G073_P045_P045_CLEAN_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -546,7 +546,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-discussion-s117-g073-exact-desi
+          name: sdmc-discussion-s117-g073-p045-exact-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
