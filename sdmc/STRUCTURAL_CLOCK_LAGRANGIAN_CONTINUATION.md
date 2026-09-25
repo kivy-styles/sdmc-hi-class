@@ -15999,3 +15999,1467 @@ but
 The next audit should locate the slow-root native failure boundary and test its
 convergence with future-table resolution before deciding whether the
 long-horizon failure is physical or numerical.
+
+
+## 77. Consolidated closed equation set for the final discussion
+
+This section collects the equations that now define the mature SDMC
+structural-clock Lagrangian, its canonical fixed point, its matter-loaded
+approach, and the finite branch structure.  The purpose is to separate
+quantities that are fully derived from those that remain implementation or
+microscopic-selection questions.
+
+### 77.1 Structural variables and exact kinematics
+
+Normalize the structural scale by
+
+\[
+\boxed{
+\sigma
+\equiv
+\frac{S}{S_0}
+=
+e^\psi .
+}
+\]
+
+The structural radius is
+
+\[
+\boxed{
+R
+=
+\ell_P S
+=
+\ell_P S_0\sigma .
+}
+\]
+
+For a homogeneous structural field define
+
+\[
+\boxed{
+Z
+\equiv
+-\frac12
+g^{\mu\nu}
+\partial_\mu\sigma
+\partial_\nu\sigma
+=
+\frac12\dot\sigma^2 .
+}
+\]
+
+The structural lapse is
+
+\[
+\boxed{
+{\cal N}
+=
+t_PS_0\dot\sigma
+=
+\frac{\dot R}{c}.
+}
+\]
+
+The bridge exponent is
+
+\[
+\boxed{
+p
+\equiv
+\frac{d\ln\sigma}{d\ln a}
+=
+\frac{\dot\sigma}{H\sigma}.
+}
+\]
+
+Therefore
+
+\[
+\boxed{
+\frac{HR}{c}
+=
+\frac{{\cal N}}{p}.
+}
+\]
+
+Define the normalized matter/baryon mapper
+
+\[
+\boxed{
+M(a)
+\equiv
+\frac{\sigma}{a}
+=
+\frac{K_m(a)}{K_{m0}}
+=
+\frac{K_p(a)}{K_{p0}}.
+}
+\]
+
+It obeys the exact differential identity
+
+\[
+\boxed{
+\frac{d\ln M}{d\ln a}
+=
+p-1.
+}
+\]
+
+Hence
+
+\[
+\boxed{
+M_\infty
+=
+\exp\left[
+\int_0^\infty
+(p-1)\,dN
+\right].
+}
+\]
+
+### 77.2 Horndeski structural action used in the reconstruction
+
+The accepted finite late-time action is represented in the linear-\(G_3\)
+Horndeski sector as
+
+\[
+\boxed{
+S
+=
+\int d^4x\sqrt{-g}
+\left[
+G_2(\sigma,Z)
+-
+G_3(\sigma,Z)\Box\sigma
++
+G_4(\sigma)R
+\right]
++
+S_m .
+}
+\]
+
+The reconstructed coefficient form is
+
+\[
+\boxed{
+G_2
+=
+k_1(\sigma)Z
++
+k_2(\sigma)Z^2
+-
+V(\sigma),
+}
+\]
+
+\[
+\boxed{
+G_3
+=
+g(\sigma)Z,
+}
+\]
+
+\[
+\boxed{
+G_4
+=
+\frac{F(\sigma)}{2}.
+}
+\]
+
+The No-Slip trajectory condition is
+
+\[
+\boxed{
+\alpha_B
+=
+-2\alpha_M.
+}
+\]
+
+The scalar health conditions are
+
+\[
+\boxed{
+F>0,
+\qquad
+D>0,
+\qquad
+c_s^2>0.
+}
+\]
+
+### 77.3 Covariant Balanced Identity
+
+Define the mature normalization coordinate
+
+\[
+\boxed{
+\Gamma
+\equiv
+\frac{\chi}{F}.
+}
+\]
+
+The covariant Unified Balanced Identity is
+
+\[
+\boxed{
+{\cal I}_{\rm BI}
+\equiv
+\frac{
+G_{\rm eff}\rho_XR^2
+}{
+c^2
+}
+=
+1.
+}
+\]
+
+For the mature structural solution this gives
+
+\[
+\boxed{
+\Gamma_\infty=1.
+}
+\]
+
+The corresponding structural lapse is
+
+\[
+\boxed{
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}
+=
+2.89440501823\ldots .
+}
+\]
+
+The fixed kinetic scale is
+
+\[
+\boxed{
+Z_{\rm BI}
+=
+\frac{
+4\pi
+}{
+3t_P^2S_0^2
+}.
+}
+\]
+
+Indeed,
+
+\[
+{\cal N}_\infty^2
+=
+2t_P^2S_0^2Z_{\rm BI}
+=
+\frac{8\pi}{3}.
+\]
+
+### 77.4 General scale-covariant mature family
+
+The mature constant-\(F\), unbraided action has the scale-covariant form
+
+\[
+\boxed{
+G_{2,\infty}
+=
+\frac{f(Z)}{\sigma^2},
+}
+\]
+
+\[
+\boxed{
+G_{3,\infty}=0,
+\qquad
+G_{4,\infty}
+=
+\frac{F_\infty}{2}.
+}
+\]
+
+The coasting fixed-point equations are
+
+\[
+\boxed{
+f(Z_\star)
++
+Z_\star f_{,Z}(Z_\star)
+=
+0,
+}
+\]
+
+and
+
+\[
+\boxed{
+f_{,Z}(Z_\star)
+=
+2F_\infty.
+}
+\]
+
+For the quadratic family,
+
+\[
+f(Z)
+=
+\kappa_1 Z
++
+\kappa_2 Z^2
+-
+U_0,
+\]
+
+write
+
+\[
+\boxed{
+\kappa_1
+=
+2F_\infty(1-r),
+}
+\]
+
+\[
+\boxed{
+\kappa_2
+=
+\frac{rF_\infty}{Z_\star},
+}
+\]
+
+and
+
+\[
+\boxed{
+U_0
+=
+F_\infty Z_\star(4-r).
+}
+\]
+
+The exact mature scalar sound speed is
+
+\[
+\boxed{
+c_s^2(Z)
+=
+\frac{
+f_{,Z}
+}{
+f_{,Z}
++
+2Zf_{,ZZ}
+}.
+}
+\]
+
+At the fixed point,
+
+\[
+\boxed{
+c_{s,\star}^2
+=
+\frac{1}{1+2r}.
+}
+\]
+
+### 77.5 Causal-shape modulus and canonical selection
+
+Define
+
+\[
+\boxed{
+r_{\rm cone}
+\equiv
+\frac12
+\left(
+\frac1{c_s^2}-1
+\right).
+}
+\]
+
+In the mature constant-\(F\), unbraided theory,
+
+\[
+\boxed{
+r_{\rm cone}
+=
+\frac{
+Zf_{,ZZ}
+}{
+f_{,Z}
+}.
+}
+\]
+
+For the quadratic family at the fixed point,
+
+\[
+\boxed{
+r_{\rm cone}=r.
+}
+\]
+
+Robust luminality over a neighborhood of the matter-loaded fixed point,
+
+\[
+\boxed{
+c_s^2(Z)=1
+}
+\]
+
+for an open interval of \(Z\), implies
+
+\[
+\boxed{
+f_{,ZZ}=0,
+}
+\]
+
+and therefore
+
+\[
+\boxed{
+f(Z)=AZ-B.
+}
+\]
+
+The coasting equations then give
+
+\[
+\boxed{
+A=2F_\infty,
+}
+\]
+
+\[
+\boxed{
+B=4F_\infty Z_{\rm BI}.
+}
+\]
+
+Thus the mature canonical action is
+
+\[
+\boxed{
+G_{2,\infty}
+=
+\frac1{\sigma^2}
+\left(
+2F_\infty Z
+-
+4F_\infty Z_{\rm BI}
+\right),
+}
+\]
+
+\[
+\boxed{
+G_{3,\infty}=0,
+}
+\]
+
+\[
+\boxed{
+G_{4,\infty}
+=
+\frac{F_\infty}{2}.
+}
+\]
+
+Equivalently,
+
+\[
+\boxed{
+r=0,
+\qquad
+r_{\rm cone}=0,
+\qquad
+c_s^2=1.
+}
+\]
+
+### 77.6 Canonical-field representation
+
+Define the canonically shaped logarithmic structural field
+
+\[
+\boxed{
+\widehat\phi
+=
+\sqrt2\ln\sigma.
+}
+\]
+
+Then
+
+\[
+\sigma^{-2}
+=
+e^{-\sqrt2\widehat\phi},
+\]
+
+and the mature potential is
+
+\[
+\boxed{
+V_\infty(\widehat\phi)
+=
+4F_\infty Z_{\rm BI}
+e^{-\sqrt2\widehat\phi}.
+}
+\]
+
+Hence the exponential slope is
+
+\[
+\boxed{
+\lambda_\ell
+=
+\sqrt2.
+}
+\]
+
+### 77.7 Exact mature fixed point
+
+At the canonical fixed point,
+
+\[
+\boxed{
+Z=Z_{\rm BI}.
+}
+\]
+
+Therefore
+
+\[
+\boxed{
+\dot\sigma
+=
+\sqrt{2Z_{\rm BI}}
+=
+\frac1{t_PS_0}
+\sqrt{\frac{8\pi}{3}}.
+}
+\]
+
+The structural lapse becomes
+
+\[
+\boxed{
+{\cal N}
+=
+{\cal N}_\infty
+=
+\sqrt{\frac{8\pi}{3}}.
+}
+\]
+
+The structural field evolves linearly,
+
+\[
+\boxed{
+\sigma(t)
+=
+\sigma_c
++
+\frac{
+\sqrt{8\pi/3}
+}{
+t_PS_0
+}
+(t-t_c).
+}
+\]
+
+Since
+
+\[
+M=\sigma/a\to M_\infty,
+\]
+
+one has
+
+\[
+\boxed{
+a\propto\sigma\propto t,
+}
+\]
+
+\[
+\boxed{
+H
+=
+\frac{\dot\sigma}{\sigma},
+}
+\]
+
+and
+
+\[
+\boxed{
+q=0.
+}
+\]
+
+The mature scalar density and pressure are
+
+\[
+\boxed{
+\rho_{\sigma,\infty}
+=
+\frac{
+6F_\infty Z_{\rm BI}
+}{
+\sigma^2
+},
+}
+\]
+
+\[
+\boxed{
+p_{\sigma,\infty}
+=
+-\frac{
+2F_\infty Z_{\rm BI}
+}{
+\sigma^2
+}.
+}
+\]
+
+Hence
+
+\[
+\boxed{
+w_{\sigma,\infty}
+=
+-\frac13.
+}
+\]
+
+The canonical health limits are
+
+\[
+\boxed{
+D_\infty=2,
+\qquad
+c_{s,\infty}^2=1.
+}
+\]
+
+### 77.8 Autonomous fixed-point system
+
+Using
+
+\[
+\boxed{
+x
+=
+\frac{
+\dot{\widehat\phi}
+}{
+\sqrt6H
+},
+}
+\]
+
+and
+
+\[
+\boxed{
+y
+=
+\frac{
+\sqrt V
+}{
+\sqrt3H
+},
+}
+\]
+
+the dust-era system for
+
+\[
+\lambda_\ell=\sqrt2
+\]
+
+is
+
+\[
+\boxed{
+x'
+=
+-3x+\sqrt3\,y^2
++
+\frac32x
+\left(
+1+x^2-y^2
+\right),
+}
+\]
+
+\[
+\boxed{
+y'
+=
+-\sqrt3\,xy
++
+\frac32y
+\left(
+1+x^2-y^2
+\right).
+}
+\]
+
+The scalar-dominated fixed point is
+
+\[
+\boxed{
+x_\star
+=
+\frac1{\sqrt3},
+}
+\]
+
+\[
+\boxed{
+y_\star
+=
+\sqrt{\frac23}.
+}
+\]
+
+Its eigenvalues are
+
+\[
+\boxed{
+\mu_1=-1,
+\qquad
+\mu_2=-2.
+}
+\]
+
+The \(-1\) mode is the physical residual-matter mode and the \(-2\) mode is the
+intrinsic scalar mode.
+
+### 77.9 Resonant matter-loaded asymptotics
+
+Let
+
+\[
+\boxed{
+u=a^{-1}.
+}
+\]
+
+Because
+
+\[
+2(-1)=-2,
+\]
+
+the matter mode is resonant with the intrinsic scalar mode and second-order
+terms contain
+
+\[
+u^2\ln u.
+\]
+
+Define the leading matter amplitude \(m_1\) and the independent intrinsic
+scalar amplitude \(s_2\).
+
+Then
+
+\[
+\boxed{
+\Omega_m
+=
+m_1u
++
+3m_1^2u^2
++
+O(u^3\ln u).
+}
+\]
+
+The bridge exponent is
+
+\[
+\boxed{
+p
+=
+1
+-
+\frac32m_1u
++
+u^2
+\left[
+\frac94m_1^2\ln u
+-
+\frac{45}{8}m_1^2
+-
+\sqrt6\,s_2
+\right]
++\cdots .
+}
+\]
+
+The deceleration parameter is
+
+\[
+\boxed{
+q
+=
+-\frac32m_1u
++
+u^2
+\left[
+\frac92m_1^2\ln u
+-
+\frac92m_1^2
+-
+2\sqrt6\,s_2
+\right]
++\cdots .
+}
+\]
+
+The structural lapse is
+
+\[
+\boxed{
+\frac{{\cal N}}{{\cal N}_\infty}
+=
+1
+-
+\frac32m_1u
++
+u^2
+\left[
+\frac{27}{8}m_1^2\ln u
+-
+\frac{45}{8}m_1^2
+-
+\frac{3\sqrt6}{2}s_2
+\right]
++\cdots .
+}
+\]
+
+The mapper approaches
+
+\[
+\boxed{
+\frac{M}{M_\infty}
+=
+1
++
+\frac32m_1u
++
+u^2
+\left[
+-\frac98m_1^2\ln u
++
+\frac92m_1^2
++
+\frac{\sqrt6}{2}s_2
+\right]
++\cdots .
+}
+\]
+
+Therefore the complete \(O(a^{-1})\) correction cancels in
+
+\[
+{\cal N}M,
+\]
+
+leaving
+
+\[
+\boxed{
+\frac{
+{\cal N}M
+}{
+{\cal N}_\infty M_\infty
+}
+=
+1
++
+u^2
+\left[
+\frac94m_1^2\ln u
+-
+\frac{27}{8}m_1^2
+-
+\sqrt6\,s_2
+\right]
++\cdots .
+}
+\]
+
+### 77.10 Mapper-memory closure of the matter eigenmode
+
+The asymptotic matter amplitude is not free.
+
+It is fixed by
+
+\[
+\boxed{
+m_1
+=
+\frac{
+\Omega_{m0}M_\infty^2
+}{
+F_\infty p_0^2
+}
+\left(
+\frac{{\cal N}_0}{{\cal N}_\infty}
+\right)^2 .
+}
+\]
+
+For the current fast production branch,
+
+\[
+\boxed{
+M_\infty
+=
+0.75880612254,
+}
+\]
+
+and
+
+\[
+\boxed{
+m_1
+=
+0.21993129363.
+}
+\]
+
+Hence the leading canonical approach is
+
+\[
+\boxed{
+\frac{{\cal N}}{{\cal N}_\infty}
+=
+1
+-
+0.32989694044\,a^{-1}
++
+O(a^{-2}\ln a),
+}
+\]
+
+with the exact coefficient
+
+\[
+\frac32m_1
+=
+0.32989694044\ldots .
+\]
+
+### 77.11 Exact one-dimensional canonical infrared manifold
+
+For the pure canonical mature action,
+
+\[
+\rho_X
+=
+\frac{
+2F_\infty
+\left(
+Z+2Z_{\rm BI}
+\right)
+}{
+\sigma^2
+}.
+\]
+
+The canonical closure coordinate therefore obeys
+
+\[
+\boxed{
+\Gamma_{\rm can}
+=
+\frac13
+\left(
+2+\frac{Z}{Z_{\rm BI}}
+\right).
+}
+\]
+
+Since
+
+\[
+\frac{Z}{Z_{\rm BI}}
+=
+\left(
+\frac{{\cal N}}{{\cal N}_\infty}
+\right)^2,
+\]
+
+the exact manifold is
+
+\[
+\boxed{
+\Gamma_{\rm can}
+=
+\frac13
+\left[
+2+
+\left(
+\frac{{\cal N}}{{\cal N}_\infty}
+\right)^2
+\right],
+}
+\]
+
+with
+
+\[
+\boxed{
+r_{\rm cone}=0.
+}
+\]
+
+Thus
+
+\[
+\boxed{
+(\Gamma,r_{\rm cone})
+=
+\left(
+\frac{
+2+({\cal N}/{\cal N}_\infty)^2
+}{3},
+0
+\right)
+}
+\]
+
+after canonicalization.
+
+The matter-loaded expansion is
+
+\[
+\boxed{
+\Gamma
+=
+1
+-
+m_1a^{-1}
++
+O(a^{-2}\ln a).
+}
+\]
+
+### 77.12 Exact canonical beta law
+
+Define
+
+\[
+\boxed{
+n
+=
+\frac{{\cal N}}{{\cal N}_\infty}.
+}
+\]
+
+The canonical variables obey
+
+\[
+\boxed{
+n
+=
+\frac{\sqrt2\,x}{y}.
+}
+\]
+
+The exact dust-era relation is
+
+\[
+\boxed{
+\frac{n'}{n}
+=
+-3
++
+p
+\left(
+1+\frac2{n^2}
+\right).
+}
+\]
+
+Using
+
+\[
+n^2=3\Gamma-2,
+\]
+
+one obtains
+
+\[
+\boxed{
+\Gamma'
+=
+2
+\left[
+2+(p-3)\Gamma
+\right].
+}
+\]
+
+For
+
+\[
+\epsilon
+=
+1-\Gamma,
+\]
+
+the infrared limit becomes
+
+\[
+\boxed{
+\epsilon'
+=
+-\epsilon
++
+O(\epsilon^2\ln\epsilon).
+}
+\]
+
+Therefore the universal tangent eigenvalue is
+
+\[
+\boxed{
+\lambda_{\rm IR}=1.
+}
+\]
+
+The corresponding one-dimensional Lyapunov function is
+
+\[
+\boxed{
+{\cal V}_{\rm IR}
+=
+\frac12(1-\Gamma)^2,
+}
+\]
+
+with
+
+\[
+\boxed{
+\frac{d{\cal V}_{\rm IR}}{dN}
+=
+-2{\cal V}_{\rm IR}
++
+O(
+{\cal V}_{\rm IR}^{3/2}
+\ln{\cal V}_{\rm IR}
+).
+}
+\]
+
+### 77.13 Full two-coordinate closure before canonicalization
+
+Before the higher Horndeski operators have decoupled, use
+
+\[
+\boxed{
+(\Gamma,r_{\rm cone}).
+}
+\]
+
+The normalization beta function is
+
+\[
+\boxed{
+\beta_\Gamma
+\equiv
+\frac{d\ln\Gamma}{d\ln\sigma}
+=
+2-m_X-\frac{\alpha_M}{p}.
+}
+\]
+
+Hence
+
+\[
+\boxed{
+\frac{d\Gamma}{dN}
+=
+p\Gamma\beta_\Gamma.
+}
+\]
+
+The causal-shape flow is
+
+\[
+\boxed{
+\frac{dr_{\rm cone}}{dN}
+=
+-\frac{
+1+2r_{\rm cone}
+}{2}
+\frac{d\ln c_s^2}{dN}.
+}
+\]
+
+Equivalently,
+
+\[
+\boxed{
+\beta_r
+=
+-\frac{
+1+2r_{\rm cone}
+}{
+2p
+}
+\frac{d\ln c_s^2}{dN}.
+}
+\]
+
+The canonical endpoint is
+
+\[
+\boxed{
+(\Gamma,r_{\rm cone})
+\to
+(1,0).
+}
+\]
+
+The complete finite handoff is genuinely two-dimensional, but after the
+short matching/canonicalization layer the flow collapses onto the
+one-dimensional manifold of Section 77.11.
+
+### 77.14 Planck-braiding branch equation
+
+The C3 future Planck tail is
+
+\[
+F-F_\infty
+=
+e^{-\mu_Fx}P_F(x),
+\]
+
+with
+
+\[
+x=\ln\sigma,
+\]
+
+while
+
+\[
+g
+=
+e^{-\mu_gx}P_g(x).
+\]
+
+Asymptotic No-Slip requires
+
+\[
+\boxed{
+\mu_g=\mu_F+1.
+}
+\]
+
+The C3 matching equation is
+
+\[
+\boxed{
+\mu_F A_{F3}(\mu_F)
+=
+2Z_{\rm BI}
+A_{g3}(\mu_F+1),
+}
+\]
+
+where
+
+\[
+A_{F3}(\mu)
+=
+F_3
++
+3\mu F_2
++
+3\mu^2F_1
++
+\mu^3(F_0-F_\infty),
+\]
+
+and
+
+\[
+A_{g3}(\mu+1)
+=
+g_3
++
+3(\mu+1)g_2
++
+3(\mu+1)^2g_1
++
+(\mu+1)^3g_0.
+\]
+
+The two positive real roots are
+
+\[
+\boxed{
+\mu_F^{(-)}
+=
+2.86106741391,
+}
+\]
+
+and
+
+\[
+\boxed{
+\mu_F^{(+)}
+=
+5.57321899721.
+}
+\]
+
+Their braiding exponents are
+
+\[
+\boxed{
+\mu_g^{(-)}
+=
+3.86106741391,
+}
+\]
+
+and
+
+\[
+\boxed{
+\mu_g^{(+)}
+=
+6.57321899721.
+}
+\]
+
+Both reach the same action-level canonical endpoint.
+
+The current fully native-validated production branch is
+
+\[
+\boxed{
+\mu_F^{(+)}
+=
+5.57321899721.
+}
+\]
+
+The slow branch remains action-level healthy but is subject to the dedicated
+native convergence audit described after Section 76.
+
+### 77.15 Production numerical closure
+
+For the fast production branch, native hi_class reaches
+
+\[
+\ln a=10
+\]
+
+with approximately
+
+\[
+\boxed{
+{\cal N}
+=
+2.89436191,
+}
+\]
+
+\[
+\boxed{
+p
+=
+0.99998501,
+}
+\]
+
+\[
+\boxed{
+q
+=
+-1.46\times10^{-5},
+}
+\]
+
+\[
+\boxed{
+D
+=
+1.99994004,
+}
+\]
+
+and
+
+\[
+\boxed{
+c_s^2
+=
+0.999999999999.
+}
+\]
+
+Thus
+
+\[
+\boxed{
+{\cal N}
+\to
+\sqrt{\frac{8\pi}{3}},
+\qquad
+p\to1,
+\qquad
+q\to0,
+\qquad
+D\to2,
+\qquad
+c_s^2\to1.
+}
+\]
+
+These equations constitute the current closed mathematical core of the
+Lagrangian development.
+
+What remains outside this closed core is not the mature action itself, but
+
+1. the microscopic origin of the transverse attraction onto the canonical
+   manifold;
+2. the possible microscopic selection of one finite C3 handoff branch;
+3. the numerical convergence classification of the slow-root native
+   long-horizon failure.
+
+Those points should be treated separately in the final discussion rather than
+mixed into the derived mature equations.
