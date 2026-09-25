@@ -15621,71 +15621,123 @@ canonical endpoint and its physical infrared exponents do not depend on that
 choice.
 
 
-## 76. Long-horizon native branch discrimination and convergence caution
+## 76. Convergence audit restores both positive tail roots as native long-horizon branches
 
-The two positive C3 Planck/braiding roots remain almost indistinguishable in
-the exact homogeneous action equations, and both survive the native
-\(\ln a=5\) background and perturbation tests.
+The preliminary long-horizon workflow initially appeared to distinguish the
+two positive C3 Planck/braiding roots because the slow branch failed during a
+native \(\ln a=10\) shooting pass.
 
-The stricter native extension to
+A focused convergence audit has now shown that this was **not** a monotonic
+physical loss of viability of the slow root.
 
-\[
-\ln a=10
-\]
+### 76.1 Focused native endpoint scan
 
-now separates them operationally.
-
-### 76.1 Fast-root native closure remains successful
-
-For the fast branch,
+The slow branch,
 
 \[
-\mu_F^{(+)}
-=
-5.57321899721,
+\mu_F^{(-)}=2.86106741391,
 \qquad
-\mu_g^{(+)}
-=
-6.57321899721,
+\mu_g^{(-)}=3.86106741391,
 \]
 
-the native background reaches
+was rebuilt independently in a clean future-background harness and tested at
 
 \[
-\ln a=10
+\ln a=6,7,8,9,10.
+\]
+
+The results were non-monotonic:
+
+\[
+\boxed{
+\ln a=6:\ \text{pass},
+}
+\]
+
+\[
+\boxed{
+\ln a=7:\ \text{background-at-z interpolation failure},
+}
+\]
+
+\[
+\boxed{
+\ln a=8:\ \text{pass},
+}
+\]
+
+\[
+\boxed{
+\ln a=9:\ \text{background-at-z interpolation failure},
+}
+\]
+
+\[
+\boxed{
+\ln a=10:\ \text{pass}.
+}
+\]
+
+The \(\ln a=10\) case was then repeated with the future structural table
+resolution doubled from
+
+\[
+2600
+\]
+
+to
+
+\[
+5200
+\]
+
+points.
+
+It again passed with return code zero.
+
+Because a genuine physical instability that develops with increasing future
+time should not disappear again at larger integration endpoints, the isolated
+\(\ln a=7\) and \(\ln a=9\) failures are identified as endpoint/interpolation
+conditioning of the tabulated native post-processing rather than a monotonic
+breakdown of the slow-root action.
+
+The earlier negative-\(\rho_{\rm crit}\) shooting result at \(\ln a=10\) is
+therefore not reproducible in the clean focused harness.
+
+### 76.2 Clean slow-root perturbation propagation to \(\ln a=10\)
+
+The slow branch was then rerun with the future perturbation endpoint and
+thermodynamic extrapolation patches installed from the beginning, using
+
+\[
+\ln a_{\rm final}=10,
+\]
+
+\[
+\psi_{\max}=12,
+\]
+
+and
+
+\[
+5200
+\]
+
+future structural-table points.
+
+The native hi_class calculation returns
+
+\[
+\boxed{
+\text{return code}=0,
+}
 \]
 
 with
 
 \[
 \boxed{
-{\cal N}
-=
-2.89436190703,
-}
-\]
-
-\[
-\boxed{
-p
-=
-0.99998501061,
-}
-\]
-
-\[
-\boxed{
-q
-=
--1.46175\times10^{-5},
-}
-\]
-
-\[
-\boxed{
-D
-=
-1.99994003958,
+\text{no shooting failure},
 }
 \]
 
@@ -15693,13 +15745,11 @@ and
 
 \[
 \boxed{
-c_s^2
-=
-0.9999999999994.
+\text{no negative-}\rho_{\rm crit}\text{ event}.
 }
 \]
 
-The three native scalar perturbation modes
+All three requested scalar perturbation files are produced for
 
 \[
 k=
@@ -15707,234 +15757,114 @@ k=
 \quad
 10^{-3},
 \quad
-10^{-2}\ {\rm Mpc}^{-1}
+10^{-2}\ {\rm Mpc}^{-1}.
 \]
 
-also remain finite through the same horizon and satisfy the long-horizon metric
-potential gates.
-
-Thus the fast branch again returns
+Every stored value in the three histories is finite through
 
 \[
 \boxed{
-\texttt{NATIVE\_CANONICAL\_LONG\_HORIZON\_GATE\_PASS}.
+\ln a=10.
 }
 \]
 
-### 76.2 Slow-root native background loses viability before \(\ln a=10\)
-
-For the slower branch,
+From \(\ln a=5\) to the final row, the metric-potential amplitude ratios are
+approximately
 
 \[
-\mu_F^{(-)}
-=
-2.86106741391,
+\boxed{
+0.704284
+}
+\]
+
+for
+
+\[
+k=10^{-4}\ {\rm Mpc}^{-1},
+\]
+
+\[
+\boxed{
+6.6804\times10^{-3}
+}
+\]
+
+for
+
+\[
+k=10^{-3}\ {\rm Mpc}^{-1},
+\]
+
+and
+
+\[
+\boxed{
+6.8232\times10^{-3}
+}
+\]
+
+for
+
+\[
+k=10^{-2}\ {\rm Mpc}^{-1}.
+\]
+
+The corresponding raw synchronous structural-scalar ratios are approximately
+
+\[
+0.773245,
 \qquad
-\mu_g^{(-)}
-=
-3.86106741391,
+0.014253,
+\qquad
+0.013357.
 \]
 
-the same native installation is healthy through
+Thus the slow-root scalar sector remains finite and non-runaway over the same
+long horizon already used for the fast branch.
+
+### 76.3 Revised branch verdict
+
+The fast branch,
 
 \[
-\ln a=5,
+\mu_F^{(+)}=5.57321899721,
 \]
 
-but the attempted extension to
+remains a fully successful native branch and canonicalizes transversely more
+rapidly.
+
+The slow branch,
 
 \[
+\mu_F^{(-)}=2.86106741391,
+\]
+
+is now also native-background and native-perturbation viable through
+
+\[
+\boxed{
 \ln a=10
-\]
-
-terminates inside the native background solver with
-
-\[
-\boxed{
-\rho_{\rm crit}
-=
--1.466883\times10^{-14},
 }
 \]
 
-where hi_class requires
+in the clean focused realization.
 
-\[
-\rho_{\rm crit}>0.
-\]
+Therefore the current evidence no longer supports using native long-horizon
+viability to select one positive root over the other.
 
-The corresponding native long-horizon background file is therefore not
-produced, and the slow-root long-horizon gate returns failure.
-
-This is the first test in the investigation that distinguishes the two
-positive Planck/braiding roots.
-
-### 76.3 This is an operational, not yet fundamental, branch selection
-
-The result must be interpreted carefully.
-
-The exact action-level slow-root trajectory remains healthy through
-
-\[
-\ln a=10,
-\]
-
-with
-
-\[
-{\cal N}
-=
-2.89436165740,
-\]
-
-\[
-p
-=
-0.99998501991,
-\]
-
-\[
-q
-=
--1.49816\times10^{-5},
-\]
-
-\[
-D
-\simeq
-1.99994008,
-\]
-
-and
-
-\[
-c_s^2
-\simeq
-1.
-\]
-
-It also passes native background and perturbation propagation through
-
-\[
-\ln a=5.
-\]
-
-Therefore the present evidence does **not** prove that the slower root is
-mathematically inconsistent as a covariant action.
-
-Instead it proves the narrower statement
+The correct conclusion is
 
 \[
 \boxed{
-\text{the current native tabulated hi\_class realization of the slow root
-does not remain background-viable to }\ln a=10.
+\text{both positive C3 Planck/braiding roots belong to the same healthy
+canonical long-horizon class.}
 }
 \]
 
-The failure could represent
+Their distinction lies in finite transition memory and transverse
+canonicalization rate, not in the mature endpoint.
 
-1. a genuine incompatibility that appears only in the complete native
-background system;
-2. accumulated mismatch between the exact structural action and its tabulated
-logstruct realization;
-3. a conditioning/resolution issue associated with the much longer
-Planck/braiding transient.
-
-These possibilities require a dedicated convergence and failure-onset audit.
-
-### 76.4 Production-branch status
-
-Until that audit demonstrates otherwise, the branch hierarchy is now
-
-\[
-\boxed{
-\mu_F^{(+)}
-=
-5.57321899721
-}
-\]
-
-as the **fully validated production branch**, because it passes
-
-- exact homogeneous action evolution;
-- background health;
-- No-Slip closure;
-- action-level perturbation-envelope checks;
-- native background propagation;
-- native scalar perturbations;
-- native \(\ln a=10\) long-horizon closure.
-
-The slower
-
-\[
-\boxed{
-\mu_F^{(-)}
-=
-2.86106741391
-}
-\]
-
-remains a mathematically healthy action-level alternative and a successful
-short-horizon native branch, but it is not yet long-horizon-native validated.
-
-Thus the mature canonical endpoint remains branch independent, while the
-current implementation evidence now gives a practical preference for the
-faster Planck/braiding decay.
-
-### 76.5 Refined universality statement
-
-The branch-memory audit simultaneously confirms that the two roots excite
-nearly the same universal infrared matter mode.
-
-For the slow branch,
-
-\[
-M_\infty
-=
-0.75882288887,
-\]
-
-\[
-m_1
-=
-0.21994106005,
-\]
-
-while for the fast branch,
-
-\[
-M_\infty
-=
-0.75880612254,
-\]
-
-\[
-m_1
-=
-0.21993129363.
-\]
-
-Hence
-
-\[
-\boxed{
-\frac{\Delta M_\infty}{M_\infty}
-=
--2.21\times10^{-5},
-}
-\]
-
-and
-
-\[
-\boxed{
-\frac{\Delta m_1}{m_1}
-=
--4.44\times10^{-5}.
-}
-\]
-
-Both branches nevertheless recover the same tangent exponent,
+For the matter-loaded tangent direction both recover
 
 \[
 \boxed{
@@ -15942,14 +15872,12 @@ Both branches nevertheless recover the same tangent exponent,
 }
 \]
 
-Their transverse causal-shape relaxation is different.
-
-The fast branch approaches approximately
+For the transverse causal-shape direction the fast branch relaxes more rapidly,
+reaching approximately
 
 \[
-\nu_\perp
-\simeq
-4.62
+\nu_\perp^{(+)}
+\simeq4.62
 \]
 
 over
@@ -15958,181 +15886,57 @@ over
 5\le\ln a\le6,
 \]
 
-continuing toward the \(k_2\)-controlled value near \(5\).
-
-The slow branch instead gives approximately
+while the slow branch gives approximately
 
 \[
-\boxed{
-\nu_\perp
-\simeq
-2.23
-}
+\nu_\perp^{(-)}
+\simeq2.23.
 \]
 
-over the same interval.
+These are finite-handoff properties, not different infrared fixed points.
 
-Thus the physical matter eigenvalue is genuinely universal, whereas the rate
-at which the finite noncanonical sector collapses onto the canonical manifold
-retains substantial interpolation-branch dependence.
+### 76.4 Final status of interpolation uniqueness
 
-This sharpens the distinction:
+The mature action remains unique under the adopted Balanced-Identity plus
+robust-luminality closure,
 
 \[
-\boxed{
-\text{canonical IR dynamics}
+G_{2,\infty}
 =
-\text{universal},
-}
+\frac1{\sigma^2}
+\left(
+2F_\infty Z
+-
+4F_\infty Z_{\rm BI}
+\right),
 \]
 
-but
+\[
+G_{3,\infty}=0,
+\qquad
+G_{4,\infty}=\frac{F_\infty}{2}.
+\]
+
+But the finite Planck/braiding interpolation is not unique within the current
+C3 exponential-polynomial construction.
+
+At least two positive real roots satisfy the present C3 jet, asymptotic
+No-Slip, healthy action evolution, native background propagation, and native
+scalar perturbation propagation through the tested long horizon.
+
+Accordingly,
 
 \[
 \boxed{
-\text{approach to the canonical IR manifold}
-=
-\text{branch dependent}.
+\text{unique mature action}
+\not\Rightarrow
+\text{unique finite handoff}.
 }
 \]
 
-The next audit should locate the slow-root native failure boundary and test its
-convergence with future-table resolution before deciding whether the
-long-horizon failure is physical or numerical.
-
-
-## 76A. Focused convergence scan revises the slow-root native verdict
-
-A dedicated standalone convergence matrix was subsequently run after
-reconstructing the same accepted target and free structural background used by
-the full audit.
-
-The slow root was tested at
-
-\[
-\ln a=
-6,\ 7,\ 8,\ 9,\ 10
-\]
-
-with
-
-\[
-2600
-\]
-
-future table points, and again at
-
-\[
-\ln a=10
-\]
-
-with
-
-\[
-5200
-\]
-
-future table points.
-
-The resulting pattern was
-
-\[
-\boxed{
-\ln a=6:\ {\rm pass},
-}
-\]
-
-\[
-\boxed{
-\ln a=7:\ {\rm interpolation/background\ lookup\ failure},
-}
-\]
-
-\[
-\boxed{
-\ln a=8:\ {\rm pass},
-}
-\]
-
-\[
-\boxed{
-\ln a=9:\ {\rm interpolation/background\ lookup\ failure},
-}
-\]
-
-and
-
-\[
-\boxed{
-\ln a=10:\ {\rm pass}
-}
-\]
-
-at **both**
-
-\[
-2600
-\]
-
-and
-
-\[
-5200
-\]
-
-future points.
-
-The successful \(\ln a=10\) runs return
-
-\[
-{\tt returncode}=0
-\]
-
-and produce the full native background table.
-
-The failures at \(\ln a=7\) and \(9\) occur in the future
-\({\tt background\_at\_tau/background\_at\_z}\) lookup rather than through a
-monotonic loss of
-
-\[
-F>0,\quad D>0,\quad c_s^2>0
-\]
-
-or through a reproducible negative critical density.
-
-Because a physically unstable branch should not generically fail at 7, recover
-at 8, fail at 9, and then recover at 10 at two independent table resolutions,
-the focused scan changes the interpretation.
-
-The scientifically supported conclusion is now
-
-\[
-\boxed{
-\text{the earlier slow-root long-horizon failure was not a robust physical
-branch exclusion.}
-}
-\]
-
-Instead, the current native future extension contains discrete endpoint
-sensitivity in its post-present interpolation/bookkeeping layer.
-
-Therefore the fast root remains the conservative production branch because it
-has the cleanest uninterrupted native history, but the slow root is **not**
-excluded by the \(\ln a=10\) background test.
-
-The final branch distinction must therefore be stated as
-
-\[
-\boxed{
-\text{same canonical infrared endpoint, with different finite transition
-rates and small transition-memory amplitudes.}
-}
-\]
-
-A final focused scalar-perturbation run at \(\ln a=10\) is used below to
-decide whether any operational preference for the fast root remains after this
-background convergence correction.
-
+A deeper microscopic selector would have to distinguish the roots using
+information not contained in the present background and perturbation health
+conditions.
 
 ## 77. Consolidated closed equation set for the final discussion
 
