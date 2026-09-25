@@ -151,6 +151,54 @@ for i in range(0,len(N),8):
             })
 pairs=sorted(pairs,key=lambda x:x["abs_delta_r_cone"],reverse=True)[:5]
 
+def lambda_window(nmin,nmax=9.8):
+    m=(N>=nmin)&(N<=nmax)
+    scl=max(1.,float(np.max(np.abs(A[m]))),float(np.max(np.abs(B[m]))))
+    tt=2e-8*scl
+    ll=0.0; hh=float("inf"); bad=[]
+    for i in np.where(m)[0]:
+        a=float(A[i]); b=float(B[i])
+        if abs(b)<1e-14:
+            if a>tt:
+                bad.append({"ln_a":float(N[i]),"A":a,"B":b})
+            continue
+        bd=(-a+tt)/b
+        if b>0.:
+            hh=min(hh,bd)
+        else:
+            ll=max(ll,bd)
+    ll=max(ll,0.)
+    ok=(not bad) and hh>0. and ll<=hh
+    if ok:
+        if ll<=1.<=hh:
+            lm=1.0
+        elif math.isinf(hh):
+            lm=max(1.,1.2*ll)
+        elif ll<=0.:
+            lm=.5*hh
+        else:
+            lm=math.sqrt(ll*hh)
+        dl=A+lm*B
+        return {
+          "ln_a_min":nmin,"ln_a_max":nmax,
+          "feasible":True,
+          "lambda_lower":float(ll),
+          "lambda_upper":None if math.isinf(hh) else float(hh),
+          "selected_lambda":float(lm),
+          "max_dL_dN":float(np.max(dl[m])),
+          "positive_fraction":float(np.mean(dl[m]>tt)),
+        }
+    return {
+      "ln_a_min":nmin,"ln_a_max":nmax,
+      "feasible":False,
+      "lambda_lower":float(ll),
+      "lambda_upper":None if math.isinf(hh) else float(hh),
+      "incompatible_count":len(bad),
+    }
+
+window_tests=[lambda_window(x) for x in
+              [0.,.01,.025,.05,.075,.1,.15,.2,.25,.3,.5,1.0]]
+
 out={
   "status":(
     "path-level Lyapunov audit of the successful refined canonical closure "
@@ -194,6 +242,9 @@ out={
     "incompatible_constraints":incompatible[:20],
   },
   "samples":samples,
+  "window_tests":window_tests,
+  "first_feasible_test_window":
+    next((w for w in window_tests if w["feasible"]),None),
   "interpretation":{
     "Gamma_alone_is_global_order_parameter":
       bool(sign_changes(np.gradient(Gamma,N))==0),
@@ -214,5 +265,7 @@ OUT.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("CANONICAL_CLOSURE_LYAPUNOV_AUDIT")
 print("TRAJECTORY",json.dumps(out["trajectory"],sort_keys=True))
 print("LYAPUNOV",json.dumps(out["quadratic_lyapunov"],sort_keys=True))
+for row in window_tests:
+    print("WINDOW",json.dumps(row,sort_keys=True))
 for row in samples:
     print("SAMPLE",json.dumps(row,sort_keys=True))
