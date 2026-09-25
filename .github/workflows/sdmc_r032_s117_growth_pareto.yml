@@ -1,9 +1,9 @@
-name: SDMC r032 S117 Planck-growth Pareto scan
+name: SDMC S117 g073 structural refinement
 
 on:
   push:
     branches:
-      - sdmc-r032-s117-growth-pareto
+      - sdmc-discussion-s117-g073-structural-refine
   workflow_dispatch:
 
 permissions:
@@ -60,19 +60,19 @@ jobs:
           test "$ok" -eq 1
 
       - name: Run S117 growth Pareto scan
-        run: python3 sdmc/run_r032_s117_growth_pareto.py
+        run: python3 sdmc/run_r032_s117_g073_structural_refine.py
 
       - name: Print Pareto summary
         if: always()
         run: |
-          cat output/s117_growth_pareto/s117_growth_pareto_summary.json || true
+          cat output/s117_g073_structural_refine/s117_g073_structural_refine_summary.json || true
 
       - name: Preserve Pareto products
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-s117-growth-pareto
+          name: sdmc-discussion-s117-g073-structural-refine
           path: |
-            output/s117_growth_pareto/*.csv
-            output/s117_growth_pareto/*.json
+            output/s117_g073_structural_refine/*.csv
+            output/s117_g073_structural_refine/*.json
           if-no-files-found: warn
