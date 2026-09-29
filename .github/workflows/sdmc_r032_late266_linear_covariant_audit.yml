@@ -276,11 +276,13 @@ jobs:
           path: |
             output/linear_cov_target.ini
             output/linear_cov_target_00_background.dat
+            output/linear_cov_target_00_thermodynamics.dat
             output/linear_cov_reconstruction_summary.txt
             output/linear_cov_free.ini
             output/linear_cov_free.log
             output/linear_cov_free_returncode.txt
             output/linear_cov_free_00_background.dat
+            output/linear_cov_free_00_thermodynamics.dat
             output/linear_cov_replay_comparison.json
             output/linear_cov_boltzmann_comparison.json
             output/late266_local_screening_proxy.txt
