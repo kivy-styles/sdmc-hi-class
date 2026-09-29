@@ -79,16 +79,18 @@ jobs:
           P_k_max_h/Mpc = 6.0
           z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
           write background = yes
-          write thermodynamics = yes
+          write_thermodynamics = yes
           root = output/linear_cov_target_
           format = class
           input_verbose = 0
           background_verbose = 0
-          thermodynamics_verbose = 0
+          thermodynamics_verbose = 1
           perturbations_verbose = 0
-          output_verbose = 0
+          output_verbose = 1
           EOF
           ./class output/linear_cov_target.ini
+          echo 'TARGET_OUTPUT_INVENTORY'
+          find output -maxdepth 1 -type f -printf '%f\n' | sort | tee output/linear_cov_target_file_inventory.txt
 
       - name: Reconstruct and install accepted linear-G3 action
         run: |
@@ -131,14 +133,14 @@ jobs:
           P_k_max_h/Mpc = 6.0
           z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
           write background = yes
-          write thermodynamics = yes
+          write_thermodynamics = yes
           root = output/linear_cov_free_
           format = class
           input_verbose = 0
           background_verbose = 0
-          thermodynamics_verbose = 0
+          thermodynamics_verbose = 1
           perturbations_verbose = 0
-          output_verbose = 0
+          output_verbose = 1
           EOF
           set +e
           ./class output/linear_cov_free.ini > output/linear_cov_free.log 2>&1
@@ -147,6 +149,8 @@ jobs:
           cat output/linear_cov_free.log
           echo "LINEAR_COV_FREE_RETURNCODE=$rc"
           echo "$rc" > output/linear_cov_free_returncode.txt
+          echo 'FREE_OUTPUT_INVENTORY'
+          find output -maxdepth 1 -type f -printf '%f\n' | sort | tee output/linear_cov_free_file_inventory.txt
           test "$rc" -eq 0
 
       - name: Compare free evolution to target
@@ -275,10 +279,12 @@ jobs:
           name: late266-linear-g3-covariant-audit
           path: |
             output/linear_cov_target.ini
+            output/linear_cov_target_file_inventory.txt
             output/linear_cov_target_00_background.dat
             output/linear_cov_target_*thermodynamics.dat
             output/linear_cov_reconstruction_summary.txt
             output/linear_cov_free.ini
+            output/linear_cov_free_file_inventory.txt
             output/linear_cov_free.log
             output/linear_cov_free_returncode.txt
             output/linear_cov_free_00_background.dat
