@@ -272,6 +272,24 @@ jobs:
         run: |
           python3 sdmc/run_late266_local_screening_proxy.py
 
+      - name: Self-consistent baryon/recombination sensitivity sweep
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path('output/linear_cov_free.ini').read_text()
+          omega0=0.02208511574370519
+          for tag,factor in [('b090',0.90),('b095',0.95),('b100',1.00),('b105',1.05),('b110',1.10)]:
+              txt=base
+              txt=txt.replace(f'omega_b = {omega0}',f'omega_b = {omega0*factor:.17g}')
+              txt=txt.replace('root = output/linear_cov_free_',f'root = output/obscan_{tag}_')
+              txt='\n'.join(line for line in txt.splitlines() if not line.startswith('output = '))
+              txt=txt.replace('lensing = yes','lensing = no')
+              Path(f'output/obscan_{tag}.ini').write_text(txt+'\n')
+          PY
+          for tag in b090 b095 b100 b105 b110; do
+            ./class output/obscan_${tag}.ini > output/obscan_${tag}.log 2>&1
+          done
       - name: Preserve audit
         if: always()
         uses: actions/upload-artifact@v4
@@ -289,6 +307,10 @@ jobs:
             output/linear_cov_free_returncode.txt
             output/linear_cov_free_00_background.dat
             output/linear_cov_free_*thermodynamics.dat
+            output/obscan_*.ini
+            output/obscan_*.log
+            output/obscan_*_background.dat
+            output/obscan_*_thermodynamics.dat
             output/linear_cov_replay_comparison.json
             output/linear_cov_boltzmann_comparison.json
             output/late266_local_screening_proxy.txt
