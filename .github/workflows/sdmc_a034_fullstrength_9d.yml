@@ -1,9 +1,9 @@
 name: SDMC a034 fixed-background full-strength 9D search
 
 on:
-  pull_request:
+  push:
     branches:
-      - master
+      - sdmc-a034-fullstrength-9d
   workflow_dispatch:
 
 permissions:
