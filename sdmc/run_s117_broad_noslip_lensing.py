@@ -169,8 +169,7 @@ anchors=[
 ]
 rows=[run(*x) for x in anchors]
 LOW=np.array([0.015,1.0,0.30]); HIGH=np.array([0.080,8.0,2.0])
-sob=qmc.Sobol(d=3,scramble=True,seed=117918)
-for i,x in enumerate(qmc.scale(sob.random_base2(m=7),LOW,HIGH)):
+for i,x in enumerate([]):
     rows.append(run(f"l{i:03d}",*map(float,x)))
 
 df=pd.DataFrame(rows); df.to_csv(OUT/"s117_broad_lensing.csv",index=False)
