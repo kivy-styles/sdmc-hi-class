@@ -9,16 +9,13 @@ on:
     branches:
       - sdmc-late266-fj028-linear-g3-audit
   workflow_dispatch:
-  pull_request:
-    branches:
-      - master
 
 jobs:
   linear-covariant-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -326,3 +323,17 @@ jobs:
           if-no-files-found: warn
 
 # fj028 validation trigger
+
+      - name: Commit compact audit result
+        if: success()
+        run: |
+          mkdir -p sdmc/results/fj028_linear_g3
+          cp output/linear_cov_replay_comparison.json sdmc/results/fj028_linear_g3/
+          cp output/linear_cov_boltzmann_comparison.json sdmc/results/fj028_linear_g3/
+          cp output/late266_structural_composite_audit.json sdmc/results/fj028_linear_g3/ || true
+          cp output/late266_activation_factorization_audit.json sdmc/results/fj028_linear_g3/ || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sdmc/results/fj028_linear_g3
+          git commit -m "Store fj028 accepted-action audit [skip ci]" || exit 0
+          git push origin HEAD:sdmc-late266-fj028-linear-g3-audit
