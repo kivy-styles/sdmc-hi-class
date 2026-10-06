@@ -1,6 +1,9 @@
 name: SDMC late266-background fj014 perturbative bridge
 
 on:
+  push:
+    branches:
+      - sdmc-late266-hybrid-fj014
   pull_request:
     branches:
       - master
