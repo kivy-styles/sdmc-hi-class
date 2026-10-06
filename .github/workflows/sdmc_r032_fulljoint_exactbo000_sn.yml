@@ -1,4 +1,4 @@
-name: SDMC late266 successor s036 exact SN
+name: SDMC late266 h055 exact SN
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-late266-successor-s036-exact
+      - sdmc-late266-h055-exact
   workflow_dispatch:
   pull_request:
     branches:
@@ -54,9 +54,9 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1153164253417825e-09
-          n_s = 0.963824442274234
-          tau_reio = 0.05415934741962701
+          A_s = 2.1121864682991435e-09
+          n_s = 0.963880535174062
+          tau_reio = 0.05441067917481996
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -64,7 +64,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.020326851338950964, 3.6185491493767987, 0.37530905244079676, 0.34231919445927034, 1.0, 0.05087322041005618
+          parameters_smg = 0.019865763807602157, 3.6330492712962177, 0.3663020799089426, 0.3666289891125713, 1.0482577774906532, 0.05352459827021835
           expansion_model = sdmc_full
           expansion_smg = 0.6991577808065268, 18.40625, 16.173189924377947, 0.5, 0.013036667098291217, 0.25, 0.010544837576337158, 1.5
           pert_initial_conditions_smg = zero
@@ -126,9 +126,9 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1153164253417825e-09
-          n_s = 0.963824442274234
-          tau_reio = 0.05415934741962701
+          A_s = 2.1121864682991435e-09
+          n_s = 0.963880535174062
+          tau_reio = 0.05441067917481996
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -174,7 +174,7 @@ jobs:
           a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
           mnD=float(np.min(d['kin (D)'])); mncs=float(np.min(d['c_s^2'])); mxcs=float(np.max(d['c_s^2']))
           slip=float(np.max(np.abs(d['braiding_smg']+2*d['M2_running_smg'])))
-          print('LATE266_S036_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
+          print('LATE266_H055_COVARIANT_STABILITY',mnD,mncs,mxcs,slip,flush=True)
           if not (mnD>0 and mncs>0 and mxcs<=1): raise SystemExit('covariant stability gate failed')
           PY
 
@@ -239,17 +239,17 @@ jobs:
                       'desy5':chi(dep,dem-mu(bg,dez,dezh))}
           s=table(ROOT/'covariant_observable_00_background.dat'); l=table(ROOT/'fullplik_lcdm_00_background.dat')
           ss=scores(s); ll=scores(l); out={k:{'sdmc':ss[k],'lcdm':ll[k],'delta':ss[k]-ll[k]} for k in ss}
-          print('LATE266_S036_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
-          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm'],delta_chi2=v['delta']) for k,v in out.items()]).to_csv(OUT/'fulljoint_late266_exact_sn.csv',index=False)
+          print('LATE266_H055_EXACT_SN',json.dumps(out,sort_keys=True),flush=True)
+          pd.DataFrame([dict(compilation=k,sdmc_chi2=v['sdmc'],lcdm_chi2=v['lcdm'],delta_chi2=v['delta']) for k,v in out.items()]).to_csv(OUT/'fulljoint_h055_exact_sn.csv',index=False)
           PY
 
       - name: Preserve exact SN result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-late266-s036-sn
+          name: sdmc-late266-h055-sn
           path: |
-            output/fulljoint_late266_exact_sn.csv
+            output/fulljoint_h055_exact_sn.csv
             input_artifact/unpacked/covariant_observable_00_background.dat
             input_artifact/unpacked/fullplik_lcdm_00_background.dat
           if-no-files-found: warn
