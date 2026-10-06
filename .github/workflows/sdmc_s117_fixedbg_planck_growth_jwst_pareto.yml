@@ -1,12 +1,6 @@
 name: SDMC S117 fixed-background Planck-growth-JWST Pareto
 
 on:
-  push:
-    branches:
-      - sdmc-fulljoint-local021-plus-jwst-search
-  pull_request:
-    branches:
-      - master
   workflow_dispatch:
 
 permissions:
