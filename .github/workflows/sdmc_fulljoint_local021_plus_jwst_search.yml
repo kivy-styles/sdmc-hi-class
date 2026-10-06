@@ -5,6 +5,9 @@ on:
     branches:
       - sdmc-fulljoint-local021-plus-jwst-search
   workflow_dispatch:
+  pull_request:
+    branches:
+      - master
 
 permissions:
   contents: read
