@@ -1,0 +1,181 @@
+name: SDMC stability refinement
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  refine-stability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply SDMC patches and diagnostics
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          make -j2 class
+
+      - name: Fine Kp width scan and endpoint-clean NKp re-shoot
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, re, subprocess, math
+
+          OUT=Path('output'); OUT.mkdir(exist_ok=True)
+          SRC=Path('gravity_smg/gravity_models_smg.c')
+          KP=Path('sdmc/config/kp_split_sector_background_diagnostic.ini').read_text()
+          NKP=Path('sdmc/config/nkp_v2_split_sector_background_diagnostic.ini').read_text()
+          FLOOR=1e-4
+
+          def parse_bg(path):
+              lines=path.read_text().splitlines()
+              hdr=[x for x in lines if x.startswith('#') and '1:z' in x][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  names.append(hdr[m.end():end].strip())
+              rows=[]
+              for line in lines:
+                  if line.strip() and not line.startswith('#'):
+                      rows.append(dict(zip(names,[float(x) for x in line.split()])))
+              return rows
+
+          def make_ini(base,root,params):
+              s=re.sub(r'^parameters_smg\s*=.*$',f'parameters_smg = {params}',base,flags=re.M)
+              s=re.sub(r'^output_background_smg\s*=.*$','output_background_smg = 3',s,flags=re.M)
+              s=re.sub(r'^root\s*=.*$',f'root = {root}',s,flags=re.M)
+              return s
+
+          def run_bg(base,params,tag,keep_log=True):
+              root=f'output/sdmc_refine_{tag}_'
+              ini=OUT/f'sdmc_refine_{tag}.ini'; ini.write_text(make_ini(base,root,params))
+              cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+              if keep_log: (OUT/f'sdmc_refine_{tag}.log').write_text(cp.stdout)
+              bg=Path(root+'00_background.dat')
+              if cp.returncode or not bg.exists(): return None,cp.returncode
+              return parse_bg(bg),0
+
+          def calc(rows):
+              q=[]
+              for r in rows:
+                  z=r['z']; a=1/(1+z); H=r['H [1/Mpc]']; F=r['M*^2_smg']
+                  b=r['braiding_smg']; am=r['M2_running_smg']; beh=r['beyond_horndeski_smg']; ten=r['tensor_excess_smg']
+                  rs=r['(.)rho_smg']; ps=r['(.)p_smg']; ro=r['rho_tot_wo_smg_dbg']; po=r['p_tot_wo_smg_dbg']; bp=r['braiding_prime_smg']
+                  t1=.5*(2-b)*(b+2*beh+2*am+2*beh*am-2*ten+b*ten)
+                  t2=1.5*(2-b)*(1+beh)*(rs+ps)/(H*H)
+                  t3=-1.5*(1+beh)*(2+2*beh-2*F+b*F)/F*(ro+po)/(H*H)
+                  t4=(1+beh)*bp/(a*H)
+                  q.append(dict(z=z,N=r['cs2num'],F=F,am=am,b=b,D=r['kin (D)'],cs2=r['c_s^2'],t1=t1,t2=t2,t3=t3,t4=t4,w=(ps/rs if rs else float('nan'))))
+              return q
+
+          def summarize(model,width,zact,rows,shoot_status=''):
+              q=calc(rows); sub=[r for r in q if r['z']<=100]; lo=[r for r in sub if r['z']<=5]; hi=[r for r in sub if r['z']>5]
+              mn=min(sub,key=lambda r:r['N']); ml=min(lo,key=lambda r:r['N']); mh=min(hi,key=lambda r:r['N']); z0=min(q,key=lambda r:abs(r['z']))
+              return dict(model=model,width=width,zact=zact,shoot_status=shoot_status,
+                          min_num=mn['N'],z_min=mn['z'],min_low=ml['N'],z_low=ml['z'],min_high=mh['N'],z_high=mh['z'],
+                          F0=z0['F'],alphaM0=z0['am'],endpoint_F_shift=z0['F']-1.027952911267,
+                          term_smg=mn['t2'],term_non_smg=mn['t3'],term_bra_prime=mn['t4'],w_smg=mn['w'],
+                          min_D=min(r['D'] for r in sub),min_cs2=min(r['cs2'] for r in sub),
+                          stable_zle100=int(mn['N']>=0))
+
+          results=[]
+
+          # Kp: resolve the narrow crossover where high-z derivative instability
+          # disappears but low-z enthalpy instability has not yet appeared.
+          original=SRC.read_text(); anchor='const double width = 0.4467;'
+          if original.count(anchor)!=1: raise RuntimeError('Kp width anchor not unique')
+          kp_widths=[0.440,0.445,0.4467,0.450,0.455,0.460,0.470,0.480,0.490,0.500,0.510,0.520,0.530,0.540,0.550,0.560,0.570,0.580,0.590,0.600]
+          try:
+              for w in kp_widths:
+                  SRC.write_text(original.replace(anchor,f'const double width = {w:.17g}; /* stability refinement */'))
+                  cp=subprocess.run(['make','-j2','class'],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+                  (OUT/f'sdmc_refine_Kp_build_{w:.4f}.log').write_text(cp.stdout)
+                  if cp.returncode:
+                      results.append(dict(model='Kp_core',width=w,zact=4.38,shoot_status='BUILD_FAIL'))
+                      continue
+                  rows,rc=run_bg(KP,f'0.1, {FLOOR:.17g}',('Kp_'+f'{w:.4f}').replace('.','p'))
+                  if rows is None: results.append(dict(model='Kp_core',width=w,zact=4.38,shoot_status='RUN_FAIL'))
+                  else: results.append(summarize('Kp_core',w,4.38,rows,'fixed zc'))
+          finally:
+              SRC.write_text(original)
+              cp=subprocess.run(['make','-j2','class'],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+              if cp.returncode: raise RuntimeError('failed restoring baseline executable')
+
+          # NKp: for each activation width, re-shoot zact so alpha_M(z=0)=0.
+          # This separates genuine width effects from the huge endpoint drift seen
+          # when width was changed at fixed zact.
+          nk_widths=[0.35,0.40,0.45,0.50,0.55,0.60,0.70,0.80,0.90,1.00]
+          probes=[2.,4.,7.,11.,16.,21.45883112,30.,45.,70.,110.,180.,300.]
+
+          def endpoint(width,zact,serial):
+              params=f'0.001, 0.1, {zact:.17g}, {width:.17g}, {FLOOR:.17g}'
+              rows,rc=run_bg(NKP,params,f'probe_{serial}',keep_log=False)
+              if rows is None: return None
+              z0=min(rows,key=lambda r:abs(r['z']))
+              return z0['M2_running_smg'],z0['M*^2_smg'],rows
+
+          serial=0
+          for w in nk_widths:
+              vals=[]
+              for z in probes:
+                  serial+=1; e=endpoint(w,z,serial)
+                  if e is not None: vals.append((z,e[0],e[1]))
+              vals.sort()
+              bracket=None
+              best=min(vals,key=lambda x:abs(x[1])) if vals else None
+              for a,b in zip(vals[:-1],vals[1:]):
+                  if a[1]==0 or a[1]*b[1] < 0:
+                      bracket=[a[0],b[0],a[1],b[1]]; break
+              status='NO_BRACKET'
+              zstar=best[0] if best else 21.45883112
+              if bracket:
+                  zl,zh,fl,fh=bracket
+                  for _ in range(18):
+                      zm=.5*(zl+zh); serial+=1; e=endpoint(w,zm,serial)
+                      if e is None: break
+                      fm=e[0]
+                      if abs(fm)<1e-9:
+                          zl=zh=zm; fl=fh=fm; break
+                      if fl*fm<=0: zh,fh=zm,fm
+                      else: zl,fl=zm,fm
+                  zstar=.5*(zl+zh); status='ROOTED'
+              params=f'0.001, 0.1, {zstar:.17g}, {w:.17g}, {FLOOR:.17g}'
+              rows,rc=run_bg(NKP,params,('NKp_root_w'+f'{w:.3f}').replace('.','p'))
+              if rows is None:
+                  results.append(dict(model='NKp_v2_rooted',width=w,zact=zstar,shoot_status='FINAL_RUN_FAIL'))
+              else:
+                  results.append(summarize('NKp_v2_rooted',w,zstar,rows,status))
+
+          fields=['model','width','zact','shoot_status','min_num','z_min','min_low','z_low','min_high','z_high','F0','alphaM0','endpoint_F_shift','term_smg','term_non_smg','term_bra_prime','w_smg','min_D','min_cs2','stable_zle100']
+          with (OUT/'sdmc_stability_refinement.csv').open('w',newline='') as f:
+              wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader()
+              for r in results: wr.writerow({k:r.get(k,'') for k in fields})
+          print('STABILITY_REFINEMENT')
+          for r in results: print(r)
+          PY
+
+      - name: Upload refinement results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-stability-refinement
+          path: |
+            output/sdmc_stability_refinement.csv
+            output/sdmc_refine_*.log
+            output/sdmc_refine_*_00_background.dat
+          if-no-files-found: warn
