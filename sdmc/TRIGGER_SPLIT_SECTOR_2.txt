@@ -1,0 +1,1 @@
+This file intentionally does not define model physics. It records a workflow-trigger checkpoint.
