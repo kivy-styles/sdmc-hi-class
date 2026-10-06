@@ -68,3 +68,5 @@ jobs:
           name: sdmc-fj028-shoes-calibrated
           path: output/partx_shoes_calibrated/*
           if-no-files-found: warn
+
+# fj028 validation trigger
