@@ -1,0 +1,63 @@
+name: SDMC fj014-to-late266 background bridge
+
+on:
+  push:
+    branches:
+      - sdmc-fj014-background-bridge
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              if not cls.install(path="planck_packages",no_progress_bars=True): raise SystemExit(2)
+          PY
+          rm -rf sn_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+      - name: Build full SDMC
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean >/dev/null && make -j2 class >/dev/null
+      - name: Scan background bridge
+        run: python3 sdmc/run_fj014_background_bridge.py
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-fj014-background-bridge
+          path: output/fj014_background_bridge/
+      - name: Commit compact result
+        run: |
+          mkdir -p sdmc/results/fj014_background_bridge
+          cp output/fj014_background_bridge/fj014_bg_summary.json sdmc/results/fj014_background_bridge/
+          cp output/fj014_background_bridge/fj014_bg_promote.csv sdmc/results/fj014_background_bridge/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sdmc/results/fj014_background_bridge
+          git commit -m "Store fj014 background bridge result [skip ci]" || exit 0
+          git push origin HEAD:sdmc-fj014-background-bridge
