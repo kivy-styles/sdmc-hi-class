@@ -1,0 +1,107 @@
+{
+  "canonical_name": "late300",
+  "historical_name": "g022-A034",
+  "status": "current SDMC benchmark",
+  "provenance": {
+    "note": "Historical workflow/artifact names are retained for reproducibility; all new discussion and searches should use late300.",
+    "planck_run_id": 37462881432,
+    "desi_run_id": 37462886455,
+    "downstream_run_id": 37492039512,
+    "shoes_run_id": 37492039456,
+    "jwst_run_id": 37492039494,
+    "noslip_lensing_run_id": 37492039369
+  },
+  "parameters": {
+    "H0": 69.71482083084993,
+    "omega_b": 0.022083219194622913,
+    "omega_cdm": 0.12299536722293603,
+    "A_s": 2.1047019076951746e-9,
+    "n_s": 0.9628416801318527,
+    "tau_reio": 0.053167105823755265,
+    "A_F": 0.02048146490100771,
+    "z_c": 3.927876388467848,
+    "width": 0.33114133956842123,
+    "D0": 0.34231919445927034,
+    "kinetic_power": 1,
+    "D_floor": 0.05181542627513409,
+    "Omega_x0": 0.7014079815036496,
+    "lambda_e": 18.40625,
+    "z_t": 16.19317622240633,
+    "A_late": 0.024822032167576252,
+    "B_late": 0.01264704344701022
+  },
+  "exact_likelihoods": {
+    "delta_chi2_planck_fixed": -20.18734,
+    "delta_chi2_desi_fixed": -11.08121,
+    "fair_planck_plus_desi_vs_local021": -0.11631964283344587,
+    "fair_planck_desi_pantheonplus": -0.20248151194573438,
+    "fair_planck_desi_union3": -0.1064546587095947,
+    "fair_planck_desi_desy5": -0.18240234392033017
+  },
+  "downstream": {
+    "H0_background": 69.71482705054291,
+    "r_drag_Mpc": 145.86517771768297,
+    "Omega_m0": 0.2985059603044,
+    "sigma8": 0.8404338278208467,
+    "S8": 0.8383384799534958,
+    "bao_chi2": 13.15673270019976,
+    "bao_delta_vs_local021": -0.2435580183443271,
+    "bbn_Yp_DH_chi2": 0.7248996251311253,
+    "bbn_delta_vs_local021": -5.060252011674764,
+    "age_Gyr": 13.59688902966,
+    "pantheonplus_delta_vs_local021": -0.0861618691124022,
+    "union3_delta_vs_local021": 0.009864984123851173,
+    "desy5_delta_vs_local021": -0.06608270108699799
+  },
+  "shoes": {
+    "H0_local_profile": 73.49082736620237,
+    "sigma_H0_local": 1.0477182064432924,
+    "delta_chi2_fixed_vs_local_profile": 13.68933501409066,
+    "sqrt_delta_chi2": 3.699910135947988
+  },
+  "noslip_lensing_proxy": {
+    "Sigma_z0": 0.9798880186144542,
+    "Sigma_range_z0p5_to_1p5": [
+      0.9802649038523948,
+      0.9820195206798153
+    ],
+    "S8_eff_range_z0p5_to_1p5": [
+      0.8217937894473764,
+      0.8232647522513769
+    ],
+    "DESY3_delta_chi2_proxy_range": [
+      3.832040409462882,
+      4.305693189509233
+    ],
+    "HSC_delta_chi2_proxy_range": [
+      0.8518183761391548,
+      1.010984458859421
+    ],
+    "KiDS_delta_chi2_proxy_range": [
+      0.05131472721416877,
+      0.1378403315944679
+    ],
+    "status": "compressed No-Slip-corrected proxy, not full shear likelihood"
+  },
+  "jwst": {
+    "status": "conditional likelihood-equivalent stress test, not catalogue-level HMF MCMC",
+    "g3_equals_AF": {
+      "g3": 0.02048146490100771,
+      "Q_eff": 0.07028275477674548,
+      "A_M": 1.2108482643302365,
+      "A_eff": 1.20743461646488,
+      "epsilon95_equiv": 0.31905230682809604,
+      "epsilon68_equiv": 0.407193652711876
+    },
+    "epsilon20_95_target": {
+      "g3": 0.03534332234818681,
+      "Q_eff": 0.12128165976403693,
+      "A_M": 1.3638449792921108
+    },
+    "epsilon20_68_target": {
+      "g3": 0.044792386998193184,
+      "Q_eff": 0.1537064055952464,
+      "A_M": 1.4611192167857392
+    }
+  }
+}
