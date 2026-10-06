@@ -28,7 +28,7 @@ SEC_GYR = 365.25*86400.0*1e9
 ROOT = Path("inputs")
 SNROOT = Path("sn_data")
 BAOROOT = Path("bao_data")
-OUT = Path("output/fj028_uniform_battery")
+OUT = Path("output/uniform_battery")
 OUT.mkdir(parents=True, exist_ok=True)
 
 CANDS = {
