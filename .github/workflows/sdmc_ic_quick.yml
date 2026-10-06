@@ -1,0 +1,45 @@
+name: SDMC quick initial-condition scan
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+
+jobs:
+  ic-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+
+      - name: Apply SDMC runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Build NKp-v2 clustered-tracker reference
+        run: ./class sdmc/config/nkp_v2_tracker_clustered_cs0003.ini
+
+      - name: Scan scalar initial conditions
+        run: python3 sdmc/run_v2_noslip_ic_scan.py
+
+      - name: Preserve IC scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v2-ic-quick
+          path: |
+            output/sdmc_nkp_v2_noslip_ic_scan.csv
+            output/sdmc_nkp_v2_noslip_ic_*.log
+          if-no-files-found: warn

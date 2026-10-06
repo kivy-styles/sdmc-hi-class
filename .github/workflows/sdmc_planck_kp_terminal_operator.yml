@@ -1,0 +1,163 @@
+name: SDMC Planck Kp terminal acoustic operator
+
+on:
+  push:
+    branches: [sdmc-boltzmann]
+  workflow_dispatch:
+
+jobs:
+  kp-terminal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: dz05
+            dz: "0.5"
+            zon: "1088.857725563"
+          - label: dz10
+            dz: "1.0"
+            zon: "1089.131628706"
+          - label: dz20
+            dz: "2.0"
+            zon: "1090.318401622"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy numpy
+
+      - name: Install native Planck Plik-lite data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          ok=TTTEEE_lite_native.install(path='planck_packages',no_progress_bars=True)
+          if not ok: raise SystemExit('Planck Plik-lite data installation failed')
+          PY
+
+      - name: Apply frozen tracker patch
+        run: python3 sdmc/apply_sdmc_tracker_patch.py
+
+      - name: Build unmodified Kp core
+        run: make -j2 class
+
+      - name: Prepare common Kp core input
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, math
+          src=Path('sdmc/config/kp_tracker_clustered_cs0003.ini').read_text()
+          def setv(t,k,v):
+              p=re.compile(rf'(?m)^\s*{re.escape(k)}\s*=.*$')
+              if not p.search(t): raise RuntimeError(f'missing {k}')
+              return p.sub(f'{k} = {v}',t)
+          src=setv(src,'A_s',f'{math.exp(3.06365)/1e10:.14e}')
+          src=setv(src,'n_s','0.97711')
+          src=setv(src,'root','output/sdmc_kp_terminal_baseline_')
+          Path('output').mkdir(exist_ok=True)
+          Path('output/kp_terminal_baseline.ini').write_text(src)
+          PY
+
+      - name: Run unmodified Kp core TT TE EE
+        run: ./class output/kp_terminal_baseline.ini
+
+      - name: Apply physical Kp terminal operator
+        run: |
+          python3 sdmc/apply_sdmc_kp_acoustic_patch.py \
+            --dz ${{ matrix.dz }} --zon ${{ matrix.zon }} \
+            --zoff 1059.0 --cmin 0.539812
+
+      - name: Rebuild operator variant
+        run: make -j2 class
+
+      - name: Prepare Kp operator input
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          txt=Path('output/kp_terminal_baseline.ini').read_text()
+          txt=re.sub(r'(?m)^\s*root\s*=.*$', 'root = output/sdmc_kp_terminal_operator_${{ matrix.label }}_', txt)
+          Path('output/kp_terminal_operator.ini').write_text(txt)
+          PY
+
+      - name: Run Kp operator TT TE EE
+        run: ./class output/kp_terminal_operator.ini
+
+      - name: Evaluate Planck high-l TTTEEE and spectral residuals
+        run: |
+          python3 - <<'PY'
+          import csv, math
+          from pathlib import Path
+          import numpy as np
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+
+          TCMB=2.7255
+          CAL=0.0025
+          label='${{ matrix.label }}'
+          lik=TTTEEE_lite_native(packages_path='planck_packages')
+
+          def load(root):
+              a=np.loadtxt(root+'00_cl_lensed.dat')
+              ell=a[:,0]
+              conv=(TCMB*1e6)**2
+              # Cobaya native Plik-lite wants ell, TT, EE, TE in uK^2.
+              cl=np.column_stack([ell,a[:,1]*conv,a[:,3]*conv,a[:,2]*conv])
+              return a,cl
+
+          def prof(cl):
+              def like(A): return float(lik.chi_squared(cl,A_planck=float(A)))
+              def total(A): return like(A)+((float(A)-1.)/CAL)**2
+              r=minimize_scalar(total,bounds=(0.96,1.04),method='bounded',options={'xatol':1e-10})
+              A=float(r.x)
+              return A,like(A),float(r.fun)
+
+          base_a,base_cl=load('output/sdmc_kp_terminal_baseline_')
+          op_a,op_cl=load(f'output/sdmc_kp_terminal_operator_{label}_')
+          Ab,lb,cb=prof(base_cl)
+          Ao,lo,co=prof(op_cl)
+
+          rows=[
+            {'case':'Kp_core','label':label,'dz':${{ matrix.dz }},'zon':${{ matrix.zon }},'A_planck':Ab,'chi2_like':lb,'chi2_total':cb,'delta_chi2_vs_core':0.0},
+            {'case':'Kp_terminal_operator','label':label,'dz':${{ matrix.dz }},'zon':${{ matrix.zon }},'A_planck':Ao,'chi2_like':lo,'chi2_total':co,'delta_chi2_vs_core':co-cb},
+          ]
+          with open(f'output/sdmc_kp_terminal_planck_{label}.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=rows[0].keys()); w.writeheader(); w.writerows(rows)
+
+          # Direct spectrum ratios at representative multipoles, before A_planck.
+          ell=base_a[:,0]
+          sample=[200,500,1000,1500,2000,2500]
+          rr=[]
+          for L in sample:
+              i=int(np.argmin(abs(ell-L)))
+              rr.append({'ell':int(ell[i]),
+                         'TT_ratio':float(op_a[i,1]/base_a[i,1]),
+                         'EE_ratio':float(op_a[i,3]/base_a[i,3]),
+                         'TE_ratio':float(op_a[i,2]/base_a[i,2]) if base_a[i,2] != 0 else float('nan')})
+          with open(f'output/sdmc_kp_terminal_ratios_{label}.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=rr[0].keys()); w.writeheader(); w.writerows(rr)
+
+          print('Kp core:',Ab,cb)
+          print('Kp terminal',label,':',Ao,co,'Delta chi2=',co-cb)
+          for r in rr: print(r)
+          PY
+
+      - name: Preserve Kp terminal outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-kp-terminal-${{ matrix.label }}
+          path: |
+            output/sdmc_kp_terminal_planck_${{ matrix.label }}.csv
+            output/sdmc_kp_terminal_ratios_${{ matrix.label }}.csv
+            output/sdmc_kp_terminal_baseline_*cl_lensed.dat
+            output/sdmc_kp_terminal_operator_${{ matrix.label }}_*cl_lensed.dat
+            output/*kp_terminal*.ini
+          if-no-files-found: warn
