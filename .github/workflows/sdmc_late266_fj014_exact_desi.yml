@@ -61,9 +61,9 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.01948851037286222, 3.644913007412106, 0.35893273874651643, 0.3865188211016357, 1.0877414136193693, 0.05569390742853284
+          parameters_smg = 0.01948851037286222, 3.644913007412106, 0.35893273874651643, 0.3865188211016357, 1.0, 0.05569390742853284
           expansion_model = sdmc_full
-          expansion_smg = 0.6991577808065268, 18.40625, 16.06170386472717, 0.5, 0.011254649444762618, 0.25, 0.00994506031619385, 1.5
+          expansion_smg = 0.7004103042556175, 18.40625, 16.06170386472717, 0.5, 0.011254649444762618, 0.25, 0.00994506031619385, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -99,7 +99,7 @@ jobs:
               r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
               r'double tauB\s*=\s*pba->parameters_smg\[7\];'
           )
-          repl='''double Ox = 0.6991577808065268;
+          repl='''double Ox = 0.7004103042556175;
             double lambda_e = 18.40625;
             double zt = 16.06170386472717;
             double dNt = 0.5;
@@ -144,8 +144,8 @@ jobs:
           done
           test "$ok" -eq 1
           mkdir -p desi_likelihood
-          BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0877414136193693/data/likelihood
-          BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0877414136193693/data/likelihood
+          BASE_PRIMARY=https://data.desi.lbl.gov/public/dr1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
+          BASE_MIRROR=https://webdav-hdfs.pic.es/data/public/DESI/DR1/vac/dr1/full-shape-bao-clustering/v1.0/data/likelihood
           for FN in \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_BGS_BRIGHT-21.5_GCcomb_z0.1-0.4_thetacut0.05.h5 \
             likelihood_spectrum-poles-rotated_syst-rotation-hod-photo_LRG_GCcomb_z0.4-0.6_thetacut0.05.h5 \
@@ -223,7 +223,7 @@ jobs:
           gravity_model = sdmc_v3_covariant_exact
           parameters_smg = 0.0
           expansion_model = sdmc_full
-          expansion_smg = 0.6991577808065268, 18.40625, 16.06170386472717, 0.5, 0.011254649444762618, 0.25, 0.00994506031619385, 1.5
+          expansion_smg = 0.7004103042556175, 18.40625, 16.06170386472717, 0.5, 0.011254649444762618, 0.25, 0.00994506031619385, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
 
@@ -398,7 +398,7 @@ jobs:
             'BGS_z0':(1.11348,0.660148,-0.223088),
             'LRG_z0':(1.1351,-0.139101,-0.910397),
             'LRG_z1':(1.22446,-0.671727,-0.22624),
-            'LRG_z2':(1.08774141361936934564,-0.493139,-0.24021),
+            'LRG_z2':(1.04564,-0.493139,-0.24021),
             'ELG_z1':(0.127936,-0.578801,-1.45356),
             'QSO_z0':(0.780983,0.353843,0.135725),
           }
@@ -411,7 +411,7 @@ jobs:
           prior_hess=-np.diag(scales[gi]**-2)
 
           def prepare_basis(m):
-              kin=np.geomspace(min(5e-4,kobs[0]/2),max(1.0877414136193693,kobs[-1]*2),500)
+              kin=np.geomspace(min(5e-4,kobs[0]/2),max(1.0,kobs[-1]*2),500)
               zs=np.array(zvals)
               Pdd=np.stack([np.interp(kin,*m['series'][z][:2]) for z in zs],axis=-1)
               Ptt=np.stack([np.interp(kin,m['series'][z][0],m['series'][z][2]) for z in zs],axis=-1)
@@ -507,7 +507,7 @@ jobs:
                       return float(logl+logprior+logbias)
                   seeds=[
                       np.array(starts[b['namespace']],float),
-                      np.array([1.0877414136193693,0.0,0.0]),
+                      np.array([1.0,0.0,0.0]),
                       np.array([0.55,4.0,-4.0]),
                       np.array([1.8,-4.0,4.0]),
                       np.array([2.6,8.0,-8.0]),
