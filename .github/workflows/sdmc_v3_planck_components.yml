@@ -1,0 +1,144 @@
+name: SDMC NKp-v3 Planck baseline-component screen
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  planck-components-v3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy numpy
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+
+      - name: Expose exact native cs2 diagnostics
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Install Planck likelihood data
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native
+          for cls in [TTTEEE_lite_native,TT,EE,native]:
+              ok=cls.install(path='planck_packages',no_progress_bars=True)
+              if not ok:
+                  raise SystemExit(f'Planck data install failed for {cls}')
+          PY
+
+      - name: Generate common spectra
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import math,re,textwrap
+          Path('output').mkdir(exist_ok=True)
+
+          def v3(A,zc,w,lnAs,ns,root):
+              As=math.exp(lnAs)/1e10
+              return textwrap.dedent(f'''\
+              H0 = 70.8514
+              omega_b = 0.02239952
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = {As:.14e}
+              n_s = {ns:.9f}
+              tau_reio = 0.0544
+              Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = 0.003
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_v3_native_noslip
+              parameters_smg = {A:.12g}, {zc:.12g}, {w:.12g}, 0.1, 0.0001
+              expansion_model = sdmc_full
+              expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+              output_background_smg = 3
+              output = tCl,pCl,lCl
+              modes = s
+              lensing = yes
+              l_max_scalars = 3000
+              write background = yes
+              root = {root}
+              format = class
+              write parameters = yes
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              lensing_verbose = 0
+              output_verbose = 0
+              ''')
+
+          Path('output/v3_ridge.ini').write_text(v3(0.0736,4.25,1.43,3.076,0.962,'output/v3_ridge_'))
+          Path('output/v3_ultrafine_prev.ini').write_text(v3(0.0728,4.55,1.43,3.076,0.962,'output/v3_ultrafine_prev_'))
+          Path('output/v3_confirmed_edge.ini').write_text(v3(0.072,5.0,1.45,3.076,0.964,'output/v3_confirmed_edge_'))
+
+          p=Path('sdmc/config/planck_lcdm_control.ini').read_text()
+          p=re.sub(r'(?m)^\s*A_s\s*=.*$',f'A_s = {math.exp(3.044)/1e10:.14e}',p)
+          p=re.sub(r'(?m)^\s*n_s\s*=.*$','n_s = 0.961',p)
+          p=re.sub(r'(?m)^\s*root\s*=.*$','root = output/lcdm_profile_',p)
+          Path('output/lcdm_profile.ini').write_text(p)
+          PY
+
+      - name: Run spectra
+        run: |
+          ./class output/v3_ridge.ini
+          ./class output/v3_ultrafine_prev.ini
+          ./class output/v3_confirmed_edge.ini
+          ./class output/lcdm_profile.ini
+
+      - name: Evaluate common Planck components
+        run: |
+          python3 sdmc/evaluate_planck_native_components.py \
+            --packages planck_packages \
+            --output output/nkp_v3_planck_components.csv \
+            LCDM_profile=output/lcdm_profile_00_cl_lensed.dat \
+            NKp_v3_confirmed_edge=output/v3_confirmed_edge_00_cl_lensed.dat \
+            NKp_v3_ultrafine_prev=output/v3_ultrafine_prev_00_cl_lensed.dat \
+            NKp_v3_ridge=output/v3_ridge_00_cl_lensed.dat
+
+      - name: Preserve Planck component screen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v3-planck-baseline-components
+          path: |
+            output/nkp_v3_planck_components.csv
+            output/v3_ridge_00_cl_lensed.dat
+            output/v3_ultrafine_prev_00_cl_lensed.dat
+            output/v3_confirmed_edge_00_cl_lensed.dat
+            output/lcdm_profile_00_cl_lensed.dat
+            output/v3_ridge_00_background.dat
+          if-no-files-found: warn
