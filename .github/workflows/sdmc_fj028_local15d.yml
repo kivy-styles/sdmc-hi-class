@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -93,3 +93,15 @@ jobs:
             output/fj028_local15d/fj028_local15d_promotion.csv
             output/fj028_local15d/fj028_local15d_summary.json
           if-no-files-found: warn
+
+      - name: Commit compact result
+        if: success()
+        run: |
+          mkdir -p sdmc/results/fj028_local15d
+          cp output/fj028_local15d/fj028_local15d_summary.json sdmc/results/fj028_local15d/
+          cp output/fj028_local15d/fj028_local15d_promotion.csv sdmc/results/fj028_local15d/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sdmc/results/fj028_local15d
+          git commit -m "Store fj028 local15d result [skip ci]" || exit 0
+          git push origin HEAD:sdmc-fj028-local15d
