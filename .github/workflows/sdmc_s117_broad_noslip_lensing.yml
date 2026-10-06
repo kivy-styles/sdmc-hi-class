@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - master
+      - sdmc-fulljoint-local021-plus-jwst-search
   workflow_dispatch:
 
 permissions:
