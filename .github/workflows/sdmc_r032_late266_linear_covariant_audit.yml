@@ -1,4 +1,4 @@
-name: SDMC late266 accepted linear-G3 covariant audit
+name: SDMC bridge95 accepted linear-G3 audit
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,8 +7,11 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-r032-late266-linear-covariant-audit
+      - sdmc-bridge95-linear-g3-audit
   workflow_dispatch:
+  pull_request:
+    branches:
+      - master
 
 jobs:
   linear-covariant-audit:
@@ -45,16 +48,16 @@ jobs:
         run: |
           mkdir -p output
           cat > output/linear_cov_target.ini <<'EOF'
-          H0 = 69.45160505326464
-          omega_b = 0.02208511574370519
-          omega_cdm = 0.12298509428428875
+          H0 = 69.70166004197067
+          omega_b = 0.022083314022077027
+          omega_cdm = 0.12299485357600366
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1197359302086e-9
-          n_s = 0.962555355281866
-          tau_reio = 0.055202901571989066
+          A_s = 2.105232633577505e-09
+          n_s = 0.9628908182389717
+          tau_reio = 0.05321671790354885
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -62,9 +65,9 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.023604633340554453, 3.4328776987879466, 0.36879721635160295, 0.34231919445927034, 1.0, 0.050275813910968366
+          parameters_smg = 0.020473734222904872, 3.9124100265132955, 0.33334972521204, 0.34231919445927034, 1.0, 0.05176831598188019
           expansion_model = sdmc_full
-          expansion_smg = 0.6991577808065268, 18.40625, 16.173189924377947, 0.5, 0.013036667098291217, 0.25, 0.010544837576337158, 1.5
+          expansion_smg = 0.7012960750214652, 18.40625, 16.19217690750491, 0.5, 0.024232763914112, 0.25, 0.012541933153476566, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -101,16 +104,16 @@ jobs:
       - name: Free evolve reconstructed linear-G3 action
         run: |
           cat > output/linear_cov_free.ini <<'EOF'
-          H0 = 69.45160505326464
-          omega_b = 0.02208511574370519
-          omega_cdm = 0.12298509428428875
+          H0 = 69.70166004197067
+          omega_b = 0.022083314022077027
+          omega_cdm = 0.12299485357600366
           N_ncdm = 0
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1197359302086e-9
-          n_s = 0.962555355281866
-          tau_reio = 0.055202901571989066
+          A_s = 2.105232633577505e-09
+          n_s = 0.9628908182389717
+          tau_reio = 0.05321671790354885
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -278,7 +281,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           base=Path('output/linear_cov_free.ini').read_text()
-          omega0=0.02208511574370519
+          omega0=0.022083314022077027
           for tag,factor in [('b090',0.90),('b095',0.95),('b100',1.00),('b105',1.05),('b110',1.10)]:
               txt=base
               txt=txt.replace(f'omega_b = {omega0}',f'omega_b = {omega0*factor:.17g}')
@@ -294,7 +297,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: late266-linear-g3-covariant-audit
+          name: bridge95-linear-g3-covariant-audit
           path: |
             output/linear_cov_target.ini
             output/linear_cov_target_file_inventory.txt
