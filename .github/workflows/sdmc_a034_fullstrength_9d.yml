@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   search:
@@ -61,3 +61,16 @@ jobs:
             output/a034_fullstrength_9d/a034_9d_pareto.csv
             output/a034_fullstrength_9d/a034_9d_summary.json
           if-no-files-found: warn
+
+      - name: Commit compact result back to analysis branch
+        if: success()
+        run: |
+          mkdir -p sdmc/results/a034_fullstrength_9d
+          cp output/a034_fullstrength_9d/a034_9d_summary.json sdmc/results/a034_fullstrength_9d/
+          cp output/a034_fullstrength_9d/a034_9d_promote.csv sdmc/results/a034_fullstrength_9d/
+          cp output/a034_fullstrength_9d/a034_9d_pareto.csv sdmc/results/a034_fullstrength_9d/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sdmc/results/a034_fullstrength_9d
+          git commit -m "Store a034 9D search result [skip ci]" || exit 0
+          git push origin HEAD:sdmc-a034-fullstrength-9d
