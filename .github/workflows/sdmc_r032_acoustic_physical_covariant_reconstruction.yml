@@ -1,0 +1,246 @@
+name: SDMC r032 acoustic physical covariant reconstruction gate
+
+on:
+  push:
+    branches:
+      - sdmc-r032-acoustic-physical-covariant-reconstruction
+  workflow_dispatch:
+
+jobs:
+  covariant-reconstruction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Apply SDMC base patches and independent kinetic model
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+
+      - name: Build target model
+        run: make clean && make -j2 class
+
+      - name: Generate acoustic physical No-Slip target background
+        run: |
+          mkdir -p output
+          cat > output/cov_exact_target.ini <<'EOF'
+          H0 = 69.7095092787552
+          omega_b = 0.02211778594478965
+          omega_cdm = 0.1258596659367904
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1700512487766515e-9
+          n_s = 0.9637720508351921
+          tau_reio = 0.06456347454525531
+
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.0573794336710125, 3.0902165911160413, 0.5979282500222326, 0.34231919445927034, 1.0, 0.045
+          expansion_model = sdmc_full
+          expansion_smg = 0.6953970160452582, 17.925, 17.775, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          write background = yes
+          write thermodynamics = no
+          root = output/cov_exact_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/cov_exact_target.ini
+
+      - name: Reconstruct covariant action from this target
+        run: python3 sdmc/run_r032_acoustic_physical_covariant.py
+
+      - name: Freeze tracker helper to the target expansion constants
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('source/background.c')
+          s=p.read_text()
+          pat=re.compile(
+              r'double Ox\s*=\s*pba->parameters_smg\[0\];\s*'
+              r'double lambda_e\s*=\s*pba->parameters_smg\[1\];\s*'
+              r'double zt\s*=\s*pba->parameters_smg\[2\];\s*'
+              r'double dNt\s*=\s*pba->parameters_smg\[3\];\s*'
+              r'double A\s*=\s*pba->parameters_smg\[4\];\s*'
+              r'double tauA\s*=\s*pba->parameters_smg\[5\];\s*'
+              r'double B\s*=\s*pba->parameters_smg\[6\];\s*'
+              r'double tauB\s*=\s*pba->parameters_smg\[7\];'
+          )
+          repl='''double Ox = 0.6953970160452582;
+            double lambda_e = 17.925;
+            double zt = 17.775;
+            double dNt = 0.5;
+            double A = 0.01105624999;
+            double tauA = 0.25;
+            double B = 0.01951933685;
+            double tauB = 1.5;'''
+          s2,n=pat.subn(repl,s,count=1)
+          if n!=1:
+              raise RuntimeError(f'tracker helper replacement count={n}')
+          p.write_text(s2)
+          print('TRACKER_HELPER_FROZEN')
+          PY
+
+      - name: Rebuild covariant action
+        run: make clean && make -j2 class
+
+      - name: Run freely evolved covariant replay
+        run: |
+          cat > output/covariant_replay.ini <<'EOF'
+          H0 = 69.7095092787552
+          omega_b = 0.02211778594478965
+          omega_cdm = 0.1258596659367904
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1700512487766515e-9
+          n_s = 0.9637720508351921
+          tau_reio = 0.06456347454525531
+
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_exact
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0
+          write background = yes
+          write thermodynamics = yes
+          root = output/covariant_replay_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/covariant_replay.ini
+
+      - name: Compare target and covariant replay
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json
+          import numpy as np,pandas as pd
+
+          def tab(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names).sort_values('z')
+
+          t=tab('output/cov_exact_target_00_background.dat')
+          r=tab('output/covariant_replay_00_background.dat')
+          zlo=max(t.z.min(),r.z.min()); zhi=min(t.z.max(),r.z.max())
+          z=np.unique(np.r_[np.linspace(zlo,min(10,zhi),1200),
+                            np.geomspace(11,max(11.0001,zhi+1),1200)-1])
+          z=z[(z>=zlo)&(z<=zhi)]
+          aliases={
+            'H':'H [1/Mpc]',
+            'F':'M*^2_smg',
+            'alphaM':'M2_running_smg',
+            'alphaB':'braiding_smg',
+            'D':'kin (D)',
+            'cs2':'c_s^2'
+          }
+          rows=[]
+          summary={}
+          for short,col in aliases.items():
+              if col not in t or col not in r: continue
+              tv=np.interp(z,t.z,t[col]); rv=np.interp(z,r.z,r[col])
+              absd=np.abs(rv-tv)
+              scale=np.maximum(np.abs(tv),1e-12)
+              reld=absd/scale
+              row=dict(quantity=short,max_abs=float(absd.max()),
+                       max_rel=float(reld.max()),rms_abs=float(np.sqrt(np.mean(absd**2))))
+              rows.append(row); summary[short]=row
+          stab={
+            'min_D_replay':float(r['kin (D)'].min()),
+            'min_cs2_replay':float(r['c_s^2'].min()),
+            'max_cs2_replay':float(r['c_s^2'].max()),
+            'max_abs_noslip_replay':float(np.max(np.abs(r['braiding_smg']+2*r['M2_running_smg']))),
+            'F0_replay':float(np.interp(0,r.z,r['M*^2_smg']))
+          }
+          summary['stability']=stab
+          pd.DataFrame(rows).to_csv('output/covariant_replay_comparison.csv',index=False)
+          Path('output/covariant_replay_summary.json').write_text(json.dumps(summary,indent=2))
+          print('ACOUSTIC_PHYSICAL_COVARIANT_COMPARISON',json.dumps(summary,sort_keys=True),flush=True)
+          if not (stab['min_D_replay']>0 and stab['min_cs2_replay']>0 and stab['max_cs2_replay']<=1):
+              raise SystemExit('COVARIANT_STABILITY_GATE_FAIL')
+          print('ACOUSTIC_PHYSICAL_COVARIANT_STABILITY_GATE_PASS',flush=True)
+          PY
+
+      - name: Preserve covariant gate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-r032-acoustic-physical-covariant-reconstruction
+          path: |
+            output/cov_exact_target_00_background.dat
+            output/cov_exact_reconstruction_summary.txt
+            output/covariant_replay.ini
+            output/covariant_replay_00_background.dat
+            output/covariant_replay_00_cl_lensed.dat
+            output/covariant_replay_00_pk.dat
+            output/covariant_replay_comparison.csv
+            output/covariant_replay_summary.json
+          if-no-files-found: warn

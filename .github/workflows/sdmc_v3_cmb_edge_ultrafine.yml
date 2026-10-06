@@ -1,0 +1,311 @@
+name: SDMC NKp-v3 ultrafine CMB-edge refinement
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  refine-v3-cmb-edge-ultrafine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cobaya scipy numpy pandas
+
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+
+      - name: Expose exact native cs2 diagnostics
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Install Planck 2018 Plik-lite
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          ok=TTTEEE_lite_native.install(path='planck_packages',no_progress_bars=True)
+          if not ok:
+              raise SystemExit('Planck Plik-lite install failed')
+          PY
+
+      - name: Fine-scan the formal NKp-v3 native CMB stability edge
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, math, re, subprocess, textwrap, os, glob
+          import numpy as np
+          from scipy.optimize import minimize_scalar
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+
+          TCMB=2.7255
+          CAL_SIGMA=0.0025
+          OUT=Path('output/v3_cmb_edge_ultrafine')
+          OUT.mkdir(parents=True,exist_ok=True)
+
+          # Fine grid around the narrow stable corridor found by the previous
+          # native-exact edge scan.
+          AMPS=[0.0723,0.0724,0.0725,0.0726,0.0727,0.0728]
+          ZCS=[4.45,4.55,4.60,4.65,4.70,4.75]
+          WIDTHS=[1.420,1.425,1.430,1.435,1.440,1.445]
+          BASE_LNAS=3.076
+          BASE_NS=0.964
+          BASE_AS=math.exp(BASE_LNAS)/1e10
+
+          lik=TTTEEE_lite_native(packages_path='planck_packages')
+
+          def ini_text(A,zc,w,As,ns,root,full=False):
+              outputs=(
+                  'output = tCl,pCl,lCl,mPk\n'
+                  'P_k_max_h/Mpc = 6.0\n'
+                  'z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10\n'
+                  'write background = yes\nwrite thermodynamics = yes\nwrite parameters = yes\n'
+                  if full else
+                  'output = tCl,pCl,lCl\nwrite background = yes\nwrite thermodynamics = no\nwrite parameters = no\n'
+              )
+              return textwrap.dedent(f'''\
+              H0 = 70.8514
+              omega_b = 0.02239952
+              omega_cdm = 0.12444227328918850
+              N_ncdm = 0
+              N_ur = 3.046
+              T_cmb = 2.7255
+              YHe = 0.2453
+              A_s = {As:.14e}
+              n_s = {ns:.9f}
+              tau_reio = 0.0544
+              Omega_Lambda = 0
+              Omega_fld = 3.1443554e-8
+              fluid_equation_of_state = SDMC_TRACKER
+              cs2_fld = 0.003
+              use_ppf = no
+              Omega_smg = -1
+              gravity_model = sdmc_v3_native_noslip
+              parameters_smg = {A:.12g}, {zc:.12g}, {w:.12g}, 0.1, 0.0001
+              expansion_model = sdmc_full
+              expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+              pert_initial_conditions_smg = zero
+              method_qs_smg = fully_dynamic
+              output_background_smg = 3
+              modes = s
+              lensing = yes
+              l_max_scalars = 3000
+              {outputs}root = {root}
+              format = class
+              input_verbose = 0
+              background_verbose = 0
+              thermodynamics_verbose = 0
+              perturbations_verbose = 0
+              spectra_verbose = 0
+              lensing_verbose = 0
+              output_verbose = 0
+              ''')
+
+          def load_cl(path):
+              a=np.loadtxt(path)
+              conv=(TCMB*1e6)**2
+              return np.column_stack([a[:,0],a[:,1]*conv,a[:,3]*conv,a[:,2]*conv])
+
+          def score(cl):
+              def like(A):
+                  return float(lik.chi_squared(cl,A_planck=float(A)))
+              def total(A):
+                  A=float(A)
+                  return like(A)+((A-1.0)/CAL_SIGMA)**2
+              opt=minimize_scalar(total,bounds=(0.96,1.04),method='bounded',
+                                  options={'xatol':1e-10})
+              A=float(opt.x); c_like=like(A); c_prior=((A-1.0)/CAL_SIGMA)**2
+              return A,c_like,c_prior,c_like+c_prior
+
+          def parse_bg(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[x for x in lines if x.startswith('#') and '1:z' in x][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  names.append(hdr[m.end():end].strip())
+              data=[]
+              for l in lines:
+                  if l.strip() and not l.startswith('#'):
+                      data.append(dict(zip(names,map(float,l.split()))))
+              return data
+
+          fields=['A_F','z_c','width','status','A_planck','chi2_like',
+                  'chi2_cal_prior','chi2_total','min_cs2','min_D',
+                  'min_cs2num','min_cs2num_z100','F0','alphaM0',
+                  'max_abs_noslip','error']
+          rows=[]; best=None; counter=0
+
+          for A in AMPS:
+              for zc in ZCS:
+                  for w in WIDTHS:
+                      counter+=1
+                      stem=f'e_{counter:03d}'
+                      root=str(OUT/(stem+'_'))
+                      ini=OUT/(stem+'.ini')
+                      ini.write_text(ini_text(A,zc,w,BASE_AS,BASE_NS,root,False))
+                      cp=subprocess.run(['./class',str(ini)],stdout=subprocess.PIPE,
+                                        stderr=subprocess.STDOUT,text=True,timeout=180)
+                      cl=Path(root+'00_cl_lensed.dat')
+                      bg=Path(root+'00_background.dat')
+                      rec={'A_F':A,'z_c':zc,'width':w,'status':'FAIL',
+                           'A_planck':'','chi2_like':'','chi2_cal_prior':'',
+                           'chi2_total':'','min_cs2':'','min_D':'',
+                           'min_cs2num':'','min_cs2num_z100':'','F0':'',
+                           'alphaM0':'','max_abs_noslip':'',
+                           'error':cp.stdout[-1000:] if cp.returncode else ''}
+                      if cp.returncode==0 and cl.exists() and bg.exists():
+                          rr=parse_bg(bg)
+                          r0=min(rr,key=lambda r:abs(r['z']))
+                          sub100=[r for r in rr if r['z']<=100.]
+                          Acal,clike,cprior,ctot=score(load_cl(cl))
+                          rec.update({
+                              'status':'OK','A_planck':Acal,'chi2_like':clike,
+                              'chi2_cal_prior':cprior,'chi2_total':ctot,
+                              'min_cs2':min(r['c_s^2'] for r in rr),
+                              'min_D':min(r['kin (D)'] for r in rr),
+                              'min_cs2num':min(r['cs2num'] for r in rr),
+                              'min_cs2num_z100':min(r['cs2num'] for r in sub100),
+                              'F0':r0['M*^2_smg'],
+                              'alphaM0':r0['M2_running_smg'],
+                              'max_abs_noslip':max(abs(r['braiding_smg']+2*r['M2_running_smg']) for r in rr),
+                              'error':''
+                          })
+                          print(f'V3_EDGE A={A:.4f} zc={zc:.2f} w={w:.3f} '
+                                f'chi2={ctot:.6f} minnum100={rec["min_cs2num_z100"]:.6g}',flush=True)
+                          if best is None or ctot<best['chi2_total']:
+                              best=dict(rec)
+                              (OUT/'best_grid_cl_lensed.dat').write_bytes(cl.read_bytes())
+                      else:
+                          print(f'V3_EDGE_FAIL A={A:.4f} zc={zc:.2f} w={w:.3f}',flush=True)
+                      rows.append(rec)
+                      for p in glob.glob(root+'*'):
+                          try: os.remove(p)
+                          except OSError: pass
+                      try: ini.unlink()
+                      except OSError: pass
+
+          with (OUT/'sdmc_v3_cmb_edge_ultrafine_scan.csv').open('w',newline='') as f:
+              wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader(); wr.writerows(rows)
+          if best is None:
+              raise SystemExit('No stable formal NKp-v3 point in fine edge grid')
+          with (OUT/'sdmc_v3_cmb_edge_ultrafine_best_fixedprim.csv').open('w',newline='') as f:
+              wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader(); wr.writerow(best)
+          print('BEST_V3_EDGE_FIXED_PRIM',best,flush=True)
+
+          # Joint local primordial profile at the best fine-grid late-sector point.
+          LNAS=[3.073,3.076,3.079]
+          NSS=[0.960,0.961,0.962,0.963,0.964]
+          prows=[]; pbest=None; pc=0
+          for lnAs in LNAS:
+              As=math.exp(lnAs)/1e10
+              for ns in NSS:
+                  pc+=1
+                  stem=f'p_{pc:03d}'
+                  root=str(OUT/(stem+'_'))
+                  ini=OUT/(stem+'.ini')
+                  ini.write_text(ini_text(best['A_F'],best['z_c'],best['width'],
+                                          As,ns,root,False))
+                  cp=subprocess.run(['./class',str(ini)],stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT,text=True,timeout=180)
+                  cl=Path(root+'00_cl_lensed.dat')
+                  if cp.returncode==0 and cl.exists():
+                      Acal,clike,cprior,ctot=score(load_cl(cl))
+                      r={'ln10As':lnAs,'A_s':As,'n_s':ns,'status':'OK',
+                         'A_planck':Acal,'chi2_like':clike,
+                         'chi2_cal_prior':cprior,'chi2_total':ctot}
+                      prows.append(r)
+                      print(f'V3_EDGE_PRIM ln10As={lnAs:.3f} ns={ns:.3f} '
+                            f'chi2={ctot:.6f}',flush=True)
+                      if pbest is None or ctot<pbest['chi2_total']:
+                          pbest=dict(r)
+                  else:
+                      prows.append({'ln10As':lnAs,'A_s':As,'n_s':ns,'status':'FAIL',
+                                    'A_planck':'','chi2_like':'','chi2_cal_prior':'',
+                                    'chi2_total':''})
+                  for p in glob.glob(root+'*'):
+                      try: os.remove(p)
+                      except OSError: pass
+                  try: ini.unlink()
+                  except OSError: pass
+
+          pfields=['ln10As','A_s','n_s','status','A_planck',
+                   'chi2_like','chi2_cal_prior','chi2_total']
+          with (OUT/'sdmc_v3_cmb_edge_ultrafine_primordial_scan.csv').open('w',newline='') as f:
+              wr=csv.DictWriter(f,fieldnames=pfields); wr.writeheader(); wr.writerows(prows)
+          with (OUT/'sdmc_v3_cmb_edge_ultrafine_primordial_best.csv').open('w',newline='') as f:
+              wr=csv.DictWriter(f,fieldnames=pfields); wr.writeheader(); wr.writerow(pbest)
+          print('BEST_V3_EDGE_PRIM',pbest,flush=True)
+
+          # Final full observable product at the best joint point.
+          root='output/sdmc_v3_cmb_edge_ultrafine_best_'
+          Path('output/sdmc_v3_cmb_edge_ultrafine_best.ini').write_text(
+              ini_text(best['A_F'],best['z_c'],best['width'],
+                       float(pbest['A_s']),float(pbest['n_s']),root,True))
+          cp=subprocess.run(['./class','output/sdmc_v3_cmb_edge_ultrafine_best.ini'],
+                            stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
+                            text=True,timeout=300)
+          Path('output/sdmc_v3_cmb_edge_ultrafine_best.log').write_text(cp.stdout)
+          print('V3_EDGE_FULL_RETURNCODE',cp.returncode,flush=True)
+          if cp.returncode:
+              raise SystemExit(cp.returncode)
+          PY
+
+      - name: Generate matched LCDM profile reference
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import math,re
+          p=Path('sdmc/config/planck_lcdm_control.ini').read_text()
+          As=math.exp(3.044)/1e10
+          p=re.sub(r'(?m)^\s*A_s\s*=.*$',f'A_s = {As:.14e}',p)
+          p=re.sub(r'(?m)^\s*n_s\s*=.*$','n_s = 0.961',p)
+          p=re.sub(r'(?m)^\s*root\s*=.*$',
+                   'root = output/sdmc_planck_lcdm_v3_edge_reference_',p)
+          Path('output/sdmc_planck_lcdm_v3_edge_reference.ini').write_text(p)
+          PY
+          ./class output/sdmc_planck_lcdm_v3_edge_reference.ini
+
+      - name: Evaluate final formal NKp-v3 edge Plik-lite
+        run: |
+          python3 sdmc/evaluate_planck_pliklite.py \
+            --packages planck_packages \
+            --output output/sdmc_v3_cmb_edge_ultrafine_pliklite.csv \
+            LCDM_profile_reference=output/sdmc_planck_lcdm_v3_edge_reference_00_cl_lensed.dat \
+            NKp_v3_cmb_edge_best=output/sdmc_v3_cmb_edge_ultrafine_best_00_cl_lensed.dat
+
+      - name: Preserve formal NKp-v3 fine edge outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v3-ultrafine-cmb-edge
+          path: |
+            output/v3_cmb_edge/sdmc_v3_cmb_edge_ultrafine_scan.csv
+            output/v3_cmb_edge/sdmc_v3_cmb_edge_ultrafine_best_fixedprim.csv
+            output/v3_cmb_edge/sdmc_v3_cmb_edge_ultrafine_primordial_scan.csv
+            output/v3_cmb_edge/sdmc_v3_cmb_edge_ultrafine_primordial_best.csv
+            output/v3_cmb_edge/best_grid_cl_lensed.dat
+            output/sdmc_v3_cmb_edge_ultrafine_best.ini
+            output/sdmc_v3_cmb_edge_ultrafine_best.log
+            output/sdmc_v3_cmb_edge_ultrafine_best_*
+            output/sdmc_planck_lcdm_v3_edge_reference_00_cl_lensed.dat
+            output/sdmc_v3_cmb_edge_ultrafine_pliklite.csv
+          if-no-files-found: warn
