@@ -1,0 +1,1 @@
+trigger fj028 calibrated SH0ES
