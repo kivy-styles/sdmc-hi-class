@@ -1,0 +1,38 @@
+name: SDMC g022-A034 No-Slip lensing correction
+
+on:
+  push:
+    branches:
+      - sdmc-g022-a034-complete-battery
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  lensing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install -q numpy pandas
+      - name: Download exact g022-A034 background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/a034
+          gh run download 37462886455 --repo "${{ github.repository }}" \
+            --name sdmc-g022-a034-exact-desi --dir inputs/a034
+          test -f inputs/a034/desi_cov_00_background.dat
+      - name: Apply exact No-Slip lensing correction
+        run: |
+          python3 sdmc/run_g022a034_noslip_lensing_proxy.py
+          cat output/g022a034_noslip_lensing/g022a034_noslip_lensing_summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-g022-a034-noslip-lensing
+          path: output/g022a034_noslip_lensing/*
+          if-no-files-found: warn
