@@ -1,9 +1,9 @@
-name: SDMC r032 SN-closure029 S117 g022 uniform downstream battery
+name: SDMC fj028 uniform downstream battery
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure029-s117-g022-uniform-battery
+      - sdmc-fj028-full-downstream-battery
   workflow_dispatch:
 
 permissions:
@@ -25,16 +25,16 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install numpy scipy pandas camb
 
-      - name: Download exact S117 g022 artifact
+      - name: Download exact fj028 artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           rm -rf inputs
           mkdir -p inputs
-          gh run download 35821019581 --repo "${{ github.repository }}" --name sdmc-r032-snclosure029-s117-g022-covariant-desi --dir inputs/s117_g022
-          test -f inputs/s117_g022/desi_cov_00_background.dat
-          test -f inputs/s117_g022/desi_cov_00_thermodynamics.dat
-          test -f inputs/s117_g022/desi_cov_00_z1_pk.dat
+          gh run download 37474538760 --repo "${{ github.repository }}" --name sdmc-r032-late266-autoparams-covariant-desi --dir inputs/fj028
+          test -f inputs/fj028/desi_cov_00_background.dat
+          test -f inputs/fj028/desi_cov_00_thermodynamics.dat
+          test -f inputs/fj028/desi_cov_00_z1_pk.dat
 
       - name: Install SN and BAO data
         run: |
@@ -47,7 +47,7 @@ jobs:
 
       - name: Run uniform downstream battery
         run: |
-          python3 sdmc/run_successful_candidates_uniform_battery.py
+          python3 sdmc/run_fj028_uniform_battery.py
 
       - name: Print key result ledger
         if: always()
@@ -60,6 +60,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure029-s117-g022-uniform-battery
+          name: sdmc-fj028-uniform-downstream-battery
           path: output/uniform_battery/*
           if-no-files-found: warn
