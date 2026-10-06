@@ -3,7 +3,7 @@ name: SDMC r032 SN-closure029 S117 g022 clean exact-covariant DESI
 on:
   push:
     branches:
-      - sdmc-g022-a034-exact-desi
+      - sdmc-g022-a010-exact-desi-v2
   workflow_dispatch:
   pull_request:
     branches:
@@ -47,9 +47,9 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1047019076951746e-09
-          n_s = 0.9628416801318527
-          tau_reio = 0.053167105823755265
+          A_s = 2.1131951739138815e-09
+          n_s = 0.9631153829544783
+          tau_reio = 0.054600376411341134
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -109,7 +109,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_G022_A034_CLEAN_BUILD_READY"
+          echo "COVARIANT_G022_A010_CLEAN_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         env:
@@ -206,9 +206,9 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1047019076951746e-09
-          n_s = 0.9628416801318527
-          tau_reio = 0.053167105823755265
+          A_s = 2.1131951739138815e-09
+          n_s = 0.9631153829544783
+          tau_reio = 0.054600376411341134
 
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -534,10 +534,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_G022_A034_CLEAN',cov)
+          covrows,covchi=profile_model('COVARIANT_G022_A010_CLEAN',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_G022_A034_CLEAN_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_G022_A010_CLEAN_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -549,7 +549,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-g022-a034-exact-desi
+          name: sdmc-g022-a010-exact-desi-v2
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
