@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir -p inputs/g022a034
           gh run download 37462886455 --repo "${{ github.repository }}" \
-            --name sdmc-discussion-s117-g073-g022a034p045-exact-desi \
+            --name sdmc-g022-a034-exact-desi \
             --dir inputs/g022a034
           test -f inputs/g022a034/desi_cov_00_background.dat
 
@@ -91,6 +91,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sdmc-g022a034p045-shoes-vs-local021
+          name: sdmc-g022-a034-shoes-vs-local021
           path: output/partx_shoes_calibrated/*
           if-no-files-found: warn
