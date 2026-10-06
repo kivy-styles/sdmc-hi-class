@@ -324,3 +324,5 @@ jobs:
             output/linear_cov_target_*pk.dat
             output/linear_cov_free_*pk.dat
           if-no-files-found: warn
+
+# fj028 validation trigger
