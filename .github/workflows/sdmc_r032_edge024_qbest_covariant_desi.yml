@@ -1,10 +1,13 @@
-name: SDMC r032 SN-closure029 S117 exact-covariant DESI final audit
+name: SDMC r032 a061 exact-covariant DESI final audit
 
 on:
   push:
     branches:
-      - sdmc-r032-snclosure029-s117-covariant-desi-final-audit
+      - sdmc-r032-a061-covariant-desi-final-audit
   workflow_dispatch:
+  pull_request:
+    branches:
+      - master
 
 jobs:
   acoustic-physical-desi:
@@ -44,9 +47,9 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.117602412937069e-9
-          n_s = 0.9625227132590487
-          tau_reio = 0.055202901571989066
+          A_s = 2.1035081881657244e-9
+          n_s = 0.9617621394991874
+          tau_reio = 0.052226220237091184
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -54,7 +57,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.02114389337040484, 3.715736017236486, 0.35696151830255984, 0.34231919445927034, 1.0, 0.052829781055450435
+          parameters_smg = 0.02300449199602008, 3.648368958430365, 0.3629311517253518, 0.3070651282928884, 0.4232352403923869, 0.04838028898835182
           expansion_model = sdmc_full
           expansion_smg = 0.7014079815036496, 18.40625, 16.19317622240633, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
           pert_initial_conditions_smg = zero
@@ -106,7 +109,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_SNCLOSURE029_S117_BUILD_READY"
+          echo "COVARIANT_A061_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         env:
@@ -203,9 +206,9 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.117602412937069e-9
-          n_s = 0.9625227132590487
-          tau_reio = 0.055202901571989066
+          A_s = 2.1035081881657244e-9
+          n_s = 0.9617621394991874
+          tau_reio = 0.052226220237091184
 
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -363,7 +366,7 @@ jobs:
 
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
-          cov=model_data('desi_cov',69.71482083084993,0.022083219194622913,0.12299536722293603,0.9625227132590487)
+          cov=model_data('desi_cov',69.71482083084993,0.022083219194622913,0.12299536722293603,0.9617621394991874)
           lcdm=model_data('desi_lcdm',67.36,0.02237,0.1200,0.9649)
 
           # Official likelihood blocks.
@@ -531,10 +534,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_SNCLOSURE029_S117',cov)
+          covrows,covchi=profile_model('COVARIANT_A061',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_SNCLOSURE029_S117_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_A061_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -546,7 +549,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-r032-snclosure029-s117-covariant-desi-final-audit
+          name: sdmc-r032-a061-covariant-desi-final-audit
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
