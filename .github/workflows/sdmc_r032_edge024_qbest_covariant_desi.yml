@@ -1,4 +1,4 @@
-name: SDMC late266 successor s036 exact DESI
+name: SDMC late266 h055 exact DESI
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - sdmc-late266-successor-s036-exact
+      - sdmc-late266-h055-exact
   workflow_dispatch:
   pull_request:
     branches:
@@ -51,9 +51,9 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1153164253417825e-09
-          n_s = 0.963824442274234
-          tau_reio = 0.05415934741962701
+          A_s = 2.1121864682991435e-09
+          n_s = 0.963880535174062
+          tau_reio = 0.05441067917481996
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
@@ -61,7 +61,7 @@ jobs:
           use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_independent_kinetic
-          parameters_smg = 0.020326851338950964, 3.6185491493767987, 0.37530905244079676, 0.34231919445927034, 1.0, 0.05087322041005618
+          parameters_smg = 0.019865763807602157, 3.6330492712962177, 0.3663020799089426, 0.3666289891125713, 1.0482577774906532, 0.05352459827021835
           expansion_model = sdmc_full
           expansion_smg = 0.6991577808065268, 18.40625, 16.173189924377947, 0.5, 0.013036667098291217, 0.25, 0.010544837576337158, 1.5
           pert_initial_conditions_smg = zero
@@ -113,7 +113,7 @@ jobs:
           PY
 
           make clean && make -j2 class
-          echo "COVARIANT_LATE266_S036_BUILD_READY"
+          echo "COVARIANT_LATE266_H055_BUILD_READY"
 
       - name: Install official DESI DR1 full-shape dependencies
         env:
@@ -210,9 +210,9 @@ jobs:
           N_ur = 3.046
           T_cmb = 2.7255
           YHe = 0.2453
-          A_s = 2.1153164253417825e-09
-          n_s = 0.963824442274234
-          tau_reio = 0.05415934741962701
+          A_s = 2.1121864682991435e-09
+          n_s = 0.963880535174062
+          tau_reio = 0.05441067917481996
 
           Omega_Lambda = 0
           Omega_fld = 3.1443554e-8
@@ -370,7 +370,7 @@ jobs:
 
               return dict(prefix=prefix,H0=H0,h=h,ob=ob,oc=oc,fb=fb,fc=fc,ns=ns,bg=bg,rd=rd,zd=zd,series=series)
 
-          cov=model_data('desi_cov',69.45160505326464,0.02208511574370519,0.12298509428428875,0.963824442274234)
+          cov=model_data('desi_cov',69.45160505326464,0.02208511574370519,0.12298509428428875,0.963880535174062)
           lcdm=model_data('desi_lcdm',67.36,0.02237,0.1200,0.9649)
 
           # Official likelihood blocks.
@@ -538,10 +538,10 @@ jobs:
               print('DESI_FS_PROFILE_TOTAL',label,total,flush=True)
               return rows,total
 
-          covrows,covchi=profile_model('COVARIANT_LATE266_S036',cov)
+          covrows,covchi=profile_model('COVARIANT_LATE266_H055',cov)
           lcdmrows,lcdmchi=profile_model('LCDM',lcdm)
           delta=covchi-lcdmchi
-          print('COVARIANT_LATE266_S036_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
+          print('COVARIANT_LATE266_H055_DESI_DELTA_CHI2_SDMC_MINUS_LCDM',delta,flush=True)
           rows=covrows+lcdmrows
           pd.DataFrame(rows).to_csv(OUT/'desi_dr1_fs_profile.csv',index=False)
           pd.DataFrame([dict(covariant_chi2=covchi,lcdm_chi2=lcdmchi,
@@ -553,7 +553,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sdmc-late266-s036-desi
+          name: sdmc-late266-h055-desi
           path: |
             output/covariant_target_00_background.dat
             output/covariant_replay_00_background.dat
