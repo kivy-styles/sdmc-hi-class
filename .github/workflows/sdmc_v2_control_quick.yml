@@ -1,0 +1,45 @@
+name: SDMC v2 full-background control
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+
+jobs:
+  v2-control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply SDMC runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Run NKp-v2 full-background smooth control
+        run: ./class sdmc/config/nkp_v2_full_smooth_control.ini
+
+      - name: Run NKp-v2 full No-Slip comparator
+        run: ./class sdmc/config/nkp_v2_full_clustered_noslip.ini
+
+      - name: Preserve control and No-Slip outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-nkp-v2-full-control
+          path: |
+            output/sdmc_nkp_v2_full_smooth_*
+            output/sdmc_nkp_v2_full_noslip_*
+          if-no-files-found: warn
