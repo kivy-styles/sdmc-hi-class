@@ -1,0 +1,45 @@
+{
+  "sigma_ratio_by_k": {
+    "0.1": 0.9941993578702972,
+    "0.2": 0.9942015062670643,
+    "0.5": 0.994153896084,
+    "1.0": 0.9942627043758312,
+    "2.0": 0.9943545059205527
+  },
+  "mean_sigma_ratio": 0.9942343941035492,
+  "g3_targets": {
+    "diagnostic_g3_equals_AF": 0.02111394613161683,
+    "epsilon20_95_equiv": 0.03573592823905375,
+    "epsilon20_68_equiv": 0.045212994926864626
+  },
+  "candidates": [
+    {
+      "g3": 0.02111394613161683,
+      "Qeff": 0.072453132894065,
+      "A_M": 1.217359398682195,
+      "A_eff_with_linear_spectrum": 1.210340584155053,
+      "epsilon95_equiv": 0.3167275326759576,
+      "epsilon68_equiv": 0.4041423866371943,
+      "label": "g3_equals_AF_diagnostic"
+    },
+    {
+      "g3": 0.03573592823905375,
+      "Qeff": 0.12262889853260515,
+      "A_M": 1.3678866955978155,
+      "A_eff_with_linear_spectrum": 1.36,
+      "epsilon95_equiv": 0.205,
+      "epsilon68_equiv": 0.27,
+      "label": "epsilon20_95_equiv_target"
+    },
+    {
+      "g3": 0.045212994926864626,
+      "Qeff": 0.15514973418774933,
+      "A_M": 1.465449202563248,
+      "A_eff_with_linear_spectrum": 1.457,
+      "epsilon95_equiv": 0.165,
+      "epsilon68_equiv": 0.21,
+      "label": "epsilon20_68_equiv_target"
+    }
+  ],
+  "scientific_status": "conditional likelihood-equivalent stress test; not catalogue-level JWST MCMC; g3 remains independent of the linear sector"
+}
