@@ -1,0 +1,92 @@
+name: SDMC full-joint local021-plus-JWST search
+
+on:
+  push:
+    branches:
+      - sdmc-fulljoint-local021-plus-jwst-search
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya
+
+      - name: Install Planck native-lite likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native, TT, EE, LensingNative):
+              if not cls.install(path="planck_packages", no_progress_bars=True):
+                  raise SystemExit(f"Planck likelihood install failed for {cls}")
+          print("PLANCK_NATIVE_LITE_READY")
+          PY
+
+      - name: Install supernova and BAO data
+        run: |
+          rm -rf sn_data bao_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          git clone --depth 1 https://github.com/CobayaSampler/bao_data.git bao_data
+          test -f sn_data/PantheonPlus/Pantheon+SH0ES.dat
+          test -f sn_data/Union3/lcparam_full.txt
+          test -f sn_data/DESY5/DES-SN5YR_HD.csv
+          test -f bao_data/desi_2024_gaussian_bao_ALL_GCcomb_mean.txt
+          test -f bao_data/desi_2024_gaussian_bao_ALL_GCcomb_cov.txt
+          echo "SN_BAO_DATA_READY"
+
+      - name: Build full SDMC action
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean >/dev/null
+          make -j2 class >/dev/null
+          ./class --help >/dev/null 2>&1 || true
+          echo "FULL_SDMC_BUILD_READY"
+
+      - name: Generate and score multi-observable candidates
+        run: |
+          python3 sdmc/run_fulljoint_local021_plus_jwst_search.py
+
+      - name: Print candidate shortlist
+        if: always()
+        run: |
+          echo "--- FULL SCREEN SUMMARY ---"
+          cat output/fulljoint_local021_plus_jwst/fulljoint_screen_summary.json || true
+          echo "--- PROMOTION SHORTLIST ---"
+          cat output/fulljoint_local021_plus_jwst/promotion_shortlist.csv || true
+
+      - name: Preserve screening products
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-fulljoint-local021-plus-jwst-screen
+          path: |
+            output/fulljoint_local021_plus_jwst/fulljoint_screen.csv
+            output/fulljoint_local021_plus_jwst/promotion_shortlist.csv
+            output/fulljoint_local021_plus_jwst/fulljoint_screen_summary.json
+          if-no-files-found: warn
