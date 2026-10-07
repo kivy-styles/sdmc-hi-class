@@ -52,8 +52,11 @@ def z_from_header(path):
         if m: return float(m.group(1))
     raise RuntimeError(f"cannot read redshift from {path}")
 
-def load_spectral_cube(directory, stem, h, power_kind):
-    files=sorted(Path(directory).glob(f"*{stem}*.dat"))
+def load_spectral_cube(directory, prefix, h, power_kind):
+    if power_kind=="weyl":
+        files=sorted(Path(directory).glob(f"{prefix}*pk_weyl.dat"))
+    else:
+        files=sorted(Path(directory).glob(f"{prefix}*pk.dat"))
     rows=[]
     for p in files:
         if p.name.endswith("_ad.dat") or "_ad_" in p.name:
@@ -71,7 +74,7 @@ def load_spectral_cube(directory, stem, h, power_kind):
             raise RuntimeError(f"nonpositive/nonfinite {power_kind} spectrum in {p}")
         rows.append((z,k,y))
     if not rows:
-        raise RuntimeError(f"no files for {stem} in {directory}")
+        raise RuntimeError(f"no files for {prefix} / {power_kind} in {directory}")
     rows.sort(key=lambda x:x[0])
     z=np.array([r[0] for r in rows])
     k0=rows[0][1]
@@ -245,8 +248,10 @@ def gr_identity(model):
                 p05=float(np.percentile(ratios,5)),p95=float(np.percentile(ratios,95)))
 
 def load_model(name,directory,h,Om):
-    bg=parse_background(Path(directory)/f"{name}_00_background.dat")
-    zq,kq,Q=load_spectral_cube(directory,"pk_weyl",h,"weyl")
+    p00=Path(directory)/f"{name}_00_background.dat"
+    pstd=Path(directory)/f"{name}_background.dat"
+    bg=parse_background(p00 if p00.exists() else pstd)
+    zq,kq,Q=load_spectral_cube(directory,f"{name}_",h,"weyl")
     # isolate the model's linear matter files; exclude Weyl and nonlinear prefix
     files=sorted(Path(directory).glob(f"{name}_z*_pk.dat"))
     if not files:
@@ -261,7 +266,8 @@ def load_model(name,directory,h,Om):
     zp=np.array([r[0] for r in rows]); kp=rows[0][1]; P=np.array([r[2] for r in rows])
     # nonlinear files live under name_nl_z*
     rowsn=[]
-    for p in sorted(Path(directory).glob(f"{name}_nl_z*_pk.dat")):
+    for p in sorted(Path(directory).glob(f"{name}_nl_*pk.dat")):
+        if "weyl" in p.name: continue
         z=z_from_header(p); a=np.loadtxt(p); rowsn.append((z,a[:,0]*h,a[:,1]/h**3))
     rowsn.sort(key=lambda x:x[0])
     if rowsn:
