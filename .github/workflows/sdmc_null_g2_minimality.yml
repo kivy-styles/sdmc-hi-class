@@ -1,0 +1,28 @@
+name: SDMC late300 null-G2 minimality audit
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-minimality]
+    paths:
+      - 'sdmc/run_null_g2_minimality.py'
+      - '.github/workflows/sdmc_null_g2_minimality.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install sympy
+      - name: Prove minimal trajectory-null order
+        run: |
+          python3 sdmc/run_null_g2_minimality.py
+          cat output/null_g2_minimality.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: null-g2-minimality
+          path: output/null_g2_minimality.json
