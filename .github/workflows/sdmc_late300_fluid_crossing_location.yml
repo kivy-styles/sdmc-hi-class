@@ -1,0 +1,80 @@
+name: SDMC late300 tracker-fluid crossing location
+
+on:
+  push:
+    branches: [sdmc-late300-fluid-crossing-location]
+    paths:
+      - '.github/workflows/sdmc_late300_fluid_crossing_location.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  crossing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover extended future backgrounds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered/fast recovered/slow output
+          gh run download 37689071024 --repo "${{ github.repository }}" --name native-interior-refine-fast-n2.74 --dir recovered/fast
+          gh run download 37689071024 --repo "${{ github.repository }}" --name native-interior-refine-slow-n2.74 --dir recovered/slow
+      - name: Locate w_fld=-1 crossings
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,json,math
+
+          def load(root):
+              p=next(Path(root).rglob("bg_00_background.dat"))
+              ls=p.read_text().splitlines()
+              h=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",h)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(h)
+                  names.append(re.sub(r"\s+"," ",h[m.end():e].strip()))
+              a=np.loadtxt(p)
+              if a.ndim==1:a=a[None,:]
+              return p,names,a
+
+          out={"status":"SDMC split-sector auxiliary tracker-fluid w=-1 crossing audit","branches":{}}
+          for tag in ["fast","slow"]:
+              p,n,a=load("recovered/"+tag)
+              iz=n.index("z"); iw=n.index("(.)w_fld")
+              N=-np.log1p(a[:,iz]); w=a[:,iw]
+              o=np.argsort(N); N=N[o]; w=w[o]; aa=a[o,:]
+              y=w+1.0
+              roots=[]
+              for i in range(len(N)-1):
+                  if not (np.isfinite(y[i]) and np.isfinite(y[i+1])): continue
+                  if y[i]==0 or y[i]*y[i+1] < 0:
+                      if y[i+1]==y[i]: nr=N[i]
+                      else: nr=N[i]-y[i]*(N[i+1]-N[i])/(y[i+1]-y[i])
+                      rec={"ln_a":float(nr),"a":float(np.exp(nr)),"z":float(np.exp(-nr)-1)}
+                      for nm in ["(.)rho_fld","H [1/Mpc]","kin (D)","c_s^2","M*^2_smg","braiding_smg","M2_running_smg"]:
+                          if nm in n:
+                              rec[nm]=float(np.interp(nr,N,aa[:,n.index(nm)]))
+                      roots.append(rec)
+              near=(N>2.70)&(N<2.78)
+              j=np.argmin(np.abs(y[near]))
+              inds=np.where(near)[0]
+              jj=inds[j]
+              out["branches"][tag]={
+                  "source":str(p),"crossings":roots,
+                  "nearest_sample":{"ln_a":float(N[jj]),"w_fld":float(w[jj]),"w_plus_1":float(y[jj])},
+                  "window_w_min":float(np.min(w[near])),"window_w_max":float(np.max(w[near]))
+              }
+          Path("output/fluid_crossing_location.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("FLUID_CROSSING_LOCATION",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fluid-crossing-location
+          path: output/fluid_crossing_location.json
