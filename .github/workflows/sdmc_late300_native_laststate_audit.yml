@@ -1,0 +1,82 @@
+name: SDMC late300 native last-state audit
+
+on:
+  push:
+    branches: [sdmc-late300-native-laststate-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_native_laststate_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover successful future native artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          for model in fast slow; do
+            for ep in 2.55 2.6; do
+              d="recovered/${model}_${ep}"
+              mkdir -p "$d"
+              gh run download 37687762951 --repo "${{ github.repository }}" --name "native-convergence-${model}-n${ep}" --dir "$d"
+            done
+          done
+      - name: Inspect terminal perturbation state
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          import numpy as np
+
+          names_want=[
+            "a","delta_g","theta_g","delta_b","theta_b","psi","phi","delta_ur","theta_ur",
+            "delta_cdm","theta_cdm","delta_rho_fld","rho_plus_p_theta_fld","delta_p_fld",
+            "V_x_smg (sync)","V_x_prime_smg (sync)","V_x_prime_prime_smg (sync)",
+            "mass2_qs","mass2_qs_p","rad2_qs","friction_qs","slope_qs",
+            "h_prime","h_prime_prime","eta","eta_prime","alpha","alpha_prime","einstein00"
+          ]
+
+          def parse(path):
+            ls=Path(path).read_text(errors="replace").splitlines()
+            head=[x for x in ls if x.startswith("#") and re.search(r"1\s*:",x)][-1].lstrip("#").strip()
+            ms=list(re.finditer(r"(\d+)\s*:\s*",head)); names=[]
+            for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(head)
+              names.append(re.sub(r"\s+"," ",head[m.end():e].strip()))
+            a=np.loadtxt(path)
+            if a.ndim==1:a=a[None,:]
+            out={"rows":int(a.shape[0]),"columns":int(a.shape[1]),"last":{},"tail_growth":{}}
+            for n in names_want:
+              if n in names:
+                j=names.index(n)
+                y=np.asarray(a[:,j],float)
+                out["last"][n]=float(y[-1])
+                q=max(2,min(20,len(y)//10))
+                den=max(float(np.max(np.abs(y[-2*q:-q]))),1e-300) if len(y)>=2*q else max(float(np.max(np.abs(y))),1e-300)
+                out["tail_growth"][n]=float(np.max(np.abs(y[-q:]))/den)
+            out["tau_last"]=float(a[-1,0])
+            return out
+
+          result={"status":"terminal-state audit of last successful native future perturbations","source_run":37687762951,"cases":{}}
+          for model in ["fast","slow"]:
+            for ep in ["2.55","2.6"]:
+              root=Path(f"recovered/{model}_{ep}")
+              files=sorted(root.rglob("*perturbations_k*_s.dat"))
+              result["cases"][f"{model}_{ep}"]=[{"file":p.name,**parse(p)} for p in files]
+          Path("output/native_laststate_audit.json").write_text(json.dumps(result,indent=2,sort_keys=True)+"\n")
+          print("NATIVE_LASTSTATE_AUDIT",json.dumps(result,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-laststate-audit
+          path: output/native_laststate_audit.json
