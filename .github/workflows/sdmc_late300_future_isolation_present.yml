@@ -1,0 +1,165 @@
+name: SDMC late300 future-isolation present equivalence
+
+on:
+  push:
+    branches: [sdmc-late300-future-fld-decouple]
+    paths:
+      - '.github/workflows/sdmc_late300_future_isolation_present.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential >/dev/null
+          python3 -m pip install --upgrade pip >/dev/null
+          python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted late300 products
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp "$(find recovered -name linear_cov_target.ini -print -quit)" output/linear_cov_target.ini
+          cp "$(find recovered -name linear_cov_target_00_background.dat -print -quit)" output/linear_cov_target_00_background.dat
+          cp "$(find recovered -name linear_cov_free_00_background.dat -print -quit)" output/linear_cov_free_00_background.dat
+          mkdir -p baseline
+          gh run download 37691769275 --repo "${{ github.repository }}" --name ppf-observable-equivalence --dir baseline
+          find baseline -name 'std_*.dat' -exec cp {} output/ \;
+      - name: Install accepted action
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 sdmc/install_current_late300_logstruct_covariant.py
+          python3 sdmc/install_logstruct_attractor_ic_patch.py
+          python3 sdmc/patch_future_aux_fld_decouple.py
+          make clean >/dev/null
+          make -j2 class >/dev/null
+      - name: Prepare matched current-observable inputs
+        run: |
+          cat > output/common.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_logstruct_audit
+          parameters_smg = 0.0, 0.0, 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 2.e-8
+          a_ini_test_qs_smg = 2.e-8
+          pert_ic_ini_z_ref_smg = 5.e7
+          a_min_stability_test_smg = 2.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 2500
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0
+          write background = yes
+          write thermodynamics = no
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          transfer_verbose = 0
+          primordial_verbose = 0
+          harmonic_verbose = 0
+          fourier_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          cp output/common.ini output/std.ini
+          echo "use_ppf = no" >> output/std.ini
+          echo "root = output/std_" >> output/std.ini
+          cp output/common.ini output/ppf.ini
+          echo "use_ppf = no" >> output/ppf.ini
+          echo "root = output/ppf_" >> output/ppf.ini
+      - name: Run patched current observables
+        run: |
+          ./class output/ppf.ini > output/ppf.log 2>&1
+      - name: Compare observables
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,numpy as np
+
+          def compare(a,b):
+              A=np.loadtxt(a); B=np.loadtxt(b)
+              if A.ndim==1:A=A[None,:]
+              if B.ndim==1:B=B[None,:]
+              n=min(A.shape[1],B.shape[1])
+              x=A[:,0]; xb=B[:,0]
+              out={"shape_standard":list(A.shape),"shape_ppf":list(B.shape),"columns":{}}
+              for j in range(1,n):
+                  bb=np.interp(x,xb,B[:,j])
+                  aa=A[:,j]
+                  peak=max(float(np.max(np.abs(aa))),float(np.max(np.abs(bb))),1e-300)
+                  norm=float(np.max(np.abs(aa-bb))/peak)
+                  mask=np.abs(aa)>1e-8*peak
+                  frac=float(np.max(np.abs((bb[mask]-aa[mask])/aa[mask]))) if np.any(mask) else None
+                  out["columns"][str(j)]={"max_norm_abs":norm,"max_frac_masked":frac}
+              out["max_norm_abs_all"]=max(v["max_norm_abs"] for v in out["columns"].values()) if out["columns"] else None
+              vals=[v["max_frac_masked"] for v in out["columns"].values() if v["max_frac_masked"] is not None]
+              out["max_frac_masked_all"]=max(vals) if vals else None
+              return out
+
+          pairs={}
+          std_files=sorted([p for p in Path("output").glob("std_*.dat") if ("cl" in p.name or "pk" in p.name)])
+          for a in std_files:
+              b=Path("output")/a.name.replace("std_","ppf_",1)
+              if b.exists():
+                  pairs[a.name.replace("std_","",1)]=compare(a,b)
+          generated={"standard":[p.name for p in sorted(Path("output").glob("std_*.dat"))],
+                     "ppf":[p.name for p in sorted(Path("output").glob("ppf_*.dat"))]}
+
+          out={"status":"future-only isolation present-observable equivalence audit",
+               "same_background_action_cosmology":True,
+               "only_difference":"unpatched accepted equations versus future-only fld isolation patch; both use_ppf=no",
+               "pairs":pairs,"generated_files":generated}
+          Path("output/future_isolation_present_equivalence.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("FUTURE_ISOLATION_PRESENT_EQUIVALENCE",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: future-isolation-present-equivalence
+          path: |
+            output/ppf_observable_equivalence.json
+            output/std.log
+            output/ppf.log
+            output/std_*cl*.dat
+            output/ppf_*cl*.dat
+            output/std_*pk.dat
+            output/ppf_*pk.dat
+          if-no-files-found: warn
