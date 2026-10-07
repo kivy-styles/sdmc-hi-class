@@ -1,0 +1,142 @@
+name: SDMC late300 extended-domain negative-phi basin
+
+on:
+  push:
+    branches: [sdmc-late300-action-basin-physical-negative]
+    paths:
+      - '.github/workflows/sdmc_late300_action_basin_physical_negative.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  physical-negative:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies and parameterized model
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean
+          make -j2 class
+      - name: Recover canonical inputs and extend target support
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp recovered/linear_cov_target.ini output/linear_cov_target.ini
+          cp recovered/linear_cov_free.ini output/linear_cov_free.ini
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("output/linear_cov_target.ini"); s=p.read_text()
+          def setv(k,v):
+              global s
+              pat=rf"(?m)^\s*{re.escape(k)}\s*=.*$"
+              s=re.sub(pat,f"{k} = {v}",s) if re.search(pat,s) else s+f"\n{k} = {v}\n"
+          setv("a_ini_over_a_today_default","1.e-10")
+          setv("a_ini_test_qs_smg","1.e-10")
+          setv("a_min_stability_test_smg","1.e-10")
+          setv("pert_ic_ini_z_ref_smg","1.e9")
+          setv("root","output/linear_cov_target_")
+          p.write_text(s)
+          PY
+          ./class output/linear_cov_target.ini
+      - name: Reconstruct extended-domain accepted action
+        run: |
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 sdmc/run_late300_action_basin_audit.py patch
+          make clean
+          make -j2 class
+      - name: Prepare canonical-start negative-phi matrix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          base=Path("output/linear_cov_free.ini").read_text()
+          vals=[0.0,-0.40,-0.50,-0.60,-0.70,-0.80,-0.90,-1.00]
+          for x in vals:
+              tag="base" if x==0 else "m%03d"%round(abs(x)*100)
+              s=re.sub(r"(?m)^\s*parameters_smg\s*=.*$",f"parameters_smg = 0.0, {x:.17g}, 0.0",base)
+              s=re.sub(r"(?m)^\s*root\s*=.*$",f"root = output/physneg_{tag}_",s)
+              s=re.sub(r"(?m)^\s*a_ini_over_a_today_default\s*=.*$","a_ini_over_a_today_default = 1.e-8",s)
+              s=re.sub(r"(?m)^\s*a_ini_test_qs_smg\s*=.*$","a_ini_test_qs_smg = 1.e-8",s)
+              s=re.sub(r"(?m)^\s*a_min_stability_test_smg\s*=.*$","a_min_stability_test_smg = 1.e-8",s)
+              s="\n".join(line for line in s.splitlines() if not re.match(r"^\s*output\s*=",line))
+              s=re.sub(r"(?m)^\s*lensing\s*=.*$","lensing = no",s)
+              s=re.sub(r"(?m)^\s*write_thermodynamics\s*=.*$","write_thermodynamics = no",s)
+              Path(f"output/physneg_{tag}.ini").write_text(s+"\n")
+          PY
+      - name: Free-evolve physical negative-phi matrix
+        run: |
+          set +e
+          for ini in output/physneg_*.ini; do
+            tag=$(basename "$ini" .ini)
+            ./class "$ini" > "output/${tag}.log" 2>&1
+            rc=$?
+            echo "$rc" > "output/${tag}.rc"
+            echo "PHYSNEG_RUN ${tag} rc=${rc}"
+            if [ "$rc" -ne 0 ]; then tail -40 "output/${tag}.log"; fi
+          done
+          set -e
+      - name: Summarize physical-domain basin
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,numpy as np
+          def read(path):
+              ls=Path(path).read_text().splitlines()
+              h=[x for x in ls if x.startswith("#") and re.search(r"1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",h)); ns=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(h); ns.append(h[m.end():e].strip())
+              a=np.loadtxt(path); return {n:a[:,i] for i,n in enumerate(ns)}
+          b=read("output/physneg_base_00_background.dat")
+          Nb=-np.log1p(b["z"]); ob=np.argsort(Nb)
+          rows=[]
+          for rc in sorted(Path("output").glob("physneg_*.rc")):
+              tag=rc.stem; code=int(rc.read_text()); q={"tag":tag,"returncode":code,"success":code==0}
+              log=(Path("output")/f"{tag}.log").read_text(errors="replace")
+              if code:
+                  q["failure_tail"]="\n".join(log.splitlines()[-12:])
+                  m=re.search(r"minimum c_s\^2=([^ ]+) at a=([^\s]+)",log)
+                  if m: q["gradient_instability"]={"min_cs2":float(m.group(1)),"a":float(m.group(2))}
+              else:
+                  d=read(Path("output")/f"{tag}_00_background.dat"); N=-np.log1p(d["z"]); o=np.argsort(N); z=d["z"][o]; m=z<=100
+                  H0=np.interp(N[o],Nb[ob],b["H [1/Mpc]"][ob]); F0=np.interp(N[o],Nb[ob],b["M*^2_smg"][ob])
+                  q.update({"max_abs_dH_H_z100":float(np.max(np.abs(d["H [1/Mpc]"][o][m]/H0[m]-1))),
+                            "max_abs_dF_F_z100":float(np.max(np.abs(d["M*^2_smg"][o][m]/F0[m]-1))),
+                            "min_D_z100":float(np.min(d["kin (D)"][o][m])),
+                            "min_cs2_z100":float(np.min(d["c_s^2"][o][m])),
+                            "max_cs2_z100":float(np.max(d["c_s^2"][o][m]))})
+              rows.append(q)
+          out={"status":"extended-domain physical negative-phi basin matrix","rows":rows}
+          Path("output/late300_action_basin_physical_negative.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_ACTION_BASIN_PHYSICAL_NEGATIVE",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-action-basin-physical-negative
+          path: |
+            output/late300_action_basin_physical_negative.json
+            output/physneg_*.log
+            output/physneg_*.rc
+          if-no-files-found: warn
