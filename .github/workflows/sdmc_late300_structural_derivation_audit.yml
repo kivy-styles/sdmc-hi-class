@@ -1,0 +1,200 @@
+name: SDMC late300 structural-coordinate derivability audit
+
+on:
+  push:
+    branches: [sdmc-late300-structural-derivation-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_structural_derivation_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  derive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted late300 target background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          find recovered -type f -maxdepth 4 -print | sort | head -80
+      - name: Derive structural closure diagnostics
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,math
+          import numpy as np
+          from scipy.integrate import solve_ivp
+          from scipy.optimize import least_squares
+
+          cand=json.loads(Path("sdmc/late300_candidate.json").read_text())["parameters"]
+          bgp=next(Path("recovered").rglob("linear_cov_target_00_background.dat"))
+
+          lines=bgp.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(bgp)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+          z=np.asarray(d["z"],float)
+          N=-np.log1p(z)
+          H=np.asarray(d["H [1/Mpc]"],float)
+          o=np.argsort(N); N=N[o]; z=z[o]; H=H[o]
+          H0=float(np.interp(0.0,N,H))
+          E=H/H0
+          hlog=np.gradient(np.log(H),N,edge_order=2)
+
+          h=cand["H0"]/100.0
+          omega_r=4.17998772e-5
+          Om=(cand["omega_b"]+cand["omega_cdm"])/(h*h)
+          Or=omega_r/(h*h)
+          Ox_derived=1.0-(cand["omega_b"]+cand["omega_cdm"]+omega_r)/(h*h)
+          Ox=cand["Omega_x0"]
+
+          matter=Om*np.exp(-3*N)
+          rad=Or*np.exp(-4*N)
+          Rmr=(matter+rad)/(E*E)
+          theta_gr=-2*hlog-(3*matter+4*rad)/(E*E)
+
+          def intervals(mask):
+              idx=np.where(mask)[0]
+              if len(idx)==0:return []
+              groups=np.split(idx,np.where(np.diff(idx)>1)[0]+1)
+              return [{"N_min":float(N[g[0]]),"N_max":float(N[g[-1]]),
+                       "z_high":float(z[g[0]]),"z_low":float(z[g[-1]])} for g in groups]
+
+          rmr_int=intervals(Rmr>1.0)
+          th_int=intervals(theta_gr<0.0)
+
+          # Minimum positive-energy envelope: F'+F=Rmr, started from F=1
+          # at the high-redshift edge of the first Rmr>1 interval.
+          fenv={}
+          if rmr_int:
+              g=np.where(Rmr>1.0)[0]
+              i0=g[0]; i1=g[-1]
+              Ni=N[i0:i1+1]; Ri=Rmr[i0:i1+1]
+              def rr(x): return float(np.interp(x,Ni,Ri))
+              sol=solve_ivp(lambda x,y:[rr(x)-y[0]],(float(Ni[0]),float(Ni[-1])),[1.0],
+                            rtol=1e-10,atol=1e-12,dense_output=True,max_step=0.01)
+              Fe=sol.sol(Ni)[0]
+              im=int(np.argmax(Fe))
+              fenv={"Fmax_minimum_envelope":float(Fe[im]),"lnFmax":float(np.log(Fe[im])),
+                    "z_at_Fmax":float(z[i0+im]),"start_z":float(z[i0]),"end_z":float(z[i1])}
+
+          AF=cand["A_F"]; zc=cand["z_c"]; width=cand["width"]
+          Nc=-math.log1p(zc)
+          def S_of_N(x):
+              return 0.5*(1+np.tanh((x-Nc)/(2*width)))
+          S=S_of_N(N)
+          F=np.exp(AF*S)
+
+          # Candidate transition landmarks.
+          trans={}
+          for sv in [0.05,0.10,0.50,0.90,0.95]:
+              x=math.atanh(2*sv-1)
+              Nv=Nc+2*width*x
+              trans[str(sv)]={"N":Nv,"z":math.exp(-Nv)-1}
+
+          # A_late is algebraically tied to q0 if q0 is independently fixed:
+          # q=-1+(1+z) H_z/H and delta_H=A z+O(z^2), so A=q0-qc0.
+          q0=-1-float(np.interp(0.0,N,hlog))
+          qc0=0.5*Om+Or-Ox
+          A_from_q=q0-qc0
+
+          # Tracker identities and overlap of handoff with canonical-deficit edge.
+          lam=cand["lambda_e"]
+          fm=3/(lam*lam); fr=4/(lam*lam)
+          zt=cand["z_t"]; dN=0.5
+          Nt=-math.log1p(zt)
+          def W_at_z(zz):
+              NN=-math.log1p(zz)
+              return 0.5*(1-math.tanh((NN-Nt)/dN))
+          tracker_edge={}
+          if th_int:
+              zhi=th_int[0]["z_high"]
+              tracker_edge={"thetaGR_high_z":zhi,"W_at_thetaGR_high_z":W_at_z(zhi)}
+
+          # Kinetic-support audit.
+          kin={}
+          if "kin (D)" in d and "c_s^2" in d:
+              D=np.asarray(d["kin (D)"],float)[o]
+              cs=np.asarray(d["c_s^2"],float)[o]
+              nnum=D*cs
+              good=np.isfinite(D)&np.isfinite(cs)&np.isfinite(nnum)&(D>0)&(S>1e-6)&(S<1-1e-6)
+              kin["Dfloor_candidate"]=cand["D_floor"]
+              kin["D0_candidate"]=cand["D0"]
+              kin["power_candidate"]=cand["kinetic_power"]
+              kin["cs2_min"]=float(np.nanmin(cs))
+              kin["cs2_max"]=float(np.nanmax(cs))
+              kin["native_numerator_min"]=float(np.nanmin(nnum))
+              kin["native_numerator_max"]=float(np.nanmax(nnum))
+              early=(S<0.05)&np.isfinite(nnum)
+              if np.any(early):
+                  kin["early_native_numerator_max_Slt0p05"]=float(np.max(nnum[early]))
+                  kin["Dfloor_over_early_required_max"]=float(cand["D_floor"]/max(np.max(nnum[early]),1e-300))
+              if np.sum(good)>20:
+                  X=S[good]; Y=nnum[good]
+                  def resid(p):
+                      floor,d0,powr=p
+                      return (floor+d0*np.power(X,powr)-Y)/max(np.std(Y),1e-8)
+                  fit=least_squares(resid,[cand["D_floor"],cand["D0"],1.0],
+                                    bounds=([1e-8,1e-8,0.05],[2.0,3.0,4.0]))
+                  kin["luminal_envelope_fit_to_native_numerator"]={
+                    "Dfloor":float(fit.x[0]),"D0":float(fit.x[1]),"power":float(fit.x[2]),
+                    "rms_native_numerator":float(np.sqrt(np.mean((fit.x[0]+fit.x[1]*X**fit.x[2]-Y)**2)))
+                  }
+
+          out={
+            "status":"late300 structural-coordinate derivability audit",
+            "closure":{
+              "Omega_x0_candidate":Ox,"Omega_x0_from_flat_present_closure":Ox_derived,
+              "Omega_x0_abs_residual":abs(Ox-Ox_derived),
+              "Omega_m0":Om,"Omega_r0":Or,
+              "q0_from_target_background":q0,"q_control0":qc0,
+              "A_late_candidate":cand["A_late"],"A_late_from_q0_minus_qcontrol":A_from_q,
+              "A_late_abs_residual":abs(cand["A_late"]-A_from_q)
+            },
+            "tracker":{"lambda_e":lam,"f_m":fm,"f_r":fr,**tracker_edge},
+            "health_windows":{
+              "Rmr_gt_1":rmr_int,"ThetaGR_lt_0":th_int,
+              "Rmr_peak":float(np.max(Rmr)),"z_at_Rmr_peak":float(z[int(np.argmax(Rmr))]),
+              "ThetaGR_min":float(np.min(theta_gr)),"z_at_ThetaGR_min":float(z[int(np.argmin(theta_gr))]),
+              "minimum_positive_energy_envelope":fenv
+            },
+            "planck_mass_transition":{
+              "AF":AF,"F_late_asymptote":math.exp(AF),"Sigma_late_inverseF":math.exp(-AF),
+              "zc":zc,"width":width,"transition_landmarks":trans
+            },
+            "kinetic_support":kin,
+            "late_profile":{
+              "B_late":cand["B_late"],"tau_A_fixed":0.25,"tau_B_fixed":1.5,
+              "note":"B_late can be solved from an acoustic-distance condition once the late-profile widths and A_late are fixed; that is observational closure unless the distance condition is independently predicted by SDMC."
+            },
+            "derivability_ledger":{
+              "Omega_x0":"algebraically derived; not independent",
+              "A_late":"conditionally derived from q0-q_control if q0 is independently predicted",
+              "B_late":"conditionally solvable from acoustic-distance closure; not first-principles if that closure uses the fitted CMB distance",
+              "lambda_e":"conditionally derived from f_r=4/lambda_e^2 or f_m=3/lambda_e^2 once the structural tracker fraction is independently predicted",
+              "z_t":"candidate for derivation from the matter-to-structural handoff; existing manuscripts state that this handoff still requires derivation",
+              "A_F_zc_width":"candidate for derivation by solving the minimum healthy Planck-mass response and projecting it onto the smooth transition family; not yet an established identity",
+              "Dfloor_D0_power":"candidate for derivation from minimum independent kinetic support compatible with 0<c_s^2<=1; current profile was historically scanned and is not yet uniquely derived"
+            }
+          }
+          Path("output/late300_structural_derivation_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_STRUCTURAL_DERIVATION_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-structural-derivation-audit
+          path: output/late300_structural_derivation_audit.json
