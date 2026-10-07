@@ -53,7 +53,7 @@ jobs:
           modes = s
           output = mPk
           P_k_max_h/Mpc = 20.0
-          z_pk = 0
+          z_pk = 0,0.5,1.0,2.0
           root = output/grbase/grbase_
           format = class
           input_verbose = 0
@@ -99,11 +99,11 @@ jobs:
           python3 setup.py build
           python3 setup.py develop --user
 
-      - name: Run exact-table unscreened and superscreened reactions
+      - name: Run target-spectrum unscreened and superscreened reactions
         run: |
           export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/sundials/install/lib:$GITHUB_WORKSPACE/reactv2/reactions/lib:${LD_LIBRARY_PATH:-}"
           python3 - <<'PY'
-          import sys,re,json,math
+          import sys,re,json
           from pathlib import Path
           import numpy as np
           sys.path.insert(0,str(Path('reactv2').resolve()))
@@ -114,74 +114,121 @@ jobs:
               m=re.search(r'(?:at\s+)?(?:redshift\s+)?z\s*=\s*([0-9eE+\-.]+)',txt,re.I)
               return float(m.group(1)) if m else None
 
-          # same-base GR z=0 spectrum
-          files=sorted(Path('output/grbase').glob('*pk.dat'))
-          if not files: raise RuntimeError('GR baseline pk missing')
-          p0=min(files,key=lambda p:abs((read_z(p) or 0.0)-0.0))
-          a=np.loadtxt(p0); k=np.asarray(a[:,0],float); P0=np.asarray(a[:,1],float)
-          sel=(k>=1e-5)&(k<=20.0); k=np.ascontiguousarray(k[sel]); P0=np.ascontiguousarray(P0[sel])
+          def nearest(files,z):
+              q=[(abs(read_z(p)-z),p) for p in files if read_z(p) is not None]
+              if not q: raise RuntimeError(f'no spectrum near z={z}')
+              return min(q,key=lambda x:x[0])[1]
 
-          def W(x):
-              x=np.asarray(x); y=np.ones_like(x)
-              m=np.abs(x)>1e-5
-              y[m]=3*(np.sin(x[m])-x[m]*np.cos(x[m]))/x[m]**3
-              return y
-          R8=8.0
-          sig2=np.trapezoid(k**3*P0*W(k*R8)**2/(2*np.pi**2),x=np.log(k))
-          sigma8_gr=float(np.sqrt(sig2))
+          def load_grid(files,zs,k=None):
+              rows=[]
+              chosen=[]
+              for z in zs:
+                  p=nearest(files,z); a=np.loadtxt(p)
+                  kk=np.asarray(a[:,0],float); pp=np.asarray(a[:,1],float)
+                  chosen.append(p.name)
+                  if k is None and len(rows)==0:
+                      rows.append((kk,pp)); continue
+                  rows.append((kk,pp))
+              if k is None:
+                  mins=[r[0].min() for r in rows]; maxs=[r[0].max() for r in rows]
+                  lo=max(mins); hi=min(maxs)
+                  k=rows[0][0][(rows[0][0]>=lo)&(rows[0][0]<=hi)]
+              vals=[]
+              for kk,pp in rows:
+                  vals.append(np.exp(np.interp(np.log(k),np.log(kk),np.log(pp))))
+              return np.asarray(k,float),np.asarray(vals,float),chosen
+
+          def sigma8(k,P):
+              x=k*8.0
+              W=np.ones_like(x)
+              m=np.abs(x)>1e-8
+              W[m]=3*(np.sin(x[m])-x[m]*np.cos(x[m]))/x[m]**3
+              return float(np.sqrt(np.trapezoid(k**3*P*W**2/(2*np.pi**2),x=np.log(k))))
+
+          z=np.array([0.0,0.5,1.0,2.0])
+          exact_dir=Path('inputs/exact/weyl_spectra')
+          tgt=[p for p in exact_dir.glob('late300_*_pk.dat') if 'nl_' not in p.name and 'weyl' not in p.name]
+          gr=[p for p in Path('output/grbase').glob('*pk.dat') if 'pk_nl' not in p.name]
+          if not tgt or not gr: raise RuntimeError('target or GR spectra missing')
+
+          # Build one common k grid in h/Mpc and exact P(k,z) arrays in (Mpc/h)^3.
+          all_files=tgt+gr
+          lo=max(np.loadtxt(p)[:,0].min() for p in all_files)
+          hi=min(np.loadtxt(p)[:,0].max() for p in all_files)
+          pz0=nearest(tgt,0.0); base=np.loadtxt(pz0)
+          k=base[:,0][(base[:,0]>=lo)&(base[:,0]<=hi)]
+          k=k[(k>=1e-5)&(k<=20.0)]
+          if k[0]>1e-4: raise RuntimeError(f'common k minimum too high: {k[0]}')
+
+          k,Tm,tgt_names=load_grid(tgt,z,k)
+          _,Pgr,gr_names=load_grid(gr,z,k)
+          Tcb=Tm.copy()
 
           h=0.6971482083084993
           Om=(0.022083219194622913+0.12299536722293603)/h**2
           Ob=0.022083219194622913/h**2
-          z=np.array([0.0,0.5,1.0,2.0])
+          As=2.1047019076951746e-9
+          ns=0.9628416801318527
           ext=np.zeros(20)
           react=ReACT()
-          out={}
-          arrays={'k':k,'z':z,'P0_GR':P0}
+          arrays={'k':k,'z':z,'Ptarget':Tm,'Pgr':Pgr}
+          result={
+             'status':'target-spectrum ReACT option-2b bracket using exact accepted-action P(k,z); gamma2=gamma3=0 approximation',
+             'Omega_m':Om,'Omega_b':Ob,
+             'target_files':tgt_names,'gr_files':gr_names,
+             'sigma8_target':sigma8(k,Tm[0]),
+             'reaction':{},'linear_validation':{},'halofit_audit':{}
+          }
+
+          legacy=[p for p in exact_dir.glob('late300_nl_*pk_nl.dat') if 'weyl' not in p.name]
           for model,tag in [('eftus','us'),('eftss','ss')]:
-              R,Pl,s8,pseudo=react.compute_reaction_ext(
-                  h,0.9628416801318527,Om,Ob,sigma8_gr,z,k,P0,
-                  model,ext,compute_pseudo=True,mass_loop=24,verbose=False)
-              arrays[f'R_{tag}']=R; arrays[f'Pl_{tag}']=Pl; arrays[f'pseudo_{tag}']=pseudo
-              arrays[f'Pnl_{tag}']=R*pseudo
-              out[tag]={
+              R,Pl,s8,pseudo=react.compute_reaction_nu_ext(
+                  h,ns,Om,Ob,0.0,As,z,k,
+                  np.ascontiguousarray(Tm.flatten()),
+                  np.ascontiguousarray(Tcb.flatten()),
+                  k,np.ascontiguousarray(Pgr.flatten()),
+                  pscale=0.05,model=model,extpars=ext,
+                  compute_pseudo=True,is_transfer=False,mass_loop=24,verbose=False)
+              Pnl=R*pseudo
+              arrays[f'R_{tag}']=R; arrays[f'Pl_{tag}']=Pl
+              arrays[f'pseudo_{tag}']=pseudo; arrays[f'Pnl_{tag}']=Pnl
+              result['reaction'][tag]={
                   'sigma8_react':float(s8),
                   'R_min':float(np.nanmin(R)),'R_max':float(np.nanmax(R)),
                   'R_median_z0':float(np.nanmedian(R[0])),
                   'finite_fraction':float(np.mean(np.isfinite(R)))
               }
-
-          # Compare ReACT linear output against the exact accepted-action CLASS spectra.
-          exact_files=[p for p in Path('inputs/exact/weyl_spectra').glob('late300_*_pk.dat')
-                       if 'nl_' not in p.name and 'weyl' not in p.name]
-          validation={}
-          for iz,zz in enumerate(z):
-              candidates=[(abs(read_z(p)-zz),p) for p in exact_files if read_z(p) is not None]
-              if not candidates: continue
-              _,p=min(candidates,key=lambda x:x[0])
-              q=np.loadtxt(p); ke=q[:,0]; pe=q[:,1]
-              ex=np.exp(np.interp(np.log(k),np.log(ke),np.log(pe)))
-              mask=(k>=1e-3)&(k<=0.2)&np.isfinite(ex)&(ex>0)
-              for tag in ['us','ss']:
-                  rel=arrays[f'Pl_{tag}'][iz,mask]/ex[mask]-1
-                  validation[f'z{zz:g}_{tag}']={
-                     'median_rel':float(np.median(rel)),
-                     'rms_rel':float(np.sqrt(np.mean(rel**2))),
-                     'max_abs_rel':float(np.max(np.abs(rel))),
-                     'exact_file':p.name
+              for iz,zz in enumerate(z):
+                  mask=(k>=1e-3)&(k<=0.2)&np.isfinite(Tm[iz])&(Tm[iz]>0)
+                  rel=Pl[iz,mask]/Tm[iz,mask]-1
+                  result['linear_validation'][f'z{zz:g}_{tag}']={
+                      'median_rel':float(np.median(rel)),
+                      'rms_rel':float(np.sqrt(np.mean(rel**2))),
+                      'max_abs_rel':float(np.max(np.abs(rel)))
+                  }
+                  lp=nearest(legacy,float(zz)); la=np.loadtxt(lp)
+                  leg=np.exp(np.interp(np.log(k),np.log(la[:,0]),np.log(la[:,1])))
+                  m2=(k>=1e-3)&(k<=10)&np.isfinite(leg)&(leg>0)
+                  d=pseudo[iz,m2]/leg[m2]-1
+                  rnl=Pnl[iz,m2]/leg[m2]-1
+                  result['halofit_audit'][f'z{zz:g}_{tag}']={
+                      'legacy_file':lp.name,
+                      'pseudo_vs_legacy_median_rel':float(np.median(d)),
+                      'pseudo_vs_legacy_rms_rel':float(np.sqrt(np.mean(d**2))),
+                      'pseudo_vs_legacy_max_abs_rel':float(np.max(np.abs(d))),
+                      'react_nonlinear_vs_legacy_median_rel':float(np.median(rnl)),
+                      'react_nonlinear_vs_legacy_min_rel':float(np.min(rnl)),
+                      'react_nonlinear_vs_legacy_max_rel':float(np.max(rnl))
                   }
 
-          result={
-             'status':'custom late300 exact-H(a), exact-Geff(a) ReACT bracket; gamma2=gamma3=0 approximation',
-             'sigma8_GR_baseline':sigma8_gr,
-             'Omega_m':Om,'Omega_b':Ob,
-             'reaction':out,'linear_validation':validation,
-             'nonlinear_definition':'P_nl = reaction * pseudo'
-          }
+          worst=max(v['max_abs_rel'] for v in result['linear_validation'].values())
+          result['linear_validation_worst_max_abs_rel']=float(worst)
           Path('output/react_late300').mkdir(parents=True,exist_ok=True)
-          np.savez_compressed('output/react_late300/late300_react_exact.npz',**arrays)
+          np.savez_compressed('output/react_late300/late300_react_target_spectrum.npz',**arrays)
           Path('output/react_late300/summary.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
-          print('LATE300_REACT_EXACT',json.dumps(result,sort_keys=True))
+          print('LATE300_REACT_TARGET_SPECTRUM',json.dumps(result,sort_keys=True))
+          if worst>0.02:
+              raise RuntimeError(f'ReACT target-spectrum linear validation failed: worst={worst}')
           PY
           cat output/react_late300/summary.json
 
