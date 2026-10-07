@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys,re,json,numpy as np
 
-EPS=[0.0,1e-5,3e-5,1e-4,3e-4,1e-3,3e-3,1e-2,3e-2,1e-1,3e-1,1.0]
+EPS=[-3e-4,-2e-4,-1e-4,0.0,1e-4,1.25e-4,1.5e-4,1.75e-4,2e-4,2.25e-4,2.5e-4,2.75e-4,3e-4,3.25e-4,3.5e-4]
 POINTS=[
  ("base",0.0,0.0),
  ("A_bad",-0.75,0.50),("A_good",-0.75,0.60),
@@ -87,7 +87,7 @@ def analyze():
     passing=[s for s in summary if s["all_original_bad_stable"] and s["base_stable"]
              and (s["base_max_abs_dH_H_z100"] or 0)<1e-8 and (s["base_max_abs_dF_F_z100"] or 0)<1e-8]
     out={
-      "status":"exploratory null-G2 off-trajectory stabilizer scan",
+      "status":"exploratory null-G2 sign and threshold scan",
       "deformation":"Delta G2 = epsilon*(X-Xstar(phi))^4/Xstar(phi)^3",
       "on_trajectory_property":"Delta G2 and all derivatives used through total order 3 vanish at X=Xstar; target late300 should be unchanged",
       "epsilon_values":EPS,"rows":rows,"summary":summary,
