@@ -25,7 +25,7 @@ jobs:
         run: |
           mkdir -p recovered output
           for model in fast slow; do
-            for ep in 2.7 2.74; do
+            for ep in 2.72 2.74; do
               d="recovered/${model}_${ep}"
               mkdir -p "$d"
               gh run download 37689071024 --repo "${{ github.repository }}" --name "native-interior-refine-${model}-n${ep}" --dir "$d"
@@ -69,7 +69,7 @@ jobs:
 
           result={"status":"terminal-state audit approaching native perturbation stiffness threshold","source_run":37689071024,"cases":{}}
           for model in ["fast","slow"]:
-            for ep in ["2.7","2.74"]:
+            for ep in ["2.72","2.74"]:
               root=Path(f"recovered/{model}_{ep}")
               files=sorted(root.rglob("*perturbations_k*_s.dat"))
               result["cases"][f"{model}_{ep}"]=[{"file":p.name,**parse(p)} for p in files]
