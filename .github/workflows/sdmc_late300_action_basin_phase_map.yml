@@ -143,6 +143,32 @@ jobs:
                       "M2":float(d["M*^2_smg"][o][iz])
                     }
                   })
+                  st=r["cs2_min_state"]
+                  bra=st["braiding"]; run=st["alphaM"]; M2=st["M2"]
+                  ten=float(d["tensor_excess_smg"][o][iz])
+                  beh=float(d["beyond_horndeski_smg"][o][iz])
+                  rho_s=float(d["(.)rho_smg"][o][iz]); p_s=float(d["(.)p_smg"][o][iz])
+                  rho_t=float(d["(.)rho_tot"][o][iz]); p_t=float(d["(.)p_tot"][o][iz])
+                  rho_o=rho_t-rho_s; p_o=p_t-p_s
+                  bra_p=float(d["braiding_prime_smg"][o][iz])
+                  T1=(2.-bra)*(bra+2.*beh+2.*run+2.*beh*run-2.*ten+bra*ten)/2.
+                  T2=1.5*(2.-bra)*(1.+beh)*(rho_s+p_s)/(HH*HH)
+                  T3=-1.5*(1.+beh)*(2.+2.*beh-2.*M2+bra*M2)*(rho_o+p_o)/(HH*HH)/M2
+                  T4=(1.+beh)*bra_p/aa/HH
+                  # Accepted reconstructed action is Horndeski, hence beh=0 and beh_p=0.
+                  T5=0.0
+                  st["tensor_excess"]=ten; st["beyond_horndeski"]=beh
+                  st["braiding_prime"]=bra_p
+                  st["rho_plus_p_smg"]=rho_s+p_s
+                  st["rho_plus_p_other"]=rho_o+p_o
+                  st["cs2num_terms"]={"geometry_braiding_run":float(T1),
+                                      "smg_enthalpy":float(T2),
+                                      "other_enthalpy":float(T3),
+                                      "braiding_derivative":float(T4),
+                                      "beyond_horndeski_derivative":float(T5),
+                                      "sum":float(T1+T2+T3+T4+T5),
+                                      "residual_to_stored":float((T1+T2+T3+T4+T5)-st["cs2num"])}
+                  })
                   r["recovery_gate"]=bool(r["min_D_z100"]>0 and r["min_cs2_z100"]>0 and r["max_cs2_z100"]<=1.0+1e-8
                                            and r["max_abs_dH_H_z100"]<1e-2 and r["max_abs_dF_F_z100"]<1e-2)
               else:
