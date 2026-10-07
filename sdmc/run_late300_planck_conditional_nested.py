@@ -147,6 +147,7 @@ def main():
     r=sampler.results
     logz=float(r.logz[-1]); logzerr=float(r.logzerr[-1])
     ncall=int(np.sum(r.ncall))
+    terminated_by_maxcall = ncall >= args.maxcall
     out={
       "status":"conditional fixed-spectrum full-Planck nuisance nested evidence pilot",
       "model":args.model,"spectrum":str(args.spectrum),
@@ -154,6 +155,8 @@ def main():
       "maxcall":args.maxcall,"ncall":ncall,
       "logZ_shared_prior_normalization_omitted":logz,
       "logZerr":logzerr,
+      "terminated_by_maxcall":terminated_by_maxcall,
+      "evidence_status":("provisional_unconverged" if terminated_by_maxcall else "requested_dlogz_reached"),
       "qualification":(
         "This marginalizes Planck nuisance parameters only. Cosmological and SDMC structural "
         "coordinates are fixed, so it is not the final SDMC-vs-LCDM model-family evidence. "
