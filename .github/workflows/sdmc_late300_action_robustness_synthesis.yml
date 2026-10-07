@@ -21,13 +21,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p synthesis/replay synthesis/basin synthesis/boltz synthesis/domain synthesis/wideboltz synthesis/fine synthesis/extstab output
+          mkdir -p synthesis/replay synthesis/basin synthesis/boltz synthesis/domain synthesis/wideboltz synthesis/fine synthesis/micro synthesis/extstab output
           gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir synthesis/replay
           gh run download 37642049222 --repo "${{ github.repository }}" --name late300-action-basin-audit --dir synthesis/basin
           gh run download 37642609079 --repo "${{ github.repository }}" --name late300-action-basin-boltzmann --dir synthesis/boltz
           gh run download 37643563040 --repo "${{ github.repository }}" --name action-table-domain --dir synthesis/domain
           gh run download 37644463703 --repo "${{ github.repository }}" --name late300-action-basin-boltzmann-wide --dir synthesis/wideboltz
           gh run download 37644428724 --repo "${{ github.repository }}" --name late300-action-basin-fine-refine --dir synthesis/fine
+          gh run download 37644771657 --repo "${{ github.repository }}" --name late300-action-basin-micro-refine --dir synthesis/micro
           gh run download 37644071818 --repo "${{ github.repository }}" --name late300-action-basin-extended-stability --dir synthesis/extstab
       - name: Build robustness synthesis
         run: |
@@ -44,6 +45,7 @@ jobs:
           domain=find("action_table_domain.json")
           wideboltz=find("late300_action_basin_boltzmann_wide.json")
           fine=find("late300_action_basin_fine_refine.json")
+          micro=find("late300_action_basin_micro_refine.json")
           extstab=find("late300_action_basin_extended_stability.json")
           vals=list(boltz["variants"].values())
           widevals=list(wideboltz["variants"].values())
@@ -73,9 +75,11 @@ jobs:
               "variants":wideboltz["variants"]
             },
             "physical_negative_phi_boundary":{
-              "most_negative_stable":fine["most_negative_success"],
-              "least_negative_unstable":fine["least_negative_failure"],
+              "most_negative_stable":micro["most_negative_success"],
+              "least_negative_unstable":micro["least_negative_failure"],
+              "interpolated_zero_crossing_estimate":-0.78658,
               "instability_type":"scalar gradient instability",
+              "micro_scan":micro,
               "fine_scan":fine,
               "coarse_extended_domain_scan":extstab
             },
@@ -83,7 +87,7 @@ jobs:
             "verdict":{
               "supported":"The frozen reconstructed accepted action reproduces the canonical late300 trajectory and returns percent-level initial-condition perturbations to essentially the same late-time background and Boltzmann observables.",
               "strengthened":"The accepted action carries a broad observable basin: even order-unity positive-field/velocity perturbations and a -90% velocity perturbation remain close to the late300 CMB and matter spectra.",
-              "finite_basin":"After reconstructing the same action over an earlier field domain, the negative-field basin ends physically between delta_phi=-0.785 and -0.790 through a scalar gradient instability near z=1.38.",
+              "finite_basin":"After reconstructing the same action over an earlier field domain, the measured negative-field basin ends between delta_phi=-0.786 and -0.787 through a scalar gradient instability near z=1.38; interpolation places the zero crossing near -0.78658 but is not itself the measured threshold.",
               "not_claimed":"This demonstrates a broad finite basin in the tested directions, not a global-attractor theorem in the full phase space."
             }
           }
