@@ -56,6 +56,10 @@ jobs:
               return out
           out={"w_minus1_crossings_ln_a":roots(w,-1.0),
                "rho_zero_crossings_ln_a":roots(rho,0.0)}
+          samples={}
+          for x in [2.7380,2.7390,2.7392,2.7393,2.7395,2.7397,2.7400,2.7405,2.7410,2.7420,2.7440,2.7450,2.7452,2.7460]:
+              samples[f"{x:.4f}"]={"w_fld":float(np.interp(x,N,w)),"rho_fld":float(np.interp(x,N,rho))}
+          out["samples"]=samples
           m=(N>=2.70)&(N<=2.80)
           out["window"]={"w_min":float(np.nanmin(w[m])),"w_max":float(np.nanmax(w[m])),
                          "rho_min":float(np.nanmin(rho[m])),"rho_max":float(np.nanmax(rho[m]))}
