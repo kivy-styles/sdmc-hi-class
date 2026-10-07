@@ -1,0 +1,37 @@
+name: SDMC accepted-action mature asymptotic match
+
+on:
+  push:
+    branches: [sdmc-late300-mature-asymptotic-match]
+    paths:
+      - 'sdmc/run_accepted_action_mature_asymptotic_match.py'
+      - '.github/workflows/sdmc_accepted_action_mature_asymptotic_match.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover accepted-action endpoint and canonical target input
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/canonical inputs/action
+          gh run download 37674988182 --repo "${{ github.repository }}" --name accepted-action-canonical-approach --dir inputs/canonical
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir inputs/action
+          test -s inputs/canonical/accepted_action_canonical_approach.json
+          test -s inputs/action/linear_cov_target.ini
+      - name: Test present endpoint against manuscript mature asymptotics
+        run: |
+          python3 sdmc/run_accepted_action_mature_asymptotic_match.py
+          cat output/mature_asymptotic_match/accepted_action_mature_asymptotic_match.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: accepted-action-mature-asymptotic-match
+          path: output/mature_asymptotic_match/accepted_action_mature_asymptotic_match.json
