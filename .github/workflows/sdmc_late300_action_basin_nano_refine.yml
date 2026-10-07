@@ -105,7 +105,7 @@ jobs:
           rows=[]
           for rcf in sorted(Path("output").glob("nano_*.rc")):
               tag=rcf.stem; rc=int(rcf.read_text())
-              x=-int(re.search(r"m(\d+)",tag).group(1))/1000
+              x=-int(re.search(r"m(\d+)",tag).group(1))/10000
               log=(Path("output")/f"{tag}.log").read_text(errors="replace")
               row={"tag":tag,"delta_phi":x,"success":rc==0,"returncode":rc}
               if rc==0:
