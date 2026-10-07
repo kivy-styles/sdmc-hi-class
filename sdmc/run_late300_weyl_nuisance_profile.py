@@ -191,7 +191,7 @@ def fit_model(model,des,lam):
     return best
 
 cuts=[("official",0.0,0.0),("c100_250",100.0,250.0)]
-lams=[0.55]
+lams=[round(x,2) for x in np.linspace(0.0,1.0,11)]
 out={"status":"DES-Y3 nuisance-profile native-Weyl pilot",
      "nuisance_order":["dz1","dz2","dz3","dz4","m1","m2","m3","m4","AIA","etaIA"],
      "priors":{"dz_sigma":DZ_SIG.tolist(),"m_mean":M_MU.tolist(),"m_sigma":M_SIG.tolist(),
@@ -213,14 +213,14 @@ for label,xp,xm in cuts:
         rows.append([label,len(des["data"]),lam,a["total_chi2"],b["total_chi2"],delta,
                      a["data_chi2"],b["data_chi2"],dd,a["prior_chi2"],b["prior_chi2"],
                      a["params"][8],b["params"][8],a["params"][9],b["params"][9]])
-        print("WEYL_NUISANCE_FASTCHECK",label,lam,json.dumps(rr["lambda"][str(lam)],sort_keys=True),flush=True)
+        print("WEYL_NUISANCE_LAMBDA_SCAN",label,lam,json.dumps(rr["lambda"][str(lam)],sort_keys=True),flush=True)
     out["cuts"][label]=rr
 
-with (OUT/"late300_weyl_nuisance_fastcheck.csv").open("w",newline="") as f:
+with (OUT/"late300_weyl_nuisance_lambda_scan.csv").open("w",newline="") as f:
     w=csv.writer(f)
     w.writerow(["cuts","ndata","lambda_NL","late300_total","local021_total","delta_total",
                 "late300_data","local021_data","delta_data","late300_prior","local021_prior",
                 "late300_AIA","local021_AIA","late300_etaIA","local021_etaIA"])
     w.writerows(rows)
-(OUT/"late300_weyl_nuisance_fastcheck.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
-print("WEYL_NUISANCE_FASTCHECK_DONE",json.dumps(out,sort_keys=True))
+(OUT/"late300_weyl_nuisance_lambda_scan.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+print("WEYL_NUISANCE_LAMBDA_SCAN_DONE",json.dumps(out,sort_keys=True))
