@@ -1,0 +1,167 @@
+name: SDMC late300 KiDS-Legacy native-Weyl COSEBI pilot
+on:
+  push:
+    branches: [sdmc-late300-kids-legacy-feasibility]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  kids:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: System and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git git-lfs libgsl-dev liblapack-dev libblas-dev gfortran
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cosmosis numpy scipy astropy
+      - name: Clone KiDS standard library data
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits
+      - name: Build official COSEBI transformer
+        run: |
+          set -eux
+          export COSMOSIS_SRC_DIR="$(python3 - <<'PY'
+          import cosmosis,pathlib
+          p=pathlib.Path(cosmosis.__file__).resolve()
+          for q in [p.parent,p.parent.parent,p.parent.parent.parent]:
+              if (q/'config'/'compilers.mk').exists():
+                  print(q); break
+          PY
+          )"
+          test -n "$COSMOSIS_SRC_DIR"
+          export GSL_INC=/usr/include
+          export GSL_LIB=/usr/lib/x86_64-linux-gnu
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in [
+            'cosmosis-standard-library/shear/cosebis/makefile.defs',
+            'cosmosis-standard-library/shear/cosebis/modules/Makefile',
+          ]:
+              p=Path(name); s=p.read_text()
+              s=s.replace('-D COSEBIS_DIR=', '-DCOSEBIS_DIR=')
+              p.write_text(s)
+          PY
+          cd cosmosis-standard-library/shear/cosebis/modules && make -j2
+          cd ../cl_to_cosebis && make -j2
+          test -s cl_to_cosebis_interface.so
+      - name: Download validated native-Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+      - name: Generate KiDS shear Cls
+        run: |
+          python3 sdmc/generate_kids_native_weyl_cl.py
+          ls -lh output/kids_native_weyl
+      - name: Prepare CosmoSIS inputs
+        run: |
+          mkdir -p output/kids_cosmosis
+          cat > output/kids_cosmosis/dummy_values.ini <<'EOF'
+          [dummy]
+          x = 0.0
+          EOF
+          cat > output/kids_cosmosis/run_one.py <<'PY'
+          from pathlib import Path
+          import subprocess,sys,json
+          model=sys.argv[1]
+          ini=Path(f'output/kids_cosmosis/{model}.ini')
+          text=f"""[runtime]
+          sampler = test
+
+          [pipeline]
+          modules = load_cl cosebis cosebis_like dump
+          values = output/kids_cosmosis/dummy_values.ini
+          likelihoods = cosebis
+          quiet = F
+          timing = F
+          debug = F
+
+          [load_cl]
+          file = sdmc/load_precomputed_shear_cl.py
+          npz = output/kids_native_weyl/{model}_kids_shear_cl.npz
+
+          [cosebis]
+          file = cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+          theta_min = 2.00
+          theta_max = 300.00
+          n_max = 6
+          input_section_name = shear_cl
+          output_section_name = cosebis
+
+          [cosebis_like]
+          file = cosmosis-standard-library/likelihood/2pt/cosebis/simple_like.py
+          data_set = En n
+          data_file = cosmosis-standard-library/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits
+          like_name = cosebis
+
+          [dump]
+          file = sdmc/dump_kids_cosebi_like.py
+          output = output/kids_cosmosis/{model}_result.json
+
+          [test]
+          save_dir =
+          """
+          ini.write_text(text)
+          subprocess.run(['cosmosis',str(ini)],check=True)
+          print(Path(f'output/kids_cosmosis/{model}_result.json').read_text())
+          PY
+      - name: Run late300 KiDS COSEBI likelihood
+        env:
+          GSL_INC: /usr/include
+          GSL_LIB: /usr/lib/x86_64-linux-gnu
+        run: |
+          export COSMOSIS_SRC_DIR="$(python3 - <<'PY'
+          import cosmosis,pathlib
+          p=pathlib.Path(cosmosis.__file__).resolve()
+          for q in [p.parent,p.parent.parent,p.parent.parent.parent]:
+              if (q/'config'/'compilers.mk').exists():
+                  print(q); break
+          PY
+          )"
+          export LD_LIBRARY_PATH="$COSMOSIS_SRC_DIR/datablock:${LD_LIBRARY_PATH:-}"
+          python3 output/kids_cosmosis/run_one.py late300 | tee output/kids_cosmosis/late300.log
+      - name: Run local021 KiDS COSEBI likelihood
+        env:
+          GSL_INC: /usr/include
+          GSL_LIB: /usr/lib/x86_64-linux-gnu
+        run: |
+          export COSMOSIS_SRC_DIR="$(python3 - <<'PY'
+          import cosmosis,pathlib
+          p=pathlib.Path(cosmosis.__file__).resolve()
+          for q in [p.parent,p.parent.parent,p.parent.parent.parent]:
+              if (q/'config'/'compilers.mk').exists():
+                  print(q); break
+          PY
+          )"
+          export LD_LIBRARY_PATH="$COSMOSIS_SRC_DIR/datablock:${LD_LIBRARY_PATH:-}"
+          python3 output/kids_cosmosis/run_one.py local021 | tee output/kids_cosmosis/local021.log
+      - name: Compare KiDS results
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('output/kids_cosmosis/late300_result.json').read_text())
+          b=json.loads(Path('output/kids_cosmosis/local021_result.json').read_text())
+          out={'late300':a,'local021':b,'delta_chi2_late300_minus_local021':a['chi2']-b['chi2'],
+               'status':'linear native-Weyl KiDS-Legacy COSEBI pipeline validation; no IA or nonlinear-MG'}
+          Path('output/kids_cosmosis/comparison.json').write_text(json.dumps(out,indent=2)+'\n')
+          print('KIDS_NATIVE_WEYL_COSEBI',json.dumps(out,sort_keys=True))
+          PY
+          cat output/kids_cosmosis/comparison.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-native-weyl-cosebi
+          path: |
+            output/kids_cosmosis/*
+            output/kids_native_weyl/*
