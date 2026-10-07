@@ -3,10 +3,7 @@ name: SDMC late300 DES-Y3 tomographic shear
 on:
   push:
     branches:
-      - sdmc-late300-desy3-tomographic-shear
-  pull_request:
-    branches:
-      - master
+      - sdmc-late300-desy3-tomographic-shear-run
   workflow_dispatch:
 
 permissions:
