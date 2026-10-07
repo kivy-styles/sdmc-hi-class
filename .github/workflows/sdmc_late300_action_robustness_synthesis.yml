@@ -27,7 +27,7 @@ jobs:
           gh run download 37642609079 --repo "${{ github.repository }}" --name late300-action-basin-boltzmann --dir synthesis/boltz
           gh run download 37643563040 --repo "${{ github.repository }}" --name action-table-domain --dir synthesis/domain
           gh run download 37644463703 --repo "${{ github.repository }}" --name late300-action-basin-boltzmann-wide --dir synthesis/wideboltz
-          gh run download 37644771657 --repo "${{ github.repository }}" --name late300-action-basin-micro-refine --dir synthesis/fine
+          gh run download 37644428724 --repo "${{ github.repository }}" --name late300-action-basin-fine-refine --dir synthesis/fine
           gh run download 37644771657 --repo "${{ github.repository }}" --name late300-action-basin-micro-refine --dir synthesis/micro
           gh run download 37644071818 --repo "${{ github.repository }}" --name late300-action-basin-extended-stability --dir synthesis/extstab
       - name: Build robustness synthesis
@@ -44,7 +44,7 @@ jobs:
           boltz=find("late300_action_basin_boltzmann.json")
           domain=find("action_table_domain.json")
           wideboltz=find("late300_action_basin_boltzmann_wide.json")
-          fine=find("late300_action_basin_micro_refine.json")
+          fine=find("late300_action_basin_fine_refine.json")
           micro=find("late300_action_basin_micro_refine.json")
           extstab=find("late300_action_basin_extended_stability.json")
           vals=list(boltz["variants"].values())
