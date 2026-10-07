@@ -1,0 +1,164 @@
+name: SDMC late300 accepted-action phase-space basin map
+
+on:
+  push:
+    branches: [sdmc-late300-action-basin-phase-map]
+    paths:
+      - '.github/workflows/sdmc_late300_action_basin_phase_map.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  phase-map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies and SDMC patches
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+      - name: Recover inputs and reconstruct extended-domain action
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp recovered/linear_cov_target.ini output/linear_cov_target.ini
+          cp recovered/linear_cov_free.ini output/linear_cov_free.ini
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("output/linear_cov_target.ini"); s=p.read_text()
+          for k,v in {
+            "a_ini_over_a_today_default":"1.e-10",
+            "a_ini_test_qs_smg":"1.e-10",
+            "a_min_stability_test_smg":"1.e-10",
+            "pert_ic_ini_z_ref_smg":"1.e9",
+            "root":"output/linear_cov_target_",
+          }.items():
+              pat=rf"(?m)^\s*{re.escape(k)}\s*=.*$"
+              s=re.sub(pat,f"{k} = {v}",s) if re.search(pat,s) else s+f"\n{k} = {v}\n"
+          p.write_text(s)
+          PY
+          ./class output/linear_cov_target.ini
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 sdmc/run_late300_action_basin_audit.py patch
+          make clean && make -j2 class
+      - name: Prepare phase-space matrix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json
+          base=Path("output/linear_cov_free.ini").read_text()
+          dphis=[-0.75,-0.50,0.0,0.50,1.0,2.0]
+          dvs=[-0.90,-0.50,0.0,0.50,1.0,2.0]
+          rows=[]
+          for i,dp in enumerate(dphis):
+            for j,dv in enumerate(dvs):
+              tag=f"p{i}_v{j}"
+              s=re.sub(r"(?m)^\s*parameters_smg\s*=.*$",f"parameters_smg = 0.0, {dp:.17g}, {dv:.17g}",base)
+              s=re.sub(r"(?m)^\s*root\s*=.*$",f"root = output/phase_{tag}_",s)
+              for k in ["a_ini_over_a_today_default","a_ini_test_qs_smg","a_min_stability_test_smg"]:
+                  s=re.sub(rf"(?m)^\s*{k}\s*=.*$",f"{k} = 1.e-8",s)
+              s="\n".join(line for line in s.splitlines() if not re.match(r"^\s*output\s*=",line))
+              s=re.sub(r"(?m)^\s*lensing\s*=.*$","lensing = no",s)
+              s=re.sub(r"(?m)^\s*write_thermodynamics\s*=.*$","write_thermodynamics = no",s)
+              Path(f"output/phase_{tag}.ini").write_text(s+"\n")
+              rows.append({"tag":tag,"delta_phi":dp,"delta_velocity_fraction":dv})
+          Path("output/phase_points.json").write_text(json.dumps(rows,indent=2)+"\n")
+          PY
+      - name: Free-evolve phase-space matrix
+        run: |
+          set +e
+          for ini in output/phase_*.ini; do
+            tag=$(basename "$ini" .ini)
+            ./class "$ini" > "output/${tag}.log" 2>&1
+            rc=$?
+            echo "$rc" > "output/${tag}.rc"
+            echo "PHASE_BASIN_RUN ${tag} rc=${rc}"
+          done
+          set -e
+      - name: Analyze basin geometry
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,numpy as np
+          pts={r["tag"]:r for r in json.loads(Path("output/phase_points.json").read_text())}
+          def read_bg(p):
+              ls=Path(p).read_text().splitlines()
+              h=[x for x in ls if x.startswith("#") and re.search(r"1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",h)); ns=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(h); ns.append(h[m.end():e].strip())
+              a=np.loadtxt(p); return {n:a[:,i] for i,n in enumerate(ns)}
+          base=read_bg("output/phase_p2_v2_00_background.dat")
+          Nb=-np.log1p(base["z"]); ob=np.argsort(Nb)
+          rows=[]
+          for tag,p in pts.items():
+              rc=int(Path(f"output/phase_{tag}.rc").read_text())
+              log=Path(f"output/phase_{tag}.log").read_text(errors="replace")
+              r=dict(p,returncode=rc,success=(rc==0))
+              if rc==0:
+                  d=read_bg(f"output/phase_{tag}_00_background.dat"); N=-np.log1p(d["z"]); o=np.argsort(N)
+                  z=d["z"][o]; m=z<=100
+                  H0=np.interp(N[o],Nb[ob],base["H [1/Mpc]"][ob])
+                  F0=np.interp(N[o],Nb[ob],base["M*^2_smg"][ob])
+                  r.update({
+                    "max_abs_dH_H_z100":float(np.max(np.abs(d["H [1/Mpc]"][o][m]/H0[m]-1))),
+                    "max_abs_dF_F_z100":float(np.max(np.abs(d["M*^2_smg"][o][m]/F0[m]-1))),
+                    "min_D_z100":float(np.min(d["kin (D)"][o][m])),
+                    "min_cs2_z100":float(np.min(d["c_s^2"][o][m])),
+                    "max_cs2_z100":float(np.max(d["c_s^2"][o][m])),
+                    "max_abs_noslip_z100":float(np.max(np.abs(d["braiding_smg"][o][m]+2*d["M2_running_smg"][o][m]))),
+                  })
+                  r["recovery_gate"]=bool(r["min_D_z100"]>0 and r["min_cs2_z100"]>0 and r["max_cs2_z100"]<=1.0+1e-8
+                                           and r["max_abs_dH_H_z100"]<1e-2 and r["max_abs_dF_F_z100"]<1e-2)
+              else:
+                  g=re.search(r"minimum c_s\^2=([^ ]+) at a=([^\s]+)",log)
+                  gh=re.search(r"minimum D=([^ ]+) at a=([^\s]+)",log)
+                  if g:
+                      aa=float(g.group(2)); r.update(failure_kind="gradient_instability",min_cs2_reported=float(g.group(1)),a_failure=aa,z_failure=1/aa-1)
+                  elif gh:
+                      aa=float(gh.group(2)); r.update(failure_kind="ghost_instability",min_D_reported=float(gh.group(1)),a_failure=aa,z_failure=1/aa-1)
+                  elif "Step size too small" in log: r["failure_kind"]="integrator_step_floor"
+                  elif "is not a number" in log: r["failure_kind"]="nan_constraint"
+                  else: r["failure_kind"]="other"
+              rows.append(r)
+          out={
+            "status":"accepted frozen-action 2D initial-condition phase-space basin map",
+            "definition":{"delta_phi":"additive initial field shift","delta_velocity_fraction":"fractional shift of initial phi_prime=aH",
+                          "action_retuned":False,"ordinary_cosmology_changed":False,"action_reconstruction_start_a":1e-10,"free_run_start_a":1e-8},
+            "n_total":len(rows),"n_success":sum(r["success"] for r in rows),
+            "n_recovery_gate":sum(bool(r.get("recovery_gate")) for r in rows),
+            "rows":rows
+          }
+          Path("output/late300_action_basin_phase_map.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_ACTION_BASIN_PHASE_MAP",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-action-basin-phase-map
+          path: |
+            output/late300_action_basin_phase_map.json
+            output/phase_points.json
+            output/phase_*.rc
+            output/phase_*.log
+          if-no-files-found: warn
