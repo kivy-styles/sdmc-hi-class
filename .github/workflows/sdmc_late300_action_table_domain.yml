@@ -1,0 +1,51 @@
+name: SDMC accepted-action table-domain audit
+
+on:
+  push:
+    branches: [sdmc-late300-action-table-domain]
+    paths:
+      - '.github/workflows/sdmc_late300_action_table_domain.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  domain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover target background and measure reconstruction domain
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37579409032 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp recovered/linear_cov_target_00_background.dat output/
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,json
+          p=Path("output/linear_cov_target_00_background.dat")
+          lines=p.read_text().splitlines()
+          hdr=[l for l in lines if l.startswith("#") and re.search(r"1\s*:",l)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
+          N=-np.log1p(d["z"])
+          out={"N_min":float(np.min(N)),"N_max":float(np.max(N)),
+               "z_max":float(np.max(d["z"])),"z_min":float(np.min(d["z"])),
+               "phi_initial_canonical":float(np.min(N)),
+               "phi_initial_minus1":float(np.min(N)-1.0),
+               "phi_final_canonical":float(np.max(N)),
+               "phi_final_plus1":float(np.max(N)+1.0)}
+          Path("output/action_table_domain.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("ACTION_TABLE_DOMAIN",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: action-table-domain
+          path: output/action_table_domain.json
