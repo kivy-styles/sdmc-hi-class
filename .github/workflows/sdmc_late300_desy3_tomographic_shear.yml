@@ -166,7 +166,6 @@ jobs:
           n_s = 0.96495932
           tau_reio = 0.04498538
           Omega_Lambda = 0.7007654037263196
-          Omega_fld = 0
           modes = s
           output = mPk,wPk
           non linear = halofit
