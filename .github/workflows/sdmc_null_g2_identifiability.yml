@@ -1,0 +1,25 @@
+name: SDMC trajectory-null G2 identifiability audit
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-identifiability]
+    paths:
+      - 'sdmc/run_null_g2_identifiability_audit.py'
+      - '.github/workflows/sdmc_null_g2_identifiability.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run conditional identifiability proof
+        run: python3 sdmc/run_null_g2_identifiability_audit.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: null-g2-identifiability-audit
+          path: output/null_g2_identifiability_audit.json
