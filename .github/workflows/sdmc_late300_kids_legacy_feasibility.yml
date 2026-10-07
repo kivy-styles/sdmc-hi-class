@@ -1,0 +1,45 @@
+name: SDMC late300 KiDS-Legacy feasibility audit
+on:
+  push:
+    branches: [sdmc-late300-kids-legacy-feasibility]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs build-essential
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy astropy
+      - name: Clone CosmoSIS standard library
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library
+          git lfs pull || true
+          cd ..
+          ls -lh cosmosis-standard-library/likelihood/KiDS-Legacy || true
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/Nz_covariance.txt
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/massdep_cov.txt
+      - name: Audit KiDS-Legacy data products
+        run: |
+          python3 sdmc/run_kids_legacy_feasibility.py | tee output/kids_feasibility.log
+          cat output/kids_feasibility/kids_legacy_data_audit.json
+      - name: Inspect COSEBI build requirements
+        run: |
+          sed -n '1,220p' cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.cc > output/kids_feasibility/cosebis_interface_excerpt.txt
+          cat cosmosis-standard-library/shear/cosebis/cl_to_cosebis/Makefile > output/kids_feasibility/cosebis_makefile.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-legacy-feasibility
+          path: |
+            output/kids_feasibility/*
+            output/kids_feasibility.log
