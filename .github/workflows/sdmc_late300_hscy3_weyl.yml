@@ -26,10 +26,10 @@ jobs:
           python3 -m pip install numpy scipy astropy sacc
       - name: Download validated native-Weyl spectra
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p output
-          gh run download 37587199009 --repo "\${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
           test -d output/weyl_spectra
       - name: Download CosmoSIS HSC-Y3 products
         run: |
@@ -41,15 +41,15 @@ jobs:
           test -s cosmosis-standard-library/likelihood/hsc_cosmic_shear/hsc_y3_fourier_shear.sacc
       - name: Run HSC-Y3 native-Weyl nuisance pilot
         run: |
-          python3 sdmc/run_late300_hscy3_weyl.py "\${{ matrix.model }}" | tee "output/hsc_weyl_\${{ matrix.model }}.log"
-          cat "output/hsc_weyl/hsc_weyl_result_\${{ matrix.model }}.json"
+          python3 sdmc/run_late300_hscy3_weyl.py "${{ matrix.model }}" | tee "output/hsc_weyl_${{ matrix.model }}.log"
+          cat "output/hsc_weyl/hsc_weyl_result_${{ matrix.model }}.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: hsc-native-weyl-\${{ matrix.model }}
+          name: hsc-native-weyl-${{ matrix.model }}
           path: |
-            output/hsc_weyl/hsc_weyl_result_\${{ matrix.model }}.json
-            output/hsc_weyl_\${{ matrix.model }}.log
+            output/hsc_weyl/hsc_weyl_result_${{ matrix.model }}.json
+            output/hsc_weyl_${{ matrix.model }}.log
           if-no-files-found: warn
 
   summary:
