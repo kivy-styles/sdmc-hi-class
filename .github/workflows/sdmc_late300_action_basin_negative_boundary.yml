@@ -1,0 +1,108 @@
+name: SDMC late300 negative-phi basin boundary
+
+on:
+  push:
+    branches: [sdmc-late300-action-basin-negative-boundary]
+    paths:
+      - '.github/workflows/sdmc_late300_action_basin_negative_boundary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  bracket:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies and SDMC patches
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+      - name: Recover and reconstruct accepted action
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output recovered
+          gh run download 37579409032 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp recovered/linear_cov_target.ini output/
+          cp recovered/linear_cov_target_00_background.dat output/
+          cp recovered/linear_cov_free.ini output/
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 sdmc/run_late300_action_basin_audit.py patch
+          make clean
+          make -j2 class
+      - name: Prepare negative-phi bracket
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path("output/linear_cov_free.ini").read_text()
+          vals=[-0.35,-0.40,-0.45,-0.50,-0.55,-0.60,-0.65,-0.70,-0.75,-0.80,-0.85,-0.90,-0.95,-1.00,-1.05]
+          for x in vals:
+              tag=("m%04d"%round(abs(x)*1000))
+              s=base.replace("parameters_smg = 0.0",f"parameters_smg = 0.0, {x:.17g}, 0.0")
+              s=s.replace("root = output/linear_cov_free_",f"root = output/negphi_{tag}_")
+              s="\n".join(line for line in s.splitlines() if not line.strip().startswith("output = "))
+              s=s.replace("lensing = yes","lensing = no").replace("write_thermodynamics = yes","write_thermodynamics = no")
+              Path(f"output/negphi_{tag}.ini").write_text(s+"\n")
+          PY
+      - name: Run bracket and expose failures
+        run: |
+          set +e
+          for ini in output/negphi_*.ini; do
+            tag=$(basename "$ini" .ini)
+            ./class "$ini" > "output/${tag}.log" 2>&1
+            rc=$?
+            echo "$rc" > "output/${tag}.rc"
+            echo "NEGPHI_BASIN_RUN ${tag} rc=${rc}"
+            if [ "$rc" -ne 0 ]; then
+              echo "NEGPHI_FAILURE_TAIL ${tag}"
+              tail -80 "output/${tag}.log"
+            fi
+          done
+          set -e
+      - name: Summarize boundary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          rows=[]
+          for rc in sorted(Path("output").glob("negphi_*.rc")):
+              tag=rc.stem
+              code=int(rc.read_text())
+              m=re.search(r"m(\d+)",tag)
+              x=-int(m.group(1))/1000 if m else None
+              log=(Path("output")/f"{tag}.log").read_text(errors="replace")
+              tail="\n".join(log.splitlines()[-20:])
+              rows.append({"tag":tag,"delta_phi":x,"returncode":code,"success":code==0,"failure_tail":tail if code else ""})
+          good=[r["delta_phi"] for r in rows if r["success"]]
+          bad=[r["delta_phi"] for r in rows if not r["success"]]
+          out={"status":"negative-phi accepted-action basin boundary bracket","rows":rows,
+               "most_negative_success":min(good) if good else None,
+               "least_negative_failure":max(bad) if bad else None}
+          Path("output/late300_negative_phi_basin_boundary.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_NEGATIVE_PHI_BASIN_BOUNDARY",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-negative-phi-basin-boundary
+          path: |
+            output/late300_negative_phi_basin_boundary.json
+            output/negphi_*.rc
+            output/negphi_*.log
+          if-no-files-found: warn
