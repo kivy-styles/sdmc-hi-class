@@ -1,0 +1,129 @@
+name: SDMC late300 KiDS nonlinear screening bracket
+on:
+  push:
+    branches: [sdmc-late300-kids-legacy-feasibility]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  bracket:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs libgsl-dev liblapack-dev libblas-dev gfortran
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cosmosis numpy scipy astropy
+      - name: Clone KiDS library/data
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+      - name: Recover official COSEBI transformer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/cosebi_build
+          gh run download 37591919747 --repo "${{ github.repository }}" --name late300-kids-cosebi-build --dir output/cosebi_build
+          SO="$(find output/cosebi_build -name 'cl_to_cosebis_interface.so' | head -1)"
+          test -n "$SO"
+          cp "$SO" cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+      - name: Recover native Weyl and nonlinear matter spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+      - name: Generate nonlinear screening bracket
+        run: |
+          python3 sdmc/generate_kids_screening_bracket.py
+          ls -lh output/kids_screening
+      - name: Prepare CosmoSIS runner
+        run: |
+          mkdir -p output/kids_screen_like
+          cat > output/kids_screen_like/dummy_values.ini <<'EOF'
+          [dummy]
+          x = 0.0
+          EOF
+          cat > output/kids_screen_like/run_one.py <<'PY'
+          from pathlib import Path
+          import subprocess,sys
+          tag=sys.argv[1]
+          ini=Path(f'output/kids_screen_like/{tag}.ini')
+          ini.write_text(f"""[runtime]
+          sampler = test
+          [pipeline]
+          modules = load_cl cosebis cosebis_like dump
+          values = output/kids_screen_like/dummy_values.ini
+          likelihoods = cosebis
+          quiet = F
+          timing = F
+          debug = F
+          [load_cl]
+          file = sdmc/load_precomputed_shear_cl.py
+          npz = output/kids_screening/{tag}_kids_shear_cl.npz
+          [cosebis]
+          file = cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+          theta_min = 2.00
+          theta_max = 300.00
+          n_max = 6
+          input_section_name = shear_cl
+          output_section_name = cosebis
+          [cosebis_like]
+          file = cosmosis-standard-library/likelihood/2pt/cosebis/simple_like.py
+          data_set = En n
+          data_file = cosmosis-standard-library/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits
+          like_name = cosebis
+          [dump]
+          file = sdmc/dump_kids_cosebi_like.py
+          output = output/kids_screen_like/{tag}_result.json
+          [test]
+          save_dir =
+          """)
+          subprocess.run(['cosmosis',str(ini)],check=True)
+          PY
+      - name: Run screening cases
+        run: |
+          export COSMOSIS_SRC_DIR="$(python3 - <<'PY'
+          import cosmosis,pathlib
+          p=pathlib.Path(cosmosis.__file__).resolve()
+          for q in [p.parent,p.parent.parent,p.parent.parent.parent]:
+              if (q/'config'/'compilers.mk').exists():
+                  print(q); break
+          PY
+          )"
+          export LD_LIBRARY_PATH="$COSMOSIS_SRC_DIR/datablock:${LD_LIBRARY_PATH:-}"
+          for s in unscreened screen_k01 screen_k03 screen_k10 full_screen; do
+            for m in late300 local021; do
+              tag="${m}_${s}"
+              python3 output/kids_screen_like/run_one.py "$tag" | tee "output/kids_screen_like/$tag.log"
+            done
+          done
+      - name: Compare screening bracket
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          out={}
+          for s in ['unscreened','screen_k01','screen_k03','screen_k10','full_screen']:
+              a=json.loads(Path(f'output/kids_screen_like/late300_{s}_result.json').read_text())
+              b=json.loads(Path(f'output/kids_screen_like/local021_{s}_result.json').read_text())
+              out[s]={'late300':a,'local021':b,'delta_chi2':a['chi2']-b['chi2']}
+          out['status']='phenomenological No-Slip screening bracket on top of model-specific HALOFIT matter; not a calibrated nonlinear-MG prediction'
+          Path('output/kids_screen_like/screening_comparison.json').write_text(json.dumps(out,indent=2)+'\n')
+          print('KIDS_SCREENING_BRACKET',json.dumps(out,sort_keys=True))
+          PY
+          cat output/kids_screen_like/screening_comparison.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-screening-bracket
+          path: |
+            output/kids_screening/*
+            output/kids_screen_like/*
