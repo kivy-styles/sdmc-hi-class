@@ -148,7 +148,7 @@ def prepare_sources(des,bg,zmax):
     for arr in des["nz"]:
         f=interp1d(des["zsrc"],arr,bounds_error=False,fill_value=0.0)
         y=np.maximum(f(z),0.0)
-        norm=np.trapz(y,z)
+        norm=np.trapezoid(y,z)
         y=y/norm
         nz.append(y)
     nz=np.asarray(nz)
@@ -197,11 +197,11 @@ def model_theory(model,des,variant):
     cross=np.sqrt(np.maximum(Q*P,0.0))
     for i in range(4):
         for j in range(i,4):
-            gg=np.trapz(g[i][None,:]*g[j][None,:]*Q,x=chi,axis=1)
+            gg=np.trapezoid(g[i][None,:]*g[j][None,:]*Q,x=chi,axis=1)
             gi_integrand=((g[i]*nchi[j]+g[j]*nchi[i])*Funit/np.maximum(chi,1e-12))[None,:]*cross
-            gi=np.trapz(gi_integrand,x=chi,axis=1)
+            gi=np.trapezoid(gi_integrand,x=chi,axis=1)
             ii_integrand=(nchi[i]*nchi[j]*Funit**2/np.maximum(chi,1e-12)**2)[None,:]*P
-            ii=np.trapz(ii_integrand,x=chi,axis=1)
+            ii=np.trapezoid(ii_integrand,x=chi,axis=1)
             pair_cls[(i+1,j+1)]=(gg,gi,ii)
 
     t0=[];t1=[];t2=[]
@@ -211,9 +211,9 @@ def model_theory(model,des,variant):
         th=np.deg2rad(r["ang"]/60.0)
         J=jv(0 if r["typ"]=="xip" else 4,ELL*th)
         wt=ELL/(2*np.pi)*J
-        t0.append(np.trapz(wt*gg,x=ELL))
-        t1.append(np.trapz(wt*gi,x=ELL))
-        t2.append(np.trapz(wt*ii,x=ELL))
+        t0.append(np.trapezoid(wt*gg,x=ELL))
+        t1.append(np.trapezoid(wt*gi,x=ELL))
+        t2.append(np.trapezoid(wt*ii,x=ELL))
     return np.array(t0),np.array(t1),np.array(t2),dict(
         zmin=float(z.min()),zmax=float(z.max()),
         valid_grid_fraction=float(np.mean(valid)),
