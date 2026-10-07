@@ -21,7 +21,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p inputs/{bic,prov,pbf,profile,tatt_late,tatt_local,usn_late,usn_local,uss_late,uss_local,baryon} output
+          mkdir -p inputs/{bic,prov,pbf,profile,tatt_late,tatt_local,usn_late,usn_local,uss_late,uss_local,safe1000_late,safe1000_local,baryon} output
           gh run download 37620779682 --repo "${{ github.repository }}" --name sdmc-late300-bic-audit --dir inputs/bic
           gh run download 37636547455 --repo "${{ github.repository }}" --name late300-deep-parameter-provenance --dir inputs/prov
           gh run download 37637638799 --repo "${{ github.repository }}" --name planck-conditional-bayes-factor-highprecision --dir inputs/pbf
@@ -32,6 +32,8 @@ jobs:
           gh run download 37615217739 --repo "${{ github.repository }}" --name hsc-react-full-local021-us_native --dir inputs/usn_local
           gh run download 37615217739 --repo "${{ github.repository }}" --name hsc-react-full-late300-us_screen03 --dir inputs/uss_late
           gh run download 37639231423 --repo "${{ github.repository }}" --name hsc-react-full-local021-us_screen03-stale-retry --dir inputs/uss_local
+          gh run download 37639231423 --repo "${{ github.repository }}" --name hsc-safe-late300-ell1000-stale-retry --dir inputs/safe1000_late
+          gh run download 37631035746 --repo "${{ github.repository }}" --name hsc-safe-local021-ell1000-retry --dir inputs/safe1000_local
           gh run download 37645030114 --repo "${{ github.repository }}" --name late300-model-selection-baryon-sensitivity --dir inputs/baryon
       - name: Build converged synthesis
         run: |
@@ -54,6 +56,8 @@ jobs:
           un_c=load("inputs/usn_local")
           us_l=load("inputs/uss_late")
           us_c=load("inputs/uss_local")
+          s1_l=load("inputs/safe1000_late")
+          s1_c=load("inputs/safe1000_local")
 
           def chi(x):
               return float(x["fit"]["chi2_total"])
@@ -63,7 +67,8 @@ jobs:
             "conditional_TATT":{
               "late300":float(tl["tatt_conditional_chi2"]),
               "local021":float(tc["tatt_conditional_chi2"])
-            }
+            },
+            "safe_ell1000":{"late300":chi(s1_l),"local021":chi(s1_c)}
           }
           for r in hsc.values():
               r["delta_chi2"]=r["late300"]-r["local021"]
@@ -87,7 +92,7 @@ jobs:
               "model_family_delta_k":prov["complexity_consequence"]["model_family_delta_k"],
               "required_resolution":prov["complexity_consequence"]["required_resolution"]
             },
-            "pending":["full joint HSC TATT pair","HSC ell=1000 late300 closure"],
+            "pending":["full joint HSC TATT pair"],
             "verdict":{
               "raw_fit":"late300 remains favored in completed HSC nonlinear/screening and conditional-TATT comparisons.",
               "planck":"high-precision fixed-spectrum Planck nuisance evidence favors local021 conditionally; the split shows both profile-fit and nuisance-volume contributions.",
