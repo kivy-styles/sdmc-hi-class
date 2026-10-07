@@ -1,0 +1,229 @@
+name: SDMC late300 native interior-endpoint test
+
+on:
+  push:
+    branches: [sdmc-late300-native-interior-endpoint]
+    paths:
+      - '.github/workflows/sdmc_late300_native_interior_endpoint.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  convergence:
+    strategy:
+      fail-fast: false
+      matrix:
+        branch:
+          - { tag: fast, candidate: legacy_canonical }
+          - { tag: slow, candidate: legacy_canonical_slowroot }
+        point:
+          - { target: 2.75, support: 3.25 }
+          - { target: 3.00, support: 3.50 }
+          - { target: 4.00, support: 4.50 }
+          - { target: 5.00, support: 5.50 }
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential >/dev/null
+          python3 -m pip install --upgrade pip >/dev/null
+          python3 -m pip install numpy scipy >/dev/null
+
+      - name: Recover current accepted late300 products
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp "$(find recovered -name linear_cov_target.ini -print -quit)" output/linear_cov_target.ini
+          cp "$(find recovered -name linear_cov_target_00_background.dat -print -quit)" output/linear_cov_target_00_background.dat
+          cp "$(find recovered -name linear_cov_free_00_background.dat -print -quit)" output/linear_cov_free_00_background.dat
+
+      - name: Install current action and logstruct representation
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 sdmc/install_current_late300_logstruct_covariant.py
+          python3 sdmc/install_logstruct_attractor_ic_patch.py
+
+      - name: Install future bookkeeping at requested endpoint
+        run: |
+          python3 sdmc/patch_future_background_endpoint.py --loga-final "${{ matrix.point.support }}"
+          python3 sdmc/patch_future_background_endpoint_tolerance.py
+          python3 sdmc/patch_future_today_bookkeeping.py
+          python3 sdmc/patch_future_shooting_today.py
+          python3 sdmc/patch_future_perturbation_endpoint.py
+          python3 sdmc/patch_future_perturbation_loga_stop.py --loga-stop "${{ matrix.point.target }}"
+          python3 sdmc/patch_future_thermodynamics_extrapolation.py
+
+      - name: Install rebased canonical tail
+        run: |
+          python3 sdmc/install_current_late300_future_logstruct_tail.py             --candidate "${{ matrix.branch.candidate }}"             --psi-max 12             --future-points 2200
+          make clean >/dev/null
+          make -j2 class >/dev/null
+
+      - name: Prepare native inputs
+        run: |
+          cat > output/base.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_logstruct_audit
+          parameters_smg = 0.0, 0.0, 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 2.e-8
+          a_ini_test_qs_smg = 2.e-8
+          pert_ic_ini_z_ref_smg = 5.e7
+          a_min_stability_test_smg = 2.e-8
+          output_background_smg = 3
+          write background = yes
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          cp output/base.ini output/bg.ini
+          cat >> output/bg.ini <<EOF
+          modes = s
+          output =
+          root = output/bg_
+          EOF
+          cp output/base.ini output/pert.ini
+          cat >> output/pert.ini <<EOF
+          modes = s
+          output = mPk
+          P_k_max_h/Mpc = 0.02
+          z_pk = 0
+          k_output_values = 0.0001, 0.001, 0.01
+          write parameters = yes
+          write warnings = yes
+          root = output/pert_
+          EOF
+
+      - name: Run background then perturbations
+        run: |
+          set +e
+          ./class output/bg.ini > output/bg.log 2>&1
+          brc=$?
+          ./class output/pert.ini > output/pert.log 2>&1
+          prc=$?
+          set -e
+          echo "$brc" > output/bg.rc
+          echo "$prc" > output/pert.rc
+          echo "NATIVE_CONVERGENCE_RC branch=${{ matrix.branch.tag }} endpoint=${{ matrix.point.target }} background=$brc perturbations=$prc"
+
+      - name: Summarize convergence point
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,numpy as np
+          tag="${{ matrix.branch.tag }}"
+          endpoint=float("${{ matrix.point.target }}")
+          support=float("${{ matrix.point.support }}")
+          brc=int(Path("output/bg.rc").read_text())
+          prc=int(Path("output/pert.rc").read_text())
+          blog=Path("output/bg.log").read_text(errors="replace")
+          plog=Path("output/pert.log").read_text(errors="replace")
+          bg=Path("output/bg_00_background.dat")
+          pfiles=sorted(Path("output").glob("pert_*perturbations_k*_s.dat"))
+
+          def errtail(s):
+              return [x for x in s.splitlines() if ("error" in x.lower() or "failed" in x.lower() or "step size too small" in x.lower())][-15:]
+
+          final={}
+          health={}
+          if bg.exists():
+              ls=bg.read_text().splitlines()
+              hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(bg)
+              if a.ndim==1:a=a[None,:]
+              def col(*opts):
+                  for q in opts:
+                      if q in names:return np.asarray(a[:,names.index(q)],float)
+                  return None
+              z=col("z"); D=col("kin (D)"); cs=col("c_s^2"); F=col("M*^2_smg")
+              ab=col("braiding_smg"); am=col("M2_running_smg")
+              final={
+                "ln_a":float(-np.log1p(z[-1])) if z is not None else None,
+                "D":float(D[-1]) if D is not None else None,
+                "cs2":float(cs[-1]) if cs is not None else None,
+                "F":float(F[-1]) if F is not None else None,
+              }
+              health={
+                "min_D":float(np.min(D)) if D is not None else None,
+                "min_cs2":float(np.min(cs)) if cs is not None else None,
+                "max_cs2":float(np.max(cs)) if cs is not None else None,
+                "max_abs_noslip":float(np.max(np.abs(ab+2*am))) if ab is not None and am is not None else None,
+              }
+
+          finite=True
+          for p in pfiles:
+              x=np.loadtxt(p)
+              finite=finite and bool(np.all(np.isfinite(x)))
+
+          out={
+            "status":"late300 native interior-endpoint point",
+            "branch":tag,"endpoint_ln_a":endpoint,"background_support_ln_a":support,
+            "background_rc":brc,"perturbation_rc":prc,
+            "background_exists":bg.exists(),
+            "perturbation_files":len(pfiles),"perturbations_all_finite":finite,
+            "shooting_failed_background":"Shooting failed" in blog,
+            "shooting_failed_perturbations":"Shooting failed" in plog,
+            "background_error_tail":errtail(blog),
+            "perturbation_error_tail":errtail(plog),
+            "final":final,"health":health
+          }
+          Path("output/convergence.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("CURRENT_LATE300_NATIVE_CONVERGENCE",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-interior-${{ matrix.branch.tag }}-n${{ matrix.point.target }}
+          path: |
+            output/convergence.json
+            output/bg.log
+            output/bg.rc
+            output/pert.log
+            output/pert.rc
+            output/bg_00_background.dat
+            output/pert_*perturbations_k*_s.dat
+            output/future_logstruct_tail_install.json
+          if-no-files-found: warn
