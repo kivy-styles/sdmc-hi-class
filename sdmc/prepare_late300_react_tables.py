@@ -58,9 +58,9 @@ def main():
     HA1=aa*E*dE
     out=Path("output/react_tables"); out.mkdir(parents=True,exist_ok=True)
     h=out/"late300_table.h"
-    text="""#pragma once
+    text=f"""#pragma once
 #include <cmath>
-static const int L300_N = 700;
+static const int L300_N = {len(aa)};
 """ + arr("L300_A",aa)+arr("L300_E",E)+arr("L300_HA1",HA1)+arr("L300_AK",ak)+arr("L300_AB",ab)+arr("L300_AM",am)+arr("L300_M2",m2)+arr("L300_GE",ge)+arr("L300_DAK",dak)+arr("L300_DAB",dab)+arr("L300_DAM",dam)+arr("L300_D2AK",d2ak)+arr("L300_D2AB",d2ab)+arr("L300_D2AM",d2am)+"""
 inline double l300_interp(double x,const double *y){
   if(x<=L300_A[0]) return y[0];
