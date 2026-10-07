@@ -1,0 +1,193 @@
+name: SDMC late300 action-basin domain extension
+
+on:
+  push:
+    branches: [sdmc-late300-action-basin-domain-extension]
+    paths:
+      - '.github/workflows/sdmc_late300_action_basin_domain_extension.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  domain-extension:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+
+      - name: Apply SDMC parameterized-model patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean
+          make -j2 class
+
+      - name: Recover canonical target and free-run inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp recovered/linear_cov_target.ini output/linear_cov_target.ini
+          cp recovered/linear_cov_free.ini output/linear_cov_free.ini
+          if [ -s recovered/linear_cov_free_00_background.dat ]; then
+            cp recovered/linear_cov_free_00_background.dat output/original_free_00_background.dat
+          fi
+          find recovered -maxdepth 2 -type f -print
+
+      - name: Extend only the target reconstruction domain to a=1e-10
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("output/linear_cov_target.ini")
+          s=p.read_text()
+          def setv(key,val):
+              global s
+              pat=rf"(?m)^\s*{re.escape(key)}\s*=.*$"
+              if re.search(pat,s):
+                  s=re.sub(pat,f"{key} = {val}",s)
+              else:
+                  s += f"\n{key} = {val}\n"
+          setv("a_ini_over_a_today_default","1.e-10")
+          setv("a_ini_test_qs_smg","1.e-10")
+          setv("a_min_stability_test_smg","1.e-10")
+          setv("pert_ic_ini_z_ref_smg","1.e9")
+          setv("root","output/linear_cov_target_")
+          p.write_text(s)
+          PY
+          ./class output/linear_cov_target.ini
+          test -s output/linear_cov_target_00_background.dat
+
+      - name: Reconstruct the accepted action on the extended field domain
+        run: |
+          python3 sdmc/run_late300_linear_covariant.py
+          cat output/linear_cov_reconstruction_summary.txt
+          python3 sdmc/run_late300_action_basin_audit.py patch
+          make clean
+          make -j2 class
+
+      - name: Prepare canonical-start free runs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          base=Path("output/linear_cov_free.ini").read_text()
+          def make(tag,dphi):
+              s=base
+              s=re.sub(r"(?m)^\s*parameters_smg\s*=.*$",f"parameters_smg = 0.0, {dphi:.17g}, 0.0",s)
+              s=re.sub(r"(?m)^\s*root\s*=.*$",f"root = output/extdom_{tag}_",s)
+              # Keep the actual free-evolution start at the canonical a=1e-8.
+              s=re.sub(r"(?m)^\s*a_ini_over_a_today_default\s*=.*$","a_ini_over_a_today_default = 1.e-8",s)
+              s=re.sub(r"(?m)^\s*a_ini_test_qs_smg\s*=.*$","a_ini_test_qs_smg = 1.e-8",s)
+              s=re.sub(r"(?m)^\s*a_min_stability_test_smg\s*=.*$","a_min_stability_test_smg = 1.e-8",s)
+              s="\n".join(line for line in s.splitlines() if not re.match(r"^\s*output\s*=",line))
+              s=re.sub(r"(?m)^\s*lensing\s*=.*$","lensing = no",s)
+              s=re.sub(r"(?m)^\s*write_thermodynamics\s*=.*$","write_thermodynamics = no",s)
+              Path(f"output/extdom_{tag}.ini").write_text(s+"\n")
+          make("base",0.0)
+          make("phi_m100",-1.0)
+          PY
+
+      - name: Free-evolve extended-domain action
+        run: |
+          set +e
+          ./class output/extdom_base.ini > output/extdom_base.log 2>&1
+          echo "$?" > output/extdom_base.rc
+          ./class output/extdom_phi_m100.ini > output/extdom_phi_m100.log 2>&1
+          echo "$?" > output/extdom_phi_m100.rc
+          set -e
+          echo "base rc=$(cat output/extdom_base.rc)"
+          echo "phi_m100 rc=$(cat output/extdom_phi_m100.rc)"
+          if [ "$(cat output/extdom_phi_m100.rc)" != "0" ]; then
+            cat output/extdom_phi_m100.log
+          fi
+
+      - name: Compare extended-domain replay
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,json,math
+          def read(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[x for x in lines if x.startswith("#") and re.search(r"1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(path)
+              return {n:a[:,i] for i,n in enumerate(names)}
+          out={
+            "status":"accepted-action reconstruction-domain extension audit",
+            "canonical_free_start_a":1e-8,
+            "extended_target_start_a":1e-10,
+            "canonical_initial_phi":math.log(1e-8),
+            "test_initial_phi":math.log(1e-8)-1.0,
+            "base_returncode":int(Path("output/extdom_base.rc").read_text()),
+            "phi_m100_returncode":int(Path("output/extdom_phi_m100.rc").read_text()),
+          }
+          target=read("output/linear_cov_target_00_background.dat")
+          out["extended_target_phi_min_proxy"]=float(np.min(-np.log1p(target["z"])))
+          if out["base_returncode"]==0 and out["phi_m100_returncode"]==0:
+              b=read("output/extdom_base_00_background.dat")
+              q=read("output/extdom_phi_m100_00_background.dat")
+              Nb=-np.log1p(b["z"]); Nq=-np.log1p(q["z"])
+              ob=np.argsort(Nb); oq=np.argsort(Nq)
+              Hb=np.interp(Nq[oq],Nb[ob],b["H [1/Mpc]"][ob])
+              Fb=np.interp(Nq[oq],Nb[ob],b["M*^2_smg"][ob])
+              z=q["z"][oq]; m=z<=100
+              out["phi_m100_recovery"]={
+                "max_abs_dH_H_z100":float(np.max(np.abs(q["H [1/Mpc]"][oq][m]/Hb[m]-1))),
+                "max_abs_dF_F_z100":float(np.max(np.abs(q["M*^2_smg"][oq][m]/Fb[m]-1))),
+                "min_D_z100":float(np.min(q["kin (D)"][oq][m])),
+                "min_cs2_z100":float(np.min(q["c_s^2"][oq][m])),
+                "max_cs2_z100":float(np.max(q["c_s^2"][oq][m])),
+              }
+          orig=Path("output/original_free_00_background.dat")
+          if orig.exists() and out["base_returncode"]==0:
+              o=read(orig); b=read("output/extdom_base_00_background.dat")
+              No=-np.log1p(o["z"]); Nb=-np.log1p(b["z"])
+              oo=np.argsort(No); ob=np.argsort(Nb)
+              H0=np.interp(Nb[ob],No[oo],o["H [1/Mpc]"][oo])
+              F0=np.interp(Nb[ob],No[oo],o["M*^2_smg"][oo])
+              m=b["z"][ob]<=100
+              out["extended_action_vs_original_action"]={
+                "max_abs_dH_H_z100":float(np.max(np.abs(b["H [1/Mpc]"][ob][m]/H0[m]-1))),
+                "max_abs_dF_F_z100":float(np.max(np.abs(b["M*^2_smg"][ob][m]/F0[m]-1))),
+              }
+          out["interpretation"]=(
+            "If phi_m100 succeeds after extending only the reconstruction support while the actual free-run start remains a=1e-8, "
+            "the original -1 field failure was a spline-domain extrapolation artifact rather than a demonstrated dynamical-basin boundary."
+          )
+          Path("output/late300_action_basin_domain_extension.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_ACTION_BASIN_DOMAIN_EXTENSION",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-action-basin-domain-extension
+          path: |
+            output/late300_action_basin_domain_extension.json
+            output/extdom_*.log
+            output/extdom_*.rc
+            output/linear_cov_reconstruction_summary.txt
+          if-no-files-found: warn
