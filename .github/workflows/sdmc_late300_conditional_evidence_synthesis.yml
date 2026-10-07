@@ -1,8 +1,8 @@
-name: SDMC late300 conditional evidence synthesis
+name: SDMC late300 conditional evidence robustness
 
 on:
   push:
-    branches: [sdmc-late300-conditional-evidence-synthesis]
+    branches: [sdmc-late300-conditional-evidence-robustness]
     paths:
       - 'sdmc/run_late300_conditional_evidence_synthesis.py'
       - '.github/workflows/sdmc_late300_conditional_evidence_synthesis.yml'
@@ -22,15 +22,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p inputs/planck inputs/hsc_late inputs/hsc_local
+          mkdir -p inputs/planck inputs/hsc_late inputs/hsc_local inputs/step_l_025 inputs/step_l_075 inputs/step_c_025 inputs/step_c_075
           gh run download 37637638799 --repo "${{ github.repository }}" --name planck-conditional-bayes-factor-highprecision --dir inputs/planck
           gh run download 37657120112 --repo "${{ github.repository }}" --name hsc-laplace-late300 --dir inputs/hsc_late
           gh run download 37657120112 --repo "${{ github.repository }}" --name hsc-laplace-local021 --dir inputs/hsc_local
+          gh run download 37657960728 --repo "${{ github.repository }}" --name hsc-laplace-late300-s0.025 --dir inputs/step_l_025
+          gh run download 37657960728 --repo "${{ github.repository }}" --name hsc-laplace-late300-s0.075 --dir inputs/step_l_075
+          gh run download 37657960728 --repo "${{ github.repository }}" --name hsc-laplace-local021-s0.025 --dir inputs/step_c_025
+          gh run download 37657960728 --repo "${{ github.repository }}" --name hsc-laplace-local021-s0.075 --dir inputs/step_c_075
       - name: Synthesize conditional evidence
         run: |
           python3 sdmc/run_late300_conditional_evidence_synthesis.py
           cat output/late300_conditional_evidence_synthesis.json
       - uses: actions/upload-artifact@v4
         with:
-          name: late300-conditional-evidence-synthesis
+          name: late300-conditional-evidence-robustness
           path: output/late300_conditional_evidence_synthesis.json
