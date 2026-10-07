@@ -1,0 +1,46 @@
+name: SDMC HSC-Y3 summary recovery
+on:
+  push:
+    branches: [sdmc-late300-hscy3-weyl]
+    paths:
+      - '.github/workflows/sdmc_late300_hscy3_summary_recovery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download completed HSC model artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/hsc_parts/late300 output/hsc_parts/local021
+          gh run download 37603559185 --repo "${{ github.repository }}" --name hsc-native-weyl-late300 --dir output/hsc_parts/late300
+          gh run download 37603559185 --repo "${{ github.repository }}" --name hsc-native-weyl-local021 --dir output/hsc_parts/local021
+          find output/hsc_parts -type f -maxdepth 5 -print
+      - name: Combine HSC fits
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('output/hsc_parts')
+          pa=next(root.rglob('hsc_weyl_result_late300.json'))
+          pb=next(root.rglob('hsc_weyl_result_local021.json'))
+          a=json.loads(pa.read_text()); b=json.loads(pb.read_text())
+          out=dict(a)
+          out['results'].update(b['results'])
+          out['delta_chi2_late300_minus_local021']=(
+              out['results']['late300']['chi2_total']-
+              out['results']['local021']['chi2_total']
+          )
+          dest=Path('output/hsc_summary'); dest.mkdir(parents=True,exist_ok=True)
+          (dest/'hsc_weyl_result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('HSC_WEYL_COMBINED',json.dumps(out,sort_keys=True))
+          PY
+          cat output/hsc_summary/hsc_weyl_result.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-hscy3-native-weyl-combined-recovered
+          path: output/hsc_summary/hsc_weyl_result.json
