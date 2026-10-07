@@ -44,6 +44,22 @@ jobs:
           SO="$(find output/cosebi_build -name 'cl_to_cosebis_interface.so' | head -1)"
           test -n "$SO"
           cp "$SO" cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+      - name: Configure CosmoSIS runtime libraries
+        run: |
+          python3 - <<'PY'
+          import cosmosis, pathlib
+          root=pathlib.Path(cosmosis.__file__).resolve().parent
+          libs=list(root.rglob("libcosmosis.so"))
+          print("COSMOSIS_ROOT",root)
+          print("LIBCOSMOSIS",libs)
+          if not libs:
+              raise SystemExit("libcosmosis.so not found")
+          with open("/tmp/cosmosis_libdir.txt","w") as f:
+              f.write(str(libs[0].parent))
+          PY
+          echo "COSMOSIS_LIBDIR=$(cat /tmp/cosmosis_libdir.txt)" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$(cat /tmp/cosmosis_libdir.txt):${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+
       - name: Generate CosmoSIS configs
         run: |
           cat > output/kids_values.ini <<'EOF'
@@ -100,11 +116,17 @@ jobs:
           EOF
           done
       - name: Run late300 KiDS likelihood
+        shell: bash
         run: |
-          cosmosis output/kids_late300.ini | tee output/kids_late300.log
+          set -euo pipefail
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          cosmosis output/kids_late300.ini 2>&1 | tee output/kids_late300.log
       - name: Run local021 KiDS likelihood
+        shell: bash
         run: |
-          cosmosis output/kids_local021.ini | tee output/kids_local021.log
+          set -euo pipefail
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          cosmosis output/kids_local021.ini 2>&1 | tee output/kids_local021.log
       - name: Extract KiDS chi-square comparison
         run: |
           python3 - <<'PY'
