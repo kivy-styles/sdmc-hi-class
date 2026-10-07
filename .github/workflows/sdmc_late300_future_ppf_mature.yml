@@ -1,8 +1,8 @@
-name: SDMC late300 PPF mature-future native audit
+name: SDMC late300 future-only fld isolation native audit
 
 on:
   push:
-    branches: [sdmc-late300-future-ppf-mature]
+    branches: [sdmc-late300-future-fld-decouple]
     paths:
       - '.github/workflows/sdmc_late300_future_ppf_mature.yml'
   workflow_dispatch:
@@ -73,6 +73,7 @@ jobs:
       - name: Install rebased canonical tail
         run: |
           python3 sdmc/install_current_late300_future_logstruct_tail.py             --candidate "${{ matrix.branch.candidate }}"             --psi-max 12             --future-points 2200
+          python3 sdmc/patch_future_aux_fld_decouple.py
           make clean >/dev/null
           make -j2 class >/dev/null
 
@@ -93,7 +94,7 @@ jobs:
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
           cs2_fld = 0.003
-          use_ppf = yes
+          use_ppf = no
           Omega_smg = -1
           gravity_model = sdmc_v3_covariant_logstruct_audit
           parameters_smg = 0.0, 0.0, 0.0
@@ -196,7 +197,7 @@ jobs:
               finite=finite and bool(np.all(np.isfinite(x)))
 
           out={
-            "status":"late300 PPF mature-future native point",
+            "status":"late300 future-only fld isolation native point",
             "branch":tag,"endpoint_ln_a":endpoint,"background_support_ln_a":support,
             "background_rc":brc,"perturbation_rc":prc,
             "background_exists":bg.exists(),
@@ -214,7 +215,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: mature-ppf-${{ matrix.branch.tag }}-n${{ matrix.point.target }}
+          name: future-fld-isolation-${{ matrix.branch.tag }}-n${{ matrix.point.target }}
           path: |
             output/convergence.json
             output/bg.log
