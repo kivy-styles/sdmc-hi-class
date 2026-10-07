@@ -1,0 +1,43 @@
+name: SDMC current late300 C3 root replay
+
+on:
+  push:
+    branches: [sdmc-late300-c3-root-replay]
+    paths:
+      - 'sdmc/run_current_late300_c3_root_replay.py'
+      - '.github/workflows/sdmc_current_late300_c3_root_replay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  root-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+      - name: Recover current accepted-action audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/current_action
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir inputs/current_action
+          find inputs/current_action -maxdepth 3 -type f -print
+          test -n "$(find inputs/current_action -name linear_cov_target.ini -print -quit)"
+          test -n "$(find inputs/current_action -name linear_cov_free_00_background.dat -print -quit)"
+      - name: Replay historical C3 equation on current late300
+        run: |
+          python3 sdmc/run_current_late300_c3_root_replay.py
+          cat output/current_c3_root_replay/current_late300_c3_root_replay.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: current-late300-c3-root-replay
+          path: output/current_c3_root_replay/current_late300_c3_root_replay.json
+          if-no-files-found: warn
