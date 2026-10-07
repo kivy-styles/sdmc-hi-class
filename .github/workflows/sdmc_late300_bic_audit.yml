@@ -1,0 +1,23 @@
+name: SDMC late300 BIC and asymptotic Bayes-factor audit
+
+on:
+  push:
+    branches: [sdmc-late300-model-selection-bic-bayes]
+    paths:
+      - 'sdmc/run_late300_bic_audit.py'
+      - '.github/workflows/sdmc_late300_bic_audit.yml'
+  workflow_dispatch:
+
+jobs:
+  bic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run BIC sensitivity audit
+        run: |
+          python3 sdmc/run_late300_bic_audit.py
+          cat output/late300_model_selection_bic/late300_BIC_summary.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-late300-bic-audit
+          path: output/late300_model_selection_bic/*
