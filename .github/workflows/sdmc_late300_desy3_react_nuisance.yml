@@ -1,0 +1,62 @@
+name: SDMC late300 DES-Y3 full-nuisance corrected ReACT audit
+on:
+  push:
+    branches: [sdmc-late300-react-exact]
+    paths:
+      - 'sdmc/run_late300_desy3_react_nuisance.py'
+      - '.github/workflows/sdmc_late300_desy3_react_nuisance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  nuisance:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [linear, us_native, ss_native, us_screen03, ss_screen03, us_fullscreen, ss_fullscreen]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+      - name: Recover exact linear Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}"             --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+      - name: Recover corrected ReACT nonlinear bracket
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/react_dense
+          gh run download 37604828408 --repo "${{ github.repository }}"             --name late300-react-exact-bracket --dir output/react_dense
+          test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
+      - name: Download public DES-Y3 data
+        run: |
+          rm -rf des_y3_data
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git
+          cd des_y3_data && git lfs pull || true
+          cd ..
+          test -s des_y3_data/likelihood/des-y3/2pt_NG_final_2ptunblind_02_24_21_wnz_covupdate.v2.fits
+      - name: Run full nuisance ReACT DES-Y3 audit
+        run: |
+          python3 sdmc/run_late300_desy3_react_nuisance.py "${{ matrix.variant }}" | tee "output/desy3_react_nuisance_${{ matrix.variant }}.log"
+          cat "output/desy3_react_nuisance/desy3_react_nuisance_${{ matrix.variant }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desy3-react-nuisance-${{ matrix.variant }}
+          path: |
+            output/desy3_react_nuisance/*
+            output/desy3_react_nuisance_${{ matrix.variant }}.log
+          if-no-files-found: warn
