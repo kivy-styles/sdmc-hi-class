@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import sys
 import importlib.util, json, numpy as np
 from scipy.interpolate import interp1d
 from scipy.integrate import cumulative_trapezoid
@@ -161,6 +162,15 @@ class HSCNativeWeyl:
                     psf_u=p[10:14].tolist(),nfev=int(best.nfev),nit=int(best.nit))
 
 def main():
+    requested=sys.argv[1] if len(sys.argv)>1 else "both"
+    model_map={"late300":late,"local021":lcdm}
+    if requested=="both":
+        models=[late,lcdm]
+    elif requested in model_map:
+        models=[model_map[requested]]
+    else:
+        raise SystemExit(f"unknown model {requested}")
+
     out={"status":"HSC-Y3 native-Weyl bandpower NLA-z nuisance pilot",
          "ndata":len(DATA),"hartlap_cov_factor":float(HARTLAP),
          "ell_nominal_min":float(min(p["ell"] for p in POINTS)),
@@ -169,12 +179,18 @@ def main():
                    "m_sigma":.01,"A1_bounds":[-6,6],"alpha1_bounds":[-6,6],"psf_u_sigma":1.0},
          "missing":["full TATT A2/alpha2/bias_ta sector","validated nonlinear modified-gravity/baryonic prescription"]}
     out["results"]={}
-    for m in [late,lcdm]:
+    for m in models:
         print("HSC_WEYL_FIT_START",m["name"],flush=True)
         out["results"][m["name"]]=HSCNativeWeyl(m).fit()
         print("HSC_WEYL_FIT_DONE",m["name"],json.dumps(out["results"][m["name"]],sort_keys=True),flush=True)
-    out["delta_chi2_late300_minus_local021"]=out["results"]["late300"]["chi2_total"]-out["results"]["local021"]["chi2_total"]
+
+    if len(models)==2:
+        out["delta_chi2_late300_minus_local021"]=out["results"]["late300"]["chi2_total"]-out["results"]["local021"]["chi2_total"]
+        outfile=OUT/"hsc_weyl_result.json"
+    else:
+        outfile=OUT/f"hsc_weyl_result_{models[0]['name']}.json"
+
     print("HSC_WEYL_RESULT",json.dumps(out,sort_keys=True),flush=True)
-    (OUT/"hsc_weyl_result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+    outfile.write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 
 if __name__=="__main__": main()
