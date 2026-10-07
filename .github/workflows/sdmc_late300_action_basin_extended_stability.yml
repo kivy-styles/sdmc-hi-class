@@ -1,0 +1,155 @@
+name: SDMC late300 extended-domain basin stability
+
+on:
+  push:
+    branches: [sdmc-late300-action-basin-extended-stability]
+    paths:
+      - '.github/workflows/sdmc_late300_action_basin_extended_stability.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies and SDMC patches
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+      - name: Recover canonical inputs and extend target support
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp recovered/linear_cov_target.ini output/linear_cov_target.ini
+          cp recovered/linear_cov_free.ini output/linear_cov_free.ini
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("output/linear_cov_target.ini"); s=p.read_text()
+          for k,v in {
+            "a_ini_over_a_today_default":"1.e-10",
+            "a_ini_test_qs_smg":"1.e-10",
+            "a_min_stability_test_smg":"1.e-10",
+            "pert_ic_ini_z_ref_smg":"1.e9",
+            "root":"output/linear_cov_target_",
+          }.items():
+              pat=rf"(?m)^\s*{re.escape(k)}\s*=.*$"
+              s=re.sub(pat,f"{k} = {v}",s) if re.search(pat,s) else s+f"\n{k} = {v}\n"
+          p.write_text(s)
+          PY
+          ./class output/linear_cov_target.ini
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 sdmc/run_late300_action_basin_audit.py patch
+          make clean && make -j2 class
+      - name: Prepare extended-domain negative-field scan
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          base=Path("output/linear_cov_free.ini").read_text()
+          vals=[-0.40,-0.45,-0.50,-0.55,-0.60,-0.65,-0.70,-0.75,-0.80,-0.85,-0.90,-0.95,-1.00]
+          for x in vals:
+              tag="m%04d"%round(abs(x)*1000)
+              s=re.sub(r"(?m)^\s*parameters_smg\s*=.*$",f"parameters_smg = 0.0, {x:.17g}, 0.0",base)
+              s=re.sub(r"(?m)^\s*root\s*=.*$",f"root = output/extstab_{tag}_",s)
+              for k,v in {
+                "a_ini_over_a_today_default":"1.e-8",
+                "a_ini_test_qs_smg":"1.e-8",
+                "a_min_stability_test_smg":"1.e-8",
+              }.items():
+                  s=re.sub(rf"(?m)^\s*{k}\s*=.*$",f"{k} = {v}",s)
+              s="\n".join(line for line in s.splitlines() if not re.match(r"^\s*output\s*=",line))
+              s=re.sub(r"(?m)^\s*lensing\s*=.*$","lensing = no",s)
+              s=re.sub(r"(?m)^\s*write_thermodynamics\s*=.*$","write_thermodynamics = no",s)
+              Path(f"output/extstab_{tag}.ini").write_text(s+"\n")
+          PY
+      - name: Run extended-domain stability scan
+        run: |
+          set +e
+          for ini in output/extstab_*.ini; do
+            tag=$(basename "$ini" .ini)
+            ./class "$ini" > "output/${tag}.log" 2>&1
+            rc=$?
+            echo "$rc" > "output/${tag}.rc"
+            echo "EXTSTAB_RUN ${tag} rc=${rc}"
+          done
+          set -e
+      - name: Summarize physical stability boundary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,numpy as np
+          rows=[]
+          for rc in sorted(Path("output").glob("extstab_*.rc")):
+              tag=rc.stem; code=int(rc.read_text())
+              x=-int(re.search(r"m(\d+)",tag).group(1))/1000
+              log=(Path("output")/f"{tag}.log").read_text(errors="replace")
+              row={"tag":tag,"delta_phi":x,"returncode":code,"success":code==0}
+              if code:
+                  m=re.search(r"minimum c_s\^2=([+\-0-9.eE]+) at a=([+\-0-9.eE]+)",log)
+                  if m:
+                      row["failure_kind"]="gradient_instability"
+                      row["min_cs2_reported"]=float(m.group(1))
+                      row["a_at_min_cs2"]=float(m.group(2))
+                  elif "Step size too small" in log:
+                      row["failure_kind"]="integrator_step_floor"
+                  elif "isnan(H)" in log:
+                      row["failure_kind"]="initial_nan_H"
+                  else:
+                      row["failure_kind"]="other"
+                  row["failure_tail"]="\n".join(log.splitlines()[-15:])
+              else:
+                  p=Path("output")/f"{tag}_00_background.dat"
+                  lines=p.read_text().splitlines()
+                  hdr=[l for l in lines if l.startswith("#") and re.search(r"1\s*:",l)][-1].lstrip("#").strip()
+                  ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+                  for i,m in enumerate(ms):
+                      e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                      names.append(hdr[m.end():e].strip())
+                  a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
+                  z=d["z"]; mask=z<=100
+                  row.update({
+                    "min_D_z100":float(np.min(d["kin (D)"][mask])),
+                    "min_cs2_z100":float(np.min(d["c_s^2"][mask])),
+                    "max_cs2_z100":float(np.max(d["c_s^2"][mask])),
+                    "max_abs_noslip_z100":float(np.max(np.abs(d["braiding_smg"][mask]+2*d["M2_running_smg"][mask]))),
+                  })
+              rows.append(row)
+          good=[r["delta_phi"] for r in rows if r["success"]]
+          bad=[r["delta_phi"] for r in rows if not r["success"]]
+          out={"status":"extended-domain accepted-action negative-field stability scan",
+               "most_negative_success":min(good) if good else None,
+               "least_negative_failure":max(bad) if bad else None,
+               "rows":rows}
+          Path("output/late300_action_basin_extended_stability.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_ACTION_BASIN_EXTENDED_STABILITY",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-action-basin-extended-stability
+          path: |
+            output/late300_action_basin_extended_stability.json
+            output/extstab_*.rc
+            output/extstab_*.log
+          if-no-files-found: warn
