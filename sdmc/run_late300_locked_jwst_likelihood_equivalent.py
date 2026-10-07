@@ -5,8 +5,7 @@ late300 accepted-action.
 
 This is deliberately not an exact catalogue-level JWST MCMC. It propagates the
 already-audited standalone FRESCO efficiency-vs-collapse-amplification curve
-onto the exact late300 accepted-action linear spectrum. The exact old-D044 and new-A034
-P(k) files are used to correct for the small primordial-amplitude/tilt change.
+onto the exact late300 accepted-action linear spectrum. The exact historical late300 and accepted-action late300 P(k) files are used to measure the effect of locking the theory itself.
 
 The nonlinear UV coefficient g3 is kept independent of the linear hi_class
 sector. That is essential: the candidate local mapper operator is constructed
@@ -21,7 +20,7 @@ ROOT=Path("inputs")
 OUT=Path("output/late300_locked_jwst")
 OUT.mkdir(parents=True,exist_ok=True)
 
-old=np.loadtxt(ROOT/"s117/desi_cov_00_z1_pk.dat")
+old=np.loadtxt(ROOT/"late300_param/desi_cov_00_z1_pk.dat")
 new=np.loadtxt(ROOT/"late300_action/linear_cov_free_00_z1_pk.dat")
 kold,pold=old[:,0],old[:,1]
 knew,pnew=new[:,0],new[:,1]
@@ -46,15 +45,15 @@ E68=np.array([0.790,0.575,0.465,0.415,0.310,0.270,0.210])
 def eps_for(g3):
     q=QREF*g3/GREF
     am=1+3*q
-    # Because sigma is slightly lower for A034, the rare-tail quantity depends
-    # approximately on A_M * sigma_new/sigma_old.
+    # Locking the accepted action changes the linear spectrum only minutely, so
+    # the rare-tail diagnostic depends approximately on A_M * sigma_action/sigma_parameterized.
     aeff=am*r_sigma
     e95=float(np.interp(aeff,AMGRID,E95,left=E95[0],right=E95[-1]))
     e68=float(np.interp(aeff,AMGRID,E68,left=E68[0],right=E68[-1]))
     return dict(g3=float(g3),Qeff=float(q),A_M=float(am),A_eff_with_linear_spectrum=float(aeff),
                 epsilon95_equiv=e95,epsilon68_equiv=e68)
 
-# Solve g3 required to restore the old A_eff thresholds after the A034 spectrum shift.
+# Solve g3 required to restore the same A_eff thresholds after the action-locking spectrum shift.
 def g_for_target_aeff(target):
     am=target/r_sigma
     q=(am-1)/3
