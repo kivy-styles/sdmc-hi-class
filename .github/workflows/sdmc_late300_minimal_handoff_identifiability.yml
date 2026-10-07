@@ -1,0 +1,29 @@
+name: SDMC late300 minimal handoff identifiability
+
+on:
+  push:
+    branches: [sdmc-late300-minimal-handoff-identifiability]
+    paths:
+      - 'sdmc/run_minimal_handoff_identifiability.py'
+      - '.github/workflows/sdmc_late300_minimal_handoff_identifiability.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Test shifted mature-branch embedding
+        run: |
+          python3 sdmc/run_minimal_handoff_identifiability.py
+          cat output/minimal_handoff_identifiability/minimal_handoff_identifiability.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minimal-handoff-identifiability
+          path: output/minimal_handoff_identifiability/minimal_handoff_identifiability.json
