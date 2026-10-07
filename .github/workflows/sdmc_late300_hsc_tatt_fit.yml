@@ -1,0 +1,62 @@
+name: SDMC HSC corrected ReACT full TATT fit
+
+on:
+  push:
+    branches: [sdmc-late300-hsc-tatt-closure]
+    paths:
+      - '.github/workflows/sdmc_late300_hsc_tatt_fit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  tatt-fit:
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [late300, local021]
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy sacc
+          python3 -m pip install "git+https://github.com/joezuntz/FAST-PT/"
+      - name: Recover exact linear Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+      - name: Recover corrected ReACT bracket
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/react_dense
+          gh run download 37604828408 --repo "${{ github.repository }}" --name late300-react-exact-bracket --dir output/react_dense
+          test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
+      - name: Download HSC-Y3 public products
+        run: |
+          rm -rf cosmosis-standard-library
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+      - name: Fit full TATT nuisance sector
+        run: |
+          python3 sdmc/run_late300_hsc_tatt_react.py fit "${{ matrix.model }}" us_native | tee "output/hsc_tatt_fit_${{ matrix.model }}.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hsc-tatt-fit-${{ matrix.model }}-us_native
+          path: |
+            output/hsc_tatt/*
+            output/hsc_tatt_fit_${{ matrix.model }}.log
+          if-no-files-found: warn
