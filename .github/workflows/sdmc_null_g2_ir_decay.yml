@@ -1,0 +1,29 @@
+name: SDMC null-G2 infrared decay audit
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-ir-decay]
+    paths:
+      - 'sdmc/run_null_g2_ir_decay.py'
+      - '.github/workflows/sdmc_null_g2_ir_decay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install symbolic dependency
+        run: python3 -m pip install sympy
+      - name: Audit mature structural-clock decay
+        run: |
+          python3 sdmc/run_null_g2_ir_decay.py
+          cat output/null_g2_ir_decay/null_g2_ir_decay.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: null-g2-ir-decay
+          path: output/null_g2_ir_decay/null_g2_ir_decay.json
