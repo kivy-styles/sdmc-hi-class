@@ -34,12 +34,12 @@ jobs:
           import sacc, numpy as np, json
           fp='cosmosis-standard-library/likelihood/hsc_cosmic_shear/hsc_y3_real.fits'
           with fits.open(fp) as f:
-              print('HSC_FITS_HDUS',[(h.name, None if h.data is None else len(h.data), list(h.columns.names) if hasattr(h,'columns') else None) for h in f])
+              print('HSC_FITS_HDUS',[(h.name, None if h.data is None else getattr(h.data,'shape',len(h.data) if hasattr(h.data,'__len__') else None), list(h.columns.names) if hasattr(h,'columns') and h.columns is not None else None) for h in f])
               for name in ['XI_PLUS','XI_MINUS','xip','xim','COVMAT']:
                   if name in f:
                       h=f[name]
                       print('HSC_HDU',name,'shape',getattr(h.data,'shape',None),'cols',getattr(h.columns,'names',None))
-                      if getattr(h,'columns',None) is not None:
+                      if hasattr(h,'columns') and h.columns is not None:
                           print('HSC_FIRST',name,repr(h.data[:3]))
           sp='cosmosis-standard-library/likelihood/hsc_cosmic_shear/hsc_y3_fourier_shear.sacc'
           S=sacc.Sacc.load_fits(sp)
