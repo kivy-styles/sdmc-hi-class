@@ -1,8 +1,8 @@
-name: SDMC late300 instability-ridge phase survey
+name: SDMC late300 instability-ridge crossing diagnostic
 
 on:
   push:
-    branches: [sdmc-late300-action-basin-instability-ridge]
+    branches: [sdmc-late300-action-ridge-crossing]
     paths:
       - '.github/workflows/sdmc_late300_action_basin_phase_map.yml'
   workflow_dispatch:
@@ -67,14 +67,15 @@ jobs:
           from pathlib import Path
           import re,json
           base=Path("output/linear_cov_free.ini").read_text()
-          dphis=[-0.75,-0.65,-0.50,-0.25,0.0]
-          dvs=[0.0,0.30,0.40,0.50,0.60,0.80,1.00,1.20,1.50,1.80,2.00,2.20]
+          dphis=[-0.75,-0.50,0.0]
+          dvs=[0.0,0.50,0.60,1.00,1.20,1.50,1.80,2.00]
           rows=[]
           for i,dp in enumerate(dphis):
             for j,dv in enumerate(dvs):
               tag=f"p{i}_v{j}"
               s=re.sub(r"(?m)^\s*parameters_smg\s*=.*$",f"parameters_smg = 0.0, {dp:.17g}, {dv:.17g}",base)
               s=re.sub(r"(?m)^\s*root\s*=.*$",f"root = output/phase_{tag}_",s)
+              s += "\nskip_stability_tests_smg = yes\n"
               for k in ["a_ini_over_a_today_default","a_ini_test_qs_smg","a_min_stability_test_smg"]:
                   s=re.sub(rf"(?m)^\s*{k}\s*=.*$",f"{k} = 1.e-8",s)
               s="\n".join(line for line in s.splitlines() if not re.match(r"^\s*output\s*=",line))
@@ -108,7 +109,7 @@ jobs:
               for i,m in enumerate(ms):
                   e=ms[i+1].start() if i+1<len(ms) else len(h); ns.append(h[m.end():e].strip())
               a=np.loadtxt(p); return {n:a[:,i] for i,n in enumerate(ns)}
-          base=read_bg("output/phase_p4_v0_00_background.dat")
+          base=read_bg("output/phase_p2_v0_00_background.dat")
           Nb=-np.log1p(base["z"]); ob=np.argsort(Nb)
           rows=[]
           for tag,p in pts.items():
@@ -120,13 +121,27 @@ jobs:
                   z=d["z"][o]; m=z<=100
                   H0=np.interp(N[o],Nb[ob],base["H [1/Mpc]"][ob])
                   F0=np.interp(N[o],Nb[ob],base["M*^2_smg"][ob])
+                  cs=d["c_s^2"][o]
+                  iz=np.where(m)[0][int(np.argmin(cs[m]))]
+                  aa=1.0/(1.0+z[iz])
+                  phip=d["phi'"][o][iz]
+                  HH=d["H [1/Mpc]"][o][iz]
                   r.update({
                     "max_abs_dH_H_z100":float(np.max(np.abs(d["H [1/Mpc]"][o][m]/H0[m]-1))),
                     "max_abs_dF_F_z100":float(np.max(np.abs(d["M*^2_smg"][o][m]/F0[m]-1))),
                     "min_D_z100":float(np.min(d["kin (D)"][o][m])),
-                    "min_cs2_z100":float(np.min(d["c_s^2"][o][m])),
-                    "max_cs2_z100":float(np.max(d["c_s^2"][o][m])),
+                    "min_cs2_z100":float(np.min(cs[m])),
+                    "max_cs2_z100":float(np.max(cs[m])),
                     "max_abs_noslip_z100":float(np.max(np.abs(d["braiding_smg"][o][m]+2*d["M2_running_smg"][o][m]))),
+                    "cs2_min_state":{
+                      "a":float(aa),"z":float(z[iz]),"phi":float(d["phi_smg"][o][iz]),
+                      "phi_prime":float(phip),"dphi_dN":float(phip/(aa*HH)),
+                      "X":float(0.5*(phip/aa)**2),"H":float(HH),
+                      "D":float(d["kin (D)"][o][iz]),"cs2num":float(d["cs2num"][o][iz]),
+                      "braiding":float(d["braiding_smg"][o][iz]),
+                      "alphaM":float(d["M2_running_smg"][o][iz]),
+                      "M2":float(d["M*^2_smg"][o][iz])
+                    }
                   })
                   r["recovery_gate"]=bool(r["min_D_z100"]>0 and r["min_cs2_z100"]>0 and r["max_cs2_z100"]<=1.0+1e-8
                                            and r["max_abs_dH_H_z100"]<1e-2 and r["max_abs_dF_F_z100"]<1e-2)
@@ -142,7 +157,7 @@ jobs:
                   else: r["failure_kind"]="other"
               rows.append(r)
           out={
-            "status":"accepted-action instability-ridge phase survey",
+            "status":"accepted-action instability-ridge crossing diagnostic with stability abort disabled",
             "definition":{"delta_phi":"additive initial field shift","delta_velocity_fraction":"fractional shift of initial phi_prime=aH",
                           "action_retuned":False,"ordinary_cosmology_changed":False,"action_reconstruction_start_a":1e-10,"free_run_start_a":1e-8},
             "n_total":len(rows),"n_success":sum(r["success"] for r in rows),
