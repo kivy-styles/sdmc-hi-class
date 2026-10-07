@@ -203,4 +203,10 @@ jobs:
             output/late300_nl.log
             output/local021_nl.log
             output/linear_cov_reconstruction_summary.txt
+            output/zgrid.txt
+            output/weyl_spectra/*
+            output/late300_weyl.ini
+            output/late300_nl.ini
+            output/local021_weyl.ini
+            output/local021_nl.ini
           if-no-files-found: warn
