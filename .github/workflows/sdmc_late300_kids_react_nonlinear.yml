@@ -33,10 +33,10 @@ jobs:
 
       - name: Recover official COSEBI transformer
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p output/cosebi_build
-          gh run download 37591919747 --repo "\${{ github.repository }}" \
+          gh run download 37591919747 --repo "${{ github.repository }}" \
             --name late300-kids-cosebi-build --dir output/cosebi_build
           SO="$(find output/cosebi_build -name 'cl_to_cosebis_interface.so' | head -1)"
           test -n "$SO"
@@ -44,19 +44,19 @@ jobs:
 
       - name: Recover exact linear Weyl spectra
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p output
-          gh run download 37587199009 --repo "\${{ github.repository }}" \
+          gh run download 37587199009 --repo "${{ github.repository }}" \
             --name late300-desy3-native-weyl-tomography --dir output
           test -d output/weyl_spectra
 
       - name: Recover validated dense ReACT nonlinear bracket
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p output/react_dense
-          gh run download 37602521647 --repo "\${{ github.repository }}" \
+          gh run download 37602521647 --repo "${{ github.repository }}" \
             --name late300-react-exact-bracket --dir output/react_dense
           test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
           cat output/react_dense/react_late300/summary.json
@@ -116,12 +116,12 @@ jobs:
                   print(q); break
           PY
           )"
-          export LD_LIBRARY_PATH="$COSMOSIS_SRC_DIR/datablock:\${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$COSMOSIS_SRC_DIR/datablock:${LD_LIBRARY_PATH:-}"
           for v in linear us_native ss_native us_screen03 ss_screen03 us_fullscreen ss_fullscreen; do
             for m in late300 local021; do
               for c in gg gi ii; do
-                echo "TRANSFORM \$m \$v \$c"
-                python3 output/kids_react/run_vec.py "\${m}_\${v}_\${c}"
+                echo "TRANSFORM $m $v $c"
+                python3 output/kids_react/run_vec.py "${m}_${v}_${c}"
               done
             done
           done
