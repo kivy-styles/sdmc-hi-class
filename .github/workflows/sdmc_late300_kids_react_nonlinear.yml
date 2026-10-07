@@ -56,7 +56,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p output/react_dense
-          gh run download 37602521647 --repo "${{ github.repository }}" \
+          gh run download 37604828408 --repo "${{ github.repository }}" \
             --name late300-react-exact-bracket --dir output/react_dense
           test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
           cat output/react_dense/react_late300/summary.json
