@@ -177,10 +177,13 @@ jobs:
           Nb=-np.log1p(base["z"]); ob=np.argsort(Nb)
           hdrtxt=Path("gravity_smg/sdmc_late300_linear_covariant_table.h").read_text()
           def cdefine(name):
-              return float(re.search(rf"#define {name} ([^\\n]+)",hdrtxt).group(1))
+              pref=f"#define {name} "
+              line=[x for x in hdrtxt.splitlines() if x.startswith(pref)][0]
+              return float(line[len(pref):].strip())
           def carr(name):
-              m=re.search(rf"static const double sdmc_lin_{name}\\[[^]]+\\] = \\{{([^}}]+)\\}};",hdrtxt,re.S)
-              return np.array([float(x) for x in m.group(1).split(",")],float)
+              pref=f"static const double sdmc_lin_{name}"
+              i=hdrtxt.index(pref); i=hdrtxt.index("{",i)+1; j=hdrtxt.index("};",i)
+              return np.fromstring(hdrtxt[i:j],sep=",")
           sx=carr("x"); cg=carr("g"); ck1=carr("k1"); ck2=carr("k2")
           AF=cdefine("SDMC_LIN_AF"); ZC=cdefine("SDMC_LIN_ZC"); WIDTH=cdefine("SDMC_LIN_WIDTH")
           def seval(c,x):
