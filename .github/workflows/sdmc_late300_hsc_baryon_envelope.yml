@@ -1,0 +1,68 @@
+name: SDMC HSC corrected ReACT baryon envelope
+
+on:
+  push:
+    branches: [sdmc-late300-hsc-baryon-envelope]
+    paths:
+      - 'sdmc/run_late300_hsc_baryon_envelope.py'
+      - '.github/workflows/sdmc_late300_hsc_baryon_envelope.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  envelope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy sacc
+      - name: Recover exact linear Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+      - name: Recover corrected ReACT bracket
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/react_dense
+          gh run download 37604828408 --repo "${{ github.repository }}" --name late300-react-exact-bracket --dir output/react_dense
+          test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
+      - name: Recover converged us_native nuisance fits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/hsc_baryon_best/late300 output/hsc_baryon_best/local021
+          gh run download 37631035746 --repo "${{ github.repository }}" --name hsc-react-full-late300-us_native-retry --dir output/hsc_baryon_best/late300
+          gh run download 37615217739 --repo "${{ github.repository }}" --name hsc-react-full-local021-us_native --dir output/hsc_baryon_best/local021
+          find output/hsc_baryon_best -type f -maxdepth 4 -print
+      - name: Download HSC and public baryonic-ratio products
+        run: |
+          rm -rf cosmosis-standard-library
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+          test -s cosmosis-standard-library/structure/baryon_power_scaling/data/logPkRatio_owls_AGN.dat
+      - name: Run baryonic factorization envelope
+        run: |
+          python3 sdmc/run_late300_hsc_baryon_envelope.py | tee output/hsc_baryon_envelope.log
+          cat output/hsc_baryon_envelope/hsc_baryon_envelope.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hsc-baryon-envelope
+          path: |
+            output/hsc_baryon_envelope/*
+            output/hsc_baryon_envelope.log
+          if-no-files-found: warn
