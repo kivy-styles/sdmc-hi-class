@@ -132,16 +132,18 @@ jobs:
               return out
 
           pairs={}
-          for suffix in ["cl.dat","cl_lensed.dat","pk.dat"]:
-              a=Path("output")/f"std_{suffix}"
-              b=Path("output")/f"ppf_{suffix}"
-              if a.exists() and b.exists():
-                  pairs[suffix]=compare(a,b)
+          std_files=sorted([p for p in Path("output").glob("std_*.dat") if ("cl" in p.name or "pk" in p.name)])
+          for a in std_files:
+              b=Path("output")/a.name.replace("std_","ppf_",1)
+              if b.exists():
+                  pairs[a.name.replace("std_","",1)]=compare(a,b)
+          generated={"standard":[p.name for p in sorted(Path("output").glob("std_*.dat"))],
+                     "ppf":[p.name for p in sorted(Path("output").glob("ppf_*.dat"))]}
 
           out={"status":"present-observable PPF equivalence audit",
                "same_background_action_cosmology":True,
                "only_difference":"use_ppf no versus yes for auxiliary fld perturbations",
-               "pairs":pairs}
+               "pairs":pairs,"generated_files":generated}
           Path("output/ppf_observable_equivalence.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
           print("PPF_OBSERVABLE_EQUIVALENCE",json.dumps(out,sort_keys=True))
           PY
