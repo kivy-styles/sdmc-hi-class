@@ -1,0 +1,37 @@
+name: SDMC accepted-action coasting crossing audit
+
+on:
+  push:
+    branches: [sdmc-late300-accepted-action-coasting-crossing]
+    paths:
+      - 'sdmc/run_accepted_action_coasting_crossing.py'
+      - '.github/workflows/sdmc_accepted_action_coasting_crossing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Recover accepted-action free background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p input_action
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir input_action
+          test -s input_action/linear_cov_free_00_background.dat
+      - name: Locate coasting crossing and inspect action state
+        run: |
+          python3 sdmc/run_accepted_action_coasting_crossing.py
+          cat output/accepted_action_coasting_crossing.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: accepted-action-coasting-crossing
+          path: output/accepted_action_coasting_crossing.json
