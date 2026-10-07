@@ -5,7 +5,8 @@ from scipy.optimize import minimize
 from scipy.special import jv
 
 S=importlib.util.spec_from_file_location("b","sdmc/run_late300_desy3_weyl_tomography.py")
-b=importlib.util.module_from_spec(S); S.loader.exec_module(b)\nb.ELL=np.geomspace(2.0,1.0e4,300)
+b=importlib.util.module_from_spec(S); S.loader.exec_module(b)
+b.ELL=np.geomspace(2.0,1.0e4,300)
 
 DATA=Path("des_y3_data/likelihood/des-y3/2pt_NG_final_2ptunblind_02_24_21_wnz_covupdate.v2.fits")
 CUTS=Path("des_y3_data/examples/des-y3-scale-cuts.ini")
