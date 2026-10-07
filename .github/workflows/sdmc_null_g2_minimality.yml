@@ -1,8 +1,8 @@
-name: SDMC late300 null-G2 minimality audit
+name: SDMC late300 null-G2 nonlinear-order audit
 
 on:
   push:
-    branches: [sdmc-late300-null-g2-minimality]
+    branches: [sdmc-late300-null-g2-nonlinear-order]
     paths:
       - 'sdmc/run_null_g2_minimality.py'
       - '.github/workflows/sdmc_null_g2_minimality.yml'
@@ -18,11 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 -m pip install sympy
-      - name: Prove minimal trajectory-null order
+      - name: Prove minimality and nonlinear finite-amplitude order
         run: |
           python3 sdmc/run_null_g2_minimality.py
           cat output/null_g2_minimality.json
       - uses: actions/upload-artifact@v4
         with:
-          name: null-g2-minimality
+          name: null-g2-nonlinear-order
           path: output/null_g2_minimality.json
