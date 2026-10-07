@@ -1,0 +1,110 @@
+name: SDMC ReACT v2 build and GR sanity audit
+on:
+  push:
+    branches: [sdmc-late300-react-feasibility]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  react:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gfortran git cmake libgsl-dev libfftw3-dev autoconf automake libtool libtool-bin
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+      - name: Build SUNDIALS 4.1
+        run: |
+          git clone --depth 1 --branch v4.1.0 https://github.com/LLNL/sundials.git
+          mkdir -p sundials/build sundials/install
+          cd sundials/build
+          cmake -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/sundials/install" -DBUILD_SHARED_LIBS=ON ..
+          make -j2
+          make install
+          ls -lh "$GITHUB_WORKSPACE/sundials/install/lib" | head
+      - name: Clone and build ReACT v2
+        run: |
+          git clone --depth 1 https://github.com/nebblu/ACTio-ReACTio.git reactv2
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('reactv2/pyreact/Makefile')
+          s=p.read_text()
+          s=s.replace('LDFLAGS += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial',
+                      'LDFLAGS += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial -L'+str(Path.cwd()/'sundials/install/lib'))
+          s=s.replace('CPPFLAGS +=','CPPFLAGS += -I'+str(Path.cwd()/'sundials/install/include'))
+          p.write_text(s)
+          print(p.read_text())
+          PY
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/sundials/install/lib:${LD_LIBRARY_PATH:-}"
+          cd reactv2
+          python3 setup.py build
+          python3 setup.py develop --user
+          python3 - <<'PY'
+          import pyreact
+          from pyreact import ReACT
+          x=ReACT()
+          print("REACT_IMPORT_OK",x)
+          PY
+      - name: Download validated local021 spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+      - name: Run GR reaction sanity test
+        run: |
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/sundials/install/lib:$GITHUB_WORKSPACE/reactv2/reactions/lib:${LD_LIBRARY_PATH:-}"
+          python3 - <<'PY'
+          import sys,re,json
+          from pathlib import Path
+          import numpy as np
+          sys.path.insert(0,str(Path('reactv2').resolve()))
+          from pyreact import ReACT
+          files=sorted(Path('output/weyl_spectra').glob('local021_*_pk.dat'))
+          z0=None
+          for p in files:
+              txt='\n'.join(p.read_text().splitlines()[:8])
+              m=re.search(r'(?:redshift\s+)?z\s*=\s*([0-9eE+\-.]+)',txt,re.I)
+              if m and abs(float(m.group(1)))<1e-9:
+                  z0=p; break
+          if z0 is None:
+              raise RuntimeError('local021 z=0 linear pk not found')
+          a=np.loadtxt(z0)
+          # CLASS file units are h/Mpc and (Mpc/h)^3, matching ReACT.
+          k=a[:,0]; P=a[:,1]
+          sel=(k>=1e-3)&(k<=5.0)
+          k=np.ascontiguousarray(k[sel],float); P=np.ascontiguousarray(P[sel],float)
+          h=0.6856859
+          Om=(0.02240637+0.11824151)/h**2
+          Ob=0.02240637/h**2
+          ext=np.zeros(20)
+          z=np.array([0.0,0.5,1.0,2.0])
+          R,Pl,s8,pseudo=ReACT().compute_reaction_ext(
+              h,0.96495932,Om,Ob,0.8074580907496921,z,k,P,
+              'gr',ext,compute_pseudo=True,mass_loop=20,verbose=False)
+          result={
+             'z':z.tolist(),
+             'reaction_min':float(np.nanmin(R)),
+             'reaction_max':float(np.nanmax(R)),
+             'reaction_median_z0':float(np.nanmedian(R[0])),
+             'reaction_median_all':float(np.nanmedian(R)),
+             'sigma8_out':float(s8),
+             'finite_fraction':float(np.mean(np.isfinite(R))),
+             'shape':list(R.shape)
+          }
+          Path('output/react_feasibility').mkdir(parents=True,exist_ok=True)
+          Path('output/react_feasibility/gr_sanity.json').write_text(json.dumps(result,indent=2)+'\n')
+          print('REACT_GR_SANITY',json.dumps(result,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-react-feasibility
+          path: output/react_feasibility/*
+          if-no-files-found: warn
