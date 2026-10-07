@@ -1,8 +1,8 @@
-name: SDMC late300 accepted-action phase-space basin map
+name: SDMC late300 instability-ridge phase survey
 
 on:
   push:
-    branches: [sdmc-late300-action-basin-phase-map]
+    branches: [sdmc-late300-action-basin-instability-ridge]
     paths:
       - '.github/workflows/sdmc_late300_action_basin_phase_map.yml'
   workflow_dispatch:
@@ -67,8 +67,8 @@ jobs:
           from pathlib import Path
           import re,json
           base=Path("output/linear_cov_free.ini").read_text()
-          dphis=[-0.75,-0.50,0.0,0.50,1.0,2.0]
-          dvs=[-0.90,-0.50,0.0,0.50,1.0,2.0]
+          dphis=[-0.75,-0.65,-0.50,-0.25,0.0]
+          dvs=[0.0,0.30,0.40,0.50,0.60,0.80,1.00,1.20,1.50,1.80,2.00,2.20]
           rows=[]
           for i,dp in enumerate(dphis):
             for j,dv in enumerate(dvs):
@@ -108,7 +108,7 @@ jobs:
               for i,m in enumerate(ms):
                   e=ms[i+1].start() if i+1<len(ms) else len(h); ns.append(h[m.end():e].strip())
               a=np.loadtxt(p); return {n:a[:,i] for i,n in enumerate(ns)}
-          base=read_bg("output/phase_p2_v2_00_background.dat")
+          base=read_bg("output/phase_p4_v0_00_background.dat")
           Nb=-np.log1p(base["z"]); ob=np.argsort(Nb)
           rows=[]
           for tag,p in pts.items():
@@ -142,7 +142,7 @@ jobs:
                   else: r["failure_kind"]="other"
               rows.append(r)
           out={
-            "status":"accepted frozen-action 2D initial-condition phase-space basin map",
+            "status":"accepted-action instability-ridge phase survey",
             "definition":{"delta_phi":"additive initial field shift","delta_velocity_fraction":"fractional shift of initial phi_prime=aH",
                           "action_retuned":False,"ordinary_cosmology_changed":False,"action_reconstruction_start_a":1e-10,"free_run_start_a":1e-8},
             "n_total":len(rows),"n_success":sum(r["success"] for r in rows),
