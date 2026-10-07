@@ -1,0 +1,196 @@
+name: SDMC late300 exact-table ReACT nonlinear bracket
+on:
+  push:
+    branches: [sdmc-late300-react-exact]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  react-late300:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gfortran git cmake libgsl-dev libfftw3-dev autoconf automake libtool libtool-bin
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+
+      - name: Download accepted-action late300 and exact spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/late300_action inputs/exact
+          gh run download 37581650696 --repo "${{ github.repository }}"             --name late300-linear-g3-covariant-audit --dir inputs/late300_action
+          gh run download 37587199009 --repo "${{ github.repository }}"             --name late300-desy3-native-weyl-tomography --dir inputs/exact
+          test -f inputs/late300_action/linear_cov_free_00_background.dat
+          test -d inputs/exact/weyl_spectra
+
+      - name: Generate exact accepted-action ReACT tables
+        run: |
+          python3 sdmc/prepare_late300_react_tables.py
+          cat output/react_tables/late300_table_diagnostic.json
+
+      - name: Build same-base GR linear spectrum
+        run: |
+          make clean && make -j2 class
+          mkdir -p output/grbase
+          cat > output/grbase.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-9
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          modes = s
+          output = mPk
+          P_k_max_h/Mpc = 20.0
+          z_pk = 0
+          root = output/grbase/grbase_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 1
+          EOF
+          ./class output/grbase.ini | tee output/grbase/class.log
+          ls -lh output/grbase
+
+      - name: Build SUNDIALS 4.1
+        run: |
+          git clone --depth 1 --branch v4.1.0 https://github.com/LLNL/sundials.git
+          mkdir -p sundials/build sundials/install
+          cd sundials/build
+          cmake -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/sundials/install" -DBUILD_SHARED_LIBS=ON ..
+          make -j2
+          make install
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/sundials/install/lib" >> "$GITHUB_ENV"
+          echo "LIBRARY_PATH=$GITHUB_WORKSPACE/sundials/install/lib" >> "$GITHUB_ENV"
+          echo "CPATH=$GITHUB_WORKSPACE/sundials/install/include" >> "$GITHUB_ENV"
+
+      - name: Clone, patch and build ReACT v2
+        run: |
+          git clone --depth 1 https://github.com/nebblu/ACTio-ReACTio.git reactv2
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('reactv2/pyreact/react.py')
+          p.write_text(p.read_text().replace('np.int','np.int32'))
+          q=Path('reactv2/pyreact/Makefile')
+          s=q.read_text()
+          lib=str(Path.cwd()/'sundials/install/lib')
+          inc=str(Path.cwd()/'sundials/install/include')
+          s=s.replace('LDFLAGS  += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial',
+                      f'LDFLAGS  += -L{lib} -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial')
+          s=s.replace('CPPFLAGS +=',f'CPPFLAGS += -I{inc}')
+          q.write_text(s)
+          PY
+          python3 sdmc/patch_react_late300.py
+          grep -n "late300" reactv2/reactions/src/BeyondLCDM.cpp | head -30
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/sundials/install/lib:${LD_LIBRARY_PATH:-}"
+          cd reactv2
+          python3 setup.py build
+          python3 setup.py develop --user
+
+      - name: Run exact-table unscreened and superscreened reactions
+        run: |
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/sundials/install/lib:$GITHUB_WORKSPACE/reactv2/reactions/lib:${LD_LIBRARY_PATH:-}"
+          python3 - <<'PY'
+          import sys,re,json,math
+          from pathlib import Path
+          import numpy as np
+          sys.path.insert(0,str(Path('reactv2').resolve()))
+          from pyreact import ReACT
+
+          def read_z(p):
+              txt='\n'.join(Path(p).read_text().splitlines()[:10])
+              m=re.search(r'(?:at\s+)?(?:redshift\s+)?z\s*=\s*([0-9eE+\-.]+)',txt,re.I)
+              return float(m.group(1)) if m else None
+
+          # same-base GR z=0 spectrum
+          files=sorted(Path('output/grbase').glob('*pk.dat'))
+          if not files: raise RuntimeError('GR baseline pk missing')
+          p0=min(files,key=lambda p:abs((read_z(p) or 0.0)-0.0))
+          a=np.loadtxt(p0); k=np.asarray(a[:,0],float); P0=np.asarray(a[:,1],float)
+          sel=(k>=1e-5)&(k<=20.0); k=np.ascontiguousarray(k[sel]); P0=np.ascontiguousarray(P0[sel])
+
+          def W(x):
+              x=np.asarray(x); y=np.ones_like(x)
+              m=np.abs(x)>1e-5
+              y[m]=3*(np.sin(x[m])-x[m]*np.cos(x[m]))/x[m]**3
+              return y
+          R8=8.0
+          sig2=np.trapezoid(k**3*P0*W(k*R8)**2/(2*np.pi**2),x=np.log(k))
+          sigma8_gr=float(np.sqrt(sig2))
+
+          h=0.6971482083084993
+          Om=(0.022083219194622913+0.12299536722293603)/h**2
+          Ob=0.022083219194622913/h**2
+          z=np.array([0.0,0.5,1.0,2.0])
+          ext=np.zeros(20)
+          react=ReACT()
+          out={}
+          arrays={'k':k,'z':z,'P0_GR':P0}
+          for model,tag in [('eftus','us'),('eftss','ss')]:
+              R,Pl,s8,pseudo=react.compute_reaction_ext(
+                  h,0.9628416801318527,Om,Ob,sigma8_gr,z,k,P0,
+                  model,ext,compute_pseudo=True,mass_loop=24,verbose=False)
+              arrays[f'R_{tag}']=R; arrays[f'Pl_{tag}']=Pl; arrays[f'pseudo_{tag}']=pseudo
+              arrays[f'Pnl_{tag}']=R*pseudo
+              out[tag]={
+                  'sigma8_react':float(s8),
+                  'R_min':float(np.nanmin(R)),'R_max':float(np.nanmax(R)),
+                  'R_median_z0':float(np.nanmedian(R[0])),
+                  'finite_fraction':float(np.mean(np.isfinite(R)))
+              }
+
+          # Compare ReACT linear output against the exact accepted-action CLASS spectra.
+          exact_files=[p for p in Path('inputs/exact/weyl_spectra').glob('late300_*_pk.dat')
+                       if 'nl_' not in p.name and 'weyl' not in p.name]
+          validation={}
+          for iz,zz in enumerate(z):
+              candidates=[(abs(read_z(p)-zz),p) for p in exact_files if read_z(p) is not None]
+              if not candidates: continue
+              _,p=min(candidates,key=lambda x:x[0])
+              q=np.loadtxt(p); ke=q[:,0]; pe=q[:,1]
+              ex=np.exp(np.interp(np.log(k),np.log(ke),np.log(pe)))
+              mask=(k>=1e-3)&(k<=0.2)&np.isfinite(ex)&(ex>0)
+              for tag in ['us','ss']:
+                  rel=arrays[f'Pl_{tag}'][iz,mask]/ex[mask]-1
+                  validation[f'z{zz:g}_{tag}']={
+                     'median_rel':float(np.median(rel)),
+                     'rms_rel':float(np.sqrt(np.mean(rel**2))),
+                     'max_abs_rel':float(np.max(np.abs(rel))),
+                     'exact_file':p.name
+                  }
+
+          result={
+             'status':'custom late300 exact-H(a), exact-Geff(a) ReACT bracket; gamma2=gamma3=0 approximation',
+             'sigma8_GR_baseline':sigma8_gr,
+             'Omega_m':Om,'Omega_b':Ob,
+             'reaction':out,'linear_validation':validation,
+             'nonlinear_definition':'P_nl = reaction * pseudo'
+          }
+          Path('output/react_late300').mkdir(parents=True,exist_ok=True)
+          np.savez_compressed('output/react_late300/late300_react_exact.npz',**arrays)
+          Path('output/react_late300/summary.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+          print('LATE300_REACT_EXACT',json.dumps(result,sort_keys=True))
+          PY
+          cat output/react_late300/summary.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-react-exact-bracket
+          path: |
+            output/react_late300/*
+            output/react_tables/*
+            output/grbase/class.log
+          if-no-files-found: warn
