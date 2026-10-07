@@ -34,30 +34,94 @@ jobs:
           python3 sdmc/run_sdmc_cs2_term_audit.py instrument
           python3 sdmc/install_sdmc_v3_independent_kinetic.py
           make clean && make -j2 class
-      - name: Recover inputs and reconstruct extended-domain action
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Regenerate canonical late300 inputs and reconstruct extended action
         run: |
-          mkdir -p recovered output
-          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
-          cp recovered/linear_cov_target.ini output/linear_cov_target.ini
-          cp recovered/linear_cov_free.ini output/linear_cov_free.ini
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p=Path("output/linear_cov_target.ini"); s=p.read_text()
-          for k,v in {
-            "a_ini_over_a_today_default":"1.e-10",
-            "a_ini_test_qs_smg":"1.e-10",
-            "a_min_stability_test_smg":"1.e-10",
-            "pert_ic_ini_z_ref_smg":"1.e9",
-            "root":"output/linear_cov_target_",
-          }.items():
-              pat=rf"(?m)^\s*{re.escape(k)}\s*=.*$"
-              s=re.sub(pat,f"{k} = {v}",s) if re.search(pat,s) else s+f"\n{k} = {v}\n"
-          p.write_text(s)
-          PY
+          mkdir -p output
+          cat > output/linear_cov_target.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.02048146490100771, 3.927876388467848, 0.33114133956842123, 0.34231919445927034, 1.0, 0.05181542627513409
+          expansion_model = sdmc_full
+          expansion_smg = 0.7014079815036496, 18.40625, 16.19317622240633, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-10
+          a_ini_test_qs_smg = 1.e-10
+          pert_ic_ini_z_ref_smg = 1.e9
+          a_min_stability_test_smg = 1.e-10
+          output_background_smg = 3
+          modes = s
+          output =
+          lensing = no
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          write background = yes
+          write_thermodynamics = no
+          root = output/linear_cov_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
           ./class output/linear_cov_target.ini
+          cat > output/linear_cov_free.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_linear_audit
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output =
+          lensing = no
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          write background = yes
+          write_thermodynamics = no
+          root = output/linear_cov_free_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
           python3 sdmc/run_late300_linear_covariant.py
           python3 sdmc/run_late300_action_basin_audit.py patch
           make clean && make -j2 class
