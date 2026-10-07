@@ -1,0 +1,53 @@
+name: SDMC late300 KiDS-Legacy correlated nuisance profile
+on:
+  push:
+    branches: [sdmc-late300-kids-nuisance-profile]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+      - name: Download validated Weyl/matter spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+          ls output/weyl_spectra/late300_*pk_weyl.dat | head
+          ls output/weyl_spectra/late300_nl_*pk_nl.dat | head
+      - name: Clone KiDS-Legacy public standard library
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/Nz_covariance.txt
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/massdep_cov.txt
+          for n in 1 2 3 4 5 6; do
+            test -s cosmosis-standard-library/shear/cosebis/WnLog/WnLog${n}-2.00-300.00.table
+          done
+      - name: Run correlated nuisance profile
+        run: |
+          python3 sdmc/run_late300_kids_nuisance_profile.py | tee output/kids_nuisance.log
+          cat output/kids_nuisance/late300_kids_nuisance_profile.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-correlated-nuisance-profile
+          path: |
+            output/kids_nuisance/*
+            output/kids_nuisance.log
+          if-no-files-found: warn
