@@ -48,7 +48,7 @@ def parse_background(path):
 
 def z_from_header(path):
     for line in Path(path).read_text().splitlines()[:8]:
-        m=re.search(r"at z\s*=\s*([0-9eE+\-.]+)",line)
+        m=re.search(r"(?:at\\s+)?(?:redshift\\s+)?z\\s*=\\s*([0-9eE+\\-.]+)",line,re.I)
         if m: return float(m.group(1))
     raise RuntimeError(f"cannot read redshift from {path}")
 
