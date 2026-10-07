@@ -1,0 +1,52 @@
+name: SDMC late300 KiDS-Legacy native-Weyl 2PCF large-angle audit
+on:
+  push:
+    branches: [sdmc-late300-kids-xipm-weyl]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  xipm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+
+      - name: Download validated native-Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+
+      - name: Clone public KiDS-Legacy shear release mirror
+        run: |
+          rm -rf shear_release
+          git clone --depth 1 https://github.com/AstroBai/ShearPipeline.git shear_release
+          cd shear_release && git lfs pull || true
+          cd ..
+          test -s shear_release/data/KiDS_Legacy_cosmic_shear_data_release/KiDS_Legacy_xipm.fits
+          test -s shear_release/scale_cuts/safe_idx_kids.npy
+
+      - name: Run native-Weyl KiDS 2PCF cut audit
+        run: |
+          python3 sdmc/run_late300_kids_xipm_weyl.py | tee output/kids_xipm_weyl.log
+          cat output/kids_xipm_weyl/late300_kids_xipm_weyl.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-xipm-native-weyl
+          path: |
+            output/kids_xipm_weyl/*
+            output/kids_xipm_weyl.log
+          if-no-files-found: warn
