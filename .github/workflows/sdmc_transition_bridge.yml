@@ -1,0 +1,169 @@
+name: SDMC Transition Bridge
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  transition-bridge-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply split-sector and extended bridge runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/apply_sdmc_transition_bridge_patch.py
+          python3 sdmc/apply_sdmc_asym_transition_bridge_patch.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Localized Planck-mass bridge stability scan
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+          import csv, glob, math, os, re, subprocess
+          from pathlib import Path
+
+          OUT=Path('output'); OUT.mkdir(exist_ok=True)
+          CSV=OUT/'sdmc_kp_planck_bridge_scan.csv'
+          BEST=OUT/'sdmc_kp_planck_bridge_best.csv'
+
+          omega_cdm=0.12000047526014168
+          Omega_fld=3.0549311e-8
+          expansion='0.716246932, 20.0, 21.26, 0.5, 0.021223342, 0.25, 0.0116038358, 1.5'
+
+          # Both alpha_B-only completion families failed natively: the finite
+          # asymmetric pulse had 0/6720 stable points and the one-way residual
+          # step had 0/798.  Now preserve alpha_B=-2 alpha_M exactly and deform
+          # ln F only locally with A_F sech^2[(N-N_b)/w].  The bump vanishes on
+          # both sides, so the frozen Kp normalization is recovered.
+          amps=[-0.02,-0.01,-0.005,-0.0025,-0.001,-0.0005,-0.0002,-0.0001,
+                 0.0001,0.0002,0.0005,0.001,0.0025,0.005,0.01,0.02]
+          zbs=[15.,20.,25.,30.,35.,38.,42.,50.]
+          widths=[0.15,0.20,0.30,0.40,0.55,0.75,1.00,1.40]
+
+          fields=['A_F','z_bridge','width','status','failure_a','failure_z','cost']
+          with CSV.open('w',newline='') as f:
+              csv.DictWriter(f,fieldnames=fields).writeheader()
+
+          def append(row):
+              with CSV.open('a',newline='') as f:
+                  csv.DictWriter(f,fieldnames=fields).writerow({k:row.get(k,'') for k in fields})
+
+          def minimal_ini(pars,root,full=False):
+              extra=''
+              if full:
+                  extra='''A_s = 2.10e-9\nn_s = 0.965\ntau_reio = 0.0544\noutput = tCl,pCl,lCl,mPk\nmodes = s\nlensing = yes\nl_max_scalars = 3000\nP_k_max_h/Mpc = 2.0\nz_pk = 0,0.5,1,2,3,5,10\nwrite thermodynamics = yes\n'''
+              return f'''H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = {omega_cdm:.17g}
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          {extra}Omega_Lambda = 0
+          Omega_fld = {Omega_fld:.12g}
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_kp_transition_bridge
+          parameters_smg = {pars}
+          expansion_model = sdmc_full
+          expansion_smg = {expansion}
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          output_background_smg = 1
+          write background = yes
+          root = {root}
+          format = class
+          write parameters = yes
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          '''
+
+          def clean(prefix):
+              for p in glob.glob(prefix+'*'):
+                  try: os.remove(p)
+                  except OSError: pass
+
+          stable=[]; n=0
+          for A in amps:
+              for zb in zbs:
+                  for w in widths:
+                      n+=1
+                      tag=f'kp_planck_bridge_{n:05d}'
+                      root=f'output/{tag}_'
+                      ini=OUT/(tag+'.ini')
+                      # z_off=-1 selects the local lnF bridge; width_off unused.
+                      pars=f'0.1, 1.0e-4, {A:.12g}, {zb:.12g}, -1.0, {w:.12g}, 1.0'
+                      ini.write_text(minimal_ini(pars,root),encoding='utf-8')
+                      cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,
+                                        stderr=subprocess.STDOUT,timeout=45)
+                      row={'A_F':A,'z_bridge':zb,'width':w,'status':'FAIL',
+                           'cost':A*A*w}
+                      if cp.returncode==0:
+                          row['status']='OK'; stable.append(dict(row))
+                      else:
+                          ma=re.search(r'at\s+a\s*=\s*([0-9eE+\-.]+)',cp.stdout)
+                          if not ma: ma=re.search(r'a\s*=\s*([0-9eE+\-.]+)',cp.stdout)
+                          if ma:
+                              try:
+                                  aa=float(ma.group(1)); row['failure_a']=aa; row['failure_z']=1./aa-1.
+                              except Exception: pass
+                      append(row); clean(root)
+                      try: ini.unlink()
+                      except OSError: pass
+              print('A_F',A,'tested',n,'stable_so_far',len(stable),flush=True)
+
+          if stable:
+              stable=sorted(stable,key=lambda r:(r['cost'],abs(r['A_F'])))
+              with BEST.open('w',newline='') as f:
+                  wr=csv.DictWriter(f,fieldnames=fields); wr.writeheader()
+                  for r in stable[:100]: wr.writerow({k:r.get(k,'') for k in fields})
+              b=stable[0]
+              print('BEST_STABLE_PLANCK_BRIDGE',b,flush=True)
+              pars=f"0.1, 1.0e-4, {b['A_F']:.12g}, {b['z_bridge']:.12g}, -1.0, {b['width']:.12g}, 1.0"
+              full_ini=OUT/'sdmc_kp_planck_bridge_best.ini'
+              full_ini.write_text(minimal_ini(pars,'output/sdmc_kp_planck_bridge_best_',full=True),encoding='utf-8')
+              cp=subprocess.run(['./class',str(full_ini)],text=True,stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,timeout=180)
+              (OUT/'sdmc_kp_planck_bridge_best.log').write_text(cp.stdout,encoding='utf-8')
+              print('BEST_FULL_RETURNCODE',cp.returncode,flush=True)
+          else:
+              BEST.write_text('status\nNO_STABLE_POINT\n',encoding='utf-8')
+              print('NO_STABLE_POINT in localized Planck-mass bridge family',flush=True)
+          PY
+
+      - name: Preserve Planck-mass bridge diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-kp-planck-transition-bridge
+          path: |
+            output/sdmc_kp_planck_bridge_scan.csv
+            output/sdmc_kp_planck_bridge_best.csv
+            output/sdmc_kp_planck_bridge_best.ini
+            output/sdmc_kp_planck_bridge_best.log
+            output/sdmc_kp_planck_bridge_best_*
+          if-no-files-found: warn
