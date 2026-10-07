@@ -67,20 +67,6 @@ jobs:
             }
           }
           Path("output/late300_action_robustness_synthesis.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
-          md=f"""# late300 accepted-action dynamical robustness synthesis
-
-Canonical frozen-action replay, initial-condition basin, Boltzmann basin, and reconstruction-domain audit are combined here.
-
-- Basin recovery: {basin['n_recovery_gate']}/{basin['n_variants']} tested local perturbations.
-- Worst normalized TT difference in the ±1% Boltzmann basin: {out['boltzmann_basin']['max_TT_norm_abs']:.6g}.
-- Worst normalized EE difference: {out['boltzmann_basin']['max_EE_norm_abs']:.6g}.
-- Worst normalized lensing-potential difference: {out['boltzmann_basin']['max_PP_norm_abs']:.6g}.
-- Worst P(k) fractional difference over all stored redshifts: {out['boltzmann_basin']['max_Pk_frac_all_z']:.6g}.
-- Reconstructed action domain: N in [{domain['N_min']:.9g}, {domain['N_max']:.9g}].
-
-Verdict: the accepted frozen action carries the late300 observable trajectory robustly within the tested domain. This is stronger than a single-trajectory replay, but it is not a global-attractor theorem and does not justify extrapolating the action beyond the reconstructed N range.
-"""
-          Path("output/late300_action_robustness_synthesis.md").write_text(md)
           print("LATE300_ACTION_ROBUSTNESS_SYNTHESIS",json.dumps(out,sort_keys=True))
           PY
       - uses: actions/upload-artifact@v4
@@ -88,4 +74,3 @@ Verdict: the accepted frozen action carries the late300 observable trajectory ro
           name: late300-action-robustness-synthesis
           path: |
             output/late300_action_robustness_synthesis.json
-            output/late300_action_robustness_synthesis.md
