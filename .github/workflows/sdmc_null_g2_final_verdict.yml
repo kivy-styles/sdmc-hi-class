@@ -1,0 +1,40 @@
+name: SDMC null-G2 final verdict synthesis
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-final-verdict]
+    paths:
+      - 'sdmc/run_null_g2_final_verdict.py'
+      - '.github/workflows/sdmc_null_g2_final_verdict.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover completed null-G2 audits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/{basin,criterion,field,clock,ir,mature,model}
+          gh run download 37667363047 --repo "${{ github.repository }}" --name null-g2-basin-classification --dir inputs/basin
+          gh run download 37668214135 --repo "${{ github.repository }}" --name null-g2-criterion-synthesis --dir inputs/criterion
+          gh run download 37672467183 --repo "${{ github.repository }}" --name null-g2-field-redefinition --dir inputs/field
+          gh run download 37673434442 --repo "${{ github.repository }}" --name null-g2-structural-clock-normalization --dir inputs/clock
+          gh run download 37673648462 --repo "${{ github.repository }}" --name null-g2-ir-decay --dir inputs/ir
+          gh run download 37673978889 --repo "${{ github.repository }}" --name null-g2-mature-luminality --dir inputs/mature
+          gh run download 37666606209 --repo "${{ github.repository }}" --name late300-null-g2-model-selection-update --dir inputs/model
+      - name: Build final scientific verdict
+        run: |
+          python3 sdmc/run_null_g2_final_verdict.py
+          cat output/null_g2_final_verdict/null_g2_final_verdict.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: null-g2-final-verdict
+          path: output/null_g2_final_verdict/null_g2_final_verdict.json
