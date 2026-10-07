@@ -38,6 +38,9 @@ jobs:
             gh run download 37615217739 --repo "${{ github.repository }}" --name "hsc-react-full-late300-${v}" --dir "synthesis_inputs/hsc_full_late_${v}"
             gh run download 37615217739 --repo "${{ github.repository }}" --name "hsc-react-full-local021-${v}" --dir "synthesis_inputs/hsc_full_local_${v}"
           done
+          mkdir -p synthesis_inputs/hsc_full_late_us_native_retry synthesis_inputs/hsc_full_local_us_native
+          gh run download 37631035746 --repo "${{ github.repository }}" --name hsc-react-full-late300-us_native-retry --dir synthesis_inputs/hsc_full_late_us_native_retry
+          gh run download 37615217739 --repo "${{ github.repository }}" --name hsc-react-full-local021-us_native --dir synthesis_inputs/hsc_full_local_us_native
       - name: Build synthesis
         run: |
           python3 sdmc/run_late300_model_selection_synthesis.py
