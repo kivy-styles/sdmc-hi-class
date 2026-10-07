@@ -1,0 +1,39 @@
+name: SDMC accepted-action supported canonical approach
+
+on:
+  push:
+    branches: [sdmc-late300-accepted-action-canonical-approach]
+    paths:
+      - 'sdmc/run_accepted_action_canonical_approach.py'
+      - '.github/workflows/sdmc_accepted_action_canonical_approach.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install analysis dependency
+        run: python3 -m pip install numpy scipy
+      - name: Recover accepted-action free-evolution background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p input_action
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir input_action
+          test -s input_action/linear_cov_free_00_background.dat
+      - name: Audit approach to manuscript mature targets
+        run: |
+          python3 sdmc/run_accepted_action_canonical_approach.py
+          cat output/accepted_action_canonical_approach.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accepted-action-canonical-approach
+          path: output/accepted_action_canonical_approach.json
+          if-no-files-found: warn
