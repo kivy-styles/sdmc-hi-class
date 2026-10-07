@@ -1,0 +1,247 @@
+name: SDMC late300 null-G2 observable invariance
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-stabilizer]
+    paths:
+      - '.github/workflows/sdmc_late300_null_g2_observable_invariance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  invariance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies and SDMC patches
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+
+      - name: Regenerate target and install null-completion action
+        run: |
+          mkdir -p output
+          cat > output/linear_cov_target.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.02048146490100771, 3.927876388467848, 0.33114133956842123, 0.34231919445927034, 1.0, 0.05181542627513409
+          expansion_model = sdmc_full
+          expansion_smg = 0.7014079815036496, 18.40625, 16.19317622240633, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-10
+          a_ini_test_qs_smg = 1.e-10
+          pert_ic_ini_z_ref_smg = 1.e9
+          a_min_stability_test_smg = 1.e-10
+          output_background_smg = 3
+          modes = s
+          output =
+          lensing = no
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          write background = yes
+          write_thermodynamics = no
+          root = output/linear_cov_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/linear_cov_target.ini
+
+          cat > output/linear_cov_free.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_linear_audit
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output =
+          lensing = no
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          write background = yes
+          write_thermodynamics = no
+          root = output/linear_cov_free_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 sdmc/run_late300_action_basin_audit.py patch
+          python3 sdmc/apply_sdmc_null_g2_stabilizer.py
+          make clean && make -j2 class
+
+      - name: Prepare base observable and recovery runs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          base=Path("output/linear_cov_free.ini").read_text()
+          def setv(s,k,v):
+              pat=rf"(?m)^\s*{re.escape(k)}\s*=.*$"
+              return re.sub(pat,f"{k} = {v}",s) if re.search(pat,s) else s+f"\n{k} = {v}\n"
+          for tag,eps in [("eps0",0.0),("eps3e4",3e-4)]:
+              s=re.sub(r"(?m)^\s*parameters_smg\s*=.*$",
+                       f"parameters_smg = 0.0, 0.0, 0.0, {eps:.17g}",base)
+              for k,v in {"output":"tCl,pCl,lCl,mPk","lensing":"yes","P_k_max_h/Mpc":"6.0",
+                          "z_pk":"0,0.5,1,2,3,5,10","write background":"yes",
+                          "write_thermodynamics":"no"}.items():
+                  s=setv(s,k,v)
+              s=setv(s,"root",f"output/nullobs_{tag}_")
+              Path(f"output/nullobs_{tag}.ini").write_text(s+"\n")
+
+          pts=[("A_bad",-0.75,0.50),("A_good",-0.75,0.60),
+               ("B1_bad",-0.50,0.60),("B2_bad",-0.50,1.00),("B_good",-0.50,1.20),
+               ("C_good",0.0,1.50),("C1_bad",0.0,1.80),("C2_bad",0.0,2.00)]
+          for tag,dp,dv in pts:
+              s=re.sub(r"(?m)^\s*parameters_smg\s*=.*$",
+                       f"parameters_smg = 0.0, {dp:.17g}, {dv:.17g}, {3e-4:.17g}",base)
+              s=setv(s,"output",""); s=setv(s,"lensing","no")
+              s=setv(s,"write background","yes"); s=setv(s,"root",f"output/nullrec_{tag}_")
+              s += "\nskip_stability_tests_smg = yes\n"
+              Path(f"output/nullrec_{tag}.ini").write_text(s+"\n")
+          PY
+
+      - name: Run base observable invariance pair
+        run: |
+          ./class output/nullobs_eps0.ini > output/nullobs_eps0.log 2>&1
+          ./class output/nullobs_eps3e4.ini > output/nullobs_eps3e4.log 2>&1
+
+      - name: Run epsilon 3e-4 recovery trajectories
+        run: |
+          set +e
+          for ini in output/nullrec_*.ini; do
+            tag=$(basename "$ini" .ini)
+            ./class "$ini" > "output/${tag}.log" 2>&1
+            echo "$?" > "output/${tag}.rc"
+          done
+          set -e
+
+      - name: Compare observables and late-time recovery
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,numpy as np
+          def read_bg(path):
+              ls=Path(path).read_text().splitlines()
+              h=[x for x in ls if x.startswith("#") and re.search(r"1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",h)); ns=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(h); ns.append(h[m.end():e].strip())
+              a=np.loadtxt(path); return {n:a[:,i] for i,n in enumerate(ns)}
+
+          out={"status":"trajectory-null G2 full-observable invariance and recovery audit","epsilon":3e-4,
+               "qualification":"exploratory off-trajectory covariant completion; not adopted into accepted SDMC action"}
+          a=np.loadtxt("output/nullobs_eps0_00_cl_lensed.dat")
+          b=np.loadtxt("output/nullobs_eps3e4_00_cl_lensed.dat")
+          labels=["TT","EE","TE","BB","PP","TP","EP"]; cl={}
+          for j in range(1,min(a.shape[1],b.shape[1],8)):
+              scale=max(float(np.max(np.abs(a[:,j]))),1e-300); mask=np.abs(a[:,j])>1e-8*scale
+              cl[labels[j-1]]={"max_norm_abs":float(np.max(np.abs(b[:,j]-a[:,j]))/scale),
+                               "max_frac_masked":float(np.max(np.abs((b[mask,j]-a[mask,j])/a[mask,j]))) if np.any(mask) else None}
+          out["lensed_Cl"]=cl
+
+          pa=sorted(Path("output").glob("nullobs_eps0_*pk.dat"))
+          pb=sorted(Path("output").glob("nullobs_eps3e4_*pk.dat")); pvals=[]
+          for x,y in zip(pa,pb):
+              A=np.loadtxt(x); B=np.loadtxt(y); yy=np.interp(A[:,0],B[:,0],B[:,1]); m=np.abs(A[:,1])>1e-30
+              pvals.append({"base_file":x.name,"deformed_file":y.name,
+                            "max_frac":float(np.max(np.abs((yy[m]-A[m,1])/A[m,1])))})
+          out["Pk_files"]=pvals
+          out["Pk_max_frac_all_z"]=max((q["max_frac"] for q in pvals),default=None)
+
+          ba=read_bg("output/nullobs_eps0_00_background.dat")
+          bb=read_bg("output/nullobs_eps3e4_00_background.dat")
+          Na=-np.log1p(ba["z"]); oa=np.argsort(Na); Nb=-np.log1p(bb["z"]); ob=np.argsort(Nb)
+          Hb=np.interp(Na[oa],Nb[ob],bb["H [1/Mpc]"][ob]); Fb=np.interp(Na[oa],Nb[ob],bb["M*^2_smg"][ob])
+          out["base_background"]={"max_abs_dH_H":float(np.max(np.abs(Hb/ba["H [1/Mpc]"][oa]-1))),
+                                  "max_abs_dF_F":float(np.max(np.abs(Fb/ba["M*^2_smg"][oa]-1)))}
+
+          iref=int(np.argmin(np.abs(ba["z"])))
+          Href=float(ba["H [1/Mpc]"][iref]); Fref=float(ba["M*^2_smg"][iref])
+          phiref=float(ba["phi_smg"][iref]); vref=float(ba["phi'"][iref])
+          rec={}
+          for rc in sorted(Path("output").glob("nullrec_*.rc")):
+              tag=rc.stem.replace("nullrec_",""); code=int(rc.read_text()); q={"returncode":code}
+              p=Path(f"output/nullrec_{tag}_00_background.dat")
+              if code==0 and p.exists():
+                  d=read_bg(p); i=int(np.argmin(np.abs(d["z"])))
+                  q.update({"dH_H_z0":float(d["H [1/Mpc]"][i]/Href-1),
+                            "dF_F_z0":float(d["M*^2_smg"][i]/Fref-1),
+                            "dphi_z0":float(d["phi_smg"][i]-phiref),
+                            "dphi_prime_frac_z0":float(d["phi'"][i]/vref-1),
+                            "cs2_z0":float(d["c_s^2"][i]),"D_z0":float(d["kin (D)"][i]),
+                            "noslip_z0":float(d["braiding_smg"][i]+2*d["M2_running_smg"][i])})
+              rec[tag]=q
+          out["recovery_z0"]=rec
+          Path("output/nullg2_observable_invariance.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("NULLG2_OBSERVABLE_INVARIANCE",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nullg2-observable-invariance
+          path: |
+            output/nullg2_observable_invariance.json
+            output/nullobs_*.log
+            output/nullrec_*.log
+            output/nullrec_*.rc
+          if-no-files-found: warn
