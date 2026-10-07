@@ -1,0 +1,147 @@
+name: SDMC late300 KiDS-Legacy native-Weyl fixed-nuisance likelihood
+on:
+  push:
+    branches: [sdmc-late300-kids-legacy-feasibility]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  kids:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git git-lfs libgsl-dev liblapack-dev libblas-dev gfortran
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cosmosis numpy scipy astropy
+      - name: Clone KiDS standard library/data
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits
+      - name: Download validated native-Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+          ls output/weyl_spectra/late300_*pk_weyl.dat | head
+          ls output/weyl_spectra/local021_*pk_weyl.dat | head
+      - name: Download validated official COSEBI transformer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/cosebi_build
+          gh run download 37591919747 --repo "${{ github.repository }}" --name late300-kids-cosebi-build --dir output/cosebi_build
+          find output/cosebi_build -maxdepth 2 -type f -ls
+          SO="$(find output/cosebi_build -name 'cl_to_cosebis_interface.so' | head -1)"
+          test -n "$SO"
+          cp "$SO" cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+      - name: Generate CosmoSIS configs
+        run: |
+          cat > output/kids_values.ini <<'EOF'
+          [dummy]
+          x = 0
+          EOF
+          ABS="$PWD/cosmosis-standard-library"
+          DATA="$ABS/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits"
+          WN="$ABS/shear/cosebis/WnLog/"
+          TN="$ABS/shear/cosebis/TLogsRootsAndNorms/"
+          for MODEL in late300 local021; do
+            cat > "output/kids_${MODEL}.ini" <<EOF
+          [runtime]
+          sampler = test
+          verbosity = standard
+
+          [pipeline]
+          modules = native cosebis like
+          values = output/kids_values.ini
+          likelihoods = cosebis
+          quiet = F
+          timing = T
+          debug = T
+
+          [native]
+          file = sdmc/kids_native_weyl_module.py
+          model = ${MODEL}
+          spectra_dir = output/weyl_spectra
+          data_file = ${DATA}
+
+          [cosebis]
+          file = ${ABS}/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+          theta_min = 2.0
+          theta_max = 300.0
+          n_max = 6
+          input_section_name = shear_cl
+          output_section_name = cosebis
+          Wn_Output_FolderName = ${WN}
+          Roots_n_Norms_FolderName = ${TN}
+          Wn_file_name = WnLog
+          table_precision = 10
+          number_of_Wn_l_bins = 100000
+
+          [like]
+          file = ${ABS}/likelihood/2pt/cosebis/simple_like.py
+          data_set = En n
+          data_file = ${DATA}
+          theory_section = cosebis
+          like_name = cosebis
+
+          [test]
+          save_dir = output/kids_${MODEL}_block
+          fatal_errors = T
+          EOF
+          done
+      - name: Run late300 KiDS likelihood
+        run: |
+          cosmosis output/kids_late300.ini | tee output/kids_late300.log
+      - name: Run local021 KiDS likelihood
+        run: |
+          cosmosis output/kids_local021.ini | tee output/kids_local021.log
+      - name: Extract KiDS chi-square comparison
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json
+          def grab(p):
+              s=Path(p).read_text()
+              pats=[
+                r"cosebis_CHI2\s*[=:]\s*([0-9eE+\-.]+)",
+                r"cosebis_like\s*[=:]\s*([-0-9eE+.]+)",
+                r"cosebis\s+([-0-9eE+.]+)"
+              ]
+              for pat in pats:
+                  mm=re.findall(pat,s,re.I)
+                  if mm:
+                      v=float(mm[-1])
+                      return -2*v if "like" in pat.lower() else v
+              # read saved datablock if stdout format changed
+              for q in Path(p.replace('.log','_block')).glob('**/*'):
+                  if q.is_file() and 'chi2' in q.name.lower():
+                      try:return float(q.read_text().split()[0])
+                      except:pass
+              raise RuntimeError("KiDS chi2 not found in "+p)
+          l=grab("output/kids_late300.log"); c=grab("output/kids_local021.log")
+          out=dict(chi2_late300=l,chi2_local021=c,delta_chi2_late300_minus_local021=l-c,
+                   status="official KiDS-Legacy COSEBI fixed-nuisance native-Weyl pilot")
+          Path("output/kids_native_weyl_result.json").write_text(json.dumps(out,indent=2)+"\n")
+          print("KIDS_NATIVE_WEYL_RESULT",json.dumps(out,sort_keys=True))
+          PY
+          cat output/kids_native_weyl_result.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-native-weyl-fixed
+          path: |
+            output/kids_native_weyl_result.json
+            output/kids_late300.log
+            output/kids_local021.log
+            output/kids_late300.ini
+            output/kids_local021.ini
