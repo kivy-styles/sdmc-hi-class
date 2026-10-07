@@ -1,0 +1,29 @@
+name: SDMC late300 source future-domain audit
+
+on:
+  push:
+    branches: [sdmc-late300-source-future-domain]
+    paths:
+      - 'sdmc/run_late300_source_future_domain.py'
+      - '.github/workflows/sdmc_late300_source_future_domain.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install scipy
+      - name: Audit analytic future domain of late300 source
+        run: |
+          python3 sdmc/run_late300_source_future_domain.py
+          cat output/late300_source_future_domain.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-source-future-domain
+          path: output/late300_source_future_domain.json
