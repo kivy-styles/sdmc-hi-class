@@ -1,0 +1,48 @@
+name: SDMC late300 model-selection synthesis
+
+on:
+  push:
+    branches: [sdmc-late300-model-selection-synthesis]
+    paths:
+      - 'sdmc/run_late300_model_selection_synthesis.py'
+      - '.github/workflows/sdmc_late300_model_selection_synthesis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover completed model-selection inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p synthesis_inputs/{bic,provenance,planck_bf}
+          gh run download 37620779682 --repo "${{ github.repository }}" --name sdmc-late300-bic-audit --dir synthesis_inputs/bic
+          gh run download 37636547455 --repo "${{ github.repository }}" --name late300-deep-parameter-provenance --dir synthesis_inputs/provenance
+          gh run download 37629170856 --repo "${{ github.repository }}" --name planck-conditional-bayes-factor --dir synthesis_inputs/planck_bf
+
+          for ell in 600 800; do
+            mkdir -p "synthesis_inputs/hsc_safe_late_${ell}" "synthesis_inputs/hsc_safe_local_${ell}"
+            gh run download 37615080045 --repo "${{ github.repository }}" --name "hsc-safe-late300-ell${ell}" --dir "synthesis_inputs/hsc_safe_late_${ell}"
+            gh run download 37615080045 --repo "${{ github.repository }}" --name "hsc-safe-local021-ell${ell}" --dir "synthesis_inputs/hsc_safe_local_${ell}"
+          done
+
+          for v in ss_native ss_screen03; do
+            mkdir -p "synthesis_inputs/hsc_full_late_${v}" "synthesis_inputs/hsc_full_local_${v}"
+            gh run download 37615217739 --repo "${{ github.repository }}" --name "hsc-react-full-late300-${v}" --dir "synthesis_inputs/hsc_full_late_${v}"
+            gh run download 37615217739 --repo "${{ github.repository }}" --name "hsc-react-full-local021-${v}" --dir "synthesis_inputs/hsc_full_local_${v}"
+          done
+      - name: Build synthesis
+        run: |
+          python3 sdmc/run_late300_model_selection_synthesis.py
+          cat output/late300_model_selection_synthesis/late300_model_selection_synthesis.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-model-selection-synthesis
+          path: output/late300_model_selection_synthesis/late300_model_selection_synthesis.json
