@@ -60,20 +60,31 @@ jobs:
           echo "GSL_INC=$GSL_INC GSL_LIB=$GSL_LIB"
           python3 - <<'PY'
           from pathlib import Path
-          for name in [
-              'cosmosis-standard-library/shear/cosebis/makefile.defs',
-              'cosmosis-standard-library/shear/cosebis/modules/Makefile',
-          ]:
-              p=Path(name)
-              s=p.read_text()
-              s=s.replace('-D COSEBIS_DIR=', '-DCOSEBIS_DIR=')
-              p.write_text(s)
-              print(name,[x for x in s.splitlines() if 'COSEBIS_DIR' in x])
+          files=[
+              Path('cosmosis-standard-library/shear/cosebis/makefile.defs'),
+              Path('cosmosis-standard-library/shear/cosebis/modules/Makefile'),
+          ]
+          for p in files:
+              lines=[]
+              for line in p.read_text().splitlines():
+                  if line.startswith('USER_CXXFLAGS +=') and 'COSEBIS_DIR' in line:
+                      line='USER_CXXFLAGS += -I/usr/include -DCOSEBIS_DIR=\\\"$(CURDIR)/../\\\"'
+                  if line.startswith('USER_LDFLAGS +='):
+                      if 'lcosmosis' in line:
+                          line='USER_LDFLAGS += -lcosmosis -L$(COSMOSIS_SRC_DIR)/datablock -Wl,-rpath,$(COSMOSIS_SRC_DIR)/datablock -L/usr/lib/x86_64-linux-gnu -lgsl -lgslcblas -lm -L$(MODULE) -lcolib -lstdc++ -Wno-deprecated -I$(MODULE)'
+                      else:
+                          line='USER_LDFLAGS += -L/usr/lib/x86_64-linux-gnu -lgsl -lgslcblas'
+                  lines.append(line)
+              p.write_text('\n'.join(lines)+'\n')
+              print('PATCHED',p)
+              print('\n'.join(x for x in lines if 'USER_CXXFLAGS' in x or 'USER_LDFLAGS' in x))
           PY
           cd cosmosis-standard-library/shear/cosebis/modules
-          make -j2
+          make clean || true
+          make -j2 GSL_INC=/usr/include GSL_LIB=/usr/lib/x86_64-linux-gnu
           cd ../cl_to_cosebis
-          make -j2
+          make clean || true
+          make -j2 GSL_INC=/usr/include GSL_LIB=/usr/lib/x86_64-linux-gnu
           ls -lh *.so
       - name: Record result
         run: |
