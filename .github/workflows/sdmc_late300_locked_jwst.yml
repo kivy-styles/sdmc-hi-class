@@ -1,6 +1,9 @@
 name: SDMC late300 locked accepted-action JWST
 
 on:
+  push:
+    branches:
+      - sdmc-late300-locked-battery
   pull_request:
     branches:
       - master
