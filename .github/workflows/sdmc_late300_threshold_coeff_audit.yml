@@ -1,0 +1,85 @@
+name: SDMC late300 future threshold coefficient audit
+
+on:
+  push:
+    branches: [sdmc-late300-native-threshold-coeff-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_threshold_coeff_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover successful fixed-support backgrounds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered/fast recovered/slow output
+          gh run download 37689071024 --repo "${{ github.repository }}" --name native-interior-refine-fast-n2.74 --dir recovered/fast
+          gh run download 37689071024 --repo "${{ github.repository }}" --name native-interior-refine-slow-n2.74 --dir recovered/slow
+      - name: Audit smoothness and possible singular coefficients
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,numpy as np
+
+          def parse_bg(root):
+              p=next(Path(root).rglob("bg_00_background.dat"))
+              ls=p.read_text().splitlines()
+              hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(re.sub(r"\s+"," ",hdr[m.end():e].strip()))
+              a=np.loadtxt(p)
+              if a.ndim==1:a=a[None,:]
+              return p,names,a
+
+          out={"status":"future threshold background-coefficient audit","window_ln_a":[2.70,2.80],"targets":[2.74,2.745,2.75],"branches":{}}
+          for tag,root in [("fast","recovered/fast"),("slow","recovered/slow")]:
+              p,names,a=parse_bg(root)
+              if "z" not in names: raise RuntimeError("z column missing")
+              z=a[:,names.index("z")]
+              N=-np.log1p(z)
+              order=np.argsort(N); N=N[order]; a=a[order,:]
+              rec={"path":str(p),"ncols":len(names),"values":{},"top_normalized_slopes":[],"near_zero_or_sign_change":[]}
+              for target in out["targets"]:
+                  vals={}
+                  for nm in ["H [1/Mpc]","kin (D)","c_s^2","M*^2_smg","braiding_smg","M2_running_smg","kineticity_smg","tensor_excess_smg"]:
+                      if nm in names:
+                          vals[nm]=float(np.interp(target,N,a[:,names.index(nm)]))
+                  rec["values"][str(target)]=vals
+
+              m=(N>=2.70)&(N<=2.80)
+              NW=N[m]
+              for j,nm in enumerate(names):
+                  y=a[m,j]
+                  if len(y)<4 or not np.all(np.isfinite(y)): continue
+                  peak=max(float(np.max(np.abs(y))),1e-300)
+                  # normalized total change and max finite-difference slope
+                  dy=np.diff(y); dN=np.diff(NW)
+                  slope=float(np.max(np.abs(dy/dN))/peak)
+                  change=float((np.max(y)-np.min(y))/peak)
+                  if peak>1e-14:
+                      rec["top_normalized_slopes"].append({"name":nm,"peak_abs":peak,"max_abs_dy_dN_over_peak":slope,"window_change_over_peak":change})
+                  if np.min(y)<=0<=np.max(y):
+                      rec["near_zero_or_sign_change"].append({"name":nm,"min":float(np.min(y)),"max":float(np.max(y))})
+              rec["top_normalized_slopes"]=sorted(rec["top_normalized_slopes"],key=lambda q:q["max_abs_dy_dN_over_peak"],reverse=True)[:30]
+              out["branches"][tag]=rec
+
+          Path("output/threshold_coeff_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("THRESHOLD_COEFF_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: threshold-coeff-audit
+          path: output/threshold_coeff_audit.json
