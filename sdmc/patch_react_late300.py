@@ -94,6 +94,20 @@ s=patch_cases(s,"double HA1g(double a, double omega0, double extpars[], int mode
 '''
 })
 
+# Use the exact accepted-action linear Poisson response from hi_class.
+# The unscreened/superscreened distinction is retained only in mymgF,
+# where stock ReACT model 8 uses the linear modification and model 9 returns GR.
+s=patch_cases(s,"double mu(double a, double k0, double omega0, double extpars[], int model)",{
+  8:'''case 8:
+            /* late300 exact linear effective Newton coupling */
+            return late300_ge(a);
+''',
+  9:'''case 9:
+            /* same late300 linear coupling; only nonlinear screening differs */
+            return late300_ge(a);
+'''
+})
+
 src.write_text(s)
 shutil.copy("output/react_tables/late300_table.h","reactv2/reactions/src/late300_table.h")
 
@@ -106,6 +120,7 @@ checks=[
   'case 3: return late300_am(a);',
   'return late300_E(a);',
   'return late300_HA1(a);',
+  'return late300_ge(a);',
 ]
 for x in checks:
     if x not in t: raise RuntimeError(f"missing patch marker: {x}")
