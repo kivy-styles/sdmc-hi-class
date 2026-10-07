@@ -94,7 +94,18 @@ def load_des():
         nz=f["nz_source"].data
         z_nz=np.asarray(nz["Z_MID"],dtype=np.float64).astype(np.float64,copy=True)
         nzi=np.asarray([nz[f"BIN{i}"] for i in range(1,5)],dtype=np.float64).astype(np.float64,copy=True)
+        covh=f["COVMAT"].header
         cov=np.asarray(f["COVMAT"].data,dtype=np.float64).astype(np.float64,copy=True)
+        cov_segments=[]
+        for ii in range(20):
+            nk=f"NAME_{ii}"; sk=f"STRT_{ii}"
+            if nk in covh and sk in covh:
+                cov_segments.append((str(covh[nk]).strip().lower(),int(covh[sk])))
+        starts={n:s for n,s in cov_segments}
+        if "xip" not in starts or "xim" not in starts:
+            # Common TwoPoint convention; keep an explicit diagnostic if headers omit labels.
+            starts={"xip":0,"xim":len(xp)}
+        (ROOT/"desy3_covariance_segments.json").write_text(json.dumps({"segments":cov_segments,"starts":starts},indent=2)+"\n")
     xp_df=pd.DataFrame({
         "BIN1":np.asarray(xp["BIN1"],dtype=np.int64).copy(),
         "BIN2":np.asarray(xp["BIN2"],dtype=np.int64).copy(),
@@ -107,7 +118,7 @@ def load_des():
         "ANG":np.asarray(xm["ANG"],dtype=np.float64).astype(np.float64,copy=True),
         "VALUE":np.asarray(xm["VALUE"],dtype=np.float64).astype(np.float64,copy=True),
     })
-    return xp_df,xm_df,z_nz,nzi,cov
+    return xp_df,xm_df,z_nz,nzi,cov,starts
 
 def scale_mask(df, kind):
     cp=configparser.ConfigParser(); cp.read(CUTS)
@@ -133,13 +144,13 @@ def make_model(label,prefix,bg_path,h):
     return dict(label=label,bg=bg,h=h,zlin=zlin,klin=klin,Plin=Plin,
                 znl=znl,knl=knl,Pnl=Pnl,zw=zw,kw=kw,Qw=Qw)
 
-xp,xm,zsrc,nzsrc,covfull=load_des()
+xp,xm,zsrc,nzsrc,covfull,covstarts=load_des()
 mxp=scale_mask(xp,"xip"); mxm=scale_mask(xm,"xim")
-nxp=len(xp); nxm=len(xm); nall=nxp+nxm
-full_data=np.concatenate([xp.VALUE.to_numpy(float),xm.VALUE.to_numpy(float)])
-sel=np.r_[np.where(mxp)[0], nxp+np.where(mxm)[0]]
-data=full_data[sel]
-cov=covfull[:nall,:nall][np.ix_(sel,sel)]
+nxp=len(xp); nxm=len(xm)
+data=np.r_[xp.VALUE.to_numpy(float)[mxp],xm.VALUE.to_numpy(float)[mxm]]
+sel=np.r_[covstarts["xip"]+np.where(mxp)[0],
+          covstarts["xim"]+np.where(mxm)[0]]
+cov=covfull[np.ix_(sel,sel)]
 icov=np.linalg.inv(cov)
 
 late=make_model("late300","late300_wl_00",Path("output/late300_wl_00_background.dat"),69.71482083084993/100.)
