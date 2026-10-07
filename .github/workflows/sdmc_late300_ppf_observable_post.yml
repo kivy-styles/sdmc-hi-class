@@ -1,0 +1,87 @@
+name: SDMC late300 PPF observable postprocess
+
+on:
+  push:
+    branches: [sdmc-late300-observable-post]
+    paths:
+      - '.github/workflows/sdmc_late300_ppf_observable_post.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover completed observable outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37691485543 --repo "${{ github.repository }}" --name ppf-observable-equivalence --dir recovered
+          find recovered -type f -maxdepth 4 -print | sort
+      - name: Compare saved outputs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,numpy as np
+
+          def pick(prefix,kind):
+              pats={
+                "cl":["*_cl.dat"],
+                "lensed":["*_cl_lensed.dat"],
+                "pk":["*_pk.dat"],
+              }[kind]
+              hits=[]
+              for pat in pats:
+                  hits += [p for p in Path("recovered").rglob(prefix+pat.split("*",1)[1]) if p.is_file()]
+              # exact root name starts with std_ or ppf_
+              hits=[p for p in hits if p.name.startswith(prefix)]
+              if not hits:
+                  return None
+              return sorted(hits,key=lambda p:(len(p.name),p.name))[0]
+
+          def compare(pa,pb):
+              A=np.loadtxt(pa); B=np.loadtxt(pb)
+              if A.ndim==1:A=A[None,:]
+              if B.ndim==1:B=B[None,:]
+              n=min(A.shape[1],B.shape[1])
+              x=A[:,0]; xb=B[:,0]
+              cols={}
+              for j in range(1,n):
+                  bb=np.interp(x,xb,B[:,j])
+                  aa=A[:,j]
+                  peak=max(float(np.max(np.abs(aa))),float(np.max(np.abs(bb))),1e-300)
+                  absn=float(np.max(np.abs(aa-bb))/peak)
+                  mask=(np.abs(aa)>1e-6*peak)
+                  frac=float(np.max(np.abs((bb[mask]-aa[mask])/aa[mask]))) if np.any(mask) else None
+                  rms=float(np.sqrt(np.mean((aa-bb)**2))/peak)
+                  cols[str(j)]={"max_norm_abs":absn,"rms_norm":rms,"max_frac_masked":frac}
+              vals=[v["max_norm_abs"] for v in cols.values()]
+              fr=[v["max_frac_masked"] for v in cols.values() if v["max_frac_masked"] is not None]
+              return {"standard_file":pa.name,"ppf_file":pb.name,
+                      "shape_standard":list(A.shape),"shape_ppf":list(B.shape),
+                      "max_norm_abs_all":max(vals) if vals else None,
+                      "max_frac_masked_all":max(fr) if fr else None,
+                      "columns":cols}
+
+          out={"status":"saved present-observable PPF equivalence postprocess",
+               "source_run":37691485543,"pairs":{}}
+          for kind in ["cl","lensed","pk"]:
+              a=pick("std_",kind); b=pick("ppf_",kind)
+              out["pairs"][kind]={"found_standard":str(a) if a else None,"found_ppf":str(b) if b else None}
+              if a and b:
+                  out["pairs"][kind]["comparison"]=compare(a,b)
+          Path("output/ppf_observable_postprocess.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("PPF_OBSERVABLE_POSTPROCESS",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ppf-observable-postprocess
+          path: output/ppf_observable_postprocess.json
