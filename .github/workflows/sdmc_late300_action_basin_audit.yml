@@ -1,0 +1,97 @@
+name: SDMC late300 accepted-action basin audit
+
+on:
+  push:
+    branches: [sdmc-late300-action-basin-audit]
+    paths:
+      - 'sdmc/run_late300_action_basin_audit.py'
+      - '.github/workflows/sdmc_late300_action_basin_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  basin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+
+      - name: Apply SDMC source patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+
+      - name: Recover accepted-action reconstruction inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output recovered
+          gh run download 37579409032 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp recovered/linear_cov_target.ini output/
+          cp recovered/linear_cov_target_00_background.dat output/
+          test -s output/linear_cov_target.ini
+          test -s output/linear_cov_target_00_background.dat
+
+      - name: Reconstruct the same accepted action
+        run: |
+          python3 sdmc/run_late300_linear_covariant.py
+          test -s gravity_smg/sdmc_late300_linear_covariant_table.h
+          # Recover the canonical free-run ini; reconstruction itself does not create it.
+          cp recovered/linear_cov_free.ini output/linear_cov_free.ini
+
+      - name: Expose test-only initial-condition perturbations
+        run: |
+          python3 sdmc/run_late300_action_basin_audit.py patch
+          python3 sdmc/run_late300_action_basin_audit.py prepare
+          make clean
+          make -j2 class
+
+      - name: Free-evolve fixed action across initial-condition basin
+        run: |
+          set +e
+          for ini in output/basin_*.ini; do
+            tag=$(basename "$ini" .ini)
+            tag=${tag#basin_}
+            ./class "$ini" > "output/basin_${tag}.log" 2>&1
+            rc=$?
+            echo "$rc" > "output/basin_${tag}.rc"
+            echo "ACTION_BASIN_RUN ${tag} rc=${rc}"
+          done
+          set -e
+
+      - name: Analyze basin
+        if: always()
+        run: |
+          python3 sdmc/run_late300_action_basin_audit.py analyze
+          cat output/late300_action_basin_audit.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-action-basin-audit
+          path: |
+            output/late300_action_basin_audit.json
+            output/action_basin_variants.json
+            output/basin_*.ini
+            output/basin_*.rc
+            output/basin_*.log
+            output/basin_*_00_background.dat
+          if-no-files-found: warn
