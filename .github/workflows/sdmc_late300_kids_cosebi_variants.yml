@@ -1,0 +1,126 @@
+name: SDMC late300 KiDS COSEBI nonlinear-envelope audit
+on:
+  push:
+    branches: [sdmc-late300-kids-legacy-feasibility]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  kids-env:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs libgsl-dev liblapack-dev libblas-dev gfortran
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cosmosis numpy scipy astropy
+      - name: Clone KiDS library and data
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+      - name: Recover compiled COSEBI transformer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/cosebi_build
+          gh run download 37591919747 --repo "${{ github.repository }}" --name late300-kids-cosebi-build --dir output/cosebi_build
+          SO="$(find output/cosebi_build -name 'cl_to_cosebis_interface.so' | head -1)"
+          test -n "$SO"
+          cp "$SO" cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+          ls -lh cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+      - name: Download validated Weyl and matter spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+      - name: Generate KiDS shear variants
+        run: |
+          python3 sdmc/generate_kids_native_weyl_variants.py
+          ls -lh output/kids_native_weyl
+      - name: Prepare runner
+        run: |
+          mkdir -p output/kids_env
+          cat > output/kids_env/dummy_values.ini <<'EOF'
+          [dummy]
+          x = 0.0
+          EOF
+          cat > output/kids_env/run_one.py <<'PY'
+          from pathlib import Path
+          import subprocess,sys
+          tag=sys.argv[1]
+          ini=Path(f'output/kids_env/{tag}.ini')
+          txt=f"""[runtime]
+          sampler = test
+          [pipeline]
+          modules = load_cl cosebis cosebis_like dump
+          values = output/kids_env/dummy_values.ini
+          likelihoods = cosebis
+          quiet = F
+          timing = F
+          debug = F
+          [load_cl]
+          file = sdmc/load_precomputed_shear_cl.py
+          npz = output/kids_native_weyl/{tag}_kids_shear_cl.npz
+          [cosebis]
+          file = cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+          theta_min = 2.00
+          theta_max = 300.00
+          n_max = 6
+          input_section_name = shear_cl
+          output_section_name = cosebis
+          [cosebis_like]
+          file = cosmosis-standard-library/likelihood/2pt/cosebis/simple_like.py
+          data_set = En n
+          data_file = cosmosis-standard-library/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits
+          like_name = cosebis
+          [dump]
+          file = sdmc/dump_kids_cosebi_like.py
+          output = output/kids_env/{tag}_result.json
+          [test]
+          save_dir =
+          """
+          ini.write_text(txt)
+          subprocess.run(['cosmosis',str(ini)],check=True)
+          PY
+      - name: Run four KiDS cases
+        run: |
+          export COSMOSIS_SRC_DIR="$(python3 - <<'PY'
+          import cosmosis,pathlib
+          p=pathlib.Path(cosmosis.__file__).resolve()
+          for q in [p.parent,p.parent.parent,p.parent.parent.parent]:
+              if (q/'config'/'compilers.mk').exists():
+                  print(q); break
+          PY
+          )"
+          export LD_LIBRARY_PATH="$COSMOSIS_SRC_DIR/datablock:${LD_LIBRARY_PATH:-}"
+          for tag in late300_linear local021_linear late300_halofit_envelope local021_halofit_envelope; do
+            python3 output/kids_env/run_one.py "$tag" | tee "output/kids_env/$tag.log"
+          done
+      - name: Compare variants
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          out={}
+          for v in ['linear','halofit_envelope']:
+              a=json.loads(Path(f'output/kids_env/late300_{v}_result.json').read_text())
+              b=json.loads(Path(f'output/kids_env/local021_{v}_result.json').read_text())
+              out[v]={'late300':a,'local021':b,'delta_chi2':a['chi2']-b['chi2']}
+          out['status']='KiDS-Legacy official COSEBI comparison; HALOFIT envelope is diagnostic only, not a validated nonlinear-MG prediction'
+          Path('output/kids_env/comparison.json').write_text(json.dumps(out,indent=2)+'\n')
+          print('KIDS_COSEBI_VARIANTS',json.dumps(out,sort_keys=True))
+          PY
+          cat output/kids_env/comparison.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-cosebi-variants
+          path: output/kids_env/*
