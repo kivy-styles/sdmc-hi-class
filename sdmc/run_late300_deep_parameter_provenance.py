@@ -11,6 +11,7 @@ dp=(ROOT/"d0_power_screen.yml").read_text()
 lz=(ROOT/"lambda_zt_grid.yml").read_text()
 late=(ROOT/"late300_candidate.json").read_text()
 candidate=json.loads(late)
+zt_summary=json.loads((ROOT/"lambda_selection"/"partial_zeq_edge_best_zt_closure_summary.json").read_text())
 
 def need(cond,msg):
     if not cond:
@@ -42,6 +43,10 @@ p=candidate["parameters"]
 need(abs(p["D0"]-0.34231919445927034)<1e-15,"late300 D0 changed")
 need(p["kinetic_power"]==1,"late300 kinetic power changed")
 need(abs(p["lambda_e"]-18.40625)<1e-15,"late300 lambda_e changed")
+best_zt=zt_summary["best"]
+need(best_zt["id"]=="sobol008","historical lambda selection best id changed")
+need(abs(best_zt["lambda_e"]-18.40625)<1e-15,"historical winning lambda is not 18.40625")
+need(abs(best_zt["chi2_planck"]-1027.4233457902783)<1e-8,"historical lambda-selection score changed")
 
 out={
   "status":"late300 deep inherited-coordinate provenance audit",
@@ -63,10 +68,15 @@ out={
       "first_principles_derivation_found":False
     },
     "lambda_e":{
-      "classification":"historically likelihood/stability scanned in the r032 family, then frozen in the late300 lineage",
-      "example_scan_values":[18.0,18.5,19.0,19.5,20.0],
+      "classification":"explicitly selected in an acoustic-locked Planck closure screen, then frozen in the late300 lineage",
+      "example_earlier_scan_values":[18.0,18.5,19.0,19.5,20.0],
       "canonical_value":18.40625,
-      "exact_selection_origin_of_18p40625_closed_by_this_audit":False,
+      "selection_run":35623640746,
+      "selection_candidate":"sobol008",
+      "selection_chi2_planck":best_zt["chi2_planck"],
+      "selection_delta_planck_vs_geom":best_zt["delta_planck_vs_geom"],
+      "selection_z_t":best_zt["z_t"],
+      "exact_selection_origin_of_18p40625_closed_by_this_audit":True,
       "first_principles_derivation_found":False
     }
   },
