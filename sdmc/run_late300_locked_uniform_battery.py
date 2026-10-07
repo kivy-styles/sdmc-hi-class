@@ -292,6 +292,12 @@ for label,meta in CANDS.items():
     H0=float(bg.iloc[i0]['H [1/Mpc]']*C_KMS)
     S8=sig8*math.sqrt(Om0/0.3)
     wl=wl_scores(S8)
+    # Exact No-Slip Weyl coupling: Sigma(z)=1/M_*^2(z).  This remains a
+    # compressed amplitude proxy, not a full tomographic shear likelihood.
+    sigmas=[1.0/float(np.interp(zs,bg.z,bg['M*^2_smg'])) for zs in (0.5,1.0,1.5)]
+    Sigma_mean=float(np.mean(sigmas))
+    S8_eff=S8*Sigma_mean
+    wl_eff=wl_scores(S8_eff)
     def age_bg(z):
         zz=bg.z.to_numpy(); tt=bg['proper time [Gyr]'].to_numpy()
         order=np.argsort(zz)
@@ -300,7 +306,9 @@ for label,meta in CANDS.items():
     old=oldgal_scores(age_bg)
     details[label]=dict(H0=H0,omega_b=meta["omega_b"],lambda_e=meta["lambda_e"],
                         rd_Mpc=rd,z_drag=zd,sn=sn,bao_chi2=bchi,bao_vector=pred.tolist(),
-                        bbn=bbn,sigma8=sig8,Omega_m0=Om0,S8=S8,weak_lensing=wl,
+                        bbn=bbn,sigma8=sig8,Omega_m0=Om0,S8=S8,weak_lensing_raw=wl,
+                        Sigma_z05_z10_z15=sigmas,Sigma_mean=Sigma_mean,S8_eff= S8_eff,
+                        weak_lensing_noslip_proxy=wl_eff,
                         ages_Gyr=ages,old_galaxies=old,pd_fair=meta["pd_fair"])
     row=dict(candidate=label,H0=H0,rd_Mpc=rd,
              pd_fair=meta["pd_fair"],
@@ -320,6 +328,13 @@ for label,meta in CANDS.items():
              wl_KiDS_delta_vs_local021=wl["KiDS_Legacy"]["chi2"]-local_wl["KiDS_Legacy"]["chi2"],
              wl_HSC_chi2=wl["HSC_Y3_DESIcal"]["chi2"],
              wl_HSC_delta_vs_local021=wl["HSC_Y3_DESIcal"]["chi2"]-local_wl["HSC_Y3_DESIcal"]["chi2"],
+             Sigma_mean=Sigma_mean,S8_eff_noslip=S8_eff,
+             wl_eff_DESY3_chi2=wl_eff["DES_Y3_3x2"]["chi2"],
+             wl_eff_DESY3_delta_vs_local021=wl_eff["DES_Y3_3x2"]["chi2"]-local_wl["DES_Y3_3x2"]["chi2"],
+             wl_eff_KiDS_chi2=wl_eff["KiDS_Legacy"]["chi2"],
+             wl_eff_KiDS_delta_vs_local021=wl_eff["KiDS_Legacy"]["chi2"]-local_wl["KiDS_Legacy"]["chi2"],
+             wl_eff_HSC_chi2=wl_eff["HSC_Y3_DESIcal"]["chi2"],
+             wl_eff_HSC_delta_vs_local021=wl_eff["HSC_Y3_DESIcal"]["chi2"]-local_wl["HSC_Y3_DESIcal"]["chi2"],
              age_t0_Gyr=ages["0.0"],age_t0_delta_vs_local021=ages["0.0"]-local_ages["0.0"],
              age_z1432_Gyr=ages["1.432"],age_z1552_Gyr=ages["1.552"],
              W069_4Gyr_margin=old["53W069_stress"]["margin_Gyr"],
