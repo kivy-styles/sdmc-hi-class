@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys,re,json,numpy as np
 
-EPS=[-3e-4,-2e-4,-1e-4,0.0,1e-4,1.25e-4,1.5e-4,1.75e-4,2e-4,2.25e-4,2.5e-4,2.75e-4,3e-4,3.25e-4,3.5e-4]
+EPS=[3.5e-4,4.0e-4,4.5e-4,5.0e-4,5.5e-4,6.0e-4,6.5e-4,7.0e-4,7.5e-4,8.0e-4,8.5e-4,9.0e-4,9.5e-4,1.0e-3]
 POINTS=[
  ("base",0.0,0.0),
  ("A_bad",-0.75,0.50),("A_good",-0.75,0.60),
@@ -92,7 +92,9 @@ def analyze():
       "on_trajectory_property":"Delta G2 and all derivatives used through total order 3 vanish at X=Xstar; target late300 should be unchanged",
       "epsilon_values":EPS,"rows":rows,"summary":summary,
       "smallest_strict_passing_epsilon":passing[0]["epsilon"] if passing else None,
-      "qualification":"diagnostic of covariant-completion non-uniqueness; not adopted into accepted SDMC action"
+      "largest_strict_passing_epsilon":passing[-1]["epsilon"] if passing else None,
+      "strict_passing_epsilons":[q["epsilon"] for q in passing],
+      "qualification":"upper-window diagnostic of covariant-completion non-uniqueness; not adopted into accepted SDMC action"
     }
     Path("output/null_g2_stabilizer_scan.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
     print("NULL_G2_SCAN_SUMMARY",json.dumps(out,sort_keys=True))
