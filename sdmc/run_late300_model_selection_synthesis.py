@@ -55,6 +55,21 @@ for var in ("ss_native","ss_screen03"):
       "qualification":"corrected ReACT full-band NLA-z refit; TATT A2/alpha2/bias_ta and baryonic-feedback nuisance remain missing"
     }
 
+# us_native late300 timed out in the original 90-minute matrix but converged
+# successfully in the dedicated 180-minute closure retry. Pair it against the
+# already converged local021 us_native fit from the original matrix.
+a=read_named(ROOT/"hsc_full_late_us_native_retry","late300_us_native.json")
+b=read_named(ROOT/"hsc_full_local_us_native","local021_us_native.json")
+full["us_native"]={
+  "ndata":a["ndata"],
+  "late300_chi2":a["fit"]["chi2_total"],
+  "local021_chi2":b["fit"]["chi2_total"],
+  "delta_chi2":a["fit"]["chi2_total"]-b["fit"]["chi2_total"],
+  "late300_success":bool(a["fit"]["success"]),
+  "local021_success":bool(b["fit"]["success"]),
+  "qualification":"corrected ReACT full-band NLA-z refit; late300 from dedicated timeout retry; TATT A2/alpha2/bias_ta and baryonic-feedback nuisance remain missing"
+}
+
 def ic(delta_chi2, n, dk):
     return {
       "delta_AIC":delta_chi2+2*dk,
@@ -97,7 +112,7 @@ out={
     "Bayesian":"The converged fixed-spectrum Planck nuisance Bayes factor is mild and uncertain, not decisive; it cannot substitute for full model-family evidence.",
     "final":"Model selection is therefore unresolved at the theory-family level. The decisive missing item is the effective independent dimensionality/prior volume of the SDMC-specific action coordinates, not a failure of raw likelihood closure."
   },
-  "pending":["late300 us_native corrected-ReACT retry","local021 us_screen03 corrected-ReACT completion/retry","HSC ell=1000 safe-scale closure pair","high-precision Planck conditional evidence repeat"]
+  "pending":["local021 us_screen03 corrected-ReACT completion/retry","HSC ell=1000 safe-scale closure pair","high-precision Planck conditional evidence repeat"]
 }
 (OUT/"late300_model_selection_synthesis.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("LATE300_MODEL_SELECTION_SYNTHESIS",json.dumps(out,sort_keys=True))
