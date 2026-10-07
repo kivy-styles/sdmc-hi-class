@@ -1,0 +1,44 @@
+name: SDMC late300 deep parameter provenance
+
+on:
+  push:
+    branches: [sdmc-late300-parameter-provenance]
+    paths:
+      - 'sdmc/run_late300_deep_parameter_provenance.py'
+      - '.github/workflows/sdmc_late300_deep_parameter_provenance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deep-provenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover historical deep-provenance files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p deep_provenance_inputs
+          fetch_ref () {
+            local ref="$1"; local path="$2"; local out="$3"
+            gh api "repos/${GITHUB_REPOSITORY}/contents/${path}?ref=${ref}" --jq .content | tr -d '\n' | base64 -d > "${out}"
+            test -s "${out}"
+          }
+          fetch_ref sdmc-r032-physical-D0-audit sdmc/run_r032_physical_D0_audit.py deep_provenance_inputs/d0_audit.py
+          fetch_ref sdmc-discussion-s117-g073-d0-power-screen .github/workflows/sdmc_discussion_s117_g073_d0_power_screen.yml deep_provenance_inputs/d0_power_screen.yml
+          fetch_ref sdmc-r032-lambda-zt-grid .github/workflows/sdmc_r032_tracker_response.yml deep_provenance_inputs/lambda_zt_grid.yml
+          cp sdmc/late300_candidate.json deep_provenance_inputs/late300_candidate.json
+      - name: Run deep provenance audit
+        run: |
+          python3 sdmc/run_late300_deep_parameter_provenance.py
+          cat output/late300_deep_parameter_provenance/late300_deep_parameter_provenance.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-deep-parameter-provenance
+          path: output/late300_deep_parameter_provenance/late300_deep_parameter_provenance.json
+          if-no-files-found: warn
