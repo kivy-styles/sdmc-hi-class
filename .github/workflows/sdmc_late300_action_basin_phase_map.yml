@@ -126,6 +126,17 @@ jobs:
                   aa=1.0/(1.0+z[iz])
                   phip=d["phi'"][o][iz]
                   HH=d["H [1/Mpc]"][o][iz]
+                  bra=float(d["braiding_smg"][o][iz])
+                  run=float(d["M2_running_smg"][o][iz])
+                  M2=float(d["M*^2_smg"][o][iz])
+                  rhos=float(d["(.)rho_smg"][o][iz]); ps=float(d["(.)p_smg"][o][iz])
+                  rhot=float(d["(.)rho_tot"][o][iz]); pt=float(d["(.)p_tot"][o][iz])
+                  rhom=rhot-rhos; pm=pt-ps
+                  brap=float(d["braiding_prime_smg"][o][iz])
+                  t1=(2.-bra)*(bra+2.*run)/2.
+                  t2=1.5*(2.-bra)*(rhos+ps)/(HH*HH)
+                  t3=-1.5*(2.-2.*M2+bra*M2)*(rhom+pm)/(HH*HH*M2)
+                  t4=brap/(aa*HH)
                   r.update({
                     "max_abs_dH_H_z100":float(np.max(np.abs(d["H [1/Mpc]"][o][m]/H0[m]-1))),
                     "max_abs_dF_F_z100":float(np.max(np.abs(d["M*^2_smg"][o][m]/F0[m]-1))),
@@ -138,9 +149,13 @@ jobs:
                       "phi_prime":float(phip),"dphi_dN":float(phip/(aa*HH)),
                       "X":float(0.5*(phip/aa)**2),"H":float(HH),
                       "D":float(d["kin (D)"][o][iz]),"cs2num":float(d["cs2num"][o][iz]),
-                      "braiding":float(d["braiding_smg"][o][iz]),
-                      "alphaM":float(d["M2_running_smg"][o][iz]),
-                      "M2":float(d["M*^2_smg"][o][iz])
+                      "braiding":bra,"alphaM":run,"M2":M2,
+                      "braiding_prime":brap,
+                      "rho_smg_plus_p_smg":float(rhos+ps),
+                      "rho_m_plus_p_m":float(rhom+pm),
+                      "cs2num_terms":{"noslip_residual":float(t1),"sdmc_enthalpy":float(t2),
+                                      "matter_enthalpy":float(t3),"braiding_derivative":float(t4),
+                                      "sum":float(t1+t2+t3+t4)}
                     }
                   })
                   st=r["cs2_min_state"]
