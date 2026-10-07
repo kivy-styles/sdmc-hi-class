@@ -309,11 +309,59 @@ def fit_model(label,S):
                  **{f"m{i+1}":float(res.x[i+1]) for i in range(4)})
         if best is None or rec["chi2_profile"]<best["chi2_profile"]:
             best=rec
-    return best
+    # Recompute theory at the best grid point for residual diagnostics.
+    pieces=precompute_theory(S,float(best["eta"]))
+    mcal=np.array([best[f"m{i+1}"] for i in range(4)])
+    theory=model_vector(xp_sel,xm_sel,pieces,float(best["A_IA"]),mcal)
+    return best,theory
 
-late_fit=fit_model("late300",lateS)
-loc_fit=fit_model("local021",locS)
+late_fit,late_theory=fit_model("late300",lateS)
+loc_fit,loc_theory=fit_model("local021",locS)
 delta=late_fit["chi2_profile"]-loc_fit["chi2_profile"]
+
+def residual_diagnostics(label,theory):
+    resid=data-theory
+    sigdiag=np.sqrt(np.maximum(np.diag(cov),1e-300))
+    pulls=resid/sigdiag
+    # Best one-parameter global theory rescaling, useful only as a diagnostic.
+    Ci=icov
+    amp=float(theory@Ci@data/(theory@Ci@theory))
+    ra=data-amp*theory
+    chi_amp=float(ra@Ci@ra)
+    chi_raw=float(resid@Ci@resid)
+    rows=[]
+    nplus=len(xp_sel)
+    for idx in range(len(data)):
+        if idx<nplus:
+            r=xp_sel.iloc[idx]; kind="xip"
+        else:
+            r=xm_sel.iloc[idx-nplus]; kind="xim"
+        rows.append(dict(index=idx,kind=kind,bin1=int(r.BIN1),bin2=int(r.BIN2),
+                         angle_arcmin=float(r.ANG),data=float(data[idx]),
+                         theory=float(theory[idx]),residual=float(resid[idx]),
+                         sigma_diag=float(sigdiag[idx]),pull_diag=float(pulls[idx])))
+    pd.DataFrame(rows).to_csv(ROOT/f"{label}_residual_vector.csv",index=False)
+    rdf=pd.DataFrame(rows)
+    groups=[]
+    for (kind,b1,b2),g in rdf.groupby(["kind","bin1","bin2"]):
+        groups.append(dict(kind=kind,bin1=int(b1),bin2=int(b2),n=int(len(g)),
+                           rms_pull_diag=float(np.sqrt(np.mean(g.pull_diag**2))),
+                           mean_pull_diag=float(np.mean(g.pull_diag)),
+                           median_data=float(np.median(g.data)),
+                           median_theory=float(np.median(g.theory))))
+    pd.DataFrame(groups).to_csv(ROOT/f"{label}_pair_diagnostics.csv",index=False)
+    return dict(
+        chi2_data_only=chi_raw,
+        rms_diagonal_pull=float(np.sqrt(np.mean(pulls**2))),
+        max_abs_diagonal_pull=float(np.max(np.abs(pulls))),
+        global_theory_amplitude_best=amp,
+        chi2_after_global_amplitude=chi_amp,
+        delta_chi2_from_global_amplitude=chi_amp-chi_raw,
+        median_abs_theory_over_data=float(np.median(np.abs(theory)/np.maximum(np.abs(data),1e-30))),
+    )
+
+late_diag=residual_diagnostics("late300",late_theory)
+loc_diag=residual_diagnostics("local021",loc_theory)
 
 # Weyl closure summaries
 def summarize_weyl(label):
@@ -336,6 +384,8 @@ summary={
  "local021_high_k_clip_fraction":locS["high_k_clip_fraction"],
  "late300_kmax_h_Mpc":lateS["kmax_h_Mpc"],
  "local021_kmax_h_Mpc":locS["kmax_h_Mpc"],
+ "late300_residual_diagnostics":late_diag,
+ "local021_residual_diagnostics":loc_diag,
  "interpretation":"Negative delta favors late300 within this intermediate survey-level shear model; positive delta favors local021. This is not yet the official DES Y3 TATT likelihood."
 }
 (ROOT/"desy3_tomographic_summary.json").write_text(json.dumps(summary,indent=2,sort_keys=True)+"\n")
