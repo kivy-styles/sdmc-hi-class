@@ -1,0 +1,45 @@
+name: SDMC late300 DES-Y3 Weyl kmax stability
+on:
+  push:
+    branches: [sdmc-late300-weyl-cutscan]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  kmax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+      - name: Download spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+      - name: Download DES-Y3
+        run: |
+          rm -rf des_y3_data
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git
+          cd des_y3_data && git lfs pull || true
+          cd ..
+      - name: Run kmax audit
+        run: |
+          python3 sdmc/run_late300_weyl_kmax.py | tee output/weyl_kmax.log
+          cat output/weyl_kmax/late300_weyl_kmax.csv
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-desy3-weyl-kmax
+          path: |
+            output/weyl_kmax/*
+            output/weyl_kmax.log
