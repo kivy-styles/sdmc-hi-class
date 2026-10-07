@@ -35,6 +35,13 @@ jobs:
           git clone --depth 1 https://github.com/nebblu/ACTio-ReACTio.git reactv2
           python3 - <<'PY'
           from pathlib import Path
+          p=Path('reactv2/pyreact/react.py')
+          s=p.read_text().replace('np.int','np.int32')
+          p.write_text(s)
+          print('PATCHED_NUMPY_INT',s.count('np.int32'))
+          PY
+          python3 - <<'PY'
+          from pathlib import Path
           p=Path('reactv2/pyreact/Makefile')
           s=p.read_text()
           lib=str(Path.cwd()/'sundials/install/lib')
