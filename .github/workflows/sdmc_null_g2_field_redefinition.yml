@@ -1,0 +1,29 @@
+name: SDMC null-G2 field-redefinition audit
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-field-redefinition]
+    paths:
+      - 'sdmc/run_null_g2_field_redefinition.py'
+      - '.github/workflows/sdmc_null_g2_field_redefinition.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install symbolic dependency
+        run: python3 -m pip install sympy
+      - name: Run field-redefinition covariance audit
+        run: |
+          python3 sdmc/run_null_g2_field_redefinition.py
+          cat output/null_g2_field_redefinition/null_g2_field_redefinition.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: null-g2-field-redefinition
+          path: output/null_g2_field_redefinition/null_g2_field_redefinition.json
