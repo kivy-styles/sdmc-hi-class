@@ -1,0 +1,43 @@
+name: SDMC late300 DES-Y3 IA bound2 preview
+on:
+  push:
+    branches: [sdmc-late300-weyl-ia-bound2-preview]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+      - name: Download spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+      - name: Download DES-Y3
+        run: |
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git
+          cd des_y3_data && git lfs pull || true
+          cd ..
+      - name: Run alpha1 bound2 preview
+        run: |
+          python3 sdmc/run_late300_ia_bound2_preview.py | tee output/ia_bound2_preview.log
+          cat output/ia_bound2_preview/result.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-desy3-ia-bound2-preview
+          path: |
+            output/ia_bound2_preview/*
+            output/ia_bound2_preview.log
