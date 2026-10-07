@@ -1,8 +1,8 @@
-name: SDMC late300 conditional Planck nested evidence pilot
+name: SDMC late300 conditional Planck nested evidence convergence
 
 on:
   push:
-    branches: [sdmc-late300-model-selection-bic-bayes]
+    branches: [sdmc-late300-planck-evidence-convergence]
     paths:
       - 'sdmc/run_late300_planck_conditional_nested.py'
       - '.github/workflows/sdmc_late300_planck_conditional_nested.yml'
@@ -19,7 +19,7 @@ jobs:
       matrix:
         model: [late300, local021]
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
 
@@ -62,7 +62,7 @@ jobs:
           else
             SPEC=inputs/local021/lcdm_local021_00_cl_lensed.dat
           fi
-          python3 sdmc/run_late300_planck_conditional_nested.py             --model "${{ matrix.model }}"             --spectrum "$SPEC"             --out "output/conditional_evidence/${{ matrix.model }}.json"             --nlive 120 --dlogz 0.5 --maxcall 80000 | tee "output/conditional_evidence/${{ matrix.model }}.log"
+          python3 sdmc/run_late300_planck_conditional_nested.py             --model "${{ matrix.model }}"             --spectrum "$SPEC"             --out "output/conditional_evidence/${{ matrix.model }}.json"             --nlive 120 --dlogz 0.5 --maxcall 300000 | tee "output/conditional_evidence/${{ matrix.model }}.log"
           cat "output/conditional_evidence/${{ matrix.model }}.json"
 
       - uses: actions/upload-artifact@v4
