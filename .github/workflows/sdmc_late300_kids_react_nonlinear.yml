@@ -1,0 +1,191 @@
+name: SDMC late300 KiDS ReACT nonlinear COSEBI audit
+on:
+  push:
+    branches: [sdmc-late300-react-exact]
+    paths:
+      - 'sdmc/generate_kids_react_weyl_components.py'
+      - '.github/workflows/sdmc_late300_kids_react_nonlinear.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  kids-react:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs libgsl-dev liblapack-dev libblas-dev gfortran
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cosmosis numpy scipy astropy
+
+      - name: Clone KiDS library and data
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+
+      - name: Recover official COSEBI transformer
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          mkdir -p output/cosebi_build
+          gh run download 37591919747 --repo "\${{ github.repository }}" \
+            --name late300-kids-cosebi-build --dir output/cosebi_build
+          SO="$(find output/cosebi_build -name 'cl_to_cosebis_interface.so' | head -1)"
+          test -n "$SO"
+          cp "$SO" cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+
+      - name: Recover exact linear Weyl spectra
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "\${{ github.repository }}" \
+            --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+
+      - name: Recover validated dense ReACT nonlinear bracket
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          mkdir -p output/react_dense
+          gh run download 37602521647 --repo "\${{ github.repository }}" \
+            --name late300-react-exact-bracket --dir output/react_dense
+          test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
+          cat output/react_dense/react_late300/summary.json
+
+      - name: Generate GG GI II components
+        run: |
+          python3 sdmc/generate_kids_react_weyl_components.py
+          ls -lh output/kids_react_components | head -80
+
+      - name: Prepare COSEBI vector runner
+        run: |
+          mkdir -p output/kids_react
+          cat > output/kids_react/dummy_values.ini <<'EOF'
+          [dummy]
+          x = 0.0
+          EOF
+          cat > output/kids_react/run_vec.py <<'PY'
+          from pathlib import Path
+          import subprocess,sys
+          tag=sys.argv[1]
+          ini=Path(f'output/kids_react/{tag}.ini')
+          ini.write_text(f"""[runtime]
+          sampler = test
+          [pipeline]
+          modules = load_cl cosebis dump
+          values = output/kids_react/dummy_values.ini
+          likelihoods =
+          quiet = T
+          timing = F
+          debug = F
+          [load_cl]
+          file = sdmc/load_precomputed_shear_cl.py
+          npz = output/kids_react_components/{tag}.npz
+          [cosebis]
+          file = cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+          theta_min = 2.00
+          theta_max = 300.00
+          n_max = 6
+          input_section_name = shear_cl
+          output_section_name = cosebis
+          [dump]
+          file = sdmc/dump_cosebi_vector.py
+          output = output/kids_react/{tag}_vec.json
+          [test]
+          save_dir =
+          """)
+          subprocess.run(['cosmosis',str(ini)],check=True,stdout=subprocess.DEVNULL)
+          PY
+
+      - name: Transform all ReACT and screening variants
+        run: |
+          export COSMOSIS_SRC_DIR="$(python3 - <<'PY'
+          import cosmosis,pathlib
+          p=pathlib.Path(cosmosis.__file__).resolve()
+          for q in [p.parent,p.parent.parent,p.parent.parent.parent]:
+              if (q/'config'/'compilers.mk').exists():
+                  print(q); break
+          PY
+          )"
+          export LD_LIBRARY_PATH="$COSMOSIS_SRC_DIR/datablock:\${LD_LIBRARY_PATH:-}"
+          for v in linear us_native ss_native us_screen03 ss_screen03 us_fullscreen ss_fullscreen; do
+            for m in late300 local021; do
+              for c in gg gi ii; do
+                echo "TRANSFORM \$m \$v \$c"
+                python3 output/kids_react/run_vec.py "\${m}_\${v}_\${c}"
+              done
+            done
+          done
+
+      - name: Profile one-parameter NLA IA
+        run: |
+          python3 - <<'PY'
+          import json,numpy as np
+          from pathlib import Path
+          from astropy.io import fits
+          from scipy.optimize import minimize_scalar
+
+          with fits.open('cosmosis-standard-library/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits') as f:
+              d=np.asarray(f['En'].data['VALUE'],float)
+              C=np.asarray(f['COVMAT'].data,float)
+          L=np.linalg.cholesky(C)
+
+          def vec(tag):
+              return np.asarray(json.loads(Path(f'output/kids_react/{tag}_vec.json').read_text())['theory'],float)
+
+          variants=['linear','us_native','ss_native','us_screen03','ss_screen03','us_fullscreen','ss_fullscreen']
+          out={}
+          for v in variants:
+              rec={}
+              for m in ['late300','local021']:
+                  gg=vec(f'{m}_{v}_gg')
+                  gi=vec(f'{m}_{v}_gi')
+                  ii=vec(f'{m}_{v}_ii')
+                  def chi(A):
+                      th=gg+A*gi+A*A*ii
+                      y=np.linalg.solve(L,d-th)
+                      return float(y@y)
+                  r=minimize_scalar(chi,bounds=(-5,5),method='bounded',options={'xatol':1e-5})
+                  rec[m]={
+                      'chi2_A0':chi(0.0),
+                      'chi2_profile':float(r.fun),
+                      'AIA_best':float(r.x)
+                  }
+              rec['delta_chi2_A0']=rec['late300']['chi2_A0']-rec['local021']['chi2_A0']
+              rec['delta_chi2_profile']=rec['late300']['chi2_profile']-rec['local021']['chi2_profile']
+              out[v]=rec
+
+          out['status']=(
+              'KiDS-Legacy 126-point COSEBI ReACT nonlinear audit. '
+              'late300 uses target-spectrum ReACT option-2b; local021 uses equal-treatment GR ReACT pseudo. '
+              'gamma2=gamma3=0 ReACT bracket; one-parameter NLA A_IA profile. '
+              'No legacy CLASS HALOFIT is used in the nonlinear prediction.'
+          )
+          out['nonlinear_limits']={
+              'ReACT_zmax':2.5,
+              'high_z':'boost tapered to unity from z=2.5 to z=3',
+              'high_k':'ReACT boost frozen at validated kmax',
+              'screen03':'phenomenological No-Slip Weyl transition only; k_s=0.3 h/Mpc'
+          }
+          Path('output/kids_react/profile.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('KIDS_REACT_PROFILE',json.dumps(out,sort_keys=True))
+          PY
+          cat output/kids_react/profile.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-react-cosebi
+          path: |
+            output/kids_react/*
+            output/kids_react_components/metadata.json
+          if-no-files-found: warn
