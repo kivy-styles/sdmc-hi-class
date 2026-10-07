@@ -11,10 +11,19 @@ def load_one(root,name):
 p=load_one("inputs/planck","planck_conditional_bayes_factor.json")
 hl=load_one("inputs/hsc_late","late300.json")
 hc=load_one("inputs/hsc_local","local021.json")
+step_l_025=load_one("inputs/step_l_025","late300.json")
+step_l_075=load_one("inputs/step_l_075","late300.json")
+step_c_025=load_one("inputs/step_c_025","local021.json")
+step_c_075=load_one("inputs/step_c_075","local021.json")
 
 dh=float(hl["logZ_laplace"])-float(hc["logZ_laplace"])
 dp=float(p["delta_logZ_late300_minus_local021"])
 joint=dp+dh
+step_pairs={
+  "0.025":float(step_l_025["logZ_laplace"])-float(step_c_025["logZ_laplace"]),
+  "0.075":float(step_l_075["logZ_laplace"])-float(step_c_075["logZ_laplace"]),
+}
+step_joint={k:dp+v for k,v in step_pairs.items()}
 out={
   "status":"provisional fixed-cosmology conditional Planck+HSC evidence synthesis",
   "planck":{
@@ -29,18 +38,23 @@ out={
     "local021_logZ_laplace":float(hc["logZ_laplace"]),
     "method":"14D Laplace nuisance evidence around corrected-ReACT us_native MAP",
     "late300_hessian_positive_definite":bool(hl["hessian_positive_definite"]),
-    "local021_hessian_positive_definite":bool(hc["hessian_positive_definite"])
+    "local021_hessian_positive_definite":bool(hc["hessian_positive_definite"]),
+    "step_sensitivity_delta_logZ":step_pairs,
+    "step_sensitivity_BF":[math.exp(min(step_pairs.values())),math.exp(max(step_pairs.values()))]
   },
   "joint":{
     "delta_logZ_late300_minus_local021":joint,
-    "BF_late300_over_local021":math.exp(joint)
+    "BF_late300_over_local021":math.exp(joint),
+    "step_sensitivity_delta_logZ":step_joint,
+    "step_sensitivity_BF":[math.exp(min(step_joint.values())),math.exp(max(step_joint.values()))]
   },
   "qualification":[
     "Planck and HSC nuisance sectors are independent conditional on the two fixed cosmologies, so their conditional log-evidence ratios may be added.",
     "The HSC factor is presently a Laplace approximation, not the still-running nested HSC evidence.",
+    "Two independent Hessian step fractions, 0.025 and 0.075, are carried as a numerical sensitivity band.",
     "No SDMC structural/action/cosmological prior-volume penalty is included; this is not full model-family evidence."
   ],
-  "verdict":"At the present conditional level the high-precision Planck preference for local021 and the HSC Laplace preference for late300 nearly cancel. Replace the HSC term with nested evidence when that run completes."
+  "verdict":"The near-cancellation of conditional Planck and HSC nuisance evidence survives the tested Laplace Hessian step-size change. Replace the HSC term with nested evidence when that run completes."
 }
 Path("output").mkdir(exist_ok=True)
 Path("output/late300_conditional_evidence_synthesis.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
