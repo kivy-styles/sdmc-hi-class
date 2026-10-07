@@ -1,0 +1,45 @@
+name: SDMC late300 locked accepted-action JWST
+
+on:
+  push:
+    branches:
+      - sdmc-late300-locked-battery
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  jwst:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          python3 -m pip install -q numpy pandas
+      - name: Download parameterized and accepted-action late300 spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/late300_param inputs/late300_action
+          gh run download 37462886455 --repo "${{ github.repository }}" \
+            --name sdmc-g022-a034-exact-desi --dir inputs/late300_param
+          gh run download 37579409032 --repo "${{ github.repository }}" \
+            --name late300-linear-g3-covariant-audit --dir inputs/late300_action
+          test -f inputs/late300_param/desi_cov_00_z1_pk.dat
+          test -f inputs/late300_action/linear_cov_free_00_z1_pk.dat
+      - name: Run candidate-specific JWST stress test
+        run: |
+          python3 sdmc/run_late300_locked_jwst_likelihood_equivalent.py
+          cat output/late300_locked_jwst/late300_locked_jwst_summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-late300-locked-jwst-likelihood-equivalent
+          path: output/late300_locked_jwst/*
+          if-no-files-found: warn
