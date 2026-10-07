@@ -21,7 +21,7 @@ rc = RC.read_text()
 def heredoc_after(marker):
     i = wf.index(marker)
     start = wf.index("\n", i) + 1
-    m = re.search(r"^\\s*EOF\\s*$", wf[start:], re.M)
+    m = re.search(r"^\s*EOF\s*$", wf[start:], re.M)
     if not m:
         raise RuntimeError(f"missing heredoc terminator after {marker}")
     return wf[start:start+m.start()]
