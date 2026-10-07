@@ -129,6 +129,31 @@ for label,xp,xm in cuts:
             cross=l0+(0-d0)*(l1-l0)/(d1-d0)
             break
     rec["lambda_parity_linear_interp"]=cross
+
+    # Equal-treatment sensitivity: apply the same nonlinear-response exponent
+    # to late300 and local021.  This isolates how the *relative* ranking moves
+    # as one goes from linear to a common HALOFIT-shaped nonlinear correction.
+    common=[]
+    common_crossings=[]
+    prev=None
+    for late_row,lam in zip(rec["lambda_scan"],lams):
+        TLc=theory_lambda(lcdm,des,float(lam))
+        plc=base.chi_profile(des,TLc[:3])
+        delta_common=late_row["chi2_late300"]-plc["chi2_profile"]
+        rr=dict(lambda_NL=float(lam),
+                chi2_late300=late_row["chi2_late300"],
+                chi2_local021=plc["chi2_profile"],
+                delta_chi2=delta_common,
+                AIA_late300=late_row["AIA_late300"],
+                AIA_local021=plc["AIA_best"])
+        common.append(rr)
+        if prev is not None and prev["delta_chi2"]*delta_common < 0:
+            l0=prev["lambda_NL"]; d0=prev["delta_chi2"]
+            lc=l0+(0-d0)*(float(lam)-l0)/(delta_common-d0)
+            common_crossings.append(lc)
+        prev=rr
+    rec["common_lambda_scan"]=common
+    rec["common_lambda_crossings_linear_interp"]=common_crossings
     out["cuts"][label]=rec
     print("WEYL_SCREENING_BRACKET",label,json.dumps(rec,sort_keys=True),flush=True)
 
