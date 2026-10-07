@@ -1,8 +1,8 @@
-name: SDMC late300 null-G2 completion audit
+name: SDMC late300 null-G2 threshold audit
 
 on:
   push:
-    branches: [sdmc-late300-null-g2-stabilizer]
+    branches: [sdmc-late300-null-g2-threshold]
     paths:
       - 'sdmc/apply_sdmc_null_g2_stabilizer.py'
       - 'sdmc/run_late300_null_g2_scan.py'
@@ -148,7 +148,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: nullg2-fine-stabilizer-scan
+          name: nullg2-threshold-scan
           path: |
             output/null_g2_stabilizer_scan.json
             output/null_g2_points.json
