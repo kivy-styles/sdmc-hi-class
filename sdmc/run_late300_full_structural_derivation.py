@@ -251,6 +251,22 @@ out["kinetic_power_minimality"]={
   "statement":"p=1 is the leading analytic linear response D(S)=D_floor+D0*S+O(S^2), but this is a model-definition/minimality principle rather than a numerical derivation of late300 because other powers were historically tested."
 }
 
+# 9b. Canonical exponential-tracker kinetic benchmark (theory inference).
+# For minimally coupled canonical quintessence, alpha_K=3 Omega_phi(1+w_phi).
+# On the exponential scaling solution Omega_phi=3(1+w_b)/lambda^2.
+# Hence D=alpha_K=9(1+w_b)^2/lambda^2 when braiding vanishes.
+lam=cand["lambda_e"]
+D_rad_can=16/(lam*lam)
+D_mat_can=9/(lam*lam)
+out["canonical_tracker_kinetic_benchmark"]={
+  "radiation_D_16_over_lambda2":D_rad_can,
+  "matter_D_9_over_lambda2":D_mat_can,
+  "accepted_D_floor":cand["D_floor"],
+  "accepted_over_radiation_canonical":cand["D_floor"]/D_rad_can,
+  "accepted_minus_radiation_canonical":cand["D_floor"]-D_rad_can,
+  "status":"useful theory benchmark only: it does not derive late300 D_floor because the accepted Horndeski action is noncanonical and the fitted floor exceeds the canonical tracker value."
+}
+
 # 10. Coordinate verdict.
 out["coordinate_verdict"]={
  "Omega_x0":"CLOSED: exact structural/background algebraic closure; no independent parameter.",
@@ -267,7 +283,9 @@ out["model_selection_consequence"]={
  "fully_derived_sdmc_specific_coordinates_now":["Omega_x0"],
  "conditionally_reducible":["A_late","B_late","lambda_e","kinetic_power"],
  "still_require_new_dynamics_or_UV":["z_t","A_F","z_c","width","D_floor","D0"],
- "bottom_line":"The present manuscript/action identities are insufficient to derive all exact late300 coordinates. A zero full-family delta_k cannot yet be claimed. The correct next theoretical closure is a dynamical handoff plus microscopic/action law for F(S) and D(S)."
+ "bottom_line":"The present manuscript/action identities are insufficient to derive all exact late300 coordinates. A zero full-family delta_k cannot yet be claimed. The correct next theoretical closure is a dynamical handoff plus microscopic/action law for F(S) and D(S).",
+ "scenario_counts":{"post_reconstruction_replay":0,"historical_union_before_theory_reduction":10,"open_if_all_conditional_reductions_were_proven":6},
+ "count_warning":"These are bookkeeping scenarios, not a measured effective Fisher rank and not a substitute for a full model-family evidence calculation."
 }
 (OUT/"late300_full_structural_derivation.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("LATE300_FULL_STRUCTURAL_DERIVATION",json.dumps(out,sort_keys=True))
