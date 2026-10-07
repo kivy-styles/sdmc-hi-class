@@ -1,0 +1,35 @@
+name: SDMC late300 full structural derivation
+
+on:
+  push:
+    branches: [sdmc-late300-structural-derivation-audit]
+    paths:
+      - 'sdmc/run_late300_full_structural_derivation.py'
+      - '.github/workflows/sdmc_late300_full_structural_derivation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  derive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p derivation_inputs output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir derivation_inputs
+      - name: Full derivation audit
+        run: python3 sdmc/run_late300_full_structural_derivation.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-full-structural-derivation
+          path: output/late300_full_structural_derivation/late300_full_structural_derivation.json
