@@ -33,9 +33,7 @@ jobs:
           test -s output/linear_cov_free_00_background.dat
       - name: Release both rebased canonical branches
         run: |
-          cd sdmc
-          python3 run_current_late300_canonical_tail_root_branch_audit.py | tee ../output/current_late300_canonical_release.log
-          cd ..
+          python3 sdmc/run_current_late300_canonical_tail_root_branch_audit.py | tee output/current_late300_canonical_release.log
           cat output/current_late300_canonical_tail_root_branch_audit.json
       - uses: actions/upload-artifact@v4
         if: always()
