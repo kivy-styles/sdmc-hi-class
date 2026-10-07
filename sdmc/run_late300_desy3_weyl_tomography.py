@@ -109,7 +109,7 @@ def read_scale_cuts(path):
         cuts[(m.group(1),int(m.group(2)),int(m.group(3)))]=float(val.split()[0])
     return cuts
 
-def load_des(path,scale_path,extra_conservative=False):
+def load_des(path,scale_path,extra_min=None):
     with fits.open(path) as f:
         xp=f["xip"].data; xm=f["xim"].data
         nz=f["nz_source"].data
@@ -129,8 +129,8 @@ def load_des(path,scale_path,extra_conservative=False):
     for r in rows:
         key=(r["typ"],min(r["b1"],r["b2"]),max(r["b1"],r["b2"]))
         amin=cuts.get(key,0.0)
-        if extra_conservative:
-            amin=max(amin,20.0 if r["typ"]=="xip" else 100.0)
+        if extra_min is not None:
+            amin=max(amin,float(extra_min[0] if r["typ"]=="xip" else extra_min[1]))
         if r["ang"]>=amin:
             keep.append(r)
     idx=np.array([r["idx"] for r in keep],int)
@@ -161,7 +161,7 @@ def prepare_sources(des,bg,zmax):
     nchi=nz*H[None,:]  # n(chi)=n(z) dz/dchi = n(z) H(z), c=1
     return z,H,chi,nz,g,nchi
 
-def model_theory(model,des,variant):
+def model_theory(model,des,variant,shared_boost_model=None):
     bg=model["bg"]; h=model["h"]; Om=model["Om"]
     zmax=min(model["zq"].max(),model["zp"].max(),float(np.max(des["zsrc"])))
     z,H,chi,nz,g,nchi=prepare_sources(des,bg,zmax)
@@ -179,7 +179,17 @@ def model_theory(model,des,variant):
         boost=np.divide(Pn,Pl,out=np.ones_like(Pn),where=Pl>0)
         boost=np.clip(boost,0.2,50.0)
         Q=Q*boost
-        P=Pn
+        P=Pl*boost
+    elif variant=="shared_lcdm_halofit":
+        if shared_boost_model is None:
+            raise RuntimeError("shared_lcdm_halofit requires a reference model")
+        Pref=eval_cube(shared_boost_model["Ip"],zmat,kmat)
+        Pnref=eval_cube(shared_boost_model["Ipnl"],zmat,kmat)
+        boost=np.divide(Pnref,Pref,out=np.ones_like(Pnref),where=np.isfinite(Pref)&(Pref>0))
+        boost=np.where(np.isfinite(boost),boost,1.0)
+        boost=np.clip(boost,0.2,50.0)
+        Q=Q*boost
+        P=Pl*boost
     else:
         P=Pl
 
@@ -298,19 +308,26 @@ def main():
     allres={"scientific_status":{
       "level":"tomographic DES-Y3 xi+/xi- pilot, not final official likelihood",
       "native_weyl":True,
-      "scale_cuts":"official DES-Y3 cuts plus a second large-scale conservative cut",
+      "scale_cuts":"official DES-Y3 cuts plus a ladder of increasingly conservative angular cuts",
       "IA":"NLA A_IA profiled, eta_IA fixed 0",
-      "nonlinear":"reports linear and model-specific HALOFIT-envelope Q_W approximations",
+      "nonlinear":"reports linear, shared-LCDM HALOFIT-envelope, and model-specific HALOFIT-envelope variants",
       "missing_nuisance":["photo-z shifts","per-bin shear calibration","baryonic feedback","eta_IA"],
     },"gr_normalization":gri,"results":{}}
 
-    for label,extra in [("official_cuts",False),("large_scale_cuts",True)]:
-        des=load_des(data,cuts,extra_conservative=extra)
+    cut_ladder=[
+      ("official_cuts",None),
+      ("large_20_100",(20.0,100.0)),
+      ("large_40_150",(40.0,150.0)),
+      ("large_80_200",(80.0,200.0)),
+      ("large_120_250",(120.0,250.0)),
+    ]
+    for label,extra in cut_ladder:
+        des=load_des(data,cuts,extra_min=extra)
         key={}
-        for variant in ["linear","halofit_envelope"]:
+        for variant in ["linear","shared_lcdm_halofit","halofit_envelope"]:
             tv={}
             for model in [late,lcdm]:
-                T= model_theory(model,des,variant)
+                T= model_theory(model,des,variant,shared_boost_model=lcdm)
                 prof=chi_profile(des,T[:3])
                 prof["projection"]=T[3]
                 tv[model["name"]]=prof
