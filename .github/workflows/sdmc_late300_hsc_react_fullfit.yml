@@ -1,7 +1,7 @@
-name: SDMC HSC us_native Laplace evidence
+name: SDMC HSC Laplace step sensitivity
 on:
   push:
-    branches: [sdmc-late300-hsc-evidence-laplace]
+    branches: [sdmc-late300-hsc-laplace-stepcheck]
     paths:
       - 'sdmc/run_late300_hsc_react_fullfit.py'
       - '.github/workflows/sdmc_late300_hsc_react_fullfit.yml'
@@ -15,6 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         model: [late300, local021]
+        step: ['0.025','0.075']
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -26,7 +27,7 @@ jobs:
           git lfs install
           python3 -m pip install --upgrade pip
           python3 -m pip install numpy scipy astropy sacc
-      - name: Recover exact Weyl and ReACT inputs
+      - name: Recover HSC inputs and MAP
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -38,54 +39,20 @@ jobs:
           else
             gh run download 37615217739 --repo "${{ github.repository }}" --name hsc-react-full-local021-us_native --dir "output/hsc_map/local021"
           fi
-      - name: Download HSC-Y3 public products
+      - name: Download HSC-Y3 products
         run: |
           rm -rf cosmosis-standard-library
           git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
           cd cosmosis-standard-library && git lfs pull || true
           cd ..
-      - name: Compute exact-HSC Laplace evidence
+      - name: Compute step-sensitive Laplace evidence
         run: |
-          python3 sdmc/run_late300_hsc_react_fullfit.py "${{ matrix.model }}" | tee "output/hsc_laplace_${{ matrix.model }}.log"
+          python3 sdmc/run_late300_hsc_react_fullfit.py "${{ matrix.model }}" "${{ matrix.step }}" | tee "output/laplace_${{ matrix.model }}_${{ matrix.step }}.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: hsc-laplace-${{ matrix.model }}
+          name: hsc-laplace-${{ matrix.model }}-s${{ matrix.step }}
           path: |
             output/hsc_laplace/*
-            output/hsc_laplace_${{ matrix.model }}.log
+            output/laplace_${{ matrix.model }}_${{ matrix.step }}.log
           if-no-files-found: warn
-
-  combine:
-    needs: laplace
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: hsc-laplace-*
-          path: laplace
-          merge-multiple: true
-      - name: Combine Laplace evidence
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import json,math
-          a=json.loads(Path("laplace/late300.json").read_text())
-          b=json.loads(Path("laplace/local021.json").read_text())
-          if a["logZ_laplace"] is None or b["logZ_laplace"] is None:
-              raise RuntimeError("non-positive Hessian")
-          d=a["logZ_laplace"]-b["logZ_laplace"]
-          out={"status":"conditional HSC us_native Laplace Bayes factor",
-               "logZ_late300":a["logZ_laplace"],"logZ_local021":b["logZ_laplace"],
-               "delta_logZ_late300_minus_local021":d,
-               "BF_late300_over_local021":math.exp(max(-700,min(700,d))),
-               "profile_data_delta_chi2":a["map_data_chi2"]-b["map_data_chi2"],
-               "profile_prior_delta_chi2":a["map_prior_chi2"]-b["map_prior_chi2"],
-               "qualification":"Laplace approximation to the exact fixed-cosmology HSC nuisance evidence; compare against the running nested-sampling calculation."}
-          Path("hsc_laplace_bayes_factor.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
-          print("HSC_LAPLACE_BAYES_FACTOR",json.dumps(out,sort_keys=True))
-          PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: hsc-laplace-bayes-factor
-          path: hsc_laplace_bayes_factor.json
