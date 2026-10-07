@@ -21,11 +21,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p synthesis/replay synthesis/basin synthesis/boltz synthesis/domain output
+          mkdir -p synthesis/replay synthesis/basin synthesis/boltz synthesis/domain synthesis/wideboltz synthesis/fine synthesis/extstab output
           gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir synthesis/replay
           gh run download 37642049222 --repo "${{ github.repository }}" --name late300-action-basin-audit --dir synthesis/basin
           gh run download 37642609079 --repo "${{ github.repository }}" --name late300-action-basin-boltzmann --dir synthesis/boltz
           gh run download 37643563040 --repo "${{ github.repository }}" --name action-table-domain --dir synthesis/domain
+          gh run download 37644463703 --repo "${{ github.repository }}" --name late300-action-basin-boltzmann-wide --dir synthesis/wideboltz
+          gh run download 37644428724 --repo "${{ github.repository }}" --name late300-action-basin-fine-refine --dir synthesis/fine
+          gh run download 37644071818 --repo "${{ github.repository }}" --name late300-action-basin-extended-stability --dir synthesis/extstab
       - name: Build robustness synthesis
         run: |
           python3 - <<'PY'
@@ -39,8 +42,11 @@ jobs:
           basin=find("late300_action_basin_audit.json")
           boltz=find("late300_action_basin_boltzmann.json")
           domain=find("action_table_domain.json")
+          wideboltz=find("late300_action_basin_boltzmann_wide.json")
+          fine=find("late300_action_basin_fine_refine.json")
+          extstab=find("late300_action_basin_extended_stability.json")
           vals=list(boltz["variants"].values())
-          ckeys=["Cl_TT_max_norm_abs","Cl_EE_max_norm_abs","Cl_PP_max_norm_abs"]
+          widevals=list(wideboltz["variants"].values())
           out={
             "status":"accepted-action dynamical robustness synthesis",
             "canonical_replay":replay,
@@ -58,12 +64,27 @@ jobs:
               "max_Pk_frac_all_z":max(v["Pk_max_frac_all_z"] for v in vals),
               "pk_redshift_files_each":sorted(set(v["pk_files"] for v in vals))
             },
+            "wide_boltzmann_basin":{
+              "n_extreme_variants":len(widevals),
+              "max_TT_norm_abs":max(v["Cl_TT_max_norm_abs"] for v in widevals),
+              "max_EE_norm_abs":max(v["Cl_EE_max_norm_abs"] for v in widevals),
+              "max_PP_norm_abs":max(v["Cl_PP_max_norm_abs"] for v in widevals),
+              "max_Pk_frac_all_z":max(v["Pk_max_frac_all_z"] for v in widevals),
+              "variants":wideboltz["variants"]
+            },
+            "physical_negative_phi_boundary":{
+              "most_negative_stable":fine["most_negative_success"],
+              "least_negative_unstable":fine["least_negative_failure"],
+              "instability_type":"scalar gradient instability",
+              "fine_scan":fine,
+              "coarse_extended_domain_scan":extstab
+            },
             "action_table_domain":domain,
             "verdict":{
               "supported":"The frozen reconstructed accepted action reproduces the canonical late300 trajectory and returns percent-level initial-condition perturbations to essentially the same late-time background and Boltzmann observables.",
-              "strengthened":"The successful observable solution is therefore not tied to one machine-precision scalar initial trajectory within the tested action domain.",
-              "not_claimed":"This does not establish a global attractor or extend the covariant action beyond the reconstructed N-domain.",
-              "negative_phi_caveat":"Negative initial phi offsets leave the reconstructed table at the initial boundary; their eventual failure is not a physical basin boundary without an action reconstruction at earlier N."
+              "strengthened":"The accepted action carries a broad observable basin: even order-unity positive-field/velocity perturbations and a -90% velocity perturbation remain close to the late300 CMB and matter spectra.",
+              "finite_basin":"After reconstructing the same action over an earlier field domain, the negative-field basin ends physically between delta_phi=-0.785 and -0.790 through a scalar gradient instability near z=1.38.",
+              "not_claimed":"This demonstrates a broad finite basin in the tested directions, not a global-attractor theorem in the full phase space."
             }
           }
           Path("output/late300_action_robustness_synthesis.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
