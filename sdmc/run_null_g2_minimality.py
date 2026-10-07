@@ -38,6 +38,19 @@ out={
   "minimal_passing_order":min(passing),
   "quartic_statement":"n=4 is the lowest polynomial power for which deltaG2 and every mixed derivative with total order <=3 vanish identically on X=Xs(phi).",
   "amplitude_statement":"The null conditions fix the minimum power but do not fix epsilon. epsilon remains an off-trajectory completion coefficient unless SDMC supplies an independent microscopic or symmetry condition.",
+  "nonlinear_order_audit":{
+    "Y_definition":"Y = X-Xs(phi)",
+    "leading_orders_near_trajectory":{
+      "deltaG2":"O(epsilon*Y^4)",
+      "deltaG2_X":"O(epsilon*Y^3)",
+      "deltaG2_XX":"O(epsilon*Y^2)",
+      "deltaG2_XXX":"O(epsilon*Y)",
+      "all_total_derivative_order_le_3_on_trajectory":"0"
+    },
+    "linear_tangent_consequence":"Any local variational/Jacobian system whose coefficients use the same G2 derivative content through total order 3 is unchanged at Y=0; epsilon therefore cannot be selected by infinitesimal linear stability of the accepted trajectory.",
+    "finite_amplitude_consequence":"The stabilizing effect is intrinsically nonlinear and can only be constrained by a specified finite-amplitude basin, initial-condition measure, nonlinear observable, or independent microscopic/symmetry principle.",
+    "threshold_interpretation":"A numerical epsilon threshold obtained from a finite challenge grid is a basin-dependent regularization threshold, not by itself a fundamental SDMC prediction."
+  },
   "rows":rows
 }
 Path("output").mkdir(exist_ok=True)
