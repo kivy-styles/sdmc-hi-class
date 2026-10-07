@@ -32,6 +32,9 @@ jobs:
           fetch_ref sdmc-discussion-s117-g073-d0-power-screen .github/workflows/sdmc_discussion_s117_g073_d0_power_screen.yml deep_provenance_inputs/d0_power_screen.yml
           fetch_ref sdmc-r032-lambda-zt-grid .github/workflows/sdmc_r032_tracker_response.yml deep_provenance_inputs/lambda_zt_grid.yml
           cp sdmc/late300_candidate.json deep_provenance_inputs/late300_candidate.json
+          mkdir -p deep_provenance_inputs/lambda_selection
+          gh run download 35623640746 --repo "${{ github.repository }}" --name sdmc-r032-partial-zeq-edge-best-zt-closure --dir deep_provenance_inputs/lambda_selection
+          test -s deep_provenance_inputs/lambda_selection/partial_zeq_edge_best_zt_closure_summary.json
       - name: Run deep provenance audit
         run: |
           python3 sdmc/run_late300_deep_parameter_provenance.py
