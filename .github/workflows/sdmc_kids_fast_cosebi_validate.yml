@@ -1,0 +1,45 @@
+name: SDMC KiDS fast COSEBI validation
+on:
+  push:
+    branches: [sdmc-late300-kids-nuisance-profile]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+      - name: Download successful KiDS baseline artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37592420744 --repo "${{ github.repository }}" --name late300-kids-native-weyl-cosebi --dir output/kids_native_weyl
+          test -s output/kids_native_weyl/late300_kids_shear_cl.npz
+          test -s output/kids_native_weyl/local021_kids_shear_cl.npz
+      - name: Clone standard library
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+      - name: Validate fast COSEBI transform
+        run: |
+          python3 sdmc/run_kids_fast_cosebi_validate.py | tee output/kids_fast_validate.log
+          cat output/kids_fast_validate/kids_fast_cosebi_validate.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-fast-cosebi-validation
+          path: |
+            output/kids_fast_validate/*
+            output/kids_fast_validate.log
