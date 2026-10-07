@@ -1,0 +1,74 @@
+name: SDMC null-G2 basin classification
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-basin-classification]
+    paths:
+      - '.github/workflows/sdmc_null_g2_basin_classification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover basin-area audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs output
+          gh run download 37666926631 --repo "${{ github.repository }}" --name nullg2-basin-area --dir inputs
+      - name: Separate stability from subluminality
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=next(Path("inputs").rglob("null_g2_basin_area.json"))
+          d=json.loads(p.read_text())
+          out={"status":"null-G2 finite-basin physical classification",
+               "definitions":{
+                 "ghost_free":"successful background with min D > 0",
+                 "gradient_stable":"ghost-free and min c_s^2 > 0",
+                 "subluminal_admissible":"gradient-stable and max c_s^2 <= 1",
+                 "superluminal":"gradient-stable with max c_s^2 > 1",
+                 "integration_failure":"no completed background table"
+               },
+               "grid":d["grid"],"rows":[]}
+          for eps in d["epsilon_values"]:
+              rr=[r for r in d["rows"] if r["epsilon"]==eps]
+              succ=[r for r in rr if r.get("success")]
+              ghost=[r for r in succ if r.get("min_D_z100",0)>0]
+              grad=[r for r in ghost if r.get("min_cs2_z100",0)>0]
+              sub=[r for r in grad if r.get("max_cs2_z100",1e99)<=1+1e-8]
+              sup=[r for r in grad if r.get("max_cs2_z100",0)>1+1e-8]
+              fail=[r for r in rr if not r.get("success")]
+              out["rows"].append({
+                "epsilon":eps,"n_total":len(rr),"n_success":len(succ),
+                "n_ghost_free":len(ghost),"n_gradient_stable":len(grad),
+                "n_subluminal_admissible":len(sub),"n_superluminal":len(sup),
+                "n_integration_failure":len(fail),
+                "gradient_stable_fraction_total":len(grad)/len(rr),
+                "subluminal_fraction_total":len(sub)/len(rr),
+                "superluminal_points":[[r["delta_phi"],r["delta_velocity_fraction"]] for r in sup],
+                "integration_failure_points":[[r["delta_phi"],r["delta_velocity_fraction"]] for r in fail]
+              })
+          allgrad=[r["epsilon"] for r in out["rows"] if r["n_gradient_stable"]==r["n_total"]]
+          out["first_sampled_epsilon_all_20_ghost_gradient_stable"]=allgrad[0] if allgrad else None
+          out["interpretation"]=[
+            "The c_s^2<=1 cut is not a ghost/gradient-stability condition and is therefore reported separately.",
+            "On this finite diagnostic grid epsilon=3e-4 is the first sampled value for which all 20 trajectories complete and satisfy D>0 and c_s^2>0.",
+            "This does not derive epsilon: the result depends on the sampled finite-amplitude basin.",
+            "Superluminal trajectories require a separate causality/UV-completion judgment and are not relabeled as gradient instabilities."
+          ]
+          Path("output/null_g2_basin_classification.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("NULL_G2_BASIN_CLASSIFICATION",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: null-g2-basin-classification
+          path: output/null_g2_basin_classification.json
