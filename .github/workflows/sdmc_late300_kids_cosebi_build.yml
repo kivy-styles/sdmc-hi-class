@@ -60,11 +60,15 @@ jobs:
           echo "GSL_INC=$GSL_INC GSL_LIB=$GSL_LIB"
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('cosmosis-standard-library/shear/cosebis/makefile.defs')
-          s=p.read_text()
-          s=s.replace('-D COSEBIS_DIR=', '-DCOSEBIS_DIR=')
-          p.write_text(s)
-          print([x for x in s.splitlines() if 'COSEBIS_DIR' in x])
+          for name in [
+              'cosmosis-standard-library/shear/cosebis/makefile.defs',
+              'cosmosis-standard-library/shear/cosebis/modules/Makefile',
+          ]:
+              p=Path(name)
+              s=p.read_text()
+              s=s.replace('-D COSEBIS_DIR=', '-DCOSEBIS_DIR=')
+              p.write_text(s)
+              print(name,[x for x in s.splitlines() if 'COSEBIS_DIR' in x])
           PY
           cd cosmosis-standard-library/shear/cosebis/modules
           make -j2
