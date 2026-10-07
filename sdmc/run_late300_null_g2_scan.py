@@ -2,14 +2,13 @@
 from pathlib import Path
 import sys,re,json,numpy as np
 
-EPS=[1.80e-4,1.85e-4,1.90e-4,1.95e-4,2.00e-4,2.05e-4,2.10e-4,2.15e-4,2.20e-4,5.40e-4,5.45e-4,5.50e-4,5.55e-4,5.60e-4,5.65e-4,5.70e-4,5.75e-4,5.80e-4,5.85e-4,5.90e-4,5.95e-4,6.00e-4,6.05e-4,6.10e-4]
+EPS=[1.900e-4,1.902e-4,1.904e-4,1.906e-4,1.908e-4,1.910e-4,1.912e-4,1.914e-4,1.916e-4,1.918e-4,1.920e-4,1.922e-4,1.924e-4]
 POINTS=[
  ("base",0.0,0.0),
- ("A_bad",-0.75,0.50),("A_good",-0.75,0.60),
- ("B1_bad",-0.50,0.60),("B2_bad",-0.50,1.00),("B_good",-0.50,1.20),
- ("C_good",0.0,1.50),("C1_bad",0.0,1.80),("C2_bad",0.0,2.00),
+ ("B1_bad",-0.50,0.60),
+ ("B_good",-0.50,1.20),
 ]
-BAD={"A_bad","B1_bad","B2_bad","C1_bad","C2_bad"}
+BAD={"B1_bad"}
 
 def read_bg(path):
     ls=Path(path).read_text().splitlines()
@@ -33,7 +32,7 @@ def prepare():
             s="\n".join(line for line in s.splitlines() if not re.match(r"^\s*output\s*=",line))
             s=re.sub(r"(?m)^\s*lensing\s*=.*$","lensing = no",s)
             s=re.sub(r"(?m)^\s*write_thermodynamics\s*=.*$","write_thermodynamics = no",s)
-            s += "\nskip_stability_tests_smg = yes\n"
+            s += "\nskip_stability_tests_smg = yes\nreio_parametrization = reio_none\n"
             Path(f"output/null_{key}.ini").write_text(s+"\n")
             meta.append({"key":key,"epsilon":eps,"point":tag,"delta_phi":dp,"delta_velocity_fraction":dv})
     Path("output/null_g2_points.json").write_text(json.dumps(meta,indent=2,sort_keys=True)+"\n")
