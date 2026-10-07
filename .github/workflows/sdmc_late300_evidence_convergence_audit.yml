@@ -1,0 +1,37 @@
+name: SDMC late300 Planck evidence convergence audit
+
+on:
+  push:
+    branches: [sdmc-late300-evidence-convergence-audit]
+    paths:
+      - 'sdmc/run_late300_evidence_convergence_audit.py'
+      - '.github/workflows/sdmc_late300_evidence_convergence_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover pilot and converged evidence artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p evidence_inputs/pilot_late300 evidence_inputs/pilot_local021 evidence_inputs/conv_late300 evidence_inputs/conv_local021
+          gh run download 37621316765 --repo "${{ github.repository }}" --name planck-evidence-late300 --dir evidence_inputs/pilot_late300
+          gh run download 37621316765 --repo "${{ github.repository }}" --name planck-evidence-local021 --dir evidence_inputs/pilot_local021
+          gh run download 37629170856 --repo "${{ github.repository }}" --name planck-evidence-late300 --dir evidence_inputs/conv_late300
+          gh run download 37629170856 --repo "${{ github.repository }}" --name planck-evidence-local021 --dir evidence_inputs/conv_local021
+      - name: Audit convergence and supersession
+        run: |
+          python3 sdmc/run_late300_evidence_convergence_audit.py
+          cat output/evidence_convergence_audit/late300_planck_evidence_convergence_audit.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-planck-evidence-convergence-audit
+          path: output/evidence_convergence_audit/late300_planck_evidence_convergence_audit.json
