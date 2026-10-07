@@ -1,0 +1,29 @@
+name: SDMC null-G2 mature robust-luminality audit
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-mature-luminality]
+    paths:
+      - 'sdmc/run_null_g2_mature_luminality.py'
+      - '.github/workflows/sdmc_null_g2_mature_luminality.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install symbolic dependency
+        run: python3 -m pip install sympy
+      - name: Test mature robust-luminality compatibility
+        run: |
+          python3 sdmc/run_null_g2_mature_luminality.py
+          cat output/null_g2_mature_luminality/null_g2_mature_luminality.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: null-g2-mature-luminality
+          path: output/null_g2_mature_luminality/null_g2_mature_luminality.json
