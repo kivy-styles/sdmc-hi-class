@@ -1,8 +1,8 @@
-name: SDMC late300 native interior-endpoint test
+name: SDMC late300 auxiliary-fluid PPF diagnostic
 
 on:
   push:
-    branches: [sdmc-late300-native-interior-endpoint]
+    branches: [sdmc-late300-fluid-crossing-diagnostic]
     paths:
       - '.github/workflows/sdmc_late300_native_interior_endpoint.yml'
   workflow_dispatch:
@@ -95,7 +95,7 @@ jobs:
           Omega_fld = 3.1443554e-8
           fluid_equation_of_state = SDMC_TRACKER
           cs2_fld = 0.003
-          use_ppf = no
+          use_ppf = yes
           Omega_smg = -1
           gravity_model = sdmc_v3_covariant_logstruct_audit
           parameters_smg = 0.0, 0.0, 0.0
@@ -198,7 +198,7 @@ jobs:
               finite=finite and bool(np.all(np.isfinite(x)))
 
           out={
-            "status":"late300 native interior-endpoint point",
+            "status":"late300 auxiliary-fluid PPF diagnostic point",
             "branch":tag,"endpoint_ln_a":endpoint,"background_support_ln_a":support,
             "background_rc":brc,"perturbation_rc":prc,
             "background_exists":bg.exists(),
@@ -216,7 +216,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: native-interior-${{ matrix.branch.tag }}-n${{ matrix.point.target }}
+          name: fluid-ppf-${{ matrix.branch.tag }}-n${{ matrix.point.target }}
           path: |
             output/convergence.json
             output/bg.log
