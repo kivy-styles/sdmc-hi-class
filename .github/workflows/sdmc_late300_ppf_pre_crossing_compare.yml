@@ -1,0 +1,82 @@
+name: SDMC late300 PPF pre-crossing equivalence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [sdmc-late300-fluid-crossing-diagnostic]
+    paths:
+      - '.github/workflows/sdmc_late300_ppf_pre_crossing_compare.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover standard and PPF artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered/fast_std recovered/slow_std recovered/fast_ppf recovered/slow_ppf output
+          gh run download 37689071024 --repo "${{ github.repository }}" --name native-interior-refine-fast-n2.6 --dir recovered/fast_std
+          gh run download 37689071024 --repo "${{ github.repository }}" --name native-interior-refine-slow-n2.6 --dir recovered/slow_std
+          gh run download 37690574261 --repo "${{ github.repository }}" --name fluid-ppf-fast-n2.75 --dir recovered/fast_ppf
+          gh run download 37690574261 --repo "${{ github.repository }}" --name fluid-ppf-slow-n2.75 --dir recovered/slow_ppf
+      - name: Compare common physical perturbations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,numpy as np
+
+          def read(path):
+              lines=Path(path).read_text(errors="replace").splitlines()
+              comments=[x for x in lines if x.startswith("#")]
+              hdr=" ".join(comments[-5:])
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(re.sub(r"\s+"," ",hdr[m.end():e].strip(" #")))
+              a=np.loadtxt(path)
+              if a.ndim==1:a=a[None,:]
+              return names,a
+
+          physical=re.compile(r"^(a|delta_b|delta_cdm|delta_g|delta_ur|theta_b|theta_cdm|theta_g|theta_ur|phi|psi|eta|eta_prime|h_prime|h_prime_prime|alpha|alpha_prime|V_x_smg|V_x_prime_smg|V_x_prime_prime_smg|einstein00|friction_qs|mass2_qs|mass2_qs_p|slope_qs|rad2_qs)")
+          out={"status":"PPF vs standard pre-crossing equivalence","source_standard_run":37689071024,"source_ppf_run":37690574261,"branches":{}}
+          for br in ["fast","slow"]:
+              std=sorted(Path(f"recovered/{br}_std").rglob("*perturbations_k*_s.dat"))
+              ppf=sorted(Path(f"recovered/{br}_ppf").rglob("*perturbations_k*_s.dat"))
+              brec=[]
+              for ps,pp in zip(std,ppf):
+                  ns,A=read(ps); npf,B=read(pp)
+                  ds={n:i for i,n in enumerate(ns)}; dp={n:i for i,n in enumerate(npf)}
+                  common=[n for n in ns if n in dp and physical.search(n)]
+                  ia=ds.get("a",1); ib=dp.get("a",1)
+                  xa=A[:,ia]; xb=B[:,ib]
+                  rec={"file":ps.name,"common":{}}
+                  for n in common:
+                      if n=="a": continue
+                      aa=A[:,ds[n]]
+                      bb=np.interp(xa,xb,B[:,dp[n]])
+                      for label,mask in [("through_today",xa<=1.0+1e-12),("through_ln_a_2p6",xa<=np.exp(2.6)+1e-12)]:
+                          if not np.any(mask): continue
+                          peak=max(float(np.max(np.abs(aa[mask]))),float(np.max(np.abs(bb[mask]))),1e-300)
+                          rec["common"].setdefault(n,{})[label]=float(np.max(np.abs(aa[mask]-bb[mask]))/peak)
+                  vals_today=[v["through_today"] for v in rec["common"].values() if "through_today" in v]
+                  vals_future=[v["through_ln_a_2p6"] for v in rec["common"].values() if "through_ln_a_2p6" in v]
+                  rec["max_norm_physical_through_today"]=max(vals_today) if vals_today else None
+                  rec["max_norm_physical_through_ln_a_2p6"]=max(vals_future) if vals_future else None
+                  brec.append(rec)
+              out["branches"][br]=brec
+          Path("output/ppf_pre_crossing_compare.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("PPF_PRE_CROSSING_COMPARE",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ppf-pre-crossing-compare
+          path: output/ppf_pre_crossing_compare.json
