@@ -1,7 +1,7 @@
-name: SDMC HSC-Y3 corrected ReACT full nuisance refit
+name: SDMC HSC us_native Laplace evidence
 on:
   push:
-    branches: [sdmc-late300-hscy3-weyl]
+    branches: [sdmc-late300-hsc-evidence-laplace]
     paths:
       - 'sdmc/run_late300_hsc_react_fullfit.py'
       - '.github/workflows/sdmc_late300_hsc_react_fullfit.yml'
@@ -10,14 +10,13 @@ permissions:
   contents: read
   actions: read
 jobs:
-  full:
+  laplace:
     strategy:
       fail-fast: false
       matrix:
         model: [late300, local021]
-        variant: [us_native, ss_native, us_screen03, ss_screen03]
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - name: Dependencies
@@ -27,34 +26,66 @@ jobs:
           git lfs install
           python3 -m pip install --upgrade pip
           python3 -m pip install numpy scipy astropy sacc
-      - name: Recover exact linear Weyl spectra
+      - name: Recover exact Weyl and ReACT inputs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p output
-          gh run download 37587199009 --repo "${{ github.repository }}"             --name late300-desy3-native-weyl-tomography --dir output
-          test -d output/weyl_spectra
-      - name: Recover corrected ReACT bracket
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p output/react_dense
-          gh run download 37604828408 --repo "${{ github.repository }}"             --name late300-react-exact-bracket --dir output/react_dense
-          test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
+          mkdir -p output output/react_dense "output/hsc_map/${{ matrix.model }}"
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          gh run download 37604828408 --repo "${{ github.repository }}" --name late300-react-exact-bracket --dir output/react_dense
+          if [ "${{ matrix.model }}" = "late300" ]; then
+            gh run download 37631035746 --repo "${{ github.repository }}" --name hsc-react-full-late300-us_native-retry --dir "output/hsc_map/late300"
+          else
+            gh run download 37615217739 --repo "${{ github.repository }}" --name hsc-react-full-local021-us_native --dir "output/hsc_map/local021"
+          fi
       - name: Download HSC-Y3 public products
         run: |
           rm -rf cosmosis-standard-library
           git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
           cd cosmosis-standard-library && git lfs pull || true
           cd ..
-      - name: Run corrected ReACT HSC full nuisance fit
+      - name: Compute exact-HSC Laplace evidence
         run: |
-          python3 sdmc/run_late300_hsc_react_fullfit.py "${{ matrix.model }}" "${{ matrix.variant }}" |             tee "output/hsc_react_full_${{ matrix.model }}_${{ matrix.variant }}.log"
+          python3 sdmc/run_late300_hsc_react_fullfit.py "${{ matrix.model }}" | tee "output/hsc_laplace_${{ matrix.model }}.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: hsc-react-full-${{ matrix.model }}-${{ matrix.variant }}
+          name: hsc-laplace-${{ matrix.model }}
           path: |
-            output/hsc_react_full/*
-            output/hsc_react_full_${{ matrix.model }}_${{ matrix.variant }}.log
+            output/hsc_laplace/*
+            output/hsc_laplace_${{ matrix.model }}.log
           if-no-files-found: warn
+
+  combine:
+    needs: laplace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hsc-laplace-*
+          path: laplace
+          merge-multiple: true
+      - name: Combine Laplace evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,math
+          a=json.loads(Path("laplace/late300.json").read_text())
+          b=json.loads(Path("laplace/local021.json").read_text())
+          if a["logZ_laplace"] is None or b["logZ_laplace"] is None:
+              raise RuntimeError("non-positive Hessian")
+          d=a["logZ_laplace"]-b["logZ_laplace"]
+          out={"status":"conditional HSC us_native Laplace Bayes factor",
+               "logZ_late300":a["logZ_laplace"],"logZ_local021":b["logZ_laplace"],
+               "delta_logZ_late300_minus_local021":d,
+               "BF_late300_over_local021":math.exp(max(-700,min(700,d))),
+               "profile_data_delta_chi2":a["map_data_chi2"]-b["map_data_chi2"],
+               "profile_prior_delta_chi2":a["map_prior_chi2"]-b["map_prior_chi2"],
+               "qualification":"Laplace approximation to the exact fixed-cosmology HSC nuisance evidence; compare against the running nested-sampling calculation."}
+          Path("hsc_laplace_bayes_factor.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("HSC_LAPLACE_BAYES_FACTOR",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hsc-laplace-bayes-factor
+          path: hsc_laplace_bayes_factor.json
