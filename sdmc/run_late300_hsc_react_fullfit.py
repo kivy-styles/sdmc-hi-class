@@ -44,3 +44,5 @@ out={"status":"conditional HSC us_native Laplace nuisance evidence","model":name
 Path("output/hsc_laplace").mkdir(parents=True,exist_ok=True)
 Path(f"output/hsc_laplace/{name}.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("HSC_LAPLACE_EVIDENCE",json.dumps(out,sort_keys=True),flush=True)
+
+# trigger Laplace evidence workflow
