@@ -1,0 +1,63 @@
+name: SDMC HSC-Y3 corrected ReACT scale diagnostic
+on:
+  push:
+    branches: [sdmc-late300-hscy3-weyl]
+    paths:
+      - 'sdmc/run_late300_hsc_react_cutscan.py'
+      - '.github/workflows/sdmc_late300_hsc_react_cutscan.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  cutscan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy sacc
+      - name: Recover exact linear Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}"             --name late300-desy3-native-weyl-tomography --dir output
+      - name: Recover corrected ReACT bracket
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/react_dense
+          gh run download 37604828408 --repo "${{ github.repository }}"             --name late300-react-exact-bracket --dir output/react_dense
+          test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
+      - name: Recover completed HSC best fits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/hsc_best/late300 output/hsc_best/local021
+          gh run download 37603559185 --repo "${{ github.repository }}"             --name hsc-native-weyl-late300 --dir output/hsc_best/late300
+          gh run download 37603559185 --repo "${{ github.repository }}"             --name hsc-native-weyl-local021 --dir output/hsc_best/local021
+      - name: Download CosmoSIS HSC-Y3 products
+        run: |
+          rm -rf cosmosis-standard-library
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library
+          git lfs pull || true
+          cd ..
+      - name: Run HSC corrected-ReACT cut scan
+        run: |
+          python3 sdmc/run_late300_hsc_react_cutscan.py | tee output/hsc_react_cutscan.log
+          cat output/hsc_react_cutscan/summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-hsc-react-cutscan
+          path: |
+            output/hsc_react_cutscan/*
+            output/hsc_react_cutscan.log
+          if-no-files-found: warn
