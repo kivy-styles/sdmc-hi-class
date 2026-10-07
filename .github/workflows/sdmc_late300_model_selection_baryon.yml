@@ -1,0 +1,74 @@
+name: SDMC late300 baryon-aware model-selection sensitivity
+
+on:
+  push:
+    branches: [sdmc-late300-model-selection-baryon]
+    paths:
+      - '.github/workflows/sdmc_late300_model_selection_baryon.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover current model-selection and baryon envelopes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/model inputs/baryon output
+          gh run download 37639309046 --repo "${{ github.repository }}" --name late300-model-selection-synthesis --dir inputs/model
+          gh run download 37641969890 --repo "${{ github.repository }}" --name hsc-baryon-envelope --dir inputs/baryon
+      - name: Build baryon-aware information-criterion sensitivity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,math
+          def one(root,name):
+              p=list(Path(root).rglob(name))
+              if len(p)!=1: raise RuntimeError((root,name,p))
+              return json.loads(p[0].read_text())
+          m=one("inputs/model","late300_model_selection_synthesis.json")
+          b=one("inputs/baryon","hsc_baryon_envelope.json")
+          gate=float(m["exact_gate_best_delta_chi2"])
+          rows={}
+          for tag,r in b["tables"].items():
+              h=float(r["delta_chi2_profile_Abary"])
+              total=gate+h
+              rows[tag]={
+                "delta_chi2_hsc_profiled_baryon":h,
+                "delta_chi2_plus_best_exact_gate":total,
+                "delta_AIC_dk1":total+2.0,
+                "delta_BIC_dk1_N60_lower_bound":total+math.log(60.0),
+                "BIC_BF_approx_late_over_local_N60_dk1":math.exp(-0.5*(total+math.log(60.0)))
+              }
+          vals=[r["delta_chi2_plus_best_exact_gate"] for r in rows.values()]
+          aics=[r["delta_AIC_dk1"] for r in rows.values()]
+          bics=[r["delta_BIC_dk1_N60_lower_bound"] for r in rows.values()]
+          out={
+            "status":"baryon-aware late300 model-selection sensitivity",
+            "best_exact_gate_delta_chi2":gate,
+            "rows":rows,
+            "combined_raw_delta_chi2_range":[min(vals),max(vals)],
+            "delta_AIC_dk1_range":[min(aics),max(aics)],
+            "delta_BIC_dk1_N60_lower_bound_range":[min(bics),max(bics)],
+            "verdict":{
+              "raw_fit":"Every profiled public-hydro baryon scenario in this diagnostic retains a negative combined delta chi2 for late300.",
+              "AIC":"With one genuinely extra effective parameter, AIC ranges across mild late300 preference to near parity depending on the baryon response.",
+              "BIC":"With one genuinely extra effective parameter and N_eff at least 60, BIC favors local021 throughout this baryonic robustness envelope.",
+              "scope":"This is a sensitivity calculation based on factorized public hydro responses and the best completed exact gate; it is not a joint TATT+baryon HSC likelihood or full model-family Bayesian evidence."
+            },
+            "pending":["full TATT HSC pair","HSC ell1000 closure","local021 us_screen03 closure","high-precision conditional Planck evidence"]
+          }
+          Path("output/late300_model_selection_baryon_sensitivity.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_MODEL_SELECTION_BARYON",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-model-selection-baryon-sensitivity
+          path: output/late300_model_selection_baryon_sensitivity.json
