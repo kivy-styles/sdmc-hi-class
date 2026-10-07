@@ -6,10 +6,15 @@ on:
 permissions:
   contents: read
   actions: read
+
 jobs:
   hsc:
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [late300, local021]
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - name: Dependencies
@@ -21,10 +26,10 @@ jobs:
           python3 -m pip install numpy scipy astropy sacc
       - name: Download validated native-Weyl spectra
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: \${{ github.token }}
         run: |
           mkdir -p output
-          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          gh run download 37587199009 --repo "\${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
           test -d output/weyl_spectra
       - name: Download CosmoSIS HSC-Y3 products
         run: |
@@ -36,12 +41,46 @@ jobs:
           test -s cosmosis-standard-library/likelihood/hsc_cosmic_shear/hsc_y3_fourier_shear.sacc
       - name: Run HSC-Y3 native-Weyl nuisance pilot
         run: |
-          python3 sdmc/run_late300_hscy3_weyl.py | tee output/hsc_weyl.log
-          cat output/hsc_weyl/hsc_weyl_result.json
+          python3 sdmc/run_late300_hscy3_weyl.py "\${{ matrix.model }}" | tee "output/hsc_weyl_\${{ matrix.model }}.log"
+          cat "output/hsc_weyl/hsc_weyl_result_\${{ matrix.model }}.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: late300-hscy3-native-weyl
+          name: hsc-native-weyl-\${{ matrix.model }}
           path: |
-            output/hsc_weyl/*
-            output/hsc_weyl.log
+            output/hsc_weyl/hsc_weyl_result_\${{ matrix.model }}.json
+            output/hsc_weyl_\${{ matrix.model }}.log
+          if-no-files-found: warn
+
+  summary:
+    needs: hsc
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hsc-native-weyl-*
+          path: output/hsc_parts
+          merge-multiple: true
+      - name: Combine HSC fits
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('output/hsc_parts')
+          a=json.loads((root/'hsc_weyl_result_late300.json').read_text())
+          b=json.loads((root/'hsc_weyl_result_local021.json').read_text())
+          out=dict(a)
+          out['results'].update(b['results'])
+          out['delta_chi2_late300_minus_local021']=(
+              out['results']['late300']['chi2_total']-
+              out['results']['local021']['chi2_total']
+          )
+          (root/'hsc_weyl_result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('HSC_WEYL_COMBINED',json.dumps(out,sort_keys=True))
+          PY
+          cat output/hsc_parts/hsc_weyl_result.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-hscy3-native-weyl-combined
+          path: output/hsc_parts/hsc_weyl_result.json
