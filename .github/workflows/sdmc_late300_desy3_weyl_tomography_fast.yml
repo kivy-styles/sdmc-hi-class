@@ -1,0 +1,69 @@
+name: SDMC late300 DES-Y3 tomography fast replay
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - sdmc-late300-weyl-tomography
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+
+      - name: Recover validated Weyl and matter spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf recovered output/weyl_spectra
+          mkdir -p recovered output/weyl_spectra output/weyl_tomography
+          gh run download 37586838577 --repo "${{ github.repository }}" \
+            --name late300-desy3-native-weyl-tomography --dir recovered
+          cp -a recovered/weyl_spectra/. output/weyl_spectra/
+          test -n "$(find output/weyl_spectra -name 'late300_*pk_weyl.dat' -print -quit)"
+          test -n "$(find output/weyl_spectra -name 'late300_nl_*pk_nl.dat' -print -quit)"
+          test -n "$(find output/weyl_spectra -name 'local021_*pk_weyl.dat' -print -quit)"
+          test -n "$(find output/weyl_spectra -name 'local021_nl_*pk_nl.dat' -print -quit)"
+
+      - name: Download public DES-Y3 data and scale cuts
+        run: |
+          rm -rf des_y3_data
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git
+          cd des_y3_data
+          git lfs pull || true
+          cd ..
+          test -s des_y3_data/likelihood/des-y3/2pt_NG_final_2ptunblind_02_24_21_wnz_covupdate.v2.fits
+          test -s des_y3_data/examples/des-y3-scale-cuts.ini
+
+      - name: Recompute native-Weyl tomography with true pk_nl envelope
+        run: |
+          python3 sdmc/run_late300_desy3_weyl_tomography.py | tee output/weyl_tomography_fast.log
+          cat output/weyl_tomography/late300_desy3_weyl_tomography.csv
+          cat output/weyl_tomography/late300_desy3_weyl_tomography.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-desy3-native-weyl-tomography-fast-replay
+          path: |
+            output/weyl_tomography/*
+            output/weyl_tomography_fast.log
+          if-no-files-found: warn

@@ -1,0 +1,57 @@
+name: SDMC late300 DES-Y3 dense Weyl equivalence
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - sdmc-late300-weyl-tomography
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  dense-equivalence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas astropy
+      - name: Recover validated spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf recovered output/weyl_spectra
+          mkdir -p recovered output/weyl_spectra
+          gh run download 37586838577 --repo "${{ github.repository }}" \
+            --name late300-desy3-native-weyl-tomography --dir recovered
+          cp -a recovered/weyl_spectra/. output/weyl_spectra/
+      - name: Public DES-Y3 data
+        run: |
+          rm -rf des_y3_data
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git
+          cd des_y3_data && git lfs pull || true
+          cd ..
+          test -s des_y3_data/likelihood/des-y3/2pt_NG_final_2ptunblind_02_24_21_wnz_covupdate.v2.fits
+      - name: Dense native-Weyl equivalence test
+        run: |
+          python3 sdmc/run_late300_desy3_weyl_dense_equivalence.py | tee output/dense_weyl_equivalence.log
+          cat output/weyl_dense_equivalence/dense_equivalence.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-desy3-dense-weyl-equivalence
+          path: |
+            output/weyl_dense_equivalence/*
+            output/dense_weyl_equivalence.log
+          if-no-files-found: warn

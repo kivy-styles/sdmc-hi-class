@@ -1,0 +1,206 @@
+name: SDMC late300 native-Weyl DES-Y3 tomography
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  desy3-weyl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+
+      - name: Apply SDMC patches and build
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+
+      - name: Recover the validated late300 reconstruction target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37581650696 --repo "${{ github.repository }}" \
+            --name late300-linear-g3-covariant-audit --dir output
+          test -f output/linear_cov_target.ini
+          test -f output/linear_cov_target_00_background.dat
+          echo "RECOVERED_LATE300_ACTION_TARGET"
+
+      - name: Reconstruct accepted linear-G3 action
+        run: |
+          python3 sdmc/run_late300_linear_covariant.py
+          cat output/linear_cov_reconstruction_summary.txt
+          make clean && make -j2 class
+
+      - name: Prepare dense redshift grid
+        run: |
+          python3 - <<'PY'
+          import numpy as np
+          z=np.round(np.arange(0,3.5001,0.05),5)
+          open('output/zgrid.txt','w').write(','.join(f'{x:g}' for x in z))
+          print('ZGRID_COUNT',len(z))
+          PY
+          mkdir -p output/weyl_spectra
+
+      - name: Run accepted-action late300 linear matter and native Weyl spectra
+        run: |
+          ZGRID="$(cat output/zgrid.txt)"
+          cat > output/late300_weyl.ini <<EOF
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_linear_audit
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          modes = s
+          output = mPk,wPk
+          P_k_max_h/Mpc = 20.0
+          z_pk = ${ZGRID}
+          write background = yes
+          root = output/weyl_spectra/late300_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 1
+          EOF
+          ./class output/late300_weyl.ini | tee output/late300_weyl.log
+          ls output/weyl_spectra/late300_*pk_weyl.dat | wc -l
+          ls output/weyl_spectra/late300_*_pk.dat | wc -l
+
+      - name: Run accepted-action late300 HALOFIT matter envelope
+        run: |
+          ZGRID="$(cat output/zgrid.txt)"
+          cp output/late300_weyl.ini output/late300_nl.ini
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('output/late300_nl.ini')
+          s=p.read_text()
+          s=s.replace('output = mPk,wPk','output = mPk')
+          s=s.replace('root = output/weyl_spectra/late300_','root = output/weyl_spectra/late300_nl_')
+          s += '\nnon linear = halofit\n'
+          p.write_text(s)
+          PY
+          ./class output/late300_nl.ini | tee output/late300_nl.log
+
+      - name: Run optimized local021 linear matter and native Weyl spectra
+        run: |
+          ZGRID="$(cat output/zgrid.txt)"
+          cat > output/local021_weyl.ini <<EOF
+          H0 = 68.56859
+          omega_b = 0.02240637
+          omega_cdm = 0.11824151
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.051092661998245e-9
+          n_s = 0.96495932
+          tau_reio = 0.04498538
+          modes = s
+          output = mPk,wPk
+          P_k_max_h/Mpc = 20.0
+          z_pk = ${ZGRID}
+          write background = yes
+          root = output/weyl_spectra/local021_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 1
+          EOF
+          ./class output/local021_weyl.ini | tee output/local021_weyl.log
+
+      - name: Run optimized local021 HALOFIT matter envelope
+        run: |
+          cp output/local021_weyl.ini output/local021_nl.ini
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('output/local021_nl.ini')
+          s=p.read_text()
+          s=s.replace('output = mPk,wPk','output = mPk')
+          s=s.replace('root = output/weyl_spectra/local021_','root = output/weyl_spectra/local021_nl_')
+          s += '\nnon linear = halofit\n'
+          p.write_text(s)
+          PY
+          ./class output/local021_nl.ini | tee output/local021_nl.log
+
+      - name: Download public DES-Y3 two-point data and scale cuts
+        run: |
+          rm -rf des_y3_data
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git
+          cd des_y3_data
+          git lfs pull || true
+          cd ..
+          test -s des_y3_data/likelihood/des-y3/2pt_NG_final_2ptunblind_02_24_21_wnz_covupdate.v2.fits
+          test -s des_y3_data/examples/des-y3-scale-cuts.ini
+          sha256sum des_y3_data/likelihood/des-y3/2pt_NG_final_2ptunblind_02_24_21_wnz_covupdate.v2.fits
+
+      - name: Run native-Weyl tomographic DES-Y3 likelihood pilot
+        run: |
+          python3 sdmc/run_late300_desy3_weyl_tomography.py | tee output/weyl_tomography.log
+          cat output/weyl_tomography/late300_desy3_weyl_tomography.csv
+          cat output/weyl_tomography/late300_desy3_weyl_tomography.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-desy3-native-weyl-tomography
+          path: |
+            output/weyl_tomography/*
+            output/weyl_tomography.log
+            output/late300_weyl.log
+            output/local021_weyl.log
+            output/late300_nl.log
+            output/local021_nl.log
+            output/linear_cov_reconstruction_summary.txt
+            output/zgrid.txt
+            output/weyl_spectra/*
+            output/late300_weyl.ini
+            output/late300_nl.ini
+            output/local021_weyl.ini
+            output/local021_nl.ini
+          if-no-files-found: warn

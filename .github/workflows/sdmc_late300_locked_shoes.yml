@@ -1,0 +1,99 @@
+name: SDMC late300 locked accepted-action SH0ES
+
+on:
+  push:
+    branches:
+      - sdmc-late300-locked-battery
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ladder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Download exact late300-action background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/late300_action
+          gh run download 37579409032 --repo "${{ github.repository }}" \
+            --name late300-linear-g3-covariant-audit \
+            --dir inputs/late300_action
+          test -f inputs/late300_action/linear_cov_free_00_background.dat
+
+      - name: Build CLASS and generate optimized local021 background
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean >/dev/null && make -j2 class >/dev/null
+          mkdir -p output/local021
+          cat > output/local021.ini <<'EOF'
+          H0 = 68.56858744695782
+          omega_b = 0.022406369378007947
+          omega_cdm = 0.11824151052483357
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.05109266435559e-9
+          n_s = 0.9649593164240942
+          tau_reio = 0.044985382026527077
+          modes = s
+          output =
+          write background = yes
+          root = output/local021/local021_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/local021.ini
+          test -f output/local021/local021_00_background.dat
+
+      - name: Install Pantheon+SH0ES
+        run: |
+          rm -rf sn_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          test -f sn_data/PantheonPlus/Pantheon+SH0ES.dat
+
+      - name: Run calibrated ladder
+        run: |
+          python3 sdmc/run_partx_shoes_calibrated_hubble.py \
+            late300-action=inputs/late300_action/linear_cov_free_00_background.dat \
+            local021=output/local021/local021_00_background.dat
+          cat output/partx_shoes_calibrated/partx_shoes_calibrated_summary.json
+          cat output/partx_shoes_calibrated/partx_shoes_calibrated_summary.csv
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-late300-locked-shoes-vs-local021
+          path: output/partx_shoes_calibrated/*
+          if-no-files-found: warn
