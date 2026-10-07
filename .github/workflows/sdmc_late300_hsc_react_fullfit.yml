@@ -1,7 +1,7 @@
-name: SDMC HSC-Y3 corrected ReACT full nuisance refit
+name: SDMC HSC us_native conditional evidence
 on:
   push:
-    branches: [sdmc-late300-hscy3-weyl]
+    branches: [sdmc-late300-hsc-evidence-v3]
     paths:
       - 'sdmc/run_late300_hsc_react_fullfit.py'
       - '.github/workflows/sdmc_late300_hsc_react_fullfit.yml'
@@ -10,14 +10,13 @@ permissions:
   contents: read
   actions: read
 jobs:
-  full:
+  evidence:
     strategy:
       fail-fast: false
       matrix:
         model: [late300, local021]
-        variant: [us_native, ss_native, us_screen03, ss_screen03]
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - name: Dependencies
@@ -26,20 +25,20 @@ jobs:
           sudo apt-get install -y git git-lfs
           git lfs install
           python3 -m pip install --upgrade pip
-          python3 -m pip install numpy scipy astropy sacc
+          python3 -m pip install numpy scipy astropy sacc dynesty
       - name: Recover exact linear Weyl spectra
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p output
-          gh run download 37587199009 --repo "${{ github.repository }}"             --name late300-desy3-native-weyl-tomography --dir output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
           test -d output/weyl_spectra
       - name: Recover corrected ReACT bracket
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p output/react_dense
-          gh run download 37604828408 --repo "${{ github.repository }}"             --name late300-react-exact-bracket --dir output/react_dense
+          gh run download 37604828408 --repo "${{ github.repository }}" --name late300-react-exact-bracket --dir output/react_dense
           test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
       - name: Download HSC-Y3 public products
         run: |
@@ -47,14 +46,49 @@ jobs:
           git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
           cd cosmosis-standard-library && git lfs pull || true
           cd ..
-      - name: Run corrected ReACT HSC full nuisance fit
+      - name: Run conditional nuisance evidence
         run: |
-          python3 sdmc/run_late300_hsc_react_fullfit.py "${{ matrix.model }}" "${{ matrix.variant }}" |             tee "output/hsc_react_full_${{ matrix.model }}_${{ matrix.variant }}.log"
+          python3 sdmc/run_late300_hsc_react_fullfit.py "${{ matrix.model }}" | tee "output/hsc_evidence_${{ matrix.model }}.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: hsc-react-full-${{ matrix.model }}-${{ matrix.variant }}
+          name: hsc-evidence-${{ matrix.model }}
           path: |
-            output/hsc_react_full/*
-            output/hsc_react_full_${{ matrix.model }}_${{ matrix.variant }}.log
+            output/hsc_conditional_evidence/*
+            output/hsc_evidence_${{ matrix.model }}.log
           if-no-files-found: warn
+
+  combine:
+    needs: evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hsc-evidence-*
+          path: evidence
+          merge-multiple: true
+      - name: Combine HSC evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,math
+          a=json.loads(Path("evidence/late300.json").read_text())
+          b=json.loads(Path("evidence/local021.json").read_text())
+          d=a["logZ_shared_data_normalization_omitted"]-b["logZ_shared_data_normalization_omitted"]
+          e=math.hypot(a["logZerr"],b["logZerr"])
+          out={"status":"conditional fixed-cosmology HSC us_native Bayes factor",
+               "logZ_late300":a["logZ_shared_data_normalization_omitted"],
+               "logZ_local021":b["logZ_shared_data_normalization_omitted"],
+               "delta_logZ_late300_minus_local021":d,
+               "delta_logZ_error_quadrature":e,
+               "BF_late300_over_local021":math.exp(max(-700,min(700,d))),
+               "late300_converged":not a["terminated_by_maxcall"],
+               "local021_converged":not b["terminated_by_maxcall"],
+               "qualification":"Conditional nuisance evidence for fixed cosmologies; does not include SDMC structural/cosmological prior volume."}
+          Path("hsc_conditional_bayes_factor.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("HSC_CONDITIONAL_BAYES_FACTOR",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hsc-conditional-bayes-factor
+          path: hsc_conditional_bayes_factor.json
