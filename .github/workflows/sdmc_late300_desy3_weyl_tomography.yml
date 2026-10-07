@@ -1,5 +1,9 @@
 name: SDMC late300 native-Weyl DES-Y3 tomography
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
