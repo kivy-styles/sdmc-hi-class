@@ -1,0 +1,29 @@
+name: SDMC null-G2 structural-clock normalization
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-structural-clock-normalization]
+    paths:
+      - 'sdmc/run_null_g2_structural_clock_normalization.py'
+      - '.github/workflows/sdmc_null_g2_structural_clock_normalization.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install symbolic dependency
+        run: python3 -m pip install sympy
+      - name: Run structural-clock normalization audit
+        run: |
+          python3 sdmc/run_null_g2_structural_clock_normalization.py
+          cat output/null_g2_structural_clock_normalization/null_g2_structural_clock_normalization.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: null-g2-structural-clock-normalization
+          path: output/null_g2_structural_clock_normalization/null_g2_structural_clock_normalization.json
