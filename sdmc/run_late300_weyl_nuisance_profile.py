@@ -176,13 +176,12 @@ BOUNDS=[(-0.09,0.09),(-0.075,0.075),(-0.055,0.055),(-0.085,0.085),
 def fit_model(model,des,lam):
     fix=prepare_fixed(model,des,lam)
     starts=[]
-    for A0 in [0.0,0.5,-0.5]:
-        x=np.zeros(10); x[4:8]=M_MU; x[8]=A0; x[9]=0.0
-        starts.append(x)
+    x=np.zeros(10); x[4:8]=M_MU; x[8]=0.2; x[9]=0.0
+    starts.append(x)
     best=None
     for x0 in starts:
         r=minimize(lambda v: objective(fix,v),x0,method="L-BFGS-B",bounds=BOUNDS,
-                   options=dict(maxiter=120,ftol=1e-10,gtol=1e-6,maxls=30))
+                   options=dict(maxiter=55,ftol=1e-8,gtol=3e-5,maxls=20))
         parts=objective(fix,r.x,return_parts=True)
         rec=dict(success=bool(r.success),message=str(r.message),nit=int(r.nit),nfev=int(r.nfev),
                  total_chi2=float(parts["total"]),data_chi2=float(parts["data_chi2"]),
@@ -191,8 +190,8 @@ def fit_model(model,des,lam):
         if best is None or rec["total_chi2"]<best["total_chi2"]: best=rec
     return best
 
-cuts=[("official",0.0,0.0),("c40_150",40.0,150.0),("c100_250",100.0,250.0)]
-lams=[0.0,0.55,1.0]
+cuts=[("official",0.0,0.0),("c100_250",100.0,250.0)]
+lams=[0.55]
 out={"status":"DES-Y3 nuisance-profile native-Weyl pilot",
      "nuisance_order":["dz1","dz2","dz3","dz4","m1","m2","m3","m4","AIA","etaIA"],
      "priors":{"dz_sigma":DZ_SIG.tolist(),"m_mean":M_MU.tolist(),"m_sigma":M_SIG.tolist(),
@@ -214,14 +213,14 @@ for label,xp,xm in cuts:
         rows.append([label,len(des["data"]),lam,a["total_chi2"],b["total_chi2"],delta,
                      a["data_chi2"],b["data_chi2"],dd,a["prior_chi2"],b["prior_chi2"],
                      a["params"][8],b["params"][8],a["params"][9],b["params"][9]])
-        print("WEYL_NUISANCE_PROFILE",label,lam,json.dumps(rr["lambda"][str(lam)],sort_keys=True),flush=True)
+        print("WEYL_NUISANCE_FASTCHECK",label,lam,json.dumps(rr["lambda"][str(lam)],sort_keys=True),flush=True)
     out["cuts"][label]=rr
 
-with (OUT/"late300_weyl_nuisance_profile.csv").open("w",newline="") as f:
+with (OUT/"late300_weyl_nuisance_fastcheck.csv").open("w",newline="") as f:
     w=csv.writer(f)
     w.writerow(["cuts","ndata","lambda_NL","late300_total","local021_total","delta_total",
                 "late300_data","local021_data","delta_data","late300_prior","local021_prior",
                 "late300_AIA","local021_AIA","late300_etaIA","local021_etaIA"])
     w.writerows(rows)
-(OUT/"late300_weyl_nuisance_profile.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
-print("WEYL_NUISANCE_PROFILE_DONE",json.dumps(out,sort_keys=True))
+(OUT/"late300_weyl_nuisance_fastcheck.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+print("WEYL_NUISANCE_FASTCHECK_DONE",json.dumps(out,sort_keys=True))
