@@ -39,7 +39,9 @@ def setup(options):
     Iq,zq=cube(specdir,model+"_",h,"weyl")
     Ip,zp=cube(specdir,model+"_",h,"matter")
     # background
-    bp=Path(specdir)/(model+"_background.dat")
+    bp00=Path(specdir)/(model+"_00_background.dat")
+    bpstd=Path(specdir)/(model+"_background.dat")
+    bp=bp00 if bp00.exists() else bpstd
     lines=bp.read_text().splitlines(); hdr=[x for x in lines if x.startswith("#") and re.search(r"1\s*:",x)][-1].lstrip("#").strip()
     ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
     for i,m in enumerate(ms):
