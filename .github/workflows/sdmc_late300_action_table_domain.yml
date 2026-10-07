@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Install audit dependency
+        run: python3 -m pip install numpy
       - name: Recover target background and measure reconstruction domain
         env:
           GH_TOKEN: ${{ github.token }}
