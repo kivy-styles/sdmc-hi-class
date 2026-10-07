@@ -1,8 +1,8 @@
-name: SDMC late300 auxiliary-fluid PPF diagnostic
+name: SDMC late300 PPF deep-future native audit
 
 on:
   push:
-    branches: [sdmc-late300-fluid-crossing-diagnostic]
+    branches: [sdmc-late300-ppf-deep-future]
     paths:
       - '.github/workflows/sdmc_late300_native_interior_endpoint.yml'
   workflow_dispatch:
@@ -20,10 +20,8 @@ jobs:
           - { tag: fast, candidate: legacy_canonical }
           - { tag: slow, candidate: legacy_canonical_slowroot }
         point:
-          - { target: 2.75, support: 3.25 }
-          - { target: 3.00, support: 3.50 }
-          - { target: 4.00, support: 4.50 }
-          - { target: 5.00, support: 5.50 }
+          - { target: 7.00, support: 8.00 }
+          - { target: 9.50, support: 10.00 }
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -198,7 +196,7 @@ jobs:
               finite=finite and bool(np.all(np.isfinite(x)))
 
           out={
-            "status":"late300 auxiliary-fluid PPF diagnostic point",
+            "status":"late300 PPF deep-future native point",
             "branch":tag,"endpoint_ln_a":endpoint,"background_support_ln_a":support,
             "background_rc":brc,"perturbation_rc":prc,
             "background_exists":bg.exists(),
@@ -216,7 +214,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: fluid-ppf-${{ matrix.branch.tag }}-n${{ matrix.point.target }}
+          name: ppf-deep-${{ matrix.branch.tag }}-n${{ matrix.point.target }}
           path: |
             output/convergence.json
             output/bg.log
