@@ -1,0 +1,97 @@
+name: SDMC late300 native root comparison
+
+on:
+  push:
+    branches: [sdmc-late300-native-root-compare]
+    paths:
+      - '.github/workflows/sdmc_late300_native_root_compare.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          python3 -m pip install --upgrade pip >/dev/null
+          python3 -m pip install numpy >/dev/null
+
+      - name: Download successful fast and slow native artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered/fast1 recovered/slow1 recovered/fast2 recovered/slow2 output
+          gh run download 37686831812 --repo "${{ github.repository }}" --name native-convergence-fast-n1 --dir recovered/fast1
+          gh run download 37686831812 --repo "${{ github.repository }}" --name native-convergence-slow-n1 --dir recovered/slow1
+          gh run download 37686831812 --repo "${{ github.repository }}" --name native-convergence-fast-n2 --dir recovered/fast2
+          gh run download 37686831812 --repo "${{ github.repository }}" --name native-convergence-slow-n2 --dir recovered/slow2
+
+      - name: Compare native perturbation solutions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          import numpy as np
+
+          def table(path):
+              a=np.loadtxt(path)
+              if a.ndim==1:a=a[None,:]
+              return a
+
+          def compare_tables(pa,pb):
+              a=table(pa); b=table(pb)
+              if a.shape[1]!=b.shape[1]:
+                  return {"error":"column_mismatch","shape_a":list(a.shape),"shape_b":list(b.shape)}
+              xb=a[:,0]; yb=b[:,0]
+              out={"shape_fast":list(a.shape),"shape_slow":list(b.shape),"columns":{}}
+              for j in range(1,a.shape[1]):
+                  aa=a[:,j]
+                  bb=np.interp(xb,yb,b[:,j])
+                  peak=max(float(np.max(np.abs(aa))),float(np.max(np.abs(bb))),1e-300)
+                  norm=float(np.max(np.abs(aa-bb))/peak)
+                  mask=np.abs(aa)>1e-8*peak
+                  frac=float(np.max(np.abs((bb[mask]-aa[mask])/aa[mask]))) if np.any(mask) else None
+                  out["columns"][str(j)]={"max_norm_abs":norm,"max_frac_masked":frac}
+              out["max_norm_abs_all_columns"]=max(v["max_norm_abs"] for v in out["columns"].values()) if out["columns"] else None
+              vals=[v["max_frac_masked"] for v in out["columns"].values() if v["max_frac_masked"] is not None]
+              out["max_frac_masked_all_columns"]=max(vals) if vals else None
+              return out
+
+          def findfiles(root,pattern):
+              return sorted(Path(root).rglob(pattern))
+
+          summary={"status":"fast-vs-slow C3 native perturbation comparison","source_run":37686831812,"endpoints":{}}
+          for ep in [1,2]:
+              fa=findfiles(f"recovered/fast{ep}","*perturbations_k*_s.dat")
+              sl=findfiles(f"recovered/slow{ep}","*perturbations_k*_s.dat")
+              rec={"n_fast":len(fa),"n_slow":len(sl),"pairs":[]}
+              if len(fa)!=len(sl):
+                  rec["file_count_match"]=False
+              for p,q in zip(fa,sl):
+                  rec["pairs"].append({"fast":p.name,"slow":q.name,"comparison":compare_tables(p,q)})
+              vals=[x["comparison"].get("max_norm_abs_all_columns") for x in rec["pairs"] if "comparison" in x and x["comparison"].get("max_norm_abs_all_columns") is not None]
+              rec["max_norm_abs_across_files"]=max(vals) if vals else None
+              fvals=[x["comparison"].get("max_frac_masked_all_columns") for x in rec["pairs"] if "comparison" in x and x["comparison"].get("max_frac_masked_all_columns") is not None]
+              rec["max_frac_masked_across_files"]=max(fvals) if fvals else None
+
+              bfa=findfiles(f"recovered/fast{ep}","bg_00_background.dat")
+              bsl=findfiles(f"recovered/slow{ep}","bg_00_background.dat")
+              if bfa and bsl:
+                  rec["background"]=compare_tables(bfa[0],bsl[0])
+              summary["endpoints"][str(ep)]=rec
+
+          Path("output/native_root_compare.json").write_text(json.dumps(summary,indent=2,sort_keys=True)+"\n")
+          print("NATIVE_ROOT_COMPARE",json.dumps(summary,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-root-compare
+          path: output/native_root_compare.json
