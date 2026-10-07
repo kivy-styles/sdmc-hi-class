@@ -1,8 +1,8 @@
-name: SDMC late300 null-G2 upper-window audit
+name: SDMC late300 null-G2 refined-window audit
 
 on:
   push:
-    branches: [sdmc-late300-null-g2-window]
+    branches: [sdmc-late300-null-g2-window-refine]
     paths:
       - 'sdmc/apply_sdmc_null_g2_stabilizer.py'
       - 'sdmc/run_late300_null_g2_scan.py'
@@ -148,7 +148,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: nullg2-upper-window-scan
+          name: nullg2-refined-window-scan
           path: |
             output/null_g2_stabilizer_scan.json
             output/null_g2_points.json
