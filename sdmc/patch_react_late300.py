@@ -1,13 +1,33 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import re, shutil
+import shutil,re
+
 src=Path("reactv2/reactions/src/BeyondLCDM.cpp")
 s=src.read_text()
+
 if '#include "late300_table.h"' not in s:
     s=s.replace('#include "SpecialFunctions.h"','#include "SpecialFunctions.h"\n#include "late300_table.h"')
-# Exact accepted-action alpha histories for this dedicated build.
-patterns=[
-(r'inline double alphai_eft\(double a, double omega0, double alpha0, int model\)\{.*?\n\}', '''inline double alphai_eft(double a, double omega0, double alpha0, int model){
+
+def function_span(text, signature):
+    start=text.find(signature)
+    if start<0: raise RuntimeError(f"signature not found: {signature}")
+    brace=text.find("{",start)
+    if brace<0: raise RuntimeError(f"opening brace not found: {signature}")
+    depth=0
+    for i in range(brace,len(text)):
+        if text[i]=="{": depth+=1
+        elif text[i]=="}":
+            depth-=1
+            if depth==0: return start,i+1
+    raise RuntimeError(f"unclosed function: {signature}")
+
+def replace_function(text,signature,newbody):
+    a,b=function_span(text,signature)
+    return text[:a]+newbody+text[b:]
+
+s=replace_function(s,
+    "inline double alphai_eft(double a, double omega0, double alpha0, int model)",
+'''inline double alphai_eft(double a, double omega0, double alpha0, int model){
   switch(model){
     case 1: return late300_ak(a);
     case 2: return late300_ab(a);
@@ -16,8 +36,10 @@ patterns=[
     case 5: return late300_m2(a);
     default: return 0.;
   }
-}'''),
-(r'inline double dalphai_eft\(double a, double omega0, double alpha0, int model\)\{.*?\n\}', '''inline double dalphai_eft(double a, double omega0, double alpha0, int model){
+}''')
+s=replace_function(s,
+    "inline double dalphai_eft(double a, double omega0, double alpha0, int model)",
+'''inline double dalphai_eft(double a, double omega0, double alpha0, int model){
   switch(model){
     case 1: return late300_dak(a);
     case 2: return late300_dab(a);
@@ -26,8 +48,10 @@ patterns=[
     case 5: return 0.;
     default: return 0.;
   }
-}'''),
-(r'inline double ddalphai_eft\(double a, double omega0, double alpha0, int model\)\{.*?\n\}', '''inline double ddalphai_eft(double a, double omega0, double alpha0, int model){
+}''')
+s=replace_function(s,
+    "inline double ddalphai_eft(double a, double omega0, double alpha0, int model)",
+'''inline double ddalphai_eft(double a, double omega0, double alpha0, int model){
   switch(model){
     case 1: return late300_d2ak(a);
     case 2: return late300_d2ab(a);
@@ -37,32 +61,52 @@ patterns=[
     default: return 0.;
   }
 }''')
-]
-for pat,rep in patterns:
-    s2,n=re.subn(pat,rep,s,count=1,flags=re.S)
-    if n!=1: raise RuntimeError(f"failed alpha patch {pat}: {n}")
-    s=s2
-# Dedicated build uses stock EFT IDs 8/9 but exact late300 background.
-s=s.replace('''case 8:
-			/* EFTofDE: unscreened approx */
-				return  HA( a, omega0);''','''case 8:
-            /* late300 accepted-action background, unscreened nonlinear bracket */
-                return late300_E(a);''')
-s=s.replace('''case 9:
-			/* EFTofDE: superscreened approx */
-				return  HA( a, omega0);''','''case 9:
-            /* late300 accepted-action background, superscreened nonlinear bracket */
-                return late300_E(a);''')
-s=s.replace('''case 8:
-		/* EFTofDE: unscreened approximation */
-			return HA1( a, omega0);''','''case 8:
-        /* late300 accepted-action background derivative */
-            return late300_HA1(a);''')
-s=s.replace('''case 9:
-		/* EFTofDE: superscreened approximation */
-			return HA1( a, omega0);''','''case 9:
-        /* late300 accepted-action background derivative */
-            return late300_HA1(a);''')
+
+# Patch only the HAg/HA1g function bodies, preserving every other ReACT model.
+def patch_cases(text,signature,replacements):
+    a,b=function_span(text,signature)
+    q=text[a:b]
+    for case,repl in replacements.items():
+        pat=rf'(case\s+{case}\s*:.*?)(?=\n\s*case\s+\d+\s*:|\n\s*default\s*:)'
+        m=re.search(pat,q,flags=re.S)
+        if not m: raise RuntimeError(f"case {case} not found in {signature}")
+        q=q[:m.start()]+repl+q[m.end():]
+    return text[:a]+q+text[b:]
+
+s=patch_cases(s,"double HAg(double a, double omega0, double extpars[], int model)",{
+  8:'''case 8:
+            /* late300 exact accepted-action background: unscreened nonlinear bracket */
+            return late300_E(a);
+''',
+  9:'''case 9:
+            /* late300 exact accepted-action background: superscreened nonlinear bracket */
+            return late300_E(a);
+'''
+})
+s=patch_cases(s,"double HA1g(double a, double omega0, double extpars[], int model)",{
+  8:'''case 8:
+            /* late300 exact accepted-action time derivative */
+            return late300_HA1(a);
+''',
+  9:'''case 9:
+            /* late300 exact accepted-action time derivative */
+            return late300_HA1(a);
+'''
+})
+
 src.write_text(s)
 shutil.copy("output/react_tables/late300_table.h","reactv2/reactions/src/late300_table.h")
-print("PATCH_REACT_LATE300_OK")
+
+# Sanity checks on patched source before compilation.
+t=src.read_text()
+checks=[
+  '#include "late300_table.h"',
+  'case 1: return late300_ak(a);',
+  'case 2: return late300_ab(a);',
+  'case 3: return late300_am(a);',
+  'return late300_E(a);',
+  'return late300_HA1(a);',
+]
+for x in checks:
+    if x not in t: raise RuntimeError(f"missing patch marker: {x}")
+print("PATCH_REACT_LATE300_OK",len(t))
