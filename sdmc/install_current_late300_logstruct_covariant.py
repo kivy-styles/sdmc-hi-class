@@ -130,8 +130,8 @@ replace_once("include/background.h",
              "sdmc_v3_covariant_linear_audit, sdmc_v3_covariant_logstruct_audit,")
 
 replace_once("gravity_smg/gravity_models_smg.c",
-             '#include "sdmc_current_late300_linear_covariant_table.h"\n',
-             '#include "sdmc_current_late300_linear_covariant_table.h"\n#include "sdmc_late266_logstruct_table.h"\n')
+             '#include "sdmc_late300_linear_covariant_table.h"\n',
+             '#include "sdmc_late300_linear_covariant_table.h"\n#include "sdmc_late266_logstruct_table.h"\n')
 
 parser_anchor='  if (strcmp(string1,"sdmc_v3_covariant_linear_audit") == 0) {'
 parser=r'''  if (strcmp(string1,"sdmc_v3_covariant_logstruct_audit") == 0) {
