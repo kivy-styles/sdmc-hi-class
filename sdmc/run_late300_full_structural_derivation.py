@@ -46,10 +46,19 @@ def findcol(*needles):
             return n
     return None
 
-Fcol=findcol("M2_smg") or findcol("M2","smg")
-Dcol="kin (D)" if "kin (D)" in d else findcol("kin","D")
-cscol="c_s^2" if "c_s^2" in d else findcol("c_s")
-acol=findcol("M2_running_smg")
+def exactcol(name):
+    for n in names:
+        if n.strip().lower()==name.lower():
+            return n
+    return None
+Fcol=exactcol("M2_smg")
+deltaFcol=exactcol("delta_M2_smg")
+if Fcol is None and deltaFcol is not None:
+    # handled below as 1+delta_M2
+    Fcol=deltaFcol
+Dcol=exactcol("kin (D)") or findcol("kin","D")
+cscol=exactcol("c_s^2") or findcol("c_s")
+acol=exactcol("M2_running_smg")
 
 out={"status":"full late300 structural-coordinate derivation and non-derivability audit",
      "columns":{"F":Fcol,"D":Dcol,"cs2":cscol,"alphaM":acol}}
@@ -63,6 +72,8 @@ out["Omega_x0"]={"candidate":cand["Omega_x0"],"derived":Ox,
 # it tests whether the coordinates are independently encoded after the action is specified.
 if Fcol:
     F=np.asarray(d[Fcol],float)[o]
+    if Fcol.strip().lower()=="delta_m2_smg":
+        F=1.0+F
     mask=np.isfinite(F)&(F>0)&(z<200)
     def Fmodel(p):
         AF,zc,w=p
