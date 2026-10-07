@@ -1,0 +1,139 @@
+name: SDMC late300 accepted-action wide basin
+
+on:
+  push:
+    branches: [sdmc-late300-action-basin-wide]
+    paths:
+      - '.github/workflows/sdmc_late300_action_basin_wide.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  wide-basin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+      - name: Apply SDMC source patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+      - name: Recover and reconstruct accepted frozen action
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output recovered
+          gh run download 37579409032 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp recovered/linear_cov_target.ini output/
+          cp recovered/linear_cov_target_00_background.dat output/
+          cp recovered/linear_cov_free.ini output/
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 sdmc/run_late300_action_basin_audit.py patch
+          make clean
+          make -j2 class
+      - name: Prepare wide basin
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path("output/linear_cov_free.ini").read_text()
+          points=[
+            ("base",0.,0.),
+            ("phi_p003",.03,0.),("phi_m003",-.03,0.),
+            ("phi_p010",.10,0.),("phi_m010",-.10,0.),
+            ("phi_p030",.30,0.),("phi_m030",-.30,0.),
+            ("phi_p100",1.00,0.),("phi_m100",-1.00,0.),
+            ("vel_p003",0.,.03),("vel_m003",0.,-.03),
+            ("vel_p010",0.,.10),("vel_m010",0.,-.10),
+            ("vel_p030",0.,.30),("vel_m030",0.,-.30),
+            ("vel_p100",0.,1.00),("vel_m050",0.,-.50),("vel_m090",0.,-.90),
+            ("both_p010",.10,.10),("both_m010",-.10,-.10),
+            ("both_p030",.30,.30),("both_m030",-.30,-.30),
+          ]
+          for tag,dp,dv in points:
+              s=base.replace("parameters_smg = 0.0",f"parameters_smg = 0.0, {dp:.17g}, {dv:.17g}")
+              s=s.replace("root = output/linear_cov_free_",f"root = output/wide_{tag}_")
+              s="\n".join(line for line in s.splitlines() if not line.strip().startswith("output = "))
+              s=s.replace("lensing = yes","lensing = no")
+              s=s.replace("write_thermodynamics = yes","write_thermodynamics = no")
+              Path(f"output/wide_{tag}.ini").write_text(s+"\n")
+          PY
+      - name: Free-evolve wide fixed-action basin
+        run: |
+          set +e
+          for ini in output/wide_*.ini; do
+            tag=$(basename "$ini" .ini)
+            ./class "$ini" > "output/${tag}.log" 2>&1
+            echo "$?" > "output/${tag}.rc"
+          done
+          set -e
+      - name: Analyze wide basin
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,json
+          def read(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[x for x in lines if x.startswith("#") and re.search(r"1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(path)
+              return {n:a[:,i] for i,n in enumerate(names)}
+          base=read("output/wide_base_00_background.dat")
+          Nb=-np.log1p(base["z"]); ob=np.argsort(Nb)
+          out={"status":"wide accepted frozen-action initial-condition basin","variants":{}}
+          for rc in sorted(Path("output").glob("wide_*.rc")):
+              tag=rc.stem
+              code=int(rc.read_text())
+              q={"returncode":code}
+              bg=Path("output")/f"{tag}_00_background.dat"
+              if code==0 and bg.exists():
+                  d=read(bg); N=-np.log1p(d["z"]); o=np.argsort(N)
+                  H0=np.interp(N[o],Nb[ob],base["H [1/Mpc]"][ob])
+                  F0=np.interp(N[o],Nb[ob],base["M*^2_smg"][ob])
+                  z=d["z"][o]; m=z<=100
+                  q.update({
+                    "status":"success",
+                    "max_abs_dH_H_z100":float(np.max(np.abs(d["H [1/Mpc]"][o][m]/H0[m]-1))),
+                    "max_abs_dF_F_z100":float(np.max(np.abs(d["M*^2_smg"][o][m]/F0[m]-1))),
+                    "min_D_z100":float(np.min(d["kin (D)"][o][m])),
+                    "min_cs2_z100":float(np.min(d["c_s^2"][o][m])),
+                    "max_cs2_z100":float(np.max(d["c_s^2"][o][m])),
+                  })
+              else:
+                  q["status"]="failed"
+              out["variants"][tag]=q
+          succ=[v for v in out["variants"].values() if v["status"]=="success"]
+          out["n_total"]=len(out["variants"])
+          out["n_success"]=len(succ)
+          out["n_stable_recovery"]=sum(v["min_D_z100"]>0 and v["min_cs2_z100"]>0 and v["max_cs2_z100"]<=1.00000001 and v["max_abs_dH_H_z100"]<1e-3 and v["max_abs_dF_F_z100"]<1e-3 for v in succ)
+          Path("output/late300_action_basin_wide.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_ACTION_BASIN_WIDE",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-action-basin-wide
+          path: |
+            output/late300_action_basin_wide.json
+            output/wide_*.rc
+            output/wide_*.log
+          if-no-files-found: warn
