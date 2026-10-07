@@ -32,3 +32,5 @@ out={"status":"conditional fixed-cosmology HSC us_native nuisance evidence","mod
 Path("output/hsc_conditional_evidence").mkdir(parents=True,exist_ok=True)
 Path(f"output/hsc_conditional_evidence/{name}.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("HSC_CONDITIONAL_EVIDENCE",json.dumps(out,sort_keys=True),flush=True)
+
+# trigger evidence workflow
