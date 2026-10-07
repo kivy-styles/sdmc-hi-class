@@ -175,6 +175,20 @@ jobs:
               a=np.loadtxt(p); return {n:a[:,i] for i,n in enumerate(ns)}
           base=read_bg("output/phase_p2_v0_00_background.dat")
           Nb=-np.log1p(base["z"]); ob=np.argsort(Nb)
+          hdrtxt=Path("gravity_smg/sdmc_late300_linear_covariant_table.h").read_text()
+          def cdefine(name):
+              return float(re.search(rf"#define {name} ([^\\n]+)",hdrtxt).group(1))
+          def carr(name):
+              m=re.search(rf"static const double sdmc_lin_{name}\\[[^]]+\\] = \\{{([^}}]+)\\}};",hdrtxt,re.S)
+              return np.array([float(x) for x in m.group(1).split(",")],float)
+          sx=carr("x"); cg=carr("g"); ck1=carr("k1"); ck2=carr("k2")
+          AF=cdefine("SDMC_LIN_AF"); ZC=cdefine("SDMC_LIN_ZC"); WIDTH=cdefine("SDMC_LIN_WIDTH")
+          def seval(c,x):
+              i=int(np.searchsorted(sx,x,side="right")-1); i=max(0,min(i,len(sx)-2))
+              q=c.reshape(-1,4)[i]; dx=x-sx[i]
+              return (float(((q[0]*dx+q[1])*dx+q[2])*dx+q[3]),
+                      float((3*q[0]*dx+2*q[1])*dx+q[2]),
+                      float(6*q[0]*dx+2*q[1]))
           rows=[]
           for tag,p in pts.items():
               rc=int(Path(f"output/phase_{tag}.rc").read_text())
@@ -247,6 +261,24 @@ jobs:
                                       "beyond_horndeski_derivative":float(T5),
                                       "sum":float(T1+T2+T3+T4+T5),
                                       "residual_to_stored":float((T1+T2+T3+T4+T5)-st["cs2num"])}
+                  ph=st["phi"]; X=st["X"]; phip=st["phi_prime"]; phipp=float(d["phi''"][o][iz])
+                  g,g1,g2=seval(cg,ph); k1,k1p,k1pp=seval(ck1,ph); k2,k2p,k2pp=seval(ck2,ph)
+                  Nc=-np.log1p(ZC); xx=(ph-Nc)/(2.*WIDTH); tt=np.tanh(xx); uu=1.-tt*tt
+                  SS=.5*(1.+tt); S1=uu/(4.*WIDTH); S2=-tt*uu/(4.*WIDTH*WIDTH)
+                  FF=np.exp(AF*SS); F1=FF*(AF*S1); F2=FF*((AF*S1)**2+AF*S2)
+                  G2X=k1+2.*k2*X; G3X=g; G3phi=g1*X
+                  G4phi=F1/2.; G4phiphi=F2/2.; DG4=(FF-1.)/2.
+                  Hprime=-1.5*aa*(rho_t+p_t)
+                  E2=(2.*X*G2X)/3.
+                  E3=(-4.*X*G3phi + 8.*X*G3X*HH*phip/aa - 2.*X*G3X*phipp/(aa*aa))/3.
+                  E4=(4.*X*G4phiphi - 4.*G4phi*HH*phip/aa + 4.*DG4*Hprime/aa
+                      + 2.*G4phi*phipp/(aa*aa))/3.
+                  st["enthalpy_action_sectors"]={"G2_kinetic":float(E2),"G3_braiding":float(E3),
+                                                  "G4_planck_mass":float(E4),"sum":float(E2+E3+E4),
+                                                  "stored_rho_plus_p_smg":float(rho_s+p_s),
+                                                  "residual":float((E2+E3+E4)-(rho_s+p_s)),
+                                                  "potential_V_contribution":0.0}
+                  st["phi_double_prime"]=phipp
                   r["recovery_gate"]=bool(r["min_D_z100"]>0 and r["min_cs2_z100"]>0 and r["max_cs2_z100"]<=1.0+1e-8
                                            and r["max_abs_dH_H_z100"]<1e-2 and r["max_abs_dF_F_z100"]<1e-2)
               else:
