@@ -61,8 +61,8 @@ jobs:
             "us_native":{"late300":chi(un_l),"local021":chi(un_c)},
             "us_screen03":{"late300":chi(us_l),"local021":chi(us_c)},
             "conditional_TATT":{
-              "late300":float(tl["fit"]["chi2_total"]),
-              "local021":float(tc["fit"]["chi2_total"])
+              "late300":float(tl["tatt_conditional_chi2"]),
+              "local021":float(tc["tatt_conditional_chi2"])
             }
           }
           for r in hsc.values():
