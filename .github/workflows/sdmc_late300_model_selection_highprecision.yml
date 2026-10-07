@@ -1,8 +1,8 @@
-name: SDMC late300 converged model-selection synthesis
+name: SDMC late300 model-selection identifiability update
 
 on:
   push:
-    branches: [sdmc-late300-model-selection-highprecision]
+    branches: [sdmc-late300-model-selection-identifiability-update]
     paths:
       - '.github/workflows/sdmc_late300_model_selection_highprecision.yml'
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p inputs/{bic,prov,pbf,profile,tatt_late,tatt_local,usn_late,usn_local,uss_late,uss_local,safe1000_late,safe1000_local,baryon} output
+          mkdir -p inputs/{bic,prov,pbf,profile,tatt_late,tatt_local,usn_late,usn_local,uss_late,uss_local,safe1000_late,safe1000_local,baryon,cond_joint,nullg2_id} output
           gh run download 37620779682 --repo "${{ github.repository }}" --name sdmc-late300-bic-audit --dir inputs/bic
           gh run download 37636547455 --repo "${{ github.repository }}" --name late300-deep-parameter-provenance --dir inputs/prov
           gh run download 37637638799 --repo "${{ github.repository }}" --name planck-conditional-bayes-factor-highprecision --dir inputs/pbf
@@ -35,6 +35,8 @@ jobs:
           gh run download 37639231423 --repo "${{ github.repository }}" --name hsc-safe-late300-ell1000-stale-retry --dir inputs/safe1000_late
           gh run download 37631035746 --repo "${{ github.repository }}" --name hsc-safe-local021-ell1000-retry --dir inputs/safe1000_local
           gh run download 37645030114 --repo "${{ github.repository }}" --name late300-model-selection-baryon-sensitivity --dir inputs/baryon
+          gh run download 37664360059 --repo "${{ github.repository }}" --name late300-conditional-evidence-robustness --dir inputs/cond_joint
+          gh run download 37664968188 --repo "${{ github.repository }}" --name null-g2-identifiability-audit --dir inputs/nullg2_id
       - name: Build converged synthesis
         run: |
           python3 - <<'PY'
@@ -50,6 +52,8 @@ jobs:
           pbf=load("inputs/pbf")
           prof=load("inputs/profile")
           bary=load("inputs/baryon")
+          cond_joint=load("inputs/cond_joint")
+          nullg2_id=load("inputs/nullg2_id")
           tl=load("inputs/tatt_late")
           tc=load("inputs/tatt_local")
           un_l=load("inputs/usn_late")
@@ -86,18 +90,21 @@ jobs:
             "planck_conditional_highprecision":pbf,
             "planck_profile_volume_split":prof,
             "baryon_aware_sensitivity":bary,
+            "conditional_planck_plus_hsc_laplace":cond_joint,
+            "trajectory_null_g2_identifiability":nullg2_id,
             "parameter_provenance":{
               "replay_delta_k":prov["complexity_consequence"]["replay_delta_k"],
               "historically_explored_union_count":prov["complexity_consequence"]["historically_explored_union_count"],
               "model_family_delta_k":prov["complexity_consequence"]["model_family_delta_k"],
               "required_resolution":prov["complexity_consequence"]["required_resolution"]
             },
-            "pending":["full joint HSC TATT pair"],
+            "pending":["full joint HSC TATT pair","nested HSC conditional evidence pair and independent replicate"],
             "verdict":{
               "raw_fit":"late300 remains favored in completed HSC nonlinear/screening and conditional-TATT comparisons.",
               "planck":"high-precision fixed-spectrum Planck nuisance evidence favors local021 conditionally; the split shows both profile-fit and nuisance-volume contributions.",
-              "complexity":"the final theory-family verdict remains unresolved because the independent SDMC structural/action prior volume is not uniquely identified.",
-              "null_g2":"exploratory trajectory-null G2 completion is not included in model selection because it has not been adopted or derived as part of the accepted SDMC action."
+              "complexity":"the final theory-family verdict remains unresolved because the independent identifiable SDMC structural/action prior volume is not uniquely identified.",
+              "conditional_joint":"with HSC Laplace nuisance evidence, Planck and HSC nearly cancel: the central conditional joint delta_logZ is close to zero and remains close under tested Hessian step changes; nested HSC evidence is still pending.",
+              "null_g2":"the exploratory trajectory-null G2 completion remains outside the accepted SDMC action. Conditional on the accepted late300 trajectory its epsilon direction is exactly non-identifiable, adds zero Fisher rank and no regular BIC/Laplace dimension; this does not make epsilon derived or physically preferred."
             }
           }
           Path("output/late300_model_selection_highprecision.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
@@ -105,5 +112,5 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: late300-model-selection-highprecision
+          name: late300-model-selection-identifiability-update
           path: output/late300_model_selection_highprecision.json
