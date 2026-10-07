@@ -1,0 +1,35 @@
+name: SDMC accepted-action transverse-flow constraints
+
+on:
+  push:
+    branches: [sdmc-late300-transverse-flow-constraints]
+    paths:
+      - 'sdmc/run_transverse_flow_constraints.py'
+      - '.github/workflows/sdmc_transverse_flow_constraints.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover completed accepted-action audits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/approach inputs/chronology
+          gh run download 37674988182 --repo "${{ github.repository }}" --name accepted-action-canonical-approach --dir inputs/approach
+          gh run download 37675432746 --repo "${{ github.repository }}" --name accepted-action-handoff-chronology --dir inputs/chronology
+      - name: Build necessary-condition synthesis
+        run: |
+          python3 sdmc/run_transverse_flow_constraints.py
+          cat output/transverse_flow_constraints/transverse_flow_constraints.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: transverse-flow-constraints
+          path: output/transverse_flow_constraints/transverse_flow_constraints.json
