@@ -1,0 +1,54 @@
+name: SDMC late300 DES-Y3 native-Weyl nuisance profile
+
+on:
+  push:
+    branches:
+      - sdmc-late300-weyl-nuisance-profile
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  nuisance-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+      - name: Download validated late300/local021 Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}"             --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+          ls output/weyl_spectra/late300_*pk_weyl.dat | head
+          ls output/weyl_spectra/local021_*pk_weyl.dat | head
+      - name: Download public DES-Y3 data
+        run: |
+          rm -rf des_y3_data
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git
+          cd des_y3_data
+          git lfs pull || true
+          cd ..
+          test -s des_y3_data/likelihood/des-y3/2pt_NG_final_2ptunblind_02_24_21_wnz_covupdate.v2.fits
+      - name: Run nuisance-profile audit
+        run: |
+          python3 sdmc/run_late300_weyl_nuisance_profile.py | tee output/weyl_nuisance_profile.log
+          cat output/weyl_nuisance_profile/late300_weyl_nuisance_profile.csv
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-desy3-weyl-nuisance-profile
+          path: |
+            output/weyl_nuisance_profile/*
+            output/weyl_nuisance_profile.log
+          if-no-files-found: warn
