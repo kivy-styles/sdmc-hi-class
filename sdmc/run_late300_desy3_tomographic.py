@@ -132,8 +132,8 @@ data=full_data[sel]
 cov=covfull[:nall,:nall][np.ix_(sel,sel)]
 icov=np.linalg.inv(cov)
 
-late=make_model("late300","late300_wl",Path("output/late300_wl_00_background.dat"),69.71482083084993/100.)
-loc =make_model("local021","local021_wl",Path("output/local021_wl_00_background.dat"),68.56859/100.)
+late=make_model("late300","late300_wl_00",Path("output/late300_wl_00_background.dat"),69.71482083084993/100.)
+loc =make_model("local021","local021_wl_00",Path("output/local021_wl_00_background.dat"),68.56859/100.)
 
 # Normalize source n(z)
 nzsrc=np.array([n/np.trapezoid(n,zsrc) for n in nzsrc])
