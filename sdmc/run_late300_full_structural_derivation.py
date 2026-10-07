@@ -3,7 +3,7 @@ from pathlib import Path
 import json,re,math
 import numpy as np
 from scipy.optimize import least_squares, linprog
-from scipy.integrate import solve_ivp
+from scipy.integrate import solve_ivp, cumulative_trapezoid
 
 ROOT=Path("derivation_inputs")
 OUT=Path("output/late300_full_structural_derivation")
@@ -70,10 +70,17 @@ out["Omega_x0"]={"candidate":cand["Omega_x0"],"derived":Ox,
 
 # 2. Exact action-trajectory decomposition of F and D. This is not first principles;
 # it tests whether the coordinates are independently encoded after the action is specified.
-if Fcol:
-    F=np.asarray(d[Fcol],float)[o]
-    if Fcol.strip().lower()=="delta_m2_smg":
-        F=1.0+F
+if Fcol or acol:
+    if Fcol:
+        F=np.asarray(d[Fcol],float)[o]
+        if Fcol.strip().lower()=="delta_m2_smg":
+            F=1.0+F
+        F_source="direct M2 column"
+    else:
+        alpha=np.asarray(d[acol],float)[o]
+        lnF=cumulative_trapezoid(alpha,N,initial=0.0)
+        F=np.exp(lnF)
+        F_source="integrated alpha_M with early F=1 normalization"
     mask=np.isfinite(F)&(F>0)&(z<200)
     def Fmodel(p):
         AF,zc,w=p
@@ -90,6 +97,7 @@ if Fcol:
       "derived_from_frozen_trajectory":{"A_F":float(AFf),"z_c":float(zcf),"width":float(wf)},
       "candidate":{"A_F":cand["A_F"],"z_c":cand["z_c"],"width":cand["width"]},
       "max_logF_residual":float(np.max(np.abs(np.log(Fmodel(fit.x))-np.log(F[mask])))),
+      "F_source":F_source,
       "status":"exact/near-exact decomposition of the already selected frozen action; not a first-principles prediction"
     }
 else:
