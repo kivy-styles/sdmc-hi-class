@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys,re,json,numpy as np
 
-EPS=[5.88e-4,5.89e-4,5.90e-4,5.91e-4,5.92e-4,5.93e-4,5.94e-4,5.95e-4,5.96e-4,5.97e-4,5.98e-4,5.99e-4,6.00e-4]
+EPS=[5.9e-4,6.0e-4,7.0e-4,8.0e-4,1.0e-3,1.5e-3,2.0e-3,3.0e-3,5.0e-3,1.0e-2,2.0e-2,5.0e-2,1.0e-1]
 POINTS=[
  ("base",0.0,0.0),
  ("C_good",0.0,1.50),
@@ -33,7 +33,7 @@ def prepare():
             s="\n".join(line for line in s.splitlines() if not re.match(r"^\s*output\s*=",line))
             s=re.sub(r"(?m)^\s*lensing\s*=.*$","lensing = no",s)
             s=re.sub(r"(?m)^\s*write_thermodynamics\s*=.*$","write_thermodynamics = no",s)
-            s += "\nskip_stability_tests_smg = yes\n"
+            s += "\nskip_stability_tests_smg = yes\nreio_parametrization = reio_none\n"
             Path(f"output/null_{key}.ini").write_text(s+"\n")
             meta.append({"key":key,"epsilon":eps,"point":tag,"delta_phi":dp,"delta_velocity_fraction":dv})
     Path("output/null_g2_points.json").write_text(json.dumps(meta,indent=2,sort_keys=True)+"\n")
