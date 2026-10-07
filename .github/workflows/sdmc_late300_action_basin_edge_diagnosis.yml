@@ -1,0 +1,34 @@
+name: SDMC late300 action-basin edge diagnosis
+
+on:
+  push:
+    branches: [sdmc-late300-action-basin-edge-diagnosis]
+    paths:
+      - '.github/workflows/sdmc_late300_action_basin_edge_diagnosis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover wide-basin artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered
+          gh run download 37642845364 --repo "${{ github.repository }}" --name late300-action-basin-wide --dir recovered
+          find recovered -maxdepth 3 -type f -print
+      - name: Diagnose failed negative-field point
+        run: |
+          echo "===== wide_phi_m100 rc ====="
+          cat recovered/wide_phi_m100.rc || true
+          echo "===== wide_phi_m100 log ====="
+          cat recovered/wide_phi_m100.log || true
+          echo "===== summary ====="
+          cat recovered/late300_action_basin_wide.json
