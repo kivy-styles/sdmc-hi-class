@@ -22,17 +22,17 @@ jobs:
       - name: Dependencies
         run: |
           python3 -m pip install -q numpy pandas
-      - name: Download exact baseline and A034 transfer artifacts
+      - name: Download parameterized and accepted-action late300 spectra
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p inputs/s117 inputs/late300_action
-          gh run download 35795737921 --repo "${{ github.repository }}" \
-            --name sdmc-r032-snclosure029-s117-covariant-desi-final-audit --dir inputs/s117
+          mkdir -p inputs/late300_param inputs/late300_action
+          gh run download 37462886455 --repo "${{ github.repository }}" \
+            --name sdmc-g022-a034-exact-desi --dir inputs/late300_param
           gh run download 37579409032 --repo "${{ github.repository }}" \
             --name late300-linear-g3-covariant-audit --dir inputs/late300_action
-          test -f inputs/s117/desi_cov_00_z1_pk.dat
-          test -f inputs/late300_action/desi_cov_00_z1_pk.dat
+          test -f inputs/late300_param/desi_cov_00_z1_pk.dat
+          test -f inputs/late300_action/linear_cov_free_00_z1_pk.dat
       - name: Run candidate-specific JWST stress test
         run: |
           python3 sdmc/run_late300_locked_jwst_likelihood_equivalent.py
