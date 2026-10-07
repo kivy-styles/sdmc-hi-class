@@ -1,0 +1,68 @@
+name: SDMC late300 auxiliary-fluid crossing locator
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [sdmc-late300-fluid-crossing-diagnostic]
+    paths:
+      - '.github/workflows/sdmc_late300_wfld_crossing_audit.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover clean background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37689071024 --repo "${{ github.repository }}" --name native-interior-refine-fast-n2.74 --dir recovered
+          find recovered -type f -maxdepth 4 -print
+      - name: Locate fluid crossings
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,numpy as np
+          p=next(Path("recovered").rglob("bg_00_background.dat"))
+          ls=p.read_text().splitlines()
+          hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(p)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+          N=-np.log1p(np.asarray(d["z"],float))
+          o=np.argsort(N); N=N[o]
+          w=np.asarray(d["(.)w_fld"],float)[o]
+          rho=np.asarray(d["(.)rho_fld"],float)[o]
+          def roots(y,target):
+              yy=y-target; out=[]
+              for i in range(len(N)-1):
+                  if not(np.isfinite(yy[i]) and np.isfinite(yy[i+1])): continue
+                  if yy[i]==0: out.append(float(N[i]))
+                  elif yy[i]*yy[i+1]<0:
+                      t=-yy[i]/(yy[i+1]-yy[i])
+                      out.append(float(N[i]+t*(N[i+1]-N[i])))
+              return out
+          out={"w_minus1_crossings_ln_a":roots(w,-1.0),
+               "rho_zero_crossings_ln_a":roots(rho,0.0)}
+          m=(N>=2.70)&(N<=2.80)
+          out["window"]={"w_min":float(np.nanmin(w[m])),"w_max":float(np.nanmax(w[m])),
+                         "rho_min":float(np.nanmin(rho[m])),"rho_max":float(np.nanmax(rho[m]))}
+          Path("output/wfld_crossing.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("WFLD_CROSSING_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wfld-crossing-audit
+          path: output/wfld_crossing.json
