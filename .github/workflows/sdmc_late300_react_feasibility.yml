@@ -90,7 +90,7 @@ jobs:
           a=np.loadtxt(z0)
           # CLASS file units are h/Mpc and (Mpc/h)^3, matching ReACT.
           k=a[:,0]; P=a[:,1]
-          sel=(k>=1e-3)&(k<=5.0)
+          sel=(k>=1e-5)&(k<=20.0)
           k=np.ascontiguousarray(k[sel],float); P=np.ascontiguousarray(P[sel],float)
           h=0.6856859
           Om=(0.02240637+0.11824151)/h**2
