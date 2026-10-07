@@ -1,0 +1,212 @@
+name: SDMC late300 DES-Y3 tomographic shear
+
+on:
+  push:
+    branches:
+      - sdmc-late300-desy3-tomographic-shear
+  pull_request:
+    branches:
+      - sdmc-late300-model-selection-audit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desy3-shear:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas astropy
+
+      - name: Install public DES Y3 data package
+        run: |
+          rm -rf des_y3_data
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git des_y3_data
+          test -f des_y3_data/likelihood/des-y3/2pt_NG_final_2ptunblind_02_24_21_wnz_covupdate.v2.fits
+          test -f des_y3_data/examples/des-y3-scale-cuts.ini
+          sha256sum des_y3_data/likelihood/des-y3/2pt_NG_final_2ptunblind_02_24_21_wnz_covupdate.v2.fits
+
+      - name: Apply SDMC patches and build target solver
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+
+      - name: Generate late300 target background
+        run: |
+          mkdir -p output
+          cat > output/linear_cov_target.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.02048146490100771, 3.927876388467848, 0.33114133956842123, 0.34231919445927034, 1.0, 0.05181542627513409
+          expansion_model = sdmc_full
+          expansion_smg = 0.7014079815036496, 18.40625, 16.19317622240633, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          write background = yes
+          root = output/linear_cov_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/linear_cov_target.ini
+
+      - name: Reconstruct accepted late300 action
+        run: |
+          python3 sdmc/run_late300_linear_covariant.py
+          cat output/linear_cov_reconstruction_summary.txt
+          make clean && make -j2 class
+
+      - name: Run accepted-action late300 with matter and Weyl spectra
+        run: |
+          cat > output/late300_wl.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_linear_audit
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = mPk,wPk
+          non linear = halofit
+          P_k_max_h/Mpc = 30.0
+          start_large_k_at_tau_h_over_tau_k = 0.25
+          z_max_pk = 3.1
+          z_pk = 0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0
+          write background = yes
+          root = output/late300_wl_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          perturbations_verbose = 0
+          fourier_verbose = 0
+          output_verbose = 1
+          EOF
+          set +e
+          ./class output/late300_wl.ini > output/late300_wl.log 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "HALOFIT_FAILED_LATE300_FALLBACK_LINEAR" | tee output/late300_nonlinear_mode.txt
+            sed -i '/non linear = halofit/d' output/late300_wl.ini
+            ./class output/late300_wl.ini
+          else
+            echo "HALOFIT" | tee output/late300_nonlinear_mode.txt
+          fi
+          ls output/late300_wl_*pk*.dat | head
+
+      - name: Run optimized local021 control with matter and Weyl spectra
+        run: |
+          cat > output/local021_wl.ini <<'EOF'
+          H0 = 68.56859
+          omega_b = 0.02240637
+          omega_cdm = 0.11824151
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.051092661998245e-09
+          n_s = 0.96495932
+          tau_reio = 0.04498538
+          Omega_Lambda = 0.7007654037263196
+          modes = s
+          output = mPk,wPk
+          non linear = halofit
+          P_k_max_h/Mpc = 30.0
+          start_large_k_at_tau_h_over_tau_k = 0.25
+          z_max_pk = 3.1
+          z_pk = 0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0
+          write background = yes
+          root = output/local021_wl_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          perturbations_verbose = 0
+          fourier_verbose = 0
+          output_verbose = 1
+          EOF
+          set +e
+          ./class output/local021_wl.ini > output/local021_wl.log 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "HALOFIT_FAILED_LOCAL021_FALLBACK_LINEAR" | tee output/local021_nonlinear_mode.txt
+            sed -i '/non linear = halofit/d' output/local021_wl.ini
+            ./class output/local021_wl.ini
+          else
+            echo "HALOFIT" | tee output/local021_nonlinear_mode.txt
+          fi
+
+      - name: Run DES Y3 tomographic differential likelihood
+        run: |
+          python3 sdmc/run_late300_desy3_tomographic.py
+          cat output/desy3_tomographic/desy3_tomographic_summary.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-late300-desy3-tomographic-shear
+          path: |
+            output/desy3_tomographic/*
+            output/late300_nonlinear_mode.txt
+            output/local021_nonlinear_mode.txt
+            output/late300_wl.log
+            output/local021_wl.log
+          if-no-files-found: warn
