@@ -123,7 +123,6 @@ jobs:
           k_output_values = 0.0001, 0.001, 0.01
           write parameters = yes
           write warnings = yes
-          perturbations_verbose = 1
           root = output/pert_
           EOF
 
