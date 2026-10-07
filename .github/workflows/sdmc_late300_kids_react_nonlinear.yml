@@ -56,6 +56,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p output/react_dense
+          # Re-run after corrected 900-point radiation-stripped ReACT background table.
           gh run download 37604828408 --repo "${{ github.repository }}" \
             --name late300-react-exact-bracket --dir output/react_dense
           test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
