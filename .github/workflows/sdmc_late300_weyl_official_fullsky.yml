@@ -1,0 +1,46 @@
+name: SDMC late300 DES-Y3 official-cut full-sky check
+on:
+  push:
+    branches: [sdmc-late300-weyl-official-fullsky]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  fullsky:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+      - name: Download native-Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+      - name: Download DES-Y3 and CosmoSIS
+        run: |
+          rm -rf des_y3_data cosmosis-standard-library
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git
+          cd des_y3_data && git lfs pull || true
+          cd ..
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+      - name: Run official-cut full-sky check
+        run: |
+          python3 sdmc/run_late300_weyl_official_fullsky.py | tee output/weyl_official_fullsky.log
+          cat output/weyl_official_fullsky/official_fullsky_check.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-desy3-official-fullsky
+          path: |
+            output/weyl_official_fullsky/*
+            output/weyl_official_fullsky.log
