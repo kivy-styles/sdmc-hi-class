@@ -1,0 +1,72 @@
+name: SDMC KiDS-Legacy COSEBI build audit
+on:
+  push:
+    branches: [sdmc-late300-kids-legacy-feasibility]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git git-lfs libgsl-dev
+          git lfs install
+      - name: Install CosmoSIS
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cosmosis numpy scipy astropy
+          python3 - <<'PY'
+          import cosmosis,os
+          print("COSMOSIS_MODULE",cosmosis.__file__)
+          print("COSMOSIS_SRC_DIR",os.environ.get("COSMOSIS_SRC_DIR"))
+          PY
+      - name: Clone standard library
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+      - name: Locate CosmoSIS source config
+        run: |
+          python3 - <<'PY'
+          import cosmosis, pathlib, os
+          p=pathlib.Path(cosmosis.__file__).resolve()
+          print("package",p)
+          for q in [p.parent,p.parent.parent,p.parent.parent.parent]:
+              print("candidate",q, list(q.glob("config/compilers.mk")))
+          PY
+          find /opt /usr/local/lib/python* -path '*cosmosis*/config/compilers.mk' -o -path '*/cosmosis/config/compilers.mk' 2>/dev/null | head -20 || true
+      - name: Build official COSEBI module
+        run: |
+          set -eux
+          if [ -z "${COSMOSIS_SRC_DIR:-}" ]; then
+            CAND="$(python3 - <<'PY'
+          import cosmosis,pathlib
+          p=pathlib.Path(cosmosis.__file__).resolve()
+          found=[]
+          for q in [p.parent,p.parent.parent,p.parent.parent.parent]:
+              x=q/'config'/'compilers.mk'
+              if x.exists(): found.append(str(q))
+          print(found[0] if found else '')
+          PY
+          )"
+            export COSMOSIS_SRC_DIR="$CAND"
+          fi
+          echo "COSMOSIS_SRC_DIR=$COSMOSIS_SRC_DIR"
+          test -n "$COSMOSIS_SRC_DIR"
+          cd cosmosis-standard-library/shear/cosebis/modules
+          make -j2
+          cd ../cl_to_cosebis
+          make -j2
+          ls -lh *.so
+      - name: Record result
+        run: |
+          mkdir -p output/kids_feasibility
+          cp cosmosis-standard-library/shear/cosebis/cl_to_cosebis/*.so output/kids_feasibility/ || true
+          echo "COSEBI_BUILD_OK" | tee output/kids_feasibility/cosebi_build_status.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-cosebi-build
+          path: output/kids_feasibility/*
