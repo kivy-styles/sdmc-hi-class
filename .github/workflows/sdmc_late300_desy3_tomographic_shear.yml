@@ -6,7 +6,7 @@ on:
       - sdmc-late300-desy3-tomographic-shear
   pull_request:
     branches:
-      - master
+      - sdmc-late300-model-selection-audit
   workflow_dispatch:
 
 permissions:
