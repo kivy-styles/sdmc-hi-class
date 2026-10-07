@@ -2,6 +2,8 @@ name: SDMC late300 HSC-Y3 native-Weyl pilot
 on:
   push:
     branches: [sdmc-late300-hscy3-weyl]
+    paths:
+      - 'sdmc/run_late300_hscy3_weyl.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -68,8 +70,10 @@ jobs:
           import json
           from pathlib import Path
           root=Path('output/hsc_parts')
-          a=json.loads((root/'hsc_weyl_result_late300.json').read_text())
-          b=json.loads((root/'hsc_weyl_result_local021.json').read_text())
+          pa=next(root.rglob('hsc_weyl_result_late300.json'))
+          pb=next(root.rglob('hsc_weyl_result_local021.json'))
+          a=json.loads(pa.read_text())
+          b=json.loads(pb.read_text())
           out=dict(a)
           out['results'].update(b['results'])
           out['delta_chi2_late300_minus_local021']=(
