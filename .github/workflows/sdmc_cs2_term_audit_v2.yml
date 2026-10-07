@@ -1,0 +1,54 @@
+name: SDMC cs2 Term Audit v2
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sdmc-boltzmann
+
+jobs:
+  cs2-term-audit-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply SDMC runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/apply_sdmc_transition_bridge_patch.py
+          python3 sdmc/apply_sdmc_asym_transition_bridge_patch.py
+
+      - name: Expose exact non-SMG density and pressure
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Run exact stability numerator audit
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py run
+
+      - name: Upload exact term audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-cs2-term-audit-v2
+          path: |
+            output/sdmc_cs2_term_audit_v2.csv
+            output/sdmc_cs2_term_summary_v2.csv
+            output/baseline_A0.log
+            output/F_bump_bestwide.log
+            output/baseline_A0_00_background.dat
+            output/F_bump_bestwide_00_background.dat
+          if-no-files-found: warn
