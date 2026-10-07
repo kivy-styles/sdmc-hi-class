@@ -247,7 +247,6 @@ jobs:
                                       "beyond_horndeski_derivative":float(T5),
                                       "sum":float(T1+T2+T3+T4+T5),
                                       "residual_to_stored":float((T1+T2+T3+T4+T5)-st["cs2num"])}
-                  })
                   r["recovery_gate"]=bool(r["min_D_z100"]>0 and r["min_cs2_z100"]>0 and r["max_cs2_z100"]<=1.0+1e-8
                                            and r["max_abs_dH_H_z100"]<1e-2 and r["max_abs_dF_F_z100"]<1e-2)
               else:
