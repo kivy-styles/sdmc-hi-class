@@ -38,7 +38,7 @@ jobs:
               for name in ['XI_PLUS','XI_MINUS','xip','xim','COVMAT']:
                   if name in f:
                       h=f[name]
-                      print('HSC_HDU',name,'shape',getattr(h.data,'shape',None),'cols',getattr(h.columns,'names',None))
+                      print('HSC_HDU',name,'shape',getattr(h.data,'shape',None),'cols',getattr(getattr(h,'columns',None),'names',None))
                       if hasattr(h,'columns') and h.columns is not None:
                           print('HSC_FIRST',name,repr(h.data[:3]))
           sp='cosmosis-standard-library/likelihood/hsc_cosmic_shear/hsc_y3_fourier_shear.sacc'
