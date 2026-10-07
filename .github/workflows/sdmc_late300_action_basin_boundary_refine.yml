@@ -1,0 +1,130 @@
+name: SDMC late300 negative-phi basin boundary refine
+
+on:
+  push:
+    branches: [sdmc-late300-action-basin-boundary-refine]
+    paths:
+      - '.github/workflows/sdmc_late300_action_basin_boundary_refine.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies and SDMC patches
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+      - name: Recover and reconstruct accepted action
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output recovered
+          gh run download 37579409032 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp recovered/linear_cov_target.ini output/
+          cp recovered/linear_cov_target_00_background.dat output/
+          cp recovered/linear_cov_free.ini output/
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 sdmc/run_late300_action_basin_audit.py patch
+          make clean
+          make -j2 class
+      - name: Prepare refined negative-phi bracket
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path("output/linear_cov_free.ini").read_text()
+          vals=[-0.400,-0.405,-0.410,-0.415,-0.420,-0.425,-0.430,-0.435,-0.440,-0.445,-0.450]
+          for x in vals:
+              tag=("m%04d"%round(abs(x)*1000))
+              s=base.replace("parameters_smg = 0.0",f"parameters_smg = 0.0, {x:.17g}, 0.0")
+              s=s.replace("root = output/linear_cov_free_",f"root = output/refnegphi_{tag}_")
+              s="\n".join(line for line in s.splitlines() if not line.strip().startswith("output = "))
+              s=s.replace("lensing = yes","lensing = no").replace("write_thermodynamics = yes","write_thermodynamics = no")
+              Path(f"output/refnegphi_{tag}.ini").write_text(s+"\n")
+          PY
+      - name: Run refined bracket
+        run: |
+          set +e
+          for ini in output/refnegphi_*.ini; do
+            tag=$(basename "$ini" .ini)
+            ./class "$ini" > "output/${tag}.log" 2>&1
+            rc=$?
+            echo "$rc" > "output/${tag}.rc"
+            echo "REFNEGPHI_RUN ${tag} rc=${rc}"
+          done
+          set -e
+      - name: Diagnose transition and stability approach
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,numpy as np
+          def read_bg(p):
+              lines=Path(p).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith("#") and re.search(r"1\s*:",l)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(p)
+              return {n:a[:,i] for i,n in enumerate(names)}
+          rows=[]
+          for rc in sorted(Path("output").glob("refnegphi_*.rc")):
+              tag=rc.stem; code=int(rc.read_text())
+              m=re.search(r"m(\d+)",tag); x=-int(m.group(1))/1000
+              log=(Path("output")/f"{tag}.log").read_text(errors="replace")
+              r={"tag":tag,"delta_phi":x,"returncode":code,"success":code==0}
+              if code==0:
+                  bg=Path("output")/f"{tag}_00_background.dat"
+                  d=read_bg(bg); z=d["z"]; mask=z<=100
+                  r.update({
+                    "min_D_z100":float(np.min(d["kin (D)"][mask])),
+                    "min_cs2_z100":float(np.min(d["c_s^2"][mask])),
+                    "max_cs2_z100":float(np.max(d["c_s^2"][mask])),
+                    "max_abs_noslip_z100":float(np.max(np.abs(d["braiding_smg"][mask]+2*d["M2_running_smg"][mask]))),
+                    "H0":float(d["H [1/Mpc]"][np.argmin(np.abs(z))]),
+                    "F0":float(d["M*^2_smg"][np.argmin(np.abs(z))]),
+                  })
+              else:
+                  if "Step size too small" in log: kind="integrator_step_floor"
+                  elif "H=-nan" in log or "isnan(H)" in log: kind="initial_nan_H"
+                  else: kind="other"
+                  r["failure_kind"]=kind
+                  r["failure_tail"]="\n".join(log.splitlines()[-15:])
+              rows.append(r)
+          good=[r["delta_phi"] for r in rows if r["success"]]
+          bad=[r["delta_phi"] for r in rows if not r["success"]]
+          out={"status":"refined negative-phi accepted-action basin boundary",
+               "most_negative_success":min(good) if good else None,
+               "least_negative_failure":max(bad) if bad else None,
+               "rows":rows}
+          Path("output/late300_negative_phi_basin_boundary_refined.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_NEGATIVE_PHI_BASIN_REFINED",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-negative-phi-basin-refined
+          path: |
+            output/late300_negative_phi_basin_boundary_refined.json
+            output/refnegphi_*.rc
+            output/refnegphi_*.log
+            output/refnegphi_*_00_background.dat
+          if-no-files-found: warn
