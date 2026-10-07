@@ -55,6 +55,9 @@ jobs:
           fi
           echo "COSMOSIS_SRC_DIR=$COSMOSIS_SRC_DIR"
           test -n "$COSMOSIS_SRC_DIR"
+          export GSL_INC=/usr/include
+          export GSL_LIB=/usr/lib/x86_64-linux-gnu
+          echo "GSL_INC=$GSL_INC GSL_LIB=$GSL_LIB"
           python3 - <<'PY'
           from pathlib import Path
           p=Path('cosmosis-standard-library/shear/cosebis/makefile.defs')
