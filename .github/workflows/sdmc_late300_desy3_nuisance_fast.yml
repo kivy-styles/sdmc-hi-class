@@ -1,0 +1,32 @@
+name: late300 DESY3 nuisance fast
+on:
+  push:
+    branches:
+      - sdmc-late300-desy3-nuisance
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install numpy scipy astropy
+      - name: spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+      - name: data
+        run: |
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git
+          cd des_y3_data && git lfs pull || true
+      - name: profile
+        run: |
+          python3 sdmc/run_late300_desy3_nuisance_fast.py | tee output/weyl_nuisance_fast.log
+          cat output/weyl_nuisance_fast/late300_desy3_nuisance.csv
