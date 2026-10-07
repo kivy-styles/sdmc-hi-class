@@ -21,7 +21,7 @@ import configparser, json, math, re
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator, interp1d
 from scipy.integrate import cumulative_trapezoid
-from scipy.optimize import minimize_scalar
+from scipy.optimize import minimize_scalar, minimize
 from scipy.special import jv
 from astropy.io import fits
 
@@ -138,16 +138,21 @@ def load_des(path,scale_path,extra_min=None):
     cov=full_cov[np.ix_(idx,idx)]
     return dict(rows=keep,data=data,cov=cov,zsrc=zsrc,nz=nzbins,ndata_full=nfull)
 
-def prepare_sources(des,bg,zmax):
+def prepare_sources(des,bg,zmax,dz_shift=None):
     zlo=max(0.01,float(np.min(des["zsrc"][des["zsrc"]>0])) if np.any(des["zsrc"]>0) else 0.01)
     zhi=min(zmax,float(np.max(des["zsrc"])))
     z=np.linspace(zlo,zhi,360)
     H=np.interp(z,bg["z"],bg["H"])
     chi=np.interp(z,bg["z"],bg["chi"])
+    if dz_shift is None:
+        dz_shift=np.zeros(4)
+    dz_shift=np.asarray(dz_shift,float)
     nz=[]
-    for arr in des["nz"]:
+    for ib,arr in enumerate(des["nz"]):
         f=interp1d(des["zsrc"],arr,bounds_error=False,fill_value=0.0)
-        y=np.maximum(f(z),0.0)
+        # Match the CosmoSIS DES-Y3 additive source-photo-z convention:
+        # n_biased(z) = n_input(z - bias_i)
+        y=np.maximum(f(z-dz_shift[ib]),0.0)
         norm=np.trapezoid(y,z)
         y=y/norm
         nz.append(y)
@@ -161,10 +166,10 @@ def prepare_sources(des,bg,zmax):
     nchi=nz*H[None,:]  # n(chi)=n(z) dz/dchi = n(z) H(z), c=1
     return z,H,chi,nz,g,nchi
 
-def model_theory(model,des,variant,shared_boost_model=None):
+def model_theory(model,des,variant,shared_boost_model=None,dz_shift=None):
     bg=model["bg"]; h=model["h"]; Om=model["Om"]
     zmax=min(model["zq"].max(),model["zp"].max(),float(np.max(des["zsrc"])))
-    z,H,chi,nz,g,nchi=prepare_sources(des,bg,zmax)
+    z,H,chi,nz,g,nchi=prepare_sources(des,bg,zmax,dz_shift=dz_shift)
     zmat=np.broadcast_to(z[None,:],(len(ELL),len(z)))
     kmat=(ELL[:,None]+0.5)/np.maximum(chi[None,:],1e-12)
 
@@ -240,6 +245,75 @@ def chi_profile(des,T):
         return float(y@y)
     res=minimize_scalar(chi,bounds=(-5.0,5.0),method="bounded",options=dict(xatol=1e-4))
     return dict(chi2_A0=chi(0.0),chi2_profile=float(res.fun),AIA_best=float(res.x),success=bool(res.success))
+
+
+def apply_mcal(des,theory,m):
+    m=np.asarray(m,float)
+    fac=np.array([(1.0+m[r["b1"]-1])*(1.0+m[r["b2"]-1]) for r in des["rows"]])
+    return theory*fac
+
+def data_chi2(des,theory):
+    L=np.linalg.cholesky(des["cov"])
+    y=np.linalg.solve(L,des["data"]-theory)
+    return float(y@y)
+
+def chi_profile_des_nuisance(des,model,variant,shared_boost_model):
+    """
+    Profile the eight Gaussian DES-Y3 source calibration nuisances plus A_IA.
+    Source photo-z response is linearized around the public central n(z), then
+    validated once with an exact shifted-kernel recomputation at the optimum.
+    eta_IA remains fixed at zero and TATT/baryon nuisance sectors remain open.
+    """
+    dz_sig=np.array([0.018,0.015,0.011,0.017])
+    m_mu=np.array([-0.0063,-0.0198,-0.0241,-0.0369])
+    m_sig=np.array([0.0091,0.0078,0.0076,0.0076])
+    base=model_theory(model,des,variant,shared_boost_model=shared_boost_model,dz_shift=np.zeros(4))
+    B=np.vstack(base[:3])  # component, data
+    step=0.005
+    deriv=[]
+    for ib in range(4):
+        dp=np.zeros(4); dm=np.zeros(4); dp[ib]=step; dm[ib]=-step
+        Tp=model_theory(model,des,variant,shared_boost_model=shared_boost_model,dz_shift=dp)
+        Tm=model_theory(model,des,variant,shared_boost_model=shared_boost_model,dz_shift=dm)
+        deriv.append((np.vstack(Tp[:3])-np.vstack(Tm[:3]))/(2*step))
+    deriv=np.asarray(deriv) # bin, component, data
+
+    simple=chi_profile(des,base[:3])
+    x0=np.r_[simple["AIA_best"],np.zeros(4),m_mu]
+    bounds=[(-5,5)]+[(-0.08,0.08)]*4+[(-0.1,0.1)]*4
+    def predicted(x):
+        A=x[0]; dz=x[1:5]; m=x[5:9]
+        coeff=np.array([1.0,A,A*A])
+        th=coeff@B
+        for ib in range(4):
+            th += dz[ib]*(coeff@deriv[ib])
+        return apply_mcal(des,th,m)
+    def objective(x):
+        dz=x[1:5]; m=x[5:9]
+        prior=float(np.sum((dz/dz_sig)**2)+np.sum(((m-m_mu)/m_sig)**2))
+        return data_chi2(des,predicted(x))+prior
+    res=minimize(objective,x0,method="L-BFGS-B",bounds=bounds,
+                 options=dict(maxiter=450,ftol=1e-10,gtol=1e-6))
+    x=np.asarray(res.x)
+    # Exact validation of the shifted source kernels at the emulator optimum.
+    Tex=model_theory(model,des,variant,shared_boost_model=shared_boost_model,dz_shift=x[1:5])
+    th_exact=Tex[0]+x[0]*Tex[1]+x[0]*x[0]*Tex[2]
+    th_exact=apply_mcal(des,th_exact,x[5:9])
+    prior=float(np.sum((x[1:5]/dz_sig)**2)+np.sum(((x[5:9]-m_mu)/m_sig)**2))
+    exact_data=data_chi2(des,th_exact)
+    return dict(
+      success=bool(res.success),
+      chi2_total_emulator=float(res.fun),
+      chi2_data_exact=float(exact_data),
+      chi2_prior=float(prior),
+      chi2_total_exact=float(exact_data+prior),
+      emulator_minus_exact=float(res.fun-(exact_data+prior)),
+      AIA_best=float(x[0]),
+      dz_best=[float(v) for v in x[1:5]],
+      m_best=[float(v) for v in x[5:9]],
+      eta_IA_fixed=0.0,
+      status="A_IA + 4 source-photo-z + 4 shear-calibration nuisances profiled; first-order dz emulator exact-validated"
+    )
 
 def gr_identity(model):
     # Compare local021 native Q_W with the GR Poisson prediction A(z)^2 P_delta.
@@ -336,6 +410,21 @@ def main():
         key["ndata"]=len(des["data"])
         key["cov_condition"]=float(np.linalg.cond(des["cov"]))
         allres["results"][label]=key
+
+
+    # More complete DES-Y3 source-systematics profile on the official shear cuts.
+    des_off=load_des(data,cuts,extra_min=None)
+    nuisance={}
+    for variant in ["linear","shared_lcdm_halofit","halofit_envelope"]:
+        vv={}
+        for model in [late,lcdm]:
+            vv[model["name"]]=chi_profile_des_nuisance(des_off,model,variant,lcdm)
+        vv["delta_chi2_total_exact_late300_minus_local021"]=(
+            vv["late300"]["chi2_total_exact"]-vv["local021"]["chi2_total_exact"])
+        vv["delta_chi2_data_exact_late300_minus_local021"]=(
+            vv["late300"]["chi2_data_exact"]-vv["local021"]["chi2_data_exact"])
+        nuisance[variant]=vv
+    allres["official_cuts_source_nuisance_profile"]=nuisance
 
     (root/"late300_desy3_weyl_tomography.json").write_text(json.dumps(allres,indent=2,sort_keys=True)+"\n")
     rows=[]
