@@ -161,14 +161,23 @@ nzsrc=np.array([n/np.trapezoid(n,zsrc) for n in nzsrc])
 
 theta_unique=np.unique(np.concatenate([xp.ANG.to_numpy(float),xm.ANG.to_numpy(float)]))
 theta_rad=theta_unique*np.pi/(180.*60.)
-ell=np.geomspace(10.,3.0e4,520)
-lnell=np.log(ell)
-B0=np.array([j0(ell*t) for t in theta_rad])
-B4=np.array([jv(4,ell*t) for t in theta_rad])
+
+# Separate grids are essential.  The Limber C_ell is smooth and can be computed
+# economically, whereas the J0/J4 Hankel kernels oscillate rapidly at the
+# largest DES angular bins.  A coarse log-ell transform produces spurious
+# zero-crossings and large xi- errors.
+ell=np.geomspace(2.,3.0e4,1400)          # C_ell projection grid
+ell_xi=np.geomspace(2.,3.0e4,50000)     # dense Hankel grid
+lnell_xi=np.log(ell_xi)
+B0=np.array([j0(ell_xi*t) for t in theta_rad])
+B4=np.array([jv(4,ell_xi*t) for t in theta_rad])
 
 def xi_from_cl(cl,order):
+    # C_ell is smooth; interpolate it onto the dense oscillatory integration grid.
+    cli=np.interp(np.log(ell_xi),np.log(ell),cl)
     B=B0 if order==0 else B4
-    return np.trapezoid(B*(ell[None,:]**2*cl[None,:]/(2*np.pi)),lnell,axis=1)
+    return np.trapezoid(B*(ell_xi[None,:]**2*cli[None,:]/(2*np.pi)),
+                        lnell_xi,axis=1)
 
 def setup(model):
     bg=model["bg"]
