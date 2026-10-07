@@ -1,0 +1,142 @@
+name: SDMC late300 KiDS-Legacy native-Weyl nuisance central
+on:
+  push:
+    branches: [sdmc-late300-kids-native-weyl-nuisance]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  kids:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs libgsl-dev liblapack-dev libblas-dev gfortran build-essential
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cosmosis numpy scipy astropy
+
+      - name: Download validated native-Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+
+      - name: Clone KiDS-Legacy standard library data
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/Nz_covariance.txt
+          test -s cosmosis-standard-library/likelihood/KiDS-Legacy/massdep_cov.txt
+
+      - name: Download validated official COSEBI transformer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 37591856073 --repo "${{ github.repository }}" --name late300-kids-cosebi-build --dir output/cosebi_build
+          test -s output/cosebi_build/cl_to_cosebis_interface.so
+          cp output/cosebi_build/cl_to_cosebis_interface.so cosmosis-standard-library/shear/cosebis/cl_to_cosebis/
+
+      - name: Generate nuisance-central native-Weyl KiDS spectra
+        run: |
+          python3 sdmc/run_late300_kids_native_weyl_nuisance.py
+          cat output/kids_native_weyl_nuisance/kids_native_weyl_nuisance_cl_summary.json
+
+      - name: Prepare CosmoSIS likelihood files
+        run: |
+          cat > output/kids_native_weyl_nuisance/values.ini <<'EOF'
+          [dummy]
+          x = 0.0
+          EOF
+          for MODEL in late300 local021; do
+            for VAR in gg total; do
+              cat > output/kids_native_weyl_nuisance/${MODEL}_${VAR}.ini <<EOF
+          [runtime]
+          sampler = test
+
+          [pipeline]
+          modules = inject cosebis cosebis_like report
+          values = output/kids_native_weyl_nuisance/values.ini
+          likelihoods = cosebis
+          quiet = F
+          debug = F
+          timing = F
+
+          [output]
+          filename = output/kids_native_weyl_nuisance/${MODEL}_${VAR}.txt
+          format = text
+
+          [test]
+          fatal_errors = T
+
+          [inject]
+          file = sdmc/cosmosis_inject_kids_cls.py
+          npz = output/kids_native_weyl_nuisance/${MODEL}_kids_${VAR}_cl.npz
+
+          [cosebis]
+          file = cosmosis-standard-library/shear/cosebis/cl_to_cosebis/cl_to_cosebis_interface.so
+          theta_min = 2.00
+          theta_max = 300.00
+          n_max = 6
+          input_section_name = shear_cl
+          output_section_name = cosebis
+
+          [cosebis_like]
+          file = cosmosis-standard-library/likelihood/2pt/cosebis/simple_like.py
+          data_set = En n
+          theory_section = cosebis
+          data_file = cosmosis-standard-library/likelihood/KiDS-Legacy/KiDS_Legacy_cosebis.fits
+          like_name = cosebis
+
+          [report]
+          file = sdmc/cosmosis_report_kids.py
+          label = ${MODEL}_${VAR}
+          EOF
+            done
+          done
+
+      - name: Run four official COSEBI likelihoods
+        env:
+          LD_LIBRARY_PATH: /home/runner/.local/lib/python3.12/site-packages/cosmosis/datablock:/usr/lib/x86_64-linux-gnu
+        run: |
+          for MODEL in late300 local021; do
+            for VAR in gg total; do
+              cosmosis output/kids_native_weyl_nuisance/${MODEL}_${VAR}.ini | tee output/kids_native_weyl_nuisance/${MODEL}_${VAR}.log
+            done
+          done
+
+      - name: Summarize nuisance effect
+        run: |
+          python3 - <<'PY'
+          import re,json
+          from pathlib import Path
+          out={}
+          for model in ['late300','local021']:
+              out[model]={}
+              for var in ['gg','total']:
+                  t=Path(f'output/kids_native_weyl_nuisance/{model}_{var}.log').read_text(errors='ignore')
+                  q=re.findall(r'KIDS_NATIVE_WEYL_LIKELIHOOD\s+(\{.*\})',t)
+                  if not q: raise SystemExit(f'no marker {model} {var}')
+                  out[model][var]=json.loads(q[-1])
+          for var in ['gg','total']:
+              out[f'delta_chi2_{var}_late300_minus_local021']=out['late300'][var]['chi2']-out['local021'][var]['chi2']
+          out['nuisance_shift_in_delta']=out['delta_chi2_total_late300_minus_local021']-out['delta_chi2_gg_late300_minus_local021']
+          Path('output/kids_native_weyl_nuisance/kids_native_weyl_nuisance_likelihood.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('KIDS_NATIVE_WEYL_NUISANCE_RESULT',json.dumps(out,sort_keys=True))
+          PY
+          cat output/kids_native_weyl_nuisance/kids_native_weyl_nuisance_likelihood.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-kids-native-weyl-nuisance
+          path: output/kids_native_weyl_nuisance/*
+          if-no-files-found: warn
