@@ -1,0 +1,122 @@
+name: SDMC late300 wide action-basin Boltzmann replay
+
+on:
+  push:
+    branches: [sdmc-late300-action-basin-boltzmann-wide]
+    paths:
+      - '.github/workflows/sdmc_late300_action_basin_boltzmann_wide.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  wide-boltzmann:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+
+      - name: Apply SDMC source patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+
+      - name: Recover accepted-action reconstruction inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output recovered
+          gh run download 37579409032 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp recovered/linear_cov_target.ini output/
+          cp recovered/linear_cov_target_00_background.dat output/
+          cp recovered/linear_cov_free.ini output/
+
+      - name: Reconstruct action and expose initial-condition perturbations
+        run: |
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 sdmc/run_late300_action_basin_audit.py patch
+          make clean
+          make -j2 class
+
+      - name: Prepare wide full-Boltzmann basin points
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path("output/linear_cov_free.ini").read_text()
+          points=[
+            ("base",0.0,0.0),
+            ("phi_p100",1.0,0.0),
+            ("vel_p100",0.0,1.0),
+            ("vel_m090",0.0,-0.90),
+            ("both_p030",0.30,0.30),
+            ("both_m030",-0.30,-0.30),
+          ]
+          for tag,dp,dv in points:
+              s=base.replace("parameters_smg = 0.0",f"parameters_smg = 0.0, {dp:.17g}, {dv:.17g}")
+              s=s.replace("root = output/linear_cov_free_",f"root = output/wideboltz_{tag}_")
+              Path(f"output/wideboltz_{tag}.ini").write_text(s)
+          PY
+
+      - name: Free-evolve wide full Boltzmann observables
+        run: |
+          for tag in base phi_p100 vel_p100 vel_m090 both_p030 both_m030; do
+            ./class "output/wideboltz_${tag}.ini" > "output/wideboltz_${tag}.log" 2>&1
+          done
+
+      - name: Compare wide observables to baseline
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,json
+          tags=["phi_p100","vel_p100","vel_m090","both_p030","both_m030"]
+          out={"status":"wide accepted frozen-action Boltzmann initial-condition basin replay","variants":{}}
+          bcl=np.loadtxt("output/wideboltz_base_00_cl_lensed.dat")
+          bpk=sorted(Path("output").glob("wideboltz_base_*pk.dat"))
+          for tag in tags:
+              q={}
+              a=np.loadtxt(f"output/wideboltz_{tag}_00_cl_lensed.dat")
+              labels=["TT","EE","TE","BB","PP","TP","EP"]
+              for j in range(1,min(a.shape[1],8)):
+                  scale=max(float(np.max(np.abs(bcl[:,j]))),1e-300)
+                  q[f"Cl_{labels[j-1]}_max_norm_abs"]=float(np.max(np.abs(a[:,j]-bcl[:,j]))/scale)
+                  mask=np.abs(bcl[:,j])>1e-8*scale
+                  if np.any(mask):
+                      q[f"Cl_{labels[j-1]}_max_frac_masked"]=float(np.max(np.abs((a[mask,j]-bcl[mask,j])/bcl[mask,j])))
+              pks=sorted(Path("output").glob(f"wideboltz_{tag}_*pk.dat"))
+              vals=[]
+              for pb,pa in zip(bpk,pks):
+                  x=np.loadtxt(pb); y=np.loadtxt(pa)
+                  yy=np.interp(x[:,0],y[:,0],y[:,1])
+                  m=np.abs(x[:,1])>1e-30
+                  vals.append(float(np.max(np.abs((yy[m]-x[m,1])/x[m,1]))))
+              q["pk_files"]=len(pks)
+              q["Pk_max_frac_all_z"]=max(vals) if vals else None
+              out["variants"][tag]=q
+          Path("output/late300_action_basin_boltzmann_wide.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_ACTION_BASIN_BOLTZMANN_WIDE",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-action-basin-boltzmann-wide
+          path: |
+            output/late300_action_basin_boltzmann_wide.json
+            output/wideboltz_*.log
+          if-no-files-found: warn
