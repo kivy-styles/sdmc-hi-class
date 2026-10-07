@@ -1,0 +1,36 @@
+name: SDMC late300 null-G2 model-selection update
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-model-selection]
+    paths:
+      - 'sdmc/run_late300_null_g2_model_selection.py'
+      - '.github/workflows/sdmc_late300_null_g2_model_selection.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover converged model-selection inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/model_selection inputs/identifiability inputs/conditional
+          gh run download 37655793348 --repo "${{ github.repository }}" --name late300-model-selection-highprecision --dir inputs/model_selection
+          gh run download 37664968188 --repo "${{ github.repository }}" --name null-g2-identifiability-audit --dir inputs/identifiability
+          gh run download 37664360059 --repo "${{ github.repository }}" --name late300-conditional-evidence-robustness --dir inputs/conditional
+      - name: Synthesize null-G2 identifiability with model selection
+        run: |
+          python3 sdmc/run_late300_null_g2_model_selection.py
+          cat output/late300_null_g2_model_selection_update.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-null-g2-model-selection-update
+          path: output/late300_null_g2_model_selection_update.json
