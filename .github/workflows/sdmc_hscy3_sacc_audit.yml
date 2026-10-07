@@ -1,0 +1,36 @@
+name: SDMC HSC-Y3 SACC audit
+on:
+  push:
+    branches:
+      - sdmc-late300-hscy3-sacc-audit
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install numpy scipy sacc
+      - name: Fetch public HSC-Y3 likelihood data
+        run: |
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library
+          git lfs pull || true
+          cd ..
+          test -s cosmosis-standard-library/likelihood/hsc_cosmic_shear/hsc_y3_fourier_shear.sacc
+      - name: Audit SACC
+        run: |
+          python3 sdmc/run_hscy3_sacc_audit.py | tee output_hsc_audit.log
+          cat output/hscy3_sacc_audit/hscy3_sacc_summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hscy3-sacc-audit
+          path: |
+            output/hscy3_sacc_audit/*
+            output_hsc_audit.log
