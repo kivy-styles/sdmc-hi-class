@@ -266,7 +266,7 @@ def load_model(name,directory,h,Om):
     zp=np.array([r[0] for r in rows]); kp=rows[0][1]; P=np.array([r[2] for r in rows])
     # nonlinear files live under name_nl_z*
     rowsn=[]
-    for p in sorted(Path(directory).glob(f"{name}_nl_*pk.dat")):
+    for p in sorted(Path(directory).glob(f"{name}_nl_*pk_nl.dat")):
         if "weyl" in p.name: continue
         z=z_from_header(p); a=np.loadtxt(p); rowsn.append((z,a[:,0]*h,a[:,1]/h**3))
     rowsn.sort(key=lambda x:x[0])
