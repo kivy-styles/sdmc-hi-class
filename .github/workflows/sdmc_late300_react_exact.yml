@@ -53,7 +53,7 @@ jobs:
           modes = s
           output = mPk
           P_k_max_h/Mpc = 20.0
-          z_pk = 0,0.5,1.0,2.0
+          z_pk = 0,0.25,0.5,0.75,1.0,1.25,1.5,1.75,2.0,2.25,2.5
           root = output/grbase/grbase_
           format = class
           input_verbose = 0
@@ -145,7 +145,7 @@ jobs:
               W[m]=3*(np.sin(x[m])-x[m]*np.cos(x[m]))/x[m]**3
               return float(np.sqrt(np.trapezoid(k**3*P*W**2/(2*np.pi**2),x=np.log(k))))
 
-          z=np.array([0.0,0.5,1.0,2.0])
+          z=np.arange(0.0,2.5001,0.25)
           exact_dir=Path('inputs/exact/weyl_spectra')
           tgt=[p for p in exact_dir.glob('late300_*_pk.dat') if 'nl_' not in p.name and 'weyl' not in p.name]
           gr=[p for p in Path('output/grbase').glob('*pk.dat') if 'pk_nl' not in p.name]
@@ -221,7 +221,61 @@ jobs:
                       'react_nonlinear_vs_legacy_max_rel':float(np.max(rnl))
                   }
 
+          # Equal-treatment local021 GR nonlinear pseudo spectrum.
+          loc=[p for p in exact_dir.glob('local021_*_pk.dat') if 'nl_' not in p.name and 'weyl' not in p.name]
+          loclegacy=[p for p in exact_dir.glob('local021_nl_*pk_nl.dat') if 'weyl' not in p.name]
+          if not loc: raise RuntimeError('local021 linear spectra missing')
+          # Use the same k grid where possible and interpolate local021 target P(k,z).
+          _,Ploc,loc_names=load_grid(loc,z,k)
+          hC=0.6856859
+          OmC=(0.02240637+0.11824151)/hC**2
+          ObC=0.02240637/hC**2
+          AsC=2.051092661998245e-9
+          nsC=0.96495932
+          Rloc,Lloc,s8loc,pseudoloc=react.compute_reaction_nu_ext(
+              hC,nsC,OmC,ObC,0.0,AsC,z,k,
+              np.ascontiguousarray(Ploc.flatten()),
+              np.ascontiguousarray(Ploc.flatten()),
+              k,np.ascontiguousarray(Ploc.flatten()),
+              pscale=0.05,model='gr',extpars=np.zeros(20),
+              compute_pseudo=True,is_transfer=False,mass_loop=24,verbose=False)
+          Pnlloc=Rloc*pseudoloc
+          arrays['Ptarget_local021']=Ploc; arrays['R_local021']=Rloc
+          arrays['Pl_local021']=Lloc; arrays['pseudo_local021']=pseudoloc
+          arrays['Pnl_local021']=Pnlloc
+          result['local021']={
+              'target_files':loc_names,
+              'sigma8_target':sigma8(k,Ploc[0]),
+              'sigma8_react':float(s8loc),
+              'R_min':float(np.nanmin(Rloc)),
+              'R_max':float(np.nanmax(Rloc)),
+              'R_median_z0':float(np.nanmedian(Rloc[0])),
+              'finite_fraction':float(np.mean(np.isfinite(Rloc))),
+              'linear_validation':{},
+              'halofit_audit':{}
+          }
+          for iz,zz in enumerate(z):
+              mask=(k>=1e-3)&(k<=0.2)&np.isfinite(Ploc[iz])&(Ploc[iz]>0)
+              rel=Lloc[iz,mask]/Ploc[iz,mask]-1
+              result['local021']['linear_validation'][f'z{zz:g}']={
+                  'median_rel':float(np.median(rel)),
+                  'rms_rel':float(np.sqrt(np.mean(rel**2))),
+                  'max_abs_rel':float(np.max(np.abs(rel)))
+              }
+              lp=nearest(loclegacy,float(zz)); la=np.loadtxt(lp)
+              leg=np.exp(np.interp(np.log(k),np.log(la[:,0]),np.log(la[:,1])))
+              m2=(k>=1e-3)&(k<=10)&np.isfinite(leg)&(leg>0)
+              d=pseudoloc[iz,m2]/leg[m2]-1
+              result['local021']['halofit_audit'][f'z{zz:g}']={
+                  'legacy_file':lp.name,
+                  'pseudo_vs_legacy_median_rel':float(np.median(d)),
+                  'pseudo_vs_legacy_rms_rel':float(np.sqrt(np.mean(d**2))),
+                  'pseudo_vs_legacy_max_abs_rel':float(np.max(np.abs(d)))
+              }
+
           worst=max(v['max_abs_rel'] for v in result['linear_validation'].values())
+          worst_local=max(v['max_abs_rel'] for v in result['local021']['linear_validation'].values())
+          worst=max(worst,worst_local)
           result['linear_validation_worst_max_abs_rel']=float(worst)
           Path('output/react_late300').mkdir(parents=True,exist_ok=True)
           np.savez_compressed('output/react_late300/late300_react_target_spectrum.npz',**arrays)
