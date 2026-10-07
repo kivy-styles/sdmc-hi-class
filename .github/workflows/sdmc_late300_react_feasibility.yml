@@ -26,6 +26,9 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/sundials/install" -DBUILD_SHARED_LIBS=ON ..
           make -j2
           make install
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/sundials/install/lib" >> "$GITHUB_ENV"
+          echo "LIBRARY_PATH=$GITHUB_WORKSPACE/sundials/install/lib" >> "$GITHUB_ENV"
+          echo "CPATH=$GITHUB_WORKSPACE/sundials/install/include" >> "$GITHUB_ENV"
           ls -lh "$GITHUB_WORKSPACE/sundials/install/lib" | head
       - name: Clone and build ReACT v2
         run: |
@@ -34,9 +37,11 @@ jobs:
           from pathlib import Path
           p=Path('reactv2/pyreact/Makefile')
           s=p.read_text()
-          s=s.replace('LDFLAGS += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial',
-                      'LDFLAGS += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial -L'+str(Path.cwd()/'sundials/install/lib'))
-          s=s.replace('CPPFLAGS +=','CPPFLAGS += -I'+str(Path.cwd()/'sundials/install/include'))
+          lib=str(Path.cwd()/'sundials/install/lib')
+          inc=str(Path.cwd()/'sundials/install/include')
+          s=s.replace('LDFLAGS  += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial',
+                      f'LDFLAGS  += -L{lib} -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial')
+          s=s.replace('CPPFLAGS +=',f'CPPFLAGS += -I{inc}')
           p.write_text(s)
           print(p.read_text())
           PY
