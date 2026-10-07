@@ -1,0 +1,104 @@
+name: SDMC late300 converged model-selection synthesis
+
+on:
+  push:
+    branches: [sdmc-late300-model-selection-highprecision]
+    paths:
+      - '.github/workflows/sdmc_late300_model_selection_highprecision.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover converged inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/{bic,prov,pbf,profile,tatt_late,tatt_local,usn_late,usn_local,uss_late,uss_local,baryon} output
+          gh run download 37620779682 --repo "${{ github.repository }}" --name sdmc-late300-bic-audit --dir inputs/bic
+          gh run download 37636547455 --repo "${{ github.repository }}" --name late300-deep-parameter-provenance --dir inputs/prov
+          gh run download 37637638799 --repo "${{ github.repository }}" --name planck-conditional-bayes-factor-highprecision --dir inputs/pbf
+          gh run download 37653574362 --repo "${{ github.repository }}" --name planck-exact-profile-split --dir inputs/profile
+          gh run download 37645312182 --repo "${{ github.repository }}" --name hsc-tatt-conditional-late300 --dir inputs/tatt_late
+          gh run download 37645312182 --repo "${{ github.repository }}" --name hsc-tatt-conditional-local021 --dir inputs/tatt_local
+          gh run download 37631035746 --repo "${{ github.repository }}" --name hsc-react-full-late300-us_native-retry --dir inputs/usn_late
+          gh run download 37615217739 --repo "${{ github.repository }}" --name hsc-react-full-local021-us_native --dir inputs/usn_local
+          gh run download 37615217739 --repo "${{ github.repository }}" --name hsc-react-full-late300-us_screen03 --dir inputs/uss_late
+          gh run download 37639231423 --repo "${{ github.repository }}" --name hsc-react-full-local021-us_screen03-stale-retry --dir inputs/uss_local
+          gh run download 37645030114 --repo "${{ github.repository }}" --name late300-model-selection-baryon-sensitivity --dir inputs/baryon
+      - name: Build converged synthesis
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,math
+          def load(root,needle=None):
+              ps=list(Path(root).rglob("*.json"))
+              if needle: ps=[p for p in ps if needle in p.name]
+              if len(ps)!=1: raise RuntimeError((root,needle,[str(p) for p in ps]))
+              return json.loads(ps[0].read_text())
+          bic=load("inputs/bic")
+          prov=load("inputs/prov")
+          pbf=load("inputs/pbf")
+          prof=load("inputs/profile")
+          bary=load("inputs/baryon")
+          tl=load("inputs/tatt_late")
+          tc=load("inputs/tatt_local")
+          un_l=load("inputs/usn_late")
+          un_c=load("inputs/usn_local")
+          us_l=load("inputs/uss_late")
+          us_c=load("inputs/uss_local")
+
+          def chi(x):
+              return float(x["fit"]["chi2_total"])
+          hsc={
+            "us_native":{"late300":chi(un_l),"local021":chi(un_c)},
+            "us_screen03":{"late300":chi(us_l),"local021":chi(us_c)},
+            "conditional_TATT":{
+              "late300":float(tl["fit"]["chi2_total"]),
+              "local021":float(tc["fit"]["chi2_total"])
+            }
+          }
+          for r in hsc.values():
+              r["delta_chi2"]=r["late300"]-r["local021"]
+
+          best_exact=min(float(v) for v in bic["exact_gates"].values())
+          for r in hsc.values():
+              r["delta_chi2_plus_best_exact_gate"]=r["delta_chi2"]+best_exact
+              r["delta_AIC_dk1"]=r["delta_chi2_plus_best_exact_gate"]+2
+              r["delta_BIC_dk1_N60_lower_bound"]=r["delta_chi2_plus_best_exact_gate"]+math.log(60)
+
+          out={
+            "status":"converged late300 model-selection synthesis",
+            "best_exact_gate_delta_chi2":best_exact,
+            "HSC":hsc,
+            "planck_conditional_highprecision":pbf,
+            "planck_profile_volume_split":prof,
+            "baryon_aware_sensitivity":bary,
+            "parameter_provenance":{
+              "replay_delta_k":prov["complexity_consequence"]["replay_delta_k"],
+              "historically_explored_union_count":prov["complexity_consequence"]["historically_explored_union_count"],
+              "model_family_delta_k":prov["complexity_consequence"]["model_family_delta_k"],
+              "required_resolution":prov["complexity_consequence"]["required_resolution"]
+            },
+            "pending":["full joint HSC TATT pair","HSC ell=1000 late300 closure"],
+            "verdict":{
+              "raw_fit":"late300 remains favored in completed HSC nonlinear/screening and conditional-TATT comparisons.",
+              "planck":"high-precision fixed-spectrum Planck nuisance evidence favors local021 conditionally; the split shows both profile-fit and nuisance-volume contributions.",
+              "complexity":"the final theory-family verdict remains unresolved because the independent SDMC structural/action prior volume is not uniquely identified.",
+              "null_g2":"exploratory trajectory-null G2 completion is not included in model selection because it has not been adopted or derived as part of the accepted SDMC action."
+            }
+          }
+          Path("output/late300_model_selection_highprecision.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE300_MODEL_SELECTION_HIGHPRECISION",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-model-selection-highprecision
+          path: output/late300_model_selection_highprecision.json
