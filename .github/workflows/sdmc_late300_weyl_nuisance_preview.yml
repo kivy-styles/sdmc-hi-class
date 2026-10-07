@@ -1,0 +1,45 @@
+name: SDMC late300 DES-Y3 Weyl nuisance preview
+on:
+  push:
+    branches: [sdmc-late300-weyl-nuisance-preview]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy
+      - name: Download native-Weyl spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37587199009 --repo "${{ github.repository }}" --name late300-desy3-native-weyl-tomography --dir output
+          test -d output/weyl_spectra
+      - name: Download DES-Y3 public data
+        run: |
+          rm -rf des_y3_data
+          git clone --depth 1 https://github.com/handley-lab/des_y3_data.git
+          cd des_y3_data && git lfs pull || true
+          cd ..
+      - name: Run conservative nuisance preview
+        run: |
+          python3 sdmc/run_late300_weyl_nuisance_preview.py | tee output/weyl_nuisance_preview.log
+          cat output/weyl_nuisance_preview/late300_weyl_nuisance_preview.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-desy3-weyl-nuisance-preview
+          path: |
+            output/weyl_nuisance_preview/*
+            output/weyl_nuisance_preview.log
