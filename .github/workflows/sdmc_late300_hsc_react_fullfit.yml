@@ -1,7 +1,7 @@
-name: SDMC HSC us_native conditional evidence
+name: SDMC HSC local021 nested evidence retry
 on:
   push:
-    branches: [sdmc-late300-hsc-evidence-v3]
+    branches: [sdmc-late300-hsc-evidence-local-retry]
     paths:
       - 'sdmc/run_late300_hsc_react_fullfit.py'
       - '.github/workflows/sdmc_late300_hsc_react_fullfit.yml'
@@ -14,9 +14,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: [late300, local021]
+        model: [local021]
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - name: Dependencies
@@ -61,12 +61,22 @@ jobs:
   combine:
     needs: evidence
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download retried local021 evidence
+        uses: actions/download-artifact@v4
         with:
-          pattern: hsc-evidence-*
+          name: hsc-evidence-local021
           path: evidence
-          merge-multiple: true
+      - name: Recover converged late300 evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 37656277085 --repo "${{ github.repository }}" --name hsc-evidence-late300 --dir evidence/late300_old
+          cp evidence/late300_old/hsc_conditional_evidence/late300.json evidence/late300.json
+          cp evidence/hsc_conditional_evidence/local021.json evidence/local021.json
       - name: Combine HSC evidence
         run: |
           python3 - <<'PY'
