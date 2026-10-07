@@ -18,13 +18,16 @@ RC = Path("sdmc/run_late300_linear_covariant.py")
 wf = WF.read_text()
 rc = RC.read_text()
 
-def block_after(marker, stop="EOF"):
+def heredoc_after(marker):
     i = wf.index(marker)
-    j = wf.index(stop, i)
-    return wf[i:j]
+    start = wf.index("\n", i) + 1
+    m = re.search(r"^\\s*EOF\\s*$", wf[start:], re.M)
+    if not m:
+        raise RuntimeError(f"missing heredoc terminator after {marker}")
+    return wf[start:start+m.start()]
 
-target = block_after("cat > output/linear_cov_target.ini")
-free = block_after("cat > output/linear_cov_free.ini")
+target = heredoc_after("cat > output/linear_cov_target.ini")
+free = heredoc_after("cat > output/linear_cov_free.ini")
 
 def ini_value(block, key):
     m = re.search(rf"^\s*{re.escape(key)}\s*=\s*(.+?)\s*$", block, re.M)
