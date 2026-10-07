@@ -182,9 +182,16 @@ def setup(model):
     kh=kphys/h
     Pnl_h=query_pk(knl_itp,z,kh[:,0]) if False else None
     # query_pk assumes one k per ell, but k varies with z. Evaluate directly.
-    pts=np.column_stack([np.repeat(z,len(ell)), np.log(kh.T.ravel())])
+    kmin=float(model["knl"].min()); kmax=float(model["knl"].max())
+    kh_clip=np.clip(kh,kmin,kmax)
+    pts=np.column_stack([np.repeat(z,len(ell)), np.log(kh_clip.T.ravel())])
     Pnl=np.exp(knl_itp(pts)).reshape(len(z),len(ell)).T/h**3
-    Plin=np.exp(klin_itp(pts)).reshape(len(z),len(ell)).T/h**3
+    # Linear table has essentially the same k range, but clip independently.
+    klmin=float(model["klin"].min()); klmax=float(model["klin"].max())
+    khl=np.clip(kh,klmin,klmax)
+    ptsl=np.column_stack([np.repeat(z,len(ell)), np.log(khl.T.ravel())])
+    Plin=np.exp(klin_itp(ptsl)).reshape(len(z),len(ell)).T/h**3
+    high_clip_fraction=float(np.mean(kh>kmax))
 
     # Linear growth from fixed low-k scale.
     kref=0.05
@@ -210,7 +217,8 @@ def setup(model):
     pd.DataFrame(rows).to_csv(ROOT/f"{model['label']}_weyl_poisson_check.csv",index=False)
 
     return dict(z=z,chi=chi,Hc=Hc,Om0=Om0,Sigma=Sigma,nz=nz,q=q,
-                Pnl=Pnl,Plin=Plin,growth=growth)
+                Pnl=Pnl,Plin=Plin,growth=growth,high_k_clip_fraction=high_clip_fraction,
+                kmax_h_Mpc=kmax)
 
 lateS=setup(late); locS=setup(loc)
 
@@ -303,6 +311,10 @@ summary={
  "delta_chi2_late300_minus_local021":float(delta),
  "late300_weyl_check":summarize_weyl("late300"),
  "local021_weyl_check":summarize_weyl("local021"),
+ "late300_high_k_clip_fraction":lateS["high_k_clip_fraction"],
+ "local021_high_k_clip_fraction":locS["high_k_clip_fraction"],
+ "late300_kmax_h_Mpc":lateS["kmax_h_Mpc"],
+ "local021_kmax_h_Mpc":locS["kmax_h_Mpc"],
  "interpretation":"Negative delta favors late300 within this intermediate survey-level shear model; positive delta favors local021. This is not yet the official DES Y3 TATT likelihood."
 }
 (ROOT/"desy3_tomographic_summary.json").write_text(json.dumps(summary,indent=2,sort_keys=True)+"\n")
