@@ -1,0 +1,27 @@
+name: SDMC late300 accepted-action complexity provenance
+
+on:
+  push:
+    branches: [sdmc-late300-action-complexity-audit]
+    paths:
+      - 'sdmc/run_late300_action_complexity_provenance.py'
+      - '.github/workflows/sdmc_late300_action_complexity_provenance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit accepted-action provenance and parameter counting
+        run: |
+          python3 sdmc/run_late300_action_complexity_provenance.py
+          cat output/late300_action_complexity_provenance.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-action-complexity-provenance
+          path: output/late300_action_complexity_provenance.json
