@@ -1,0 +1,36 @@
+name: SDMC null-G2 criterion synthesis
+
+on:
+  push:
+    branches: [sdmc-late300-null-g2-criterion-synthesis]
+    paths:
+      - 'sdmc/run_null_g2_criterion_synthesis.py'
+      - '.github/workflows/sdmc_null_g2_criterion_synthesis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover criterion artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p criterion_inputs/window criterion_inputs/basin criterion_inputs/ident
+          gh run download 37663988846 --repo "${{ github.repository }}" --name nullg2-refined-window-scan --dir criterion_inputs/window
+          gh run download 37667363047 --repo "${{ github.repository }}" --name null-g2-basin-classification --dir criterion_inputs/basin
+          gh run download 37664968188 --repo "${{ github.repository }}" --name null-g2-identifiability-audit --dir criterion_inputs/ident
+      - name: Synthesize criterion dependence
+        run: |
+          python3 sdmc/run_null_g2_criterion_synthesis.py
+          cat output/null_g2_criterion_synthesis/null_g2_criterion_synthesis.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: null-g2-criterion-synthesis
+          path: output/null_g2_criterion_synthesis/null_g2_criterion_synthesis.json
