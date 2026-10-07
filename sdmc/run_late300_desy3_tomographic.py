@@ -92,11 +92,21 @@ def load_des():
         xp=f["xip"].data
         xm=f["xim"].data
         nz=f["nz_source"].data
-        z_nz=np.array(nz["Z_MID"],float)
-        nzi=np.array([nz[f"BIN{i}"] for i in range(1,5)],float)
-        cov=np.array(f["COVMAT"].data,float)
-    xp_df=pd.DataFrame({c:np.array(xp[c]) for c in ["BIN1","BIN2","ANG","VALUE"]})
-    xm_df=pd.DataFrame({c:np.array(xm[c]) for c in ["BIN1","BIN2","ANG","VALUE"]})
+        z_nz=np.asarray(nz["Z_MID"],dtype=np.float64).astype(np.float64,copy=True)
+        nzi=np.asarray([nz[f"BIN{i}"] for i in range(1,5)],dtype=np.float64).astype(np.float64,copy=True)
+        cov=np.asarray(f["COVMAT"].data,dtype=np.float64).astype(np.float64,copy=True)
+    xp_df=pd.DataFrame({
+        "BIN1":np.asarray(xp["BIN1"],dtype=np.int64).copy(),
+        "BIN2":np.asarray(xp["BIN2"],dtype=np.int64).copy(),
+        "ANG":np.asarray(xp["ANG"],dtype=np.float64).astype(np.float64,copy=True),
+        "VALUE":np.asarray(xp["VALUE"],dtype=np.float64).astype(np.float64,copy=True),
+    })
+    xm_df=pd.DataFrame({
+        "BIN1":np.asarray(xm["BIN1"],dtype=np.int64).copy(),
+        "BIN2":np.asarray(xm["BIN2"],dtype=np.int64).copy(),
+        "ANG":np.asarray(xm["ANG"],dtype=np.float64).astype(np.float64,copy=True),
+        "VALUE":np.asarray(xm["VALUE"],dtype=np.float64).astype(np.float64,copy=True),
+    })
     return xp_df,xm_df,z_nz,nzi,cov
 
 def scale_mask(df, kind):
