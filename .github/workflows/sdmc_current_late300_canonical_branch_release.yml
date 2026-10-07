@@ -1,0 +1,47 @@
+name: SDMC current late300 canonical branch release
+
+on:
+  push:
+    branches: [sdmc-late300-current-canonical-release]
+    paths:
+      - 'sdmc/run_current_late300_future_homogeneous_covariant_stitch_audit.py'
+      - 'sdmc/run_current_late300_canonical_tail_root_branch_audit.py'
+      - '.github/workflows/sdmc_current_late300_canonical_branch_release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+      - name: Recover current accepted-action free background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp "$(find recovered -name linear_cov_free_00_background.dat -print -quit)" output/linear_cov_free_00_background.dat
+          test -s output/linear_cov_free_00_background.dat
+      - name: Release both rebased canonical branches
+        run: |
+          cd sdmc
+          python3 run_current_late300_canonical_tail_root_branch_audit.py | tee ../output/current_late300_canonical_release.log
+          cd ..
+          cat output/current_late300_canonical_tail_root_branch_audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: current-late300-canonical-branch-release
+          path: |
+            output/current_late300_canonical_tail_root_branch_audit.json
+            output/current_late300_canonical_release.log
+          if-no-files-found: warn
