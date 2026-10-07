@@ -1,0 +1,111 @@
+name: SDMC late300 conditional Planck nested evidence pilot
+
+on:
+  push:
+    branches: [sdmc-late300-model-selection-bic-bayes]
+    paths:
+      - 'sdmc/run_late300_planck_conditional_nested.py'
+      - '.github/workflows/sdmc_late300_planck_conditional_nested.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  evidence:
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [late300, local021]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy cobaya dynesty
+
+      - name: Install official Planck likelihoods
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          if not TTTEEE.install(path='planck_full',no_progress_bars=True):
+              raise SystemExit('full Plik install failed')
+          for cls in (TT,EE,LensingNative):
+              if not cls.install(path='planck_packages',no_progress_bars=True):
+                  raise SystemExit(f'Planck install failed: {cls}')
+          print('PLANCK_EVIDENCE_DATA_READY')
+          PY
+
+      - name: Recover fixed cosmological spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/late300 inputs/local021
+          gh run download 37579409032 --repo "${{ github.repository }}"             --name late300-linear-g3-covariant-audit --dir inputs/late300
+          gh run download 35585790426 --repo "${{ github.repository }}"             --name lcdm-local021-fullplik --dir inputs/local021
+          test -s inputs/late300/linear_cov_free_00_cl_lensed.dat
+          test -s inputs/local021/lcdm_local021_00_cl_lensed.dat
+          ls -lh inputs/late300/linear_cov_free_00_cl_lensed.dat inputs/local021/lcdm_local021_00_cl_lensed.dat
+
+      - name: Run conditional nuisance nested evidence
+        run: |
+          mkdir -p output/conditional_evidence
+          if [ "${{ matrix.model }}" = "late300" ]; then
+            SPEC=inputs/late300/linear_cov_free_00_cl_lensed.dat
+          else
+            SPEC=inputs/local021/lcdm_local021_00_cl_lensed.dat
+          fi
+          python3 sdmc/run_late300_planck_conditional_nested.py             --model "${{ matrix.model }}"             --spectrum "$SPEC"             --out "output/conditional_evidence/${{ matrix.model }}.json"             --nlive 120 --dlogz 0.5 --maxcall 80000 | tee "output/conditional_evidence/${{ matrix.model }}.log"
+          cat "output/conditional_evidence/${{ matrix.model }}.json"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: planck-evidence-${{ matrix.model }}
+          path: output/conditional_evidence/*
+          if-no-files-found: warn
+
+  combine:
+    needs: evidence
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: planck-evidence-*
+          path: evidence
+          merge-multiple: true
+      - name: Compute conditional Bayes factor
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,math
+          root=Path('evidence')
+          a=json.loads((root/'late300.json').read_text())
+          b=json.loads((root/'local021.json').read_text())
+          d=a['logZ_shared_prior_normalization_omitted']-b['logZ_shared_prior_normalization_omitted']
+          e=(a['logZerr']**2+b['logZerr']**2)**0.5
+          out={
+            'status':'conditional fixed-spectrum Planck nuisance Bayes factor',
+            'logZ_late300':a['logZ_shared_prior_normalization_omitted'],
+            'logZ_local021':b['logZ_shared_prior_normalization_omitted'],
+            'delta_logZ_late300_minus_local021':d,
+            'delta_logZ_error_quadrature':e,
+            'BF_late300_over_local021':math.exp(max(-700,min(700,d))),
+            'qualification':'Nuisance-marginalized fixed-cosmology evidence only; no SDMC structural/cosmological prior-volume penalty included.'
+          }
+          Path('planck_conditional_bayes_factor.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('PLANCK_CONDITIONAL_BAYES_FACTOR',json.dumps(out,sort_keys=True))
+          PY
+          cat planck_conditional_bayes_factor.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: planck-conditional-bayes-factor
+          path: planck_conditional_bayes_factor.json
