@@ -1,8 +1,8 @@
-name: SDMC late300 null-G2 upper-edge diagnosis
+name: SDMC late300 null-G2 background upper-range
 
 on:
   push:
-    branches: [sdmc-late300-null-g2-upper-edge-diagnose]
+    branches: [sdmc-late300-null-g2-background-upper]
     paths:
       - 'sdmc/apply_sdmc_null_g2_stabilizer.py'
       - 'sdmc/run_late300_null_g2_scan.py'
@@ -157,7 +157,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: nullg2-upper-edge-diagnosis
+          name: nullg2-background-upper-range
           path: |
             output/null_g2_stabilizer_scan.json
             output/null_g2_points.json
