@@ -1,0 +1,62 @@
+name: SDMC late300 native failure diagnostic
+
+on:
+  push:
+    branches: [sdmc-late300-native-horizon-fine]
+    paths:
+      - '.github/workflows/sdmc_late300_native_failure_diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover failure artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered/fast21 recovered/slow21 recovered/fast275 recovered/slow275 output
+          gh run download 37687163067 --repo "${{ github.repository }}" --name native-convergence-fast-n2.1 --dir recovered/fast21
+          gh run download 37687163067 --repo "${{ github.repository }}" --name native-convergence-slow-n2.1 --dir recovered/slow21
+          gh run download 37687163067 --repo "${{ github.repository }}" --name native-convergence-fast-n2.75 --dir recovered/fast275
+          gh run download 37687163067 --repo "${{ github.repository }}" --name native-convergence-slow-n2.75 --dir recovered/slow275
+      - name: Classify exact failures
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          cases={
+            "fast_2.1":Path("recovered/fast21"),
+            "slow_2.1":Path("recovered/slow21"),
+            "fast_2.75":Path("recovered/fast275"),
+            "slow_2.75":Path("recovered/slow275"),
+          }
+          out={}
+          for name,d in cases.items():
+              rec={}
+              for kind in ["bg","pert"]:
+                  hits=list(d.rglob(f"{kind}.log"))
+                  if not hits: continue
+                  txt=hits[0].read_text(errors="replace")
+                  lines=txt.splitlines()
+                  rec[f"{kind}_tail"]=lines[-30:]
+                  m=re.search(r"Step size too small: step:([^,]+), minimum:([^,]+), in interval: \[([^:]+):([^\]]+)\]",txt)
+                  if m:
+                      rec[f"{kind}_step_floor"]={"step":m.group(1).strip(),"minimum":m.group(2).strip(),
+                                                 "tau_lo":m.group(3).strip(),"tau_hi":m.group(4).strip()}
+                  cond=[x for x in lines if "condition (" in x or "out of" in x.lower() or "range" in x.lower() or "extrap" in x.lower()]
+                  rec[f"{kind}_condition_lines"]=cond[-20:]
+              out[name]=rec
+          Path("output/native_failure_diagnostic.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("NATIVE_FAILURE_DIAGNOSTIC",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-failure-diagnostic
+          path: output/native_failure_diagnostic.json
