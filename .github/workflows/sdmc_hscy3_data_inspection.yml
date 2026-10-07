@@ -1,0 +1,52 @@
+name: SDMC HSC-Y3 data inspection
+on:
+  push:
+    branches: [sdmc-late300-hscy3-weyl]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy astropy sacc
+      - name: Download CosmoSIS standard library HSC data
+        run: |
+          rm -rf cosmosis-standard-library
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library
+          git lfs pull || true
+          cd ..
+          test -s cosmosis-standard-library/likelihood/hsc_cosmic_shear/hsc_y3_fourier_shear.sacc
+          test -s cosmosis-standard-library/likelihood/hsc_cosmic_shear/hsc_y3_real.fits
+      - name: Inspect HSC-Y3 products
+        run: |
+          python3 - <<'PY'
+          from astropy.io import fits
+          import sacc, numpy as np, json
+          fp='cosmosis-standard-library/likelihood/hsc_cosmic_shear/hsc_y3_real.fits'
+          with fits.open(fp) as f:
+              print('HSC_FITS_HDUS',[(h.name, None if h.data is None else len(h.data), list(h.columns.names) if hasattr(h,'columns') else None) for h in f])
+              for name in ['XI_PLUS','XI_MINUS','xip','xim','COVMAT']:
+                  if name in f:
+                      h=f[name]
+                      print('HSC_HDU',name,'shape',getattr(h.data,'shape',None),'cols',getattr(h.columns,'names',None))
+                      if getattr(h,'columns',None) is not None:
+                          print('HSC_FIRST',name,repr(h.data[:3]))
+          sp='cosmosis-standard-library/likelihood/hsc_cosmic_shear/hsc_y3_fourier_shear.sacc'
+          S=sacc.Sacc.load_fits(sp)
+          print('HSC_SACC_TRACERS',S.tracers)
+          for t in S.tracers:
+              tr=S.get_tracer(t)
+              if hasattr(tr,'z'):
+                  print('HSC_SACC_NZ',t,len(tr.z),float(np.min(tr.z)),float(np.max(tr.z)),float(np.trapezoid(tr.nz,tr.z)))
+          print('HSC_SACC_DTYPES',S.get_data_types())
+          PY
