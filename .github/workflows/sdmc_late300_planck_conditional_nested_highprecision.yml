@@ -5,7 +5,7 @@ on:
     branches: [sdmc-late300-planck-evidence-highprecision]
     paths:
       - 'sdmc/run_late300_planck_conditional_nested.py'
-      - '.github/workflows/sdmc_late300_planck_conditional_nested.yml'
+      - '.github/workflows/sdmc_late300_planck_conditional_nested_highprecision.yml'
   workflow_dispatch:
 
 permissions:
