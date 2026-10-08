@@ -103,8 +103,16 @@ jobs:
                   Nz=N[i]+frac*(N[i+1]-N[i])
                   zeros.append({"ln_a":float(Nz),"z":float(math.exp(-Nz)-1)})
 
-          cand=json.loads(Path("sdmc/late300_candidate.json").read_text())["parameters"]
-          zt=cand["z_t"]
+          ini=next(Path("recovered").rglob("linear_cov_target.ini"))
+          zt=None
+          for raw in ini.read_text().splitlines():
+              q=raw.split("#",1)[0].strip()
+              if q.startswith("expansion_smg") and "=" in q:
+                  vals=[float(x.strip()) for x in q.split("=",1)[1].split(",")]
+                  zt=vals[2]
+                  break
+          if zt is None:
+              raise RuntimeError("could not recover candidate z_t from target ini")
           j=int(np.argmin(np.abs(z-zt)))
 
           out={
