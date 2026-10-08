@@ -1,8 +1,8 @@
-name: SDMC late300 handoff fixed-point refine
+name: SDMC late300 handoff fixed-point micro refine
 
 on:
   push:
-    branches: [sdmc-late300-handoff-fixedpoint]
+    branches: [sdmc-late300-handoff-fixedpoint-micro]
     paths:
       - '.github/workflows/sdmc_late300_handoff_fixedpoint.yml'
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        helper_zt: [16.60,16.68,16.72,16.76,16.80,16.88,16.96]
+        helper_zt: [16.738,16.740,16.742,16.7422,16.7423,16.7424,16.744,16.746]
     steps:
       - uses: actions/checkout@v4
       - name: Dependencies and SDMC base patches
