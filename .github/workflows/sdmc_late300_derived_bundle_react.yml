@@ -1,0 +1,297 @@
+name: SDMC derived-bundle exact-table ReACT nonlinear bracket
+on:
+  push:
+    branches: [sdmc-late300-derived-coordinate-bundle]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  react-late300:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gfortran git cmake libgsl-dev libfftw3-dev autoconf automake libtool libtool-bin
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+
+      - name: Download accepted-action late300 and exact spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/late300_action inputs/exact
+          gh run download 37762498050 --repo "${{ github.repository }}"             --name derived-bundle-linear-g3-covariant-audit --dir inputs/late300_action
+          gh run download 37762830727 --repo "${{ github.repository }}"             --name derived-bundle-native-weyl --dir inputs/exact
+          test -f inputs/late300_action/linear_cov_free_00_background.dat
+          test -d inputs/exact/weyl_spectra
+
+      - name: Generate exact accepted-action ReACT tables
+        run: |
+          python3 sdmc/prepare_late300_react_tables.py
+          cat output/react_tables/late300_table_diagnostic.json
+
+      - name: Build same-base GR linear spectrum
+        run: |
+          make clean && make -j2 class
+          mkdir -p output/grbase
+          cat > output/grbase.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-9
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          modes = s
+          output = mPk
+          P_k_max_h/Mpc = 20.0
+          z_pk = 0,0.25,0.5,0.75,1.0,1.25,1.5,1.75,2.0,2.25,2.5
+          root = output/grbase/grbase_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 1
+          EOF
+          ./class output/grbase.ini | tee output/grbase/class.log
+          ls -lh output/grbase
+
+      - name: Build SUNDIALS 4.1
+        run: |
+          git clone --depth 1 --branch v4.1.0 https://github.com/LLNL/sundials.git
+          mkdir -p sundials/build sundials/install
+          cd sundials/build
+          cmake -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/sundials/install" -DBUILD_SHARED_LIBS=ON ..
+          make -j2
+          make install
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/sundials/install/lib" >> "$GITHUB_ENV"
+          echo "LIBRARY_PATH=$GITHUB_WORKSPACE/sundials/install/lib" >> "$GITHUB_ENV"
+          echo "CPATH=$GITHUB_WORKSPACE/sundials/install/include" >> "$GITHUB_ENV"
+
+      - name: Clone, patch and build ReACT v2
+        run: |
+          git clone --depth 1 https://github.com/nebblu/ACTio-ReACTio.git reactv2
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('reactv2/pyreact/react.py')
+          p.write_text(p.read_text().replace('np.int','np.int32'))
+          q=Path('reactv2/pyreact/Makefile')
+          s=q.read_text()
+          lib=str(Path.cwd()/'sundials/install/lib')
+          inc=str(Path.cwd()/'sundials/install/include')
+          s=s.replace('LDFLAGS  += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial',
+                      f'LDFLAGS  += -L{lib} -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial')
+          s=s.replace('CPPFLAGS +=',f'CPPFLAGS += -I{inc}')
+          q.write_text(s)
+          PY
+          python3 sdmc/patch_react_late300.py
+          grep -n "late300" reactv2/reactions/src/BeyondLCDM.cpp | head -30
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/sundials/install/lib:${LD_LIBRARY_PATH:-}"
+          cd reactv2
+          python3 setup.py build
+          python3 setup.py develop --user
+
+      - name: Run target-spectrum unscreened and superscreened reactions
+        run: |
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/sundials/install/lib:$GITHUB_WORKSPACE/reactv2/reactions/lib:${LD_LIBRARY_PATH:-}"
+          python3 - <<'PY'
+          import sys,re,json
+          from pathlib import Path
+          import numpy as np
+          sys.path.insert(0,str(Path('reactv2').resolve()))
+          from pyreact import ReACT
+
+          def read_z(p):
+              txt='\n'.join(Path(p).read_text().splitlines()[:10])
+              m=re.search(r'(?:at\s+)?(?:redshift\s+)?z\s*=\s*([0-9eE+\-.]+)',txt,re.I)
+              return float(m.group(1)) if m else None
+
+          def nearest(files,z):
+              q=[(abs(read_z(p)-z),p) for p in files if read_z(p) is not None]
+              if not q: raise RuntimeError(f'no spectrum near z={z}')
+              return min(q,key=lambda x:x[0])[1]
+
+          def load_grid(files,zs,k=None):
+              rows=[]
+              chosen=[]
+              for z in zs:
+                  p=nearest(files,z); a=np.loadtxt(p)
+                  kk=np.asarray(a[:,0],float); pp=np.asarray(a[:,1],float)
+                  chosen.append(p.name)
+                  if k is None and len(rows)==0:
+                      rows.append((kk,pp)); continue
+                  rows.append((kk,pp))
+              if k is None:
+                  mins=[r[0].min() for r in rows]; maxs=[r[0].max() for r in rows]
+                  lo=max(mins); hi=min(maxs)
+                  k=rows[0][0][(rows[0][0]>=lo)&(rows[0][0]<=hi)]
+              vals=[]
+              for kk,pp in rows:
+                  vals.append(np.exp(np.interp(np.log(k),np.log(kk),np.log(pp))))
+              return np.asarray(k,float),np.asarray(vals,float),chosen
+
+          def sigma8(k,P):
+              x=k*8.0
+              W=np.ones_like(x)
+              m=np.abs(x)>1e-8
+              W[m]=3*(np.sin(x[m])-x[m]*np.cos(x[m]))/x[m]**3
+              return float(np.sqrt(np.trapezoid(k**3*P*W**2/(2*np.pi**2),x=np.log(k))))
+
+          z=np.arange(0.0,2.5001,0.25)
+          exact_dir=Path('inputs/exact/weyl_spectra')
+          tgt=[p for p in exact_dir.glob('late300_*_pk.dat') if 'nl_' not in p.name and 'weyl' not in p.name]
+          gr=[p for p in Path('output/grbase').glob('*pk.dat') if 'pk_nl' not in p.name]
+          if not tgt or not gr: raise RuntimeError('target or GR spectra missing')
+
+          # Build one common k grid in h/Mpc and exact P(k,z) arrays in (Mpc/h)^3.
+          all_files=tgt+gr
+          lo=max(np.loadtxt(p)[:,0].min() for p in all_files)
+          hi=min(np.loadtxt(p)[:,0].max() for p in all_files)
+          pz0=nearest(tgt,0.0); base=np.loadtxt(pz0)
+          k=base[:,0][(base[:,0]>=lo)&(base[:,0]<=hi)]
+          k=k[(k>=1e-5)&(k<=20.0)]
+          if k[0]>1e-4: raise RuntimeError(f'common k minimum too high: {k[0]}')
+
+          k,Tm,tgt_names=load_grid(tgt,z,k)
+          _,Pgr,gr_names=load_grid(gr,z,k)
+          Tcb=Tm.copy()
+
+          h=0.6971482083084993
+          Om=(0.022083219194622913+0.12299536722293603)/h**2
+          Ob=0.022083219194622913/h**2
+          As=2.1047019076951746e-9
+          ns=0.9628416801318527
+          ext=np.zeros(20)
+          react=ReACT()
+          arrays={'k':k,'z':z,'Ptarget':Tm,'Pgr':Pgr}
+          result={
+             'status':'target-spectrum ReACT option-2b bracket using exact accepted-action P(k,z); gamma2=gamma3=0 approximation',
+             'Omega_m':Om,'Omega_b':Ob,
+             'target_files':tgt_names,'gr_files':gr_names,
+             'sigma8_target':sigma8(k,Tm[0]),
+             'reaction':{},'linear_validation':{},'halofit_audit':{}
+          }
+
+          legacy=[p for p in exact_dir.glob('late300_nl_*pk_nl.dat') if 'weyl' not in p.name]
+          for model,tag in [('eftus','us'),('eftss','ss')]:
+              R,Pl,s8,pseudo=react.compute_reaction_nu_ext(
+                  h,ns,Om,Ob,0.0,As,z,k,
+                  np.ascontiguousarray(Tm.flatten()),
+                  np.ascontiguousarray(Tcb.flatten()),
+                  k,np.ascontiguousarray(Pgr.flatten()),
+                  pscale=0.05,model=model,extpars=ext,
+                  compute_pseudo=True,is_transfer=False,mass_loop=24,verbose=False)
+              Pnl=R*pseudo
+              arrays[f'R_{tag}']=R; arrays[f'Pl_{tag}']=Pl
+              arrays[f'pseudo_{tag}']=pseudo; arrays[f'Pnl_{tag}']=Pnl
+              result['reaction'][tag]={
+                  'sigma8_react':float(s8),
+                  'R_min':float(np.nanmin(R)),'R_max':float(np.nanmax(R)),
+                  'R_median_z0':float(np.nanmedian(R[0])),
+                  'finite_fraction':float(np.mean(np.isfinite(R)))
+              }
+              for iz,zz in enumerate(z):
+                  mask=(k>=1e-3)&(k<=0.2)&np.isfinite(Tm[iz])&(Tm[iz]>0)
+                  rel=Pl[iz,mask]/Tm[iz,mask]-1
+                  result['linear_validation'][f'z{zz:g}_{tag}']={
+                      'median_rel':float(np.median(rel)),
+                      'rms_rel':float(np.sqrt(np.mean(rel**2))),
+                      'max_abs_rel':float(np.max(np.abs(rel)))
+                  }
+                  lp=nearest(legacy,float(zz)); la=np.loadtxt(lp)
+                  leg=np.exp(np.interp(np.log(k),np.log(la[:,0]),np.log(la[:,1])))
+                  m2=(k>=1e-3)&(k<=10)&np.isfinite(leg)&(leg>0)
+                  d=pseudo[iz,m2]/leg[m2]-1
+                  rnl=Pnl[iz,m2]/leg[m2]-1
+                  result['halofit_audit'][f'z{zz:g}_{tag}']={
+                      'legacy_file':lp.name,
+                      'pseudo_vs_legacy_median_rel':float(np.median(d)),
+                      'pseudo_vs_legacy_rms_rel':float(np.sqrt(np.mean(d**2))),
+                      'pseudo_vs_legacy_max_abs_rel':float(np.max(np.abs(d))),
+                      'react_nonlinear_vs_legacy_median_rel':float(np.median(rnl)),
+                      'react_nonlinear_vs_legacy_min_rel':float(np.min(rnl)),
+                      'react_nonlinear_vs_legacy_max_rel':float(np.max(rnl))
+                  }
+
+          # Equal-treatment local021 GR nonlinear pseudo spectrum.
+          loc=[p for p in exact_dir.glob('local021_*_pk.dat') if 'nl_' not in p.name and 'weyl' not in p.name]
+          loclegacy=[p for p in exact_dir.glob('local021_nl_*pk_nl.dat') if 'weyl' not in p.name]
+          if not loc: raise RuntimeError('local021 linear spectra missing')
+          # Use the same k grid where possible and interpolate local021 target P(k,z).
+          _,Ploc,loc_names=load_grid(loc,z,k)
+          hC=0.6856859
+          OmC=(0.02240637+0.11824151)/hC**2
+          ObC=0.02240637/hC**2
+          AsC=2.051092661998245e-9
+          nsC=0.96495932
+          Rloc,Lloc,s8loc,pseudoloc=react.compute_reaction_nu_ext(
+              hC,nsC,OmC,ObC,0.0,AsC,z,k,
+              np.ascontiguousarray(Ploc.flatten()),
+              np.ascontiguousarray(Ploc.flatten()),
+              k,np.ascontiguousarray(Ploc.flatten()),
+              pscale=0.05,model='gr',extpars=np.zeros(20),
+              compute_pseudo=True,is_transfer=False,mass_loop=24,verbose=False)
+          Pnlloc=Rloc*pseudoloc
+          arrays['Ptarget_local021']=Ploc; arrays['R_local021']=Rloc
+          arrays['Pl_local021']=Lloc; arrays['pseudo_local021']=pseudoloc
+          arrays['Pnl_local021']=Pnlloc
+          result['local021']={
+              'target_files':loc_names,
+              'sigma8_target':sigma8(k,Ploc[0]),
+              'sigma8_react':float(s8loc),
+              'R_min':float(np.nanmin(Rloc)),
+              'R_max':float(np.nanmax(Rloc)),
+              'R_median_z0':float(np.nanmedian(Rloc[0])),
+              'finite_fraction':float(np.mean(np.isfinite(Rloc))),
+              'linear_validation':{},
+              'halofit_audit':{}
+          }
+          for iz,zz in enumerate(z):
+              mask=(k>=1e-3)&(k<=0.2)&np.isfinite(Ploc[iz])&(Ploc[iz]>0)
+              rel=Lloc[iz,mask]/Ploc[iz,mask]-1
+              result['local021']['linear_validation'][f'z{zz:g}']={
+                  'median_rel':float(np.median(rel)),
+                  'rms_rel':float(np.sqrt(np.mean(rel**2))),
+                  'max_abs_rel':float(np.max(np.abs(rel)))
+              }
+              lp=nearest(loclegacy,float(zz)); la=np.loadtxt(lp)
+              leg=np.exp(np.interp(np.log(k),np.log(la[:,0]),np.log(la[:,1])))
+              m2=(k>=1e-3)&(k<=10)&np.isfinite(leg)&(leg>0)
+              d=pseudoloc[iz,m2]/leg[m2]-1
+              result['local021']['halofit_audit'][f'z{zz:g}']={
+                  'legacy_file':lp.name,
+                  'pseudo_vs_legacy_median_rel':float(np.median(d)),
+                  'pseudo_vs_legacy_rms_rel':float(np.sqrt(np.mean(d**2))),
+                  'pseudo_vs_legacy_max_abs_rel':float(np.max(np.abs(d)))
+              }
+
+          worst=max(v['max_abs_rel'] for v in result['linear_validation'].values())
+          worst_local=max(v['max_abs_rel'] for v in result['local021']['linear_validation'].values())
+          worst=max(worst,worst_local)
+          result['linear_validation_worst_max_abs_rel']=float(worst)
+          Path('output/react_late300').mkdir(parents=True,exist_ok=True)
+          np.savez_compressed('output/react_late300/late300_react_target_spectrum.npz',**arrays)
+          Path('output/react_late300/summary.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+          print('LATE300_REACT_TARGET_SPECTRUM',json.dumps(result,sort_keys=True))
+          if worst>0.02:
+              raise RuntimeError(f'ReACT target-spectrum linear validation failed: worst={worst}')
+          PY
+          cat output/react_late300/summary.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: derived-bundle-react-exact
+          path: |
+            output/react_late300/*
+            output/react_tables/*
+            output/grbase/class.log
+          if-no-files-found: warn
