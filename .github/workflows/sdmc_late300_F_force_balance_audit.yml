@@ -1,0 +1,34 @@
+name: SDMC late300 F curvature force-balance audit
+
+on:
+  push:
+    branches: [sdmc-late300-F-force-balance-audit]
+    paths:
+      - 'sdmc/run_late300_F_force_balance_audit.py'
+      - '.github/workflows/sdmc_late300_F_force_balance_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Exact force-balance decomposition
+        run: python3 sdmc/run_late300_F_force_balance_audit.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late300-F-force-balance-audit
+          path: output/F_force_balance_audit.json
