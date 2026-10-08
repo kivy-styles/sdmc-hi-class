@@ -1,0 +1,139 @@
+name: SDMC late300 late-profile origin audit
+
+on:
+  push:
+    branches: [sdmc-late300-late-profile-origin-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_late_profile_origin_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted target background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Recover A_late and B_late from conditional closures
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+          from scipy.integrate import quad
+          from scipy.optimize import brentq
+
+          ini=next(Path("recovered").rglob("linear_cov_target.ini"))
+          vals={}
+          for raw in ini.read_text().splitlines():
+              q=raw.split("#",1)[0].strip()
+              if not q or "=" not in q: continue
+              k,v=[x.strip() for x in q.split("=",1)]
+              vals[k]=v
+          H0kms=float(vals["H0"])
+          exp=[float(x.strip()) for x in vals["expansion_smg"].split(",")]
+          Ox,lam,zt,dNt,A,tauA,B,tauB=exp
+
+          bg=next(Path("recovered").rglob("linear_cov_target_00_background.dat"))
+          ls=bg.read_text().splitlines()
+          hdr=[l for l in ls if l.startswith("#") and re.search(r"(?:^|\s)1\s*:",l)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          arr=np.loadtxt(bg)
+          if arr.ndim==1: arr=arr[None,:]
+          d={n:arr[:,i] for i,n in enumerate(names)}
+          ztab=np.asarray(d["z"],float)
+          j0=int(np.argmin(np.abs(ztab)))
+          Om0=float(np.asarray(d["Omega_m(z)"],float)[j0])
+          Or0=float(np.asarray(d["Omega_r(z)"],float)[j0])
+          H0=float(np.asarray(d["H [1/Mpc]"],float)[j0])
+
+          # The two-lobe residual multiplies a common control Hc.
+          # q=(1+z)dlnH/dz-1, hence at z=0 B contributes no first derivative.
+          # Compute the control q directly for verification.
+          Nt=-math.log1p(zt)
+          def ftracker(z):
+              a=1/(1+z); N=math.log(a)
+              rm=Om0*a**-3; rr=Or0*a**-4
+              xr=rr/(rm+rr)
+              f0=(3+xr)/(lam*lam)
+              W=.5*(1-math.tanh((N-Nt)/dNt))
+              return W*f0
+          def E(z,Bval=B,Aval=A):
+              a=1/(1+z)
+              base=Om0*a**-3+Or0*a**-4+Ox
+              delta=Aval*z*math.exp(-z/tauA)-Bval*z*z*math.exp(-z/tauB)
+              return math.sqrt(base)*(1+delta)/math.sqrt(1-ftracker(z))
+
+          eps=1e-5
+          def q0_of(Aval,Bval):
+              ep=E(eps,Bval,Aval); em=E(-eps,Bval,Aval)
+              dln=(math.log(ep)-math.log(em))/(2*eps)
+              return dln-1
+          q0=q0_of(A,B)
+          qc0=q0_of(0.0,0.0)
+          Afromq=q0-qc0
+
+          # Use the accepted target's comoving distance at the same high-z endpoint.
+          zstar=1089.447210
+          order=np.argsort(ztab)
+          zsort=ztab[order]
+          Dsort=np.asarray(d["comov. dist."],float)[order]
+          Dtarget=float(np.interp(zstar,zsort,Dsort))
+
+          def Dc(Bval):
+              v,_=quad(lambda zz: 1.0/(H0*E(zz,Bval,A)),0,zstar,epsabs=1e-7,epsrel=3e-10,limit=1000)
+              return v
+          def rootfn(b): return Dc(b)-Dtarget
+
+          lo,hi=-0.05,0.08
+          flo,fhi=rootfn(lo),rootfn(hi)
+          if flo*fhi>0:
+              raise RuntimeError(f"B root not bracketed: {flo} {fhi}")
+          Bsolve=brentq(rootfn,lo,hi,xtol=1e-13,rtol=1e-13)
+
+          # Local sensitivity: how much B changes per Mpc of distance target.
+          db=1e-5
+          dD_dB=(Dc(Bsolve+db)-Dc(Bsolve-db))/(2*db)
+          dB_dD=1/dD_dB
+
+          out={
+            "status":"late300 two-lobe conditional-origin audit",
+            "accepted":{"A_late":A,"B_late":B,"tau_A":tauA,"tau_B":tauB},
+            "A_identity":{
+              "q0":q0,"q_control0":qc0,
+              "A_from_q0_minus_qcontrol":Afromq,
+              "absolute_residual":abs(Afromq-A),
+              "status":"exact conditional identity of the two-lobe ansatz; origin still requires an independent SDMC prediction of q0"
+            },
+            "B_distance_closure":{
+              "z_endpoint":zstar,
+              "target_comoving_distance_Mpc":Dtarget,
+              "B_solved":Bsolve,
+              "absolute_residual":abs(Bsolve-B),
+              "dD_dB_Mpc":dD_dB,
+              "dB_dD_per_Mpc":dB_dD,
+              "status":"unique conditional root once A,tau_A,tau_B and the distance target are supplied; origin still requires SDMC to predict the distance target rather than import it observationally"
+            },
+            "complexity_note":"A_late and B_late are not independent within the chosen low-complexity background once q0 and the acoustic-distance target are fixed, but they are not first-principles-free unless those targets are predicted by SDMC."
+          }
+          Path("output/late_profile_origin_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATE_PROFILE_ORIGIN_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: late-profile-origin-audit
+          path: output/late_profile_origin_audit.json
