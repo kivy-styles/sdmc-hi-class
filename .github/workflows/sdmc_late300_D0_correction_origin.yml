@@ -1,0 +1,33 @@
+name: SDMC late300 D0 correction action-origin audit
+
+on:
+  push:
+    branches: [sdmc-late300-AF-D0-stability-map]
+    paths:
+      - '.github/workflows/sdmc_late300_D0_correction_origin.yml'
+      - 'sdmc/audit_late300_D0_correction_action_degeneracy.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  corrective-origin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate corrective kinetic audit
+        run: |
+          python3 -m py_compile sdmc/audit_late300_D0_correction_action_degeneracy.py
+          python3 -m json.tool sdmc/late300_candidate.json >/dev/null
+      - name: Derive D0 from endpoints and test kinetic action nonuniqueness
+        run: |
+          python3 sdmc/audit_late300_D0_correction_action_degeneracy.py
+      - name: Preserve D0 correction derivation and counterexamples
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-D0-correction-origin-audit
+          path: output/late300_D0_correction_origin/audit.json
+          if-no-files-found: warn
