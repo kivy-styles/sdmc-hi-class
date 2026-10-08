@@ -1,0 +1,32 @@
+name: SDMC late300 rK selector non-circularity audit
+
+on:
+  push:
+    branches: [sdmc-late300-AF-D0-stability-map]
+    paths:
+      - '.github/workflows/sdmc_late300_rk_selector_audit.yml'
+      - 'sdmc/audit_late300_rk_non_circularity.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analytic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate audit source
+        run: |
+          python3 -m py_compile sdmc/audit_late300_rk_non_circularity.py
+      - name: Check conditional rK floor mapping and dynamical growth condition
+        run: |
+          python3 sdmc/audit_late300_rk_non_circularity.py
+      - name: Store structural coordinate diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-rK-noncircularity
+          path: output/rk_non_circularity_audit.json
+          if-no-files-found: warn
