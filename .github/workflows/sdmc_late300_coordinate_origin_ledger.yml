@@ -1,0 +1,120 @@
+name: SDMC late300 coordinate-origin ledger
+
+on:
+  push:
+    branches: [sdmc-late300-coordinate-origin-ledger]
+    paths:
+      - '.github/workflows/sdmc_late300_coordinate_origin_ledger.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write coordinate-origin ledger
+        run: |
+          mkdir -p output
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,math
+          p=json.loads(Path("sdmc/late300_candidate.json").read_text())["parameters"]
+          lam=p["lambda_e"]
+          Fr=16/lam**2
+          Fm=9/lam**2
+          accepted_zt=p["z_t"]
+          curvature_zt=16.78177310642457
+          activation_min_zt=18.07334256431
+          ledger={
+            "status":"late300 structural-coordinate origin ledger after targeted derivation pass",
+            "coordinates":{
+              "Omega_x0":{
+                "value":p["Omega_x0"],"status":"closed_derived",
+                "origin":"present flat closure",
+                "regular_delta_k_candidate":0
+              },
+              "lambda_e":{
+                "value":lam,"status":"conditional_reduction",
+                "relations":{"f_r":4/lam**2,"f_m":3/lam**2},
+                "background_inversion_median_approx":18.04,
+                "background_inversion_16_84_approx":[17.80,18.33],
+                "missing":"independent prediction of the structural tracker fraction"
+              },
+              "z_t":{
+                "value":accepted_zt,"status":"structurally_localized_not_closed",
+                "background_inversion_approx":15.63,
+                "activation_min_z":activation_min_zt,
+                "activation_curvature_extremum_z":curvature_zt,
+                "curvature_minus_accepted_fraction":curvature_zt/accepted_zt-1,
+                "curvature_observational_check":{
+                  "all_other_coordinates_fixed":True,
+                  "accepted_planck_chi2":2783.8068487116316,
+                  "curvature_planck_chi2":2789.985965522295,
+                  "delta_planck_curvature_minus_accepted":2789.985965522295-2783.8068487116316,
+                  "accepted_desi_chi2":329.451193870709,
+                  "curvature_desi_chi2":329.512915648291,
+                  "delta_desi_curvature_minus_accepted":329.512915648291-329.451193870709
+                },
+                "missing":"unique invariant handoff law selecting the accepted epoch"
+              },
+              "A_F":{
+                "value":p["A_F"],"status":"open_origin",
+                "health_lower_bound_only":True,
+                "simple_F_of_chi_rejected":True,
+                "missing":"independent gravitational-response or microscopic F(sigma) law"
+              },
+              "z_c":{
+                "value":p["z_c"],"status":"open_origin",
+                "health_window_localizes_but_does_not_fix":True,
+                "missing":"independent gravitational-response or curvature-gate trajectory"
+              },
+              "width":{
+                "value":p["width"],"status":"open_origin",
+                "health_window_localizes_but_does_not_fix":True,
+                "missing":"dynamical transition timescale from the action"
+              },
+              "D_floor":{
+                "value":p["D_floor"],"status":"open_origin_with_tracker_anchor",
+                "canonical_radiation_anchor":Fr,
+                "canonical_matter_anchor":Fm,
+                "fractional_excess_over_radiation_anchor":p["D_floor"]/Fr-1,
+                "missing":"noncanonical G2/G3 kinetic contribution"
+              },
+              "D0":{
+                "value":p["D0"],"status":"reducible_after_present_D",
+                "missing":"independent prediction of present D and D_floor"
+              },
+              "p_D":{
+                "value":p["kinetic_power"],"status":"partly_reducible",
+                "origin_candidate":"leading nonconstant analytic response in one smooth structural order parameter",
+                "missing":"microscopic uniqueness theorem"
+              },
+              "A_late":{
+                "value":p["A_late"],"status":"exact_conditional_identity",
+                "identity":"A_late = q0 - q_control0 for the two-lobe residual",
+                "missing":"independent SDMC prediction of q0"
+              },
+              "B_late":{
+                "value":p["B_late"],"status":"exact_conditional_distance_closure",
+                "identity":"one acoustic/distance integral fixes B after A,tau_A,tau_B are fixed",
+                "missing":"independent SDMC prediction of the distance target"
+              }
+            },
+            "complexity_interpretation":{
+              "definitely_not_ten_free_parameters":True,
+              "frozen_replay_delta_k":0,
+              "safe_current_statement":"Only coordinates with an independent origin law can be removed from full-family complexity. Omega_x0 is closed. A_late and B_late are algebraically conditional. lambda_e, z_t and p_D are strongly reduced/localized but not origin-closed. F-sector and kinetic normalization remain the main theory-level blockers."
+            }
+          }
+          Path("output/coordinate_origin_ledger.json").write_text(json.dumps(ledger,indent=2,sort_keys=True)+"\n")
+          print("COORDINATE_ORIGIN_LEDGER",json.dumps(ledger,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coordinate-origin-ledger
+          path: output/coordinate_origin_ledger.json
