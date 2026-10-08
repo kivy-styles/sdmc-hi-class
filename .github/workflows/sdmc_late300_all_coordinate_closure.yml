@@ -1,0 +1,33 @@
+name: SDMC late300 all-coordinate closure audit
+
+on:
+  push:
+    branches: [sdmc-late300-AF-D0-stability-map]
+    paths:
+      - '.github/workflows/sdmc_late300_all_coordinate_closure.yml'
+      - 'sdmc/audit_late300_all_coordinate_closure.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  derive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile audit and check source integrity
+        run: |
+          python3 -m py_compile sdmc/audit_late300_all_coordinate_closure.py
+          python3 -m json.tool sdmc/late300_candidate.json > /dev/null
+      - name: Derive all identifiable coordinates and audit independent closure
+        run: |
+          python3 sdmc/audit_late300_all_coordinate_closure.py
+      - name: Upload reproducible structural-coordinate ledger
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-late300-all-coordinate-closure
+          path: output/late300_all_coordinate_closure/coordinate_ledger.json
+          if-no-files-found: warn
