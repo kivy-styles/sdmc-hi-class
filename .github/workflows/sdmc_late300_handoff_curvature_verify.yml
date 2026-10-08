@@ -31,6 +31,8 @@ jobs:
           from pathlib import Path
           import re,json,math
           import numpy as np
+          from scipy.interpolate import CubicSpline
+          from scipy.optimize import minimize_scalar, brentq
 
           p=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
           ls=p.read_text().splitlines()
@@ -99,8 +101,33 @@ jobs:
           imin=ii[np.argmin(Achi[ii])]
           islope=ii[np.argmax(np.abs(d1[ii]))]
 
+          # High-precision spline curvature maximum in the handoff window.
+          valid=m & np.isfinite(Achi)
+          Nv=N[valid]; Av=Achi[valid]
+          sp=CubicSpline(Nv,Av)
+          lo=float(Nv.min()); hi=float(Nv.max())
+          opt=minimize_scalar(lambda x:-sp(x,2),bounds=(lo,hi),method="bounded",
+                              options={"xatol":1e-13})
+          Ncurv=float(opt.x); zcurv=float(math.exp(-Ncurv)-1)
+          # Root of third derivative nearest the tested candidate.
+          grid=np.linspace(lo,hi,2000); d3s=sp(grid,3)
+          roots=[]
+          for i in range(len(grid)-1):
+              if d3s[i]*d3s[i+1]<0:
+                  rr=brentq(lambda x:float(sp(x,3)),grid[i],grid[i+1])
+                  roots.append({"ln_a":float(rr),"z":float(math.exp(-rr)-1),
+                                "curvature":float(sp(rr,2))})
+          nearest=min(roots,key=lambda q:abs(q["z"]-zcand)) if roots else None
+
           out={
             "status":"activation-curvature verification of structural handoff",
+            "spline_max_positive_curvature":{"ln_a":Ncurv,"z":zcurv,
+                                             "Achi":float(sp(Ncurv)),
+                                             "d1":float(sp(Ncurv,1)),
+                                             "d2":float(sp(Ncurv,2)),
+                                             "d3":float(sp(Ncurv,3))},
+            "spline_d3_roots":roots,
+            "spline_root_nearest_candidate":nearest,
             "candidate_curvature_handoff_z":zcand,
             "accepted_late300_z_t":zacc,
             "Achi_min":{"z":float(z[imin]),"Achi":float(Achi[imin]),"d1":float(d1[imin]),"d2":float(d2[imin])},
