@@ -1,0 +1,142 @@
+name: SDMC late300 derived coordinate bundle audit
+
+on:
+  push:
+    branches: [sdmc-late300-derived-coordinate-bundle]
+    paths:
+      - '.github/workflows/sdmc_late300_derived_F_observables.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies and patches
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential >/dev/null
+          python3 -m pip install --upgrade pip >/dev/null
+          python3 -m pip install numpy scipy >/dev/null
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          python3 sdmc/patch_F_only_force_center.py
+          make clean >/dev/null && make -j2 class >/dev/null
+      - name: Prepare accepted and derived-bundle inputs
+        run: |
+          mkdir -p output
+          python3 - <<'PY'
+          from pathlib import Path
+          common="""H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          expansion_model = sdmc_full
+          EXPANSION_PLACEHOLDER
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 2500
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0
+          write background = yes
+          write thermodynamics = no
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          transfer_verbose = 0
+          primordial_verbose = 0
+          harmonic_verbose = 0
+          fourier_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          """
+          accepted="parameters_smg = 0.02048146490100771, 3.927876388467848, 0.33114133956842123, 0.34231919445927034, 1.0, 0.05181542627513409\nexpansion_smg = 0.7014079815036496, 18.40625, 16.19317622240633, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5\nroot = output/accepted_\n"
+          derived="parameters_smg = 0.02052, 4.034077502899133, 0.32925377073762596, 0.3419932122356156, 1.0, 0.05181542627513409\nexpansion_smg = 0.7014079815036496, 18.40625, 16.742289660253434, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5\nroot = output/derived_\n"
+          Path("output/accepted.ini").write_text(common.replace("EXPANSION_PLACEHOLDER\n","")+accepted)
+          Path("output/derived.ini").write_text(common.replace("EXPANSION_PLACEHOLDER\n","")+derived)
+          PY
+      - name: Run
+        run: |
+          ./class output/accepted.ini > output/accepted.log 2>&1
+          ./class output/derived.ini > output/derived.log 2>&1
+      - name: Compare
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,numpy as np,re
+
+          def compare(pa,pb):
+              A=np.loadtxt(pa); B=np.loadtxt(pb)
+              if A.ndim==1:A=A[None,:]
+              if B.ndim==1:B=B[None,:]
+              n=min(A.shape[1],B.shape[1]); x=A[:,0]; xb=B[:,0]
+              o=np.argsort(xb); vals=[]; rms=[]
+              for j in range(1,n):
+                  bb=np.interp(x,xb[o],B[o,j]); aa=A[:,j]
+                  peak=max(float(np.max(np.abs(aa))),float(np.max(np.abs(bb))),1e-300)
+                  vals.append(float(np.max(np.abs(aa-bb))/peak))
+                  rms.append(float(np.sqrt(np.mean((aa-bb)**2))/peak))
+              return {"max_peaknorm":max(vals) if vals else None,"max_rmsnorm":max(rms) if rms else None}
+
+          def health(tag):
+              p=Path(f"output/{tag}_00_background.dat")
+              ls=p.read_text().splitlines()
+              hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr); names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(p); d={n:a[:,i] for i,n in enumerate(names)}
+              return {"min_D":float(np.min(d["kin (D)"])),"min_cs2":float(np.min(d["c_s^2"])),
+                      "max_cs2":float(np.max(d["c_s^2"])), "F_today":float(d["M*^2_smg"][np.argmin(np.abs(d["z"]))])}
+
+          out={"status":"derived coordinate bundle observable comparison",
+               "derived":{"A_F":0.02052,"z_c":4.034077502899133,"width":0.32925377073762596,"D0":0.3419932122356156,"pD":1.0,"z_t":16.742289660253434},
+               "accepted":{"A_F":0.02048146490100771,"z_c":3.927876388467848,"width":0.33114133956842123,"D0":0.34231919445927034,"pD":1.0,"z_t":16.19317622240633},
+               "health":{"accepted":health("accepted"),"derived":health("derived")},
+               "residuals":{
+                 "unlensed_cl":compare(Path("output/accepted_00_cl.dat"),Path("output/derived_00_cl.dat")),
+                 "lensed_cl":compare(Path("output/accepted_00_cl_lensed.dat"),Path("output/derived_00_cl_lensed.dat")),
+                 "pk":compare(Path("output/accepted_00_pk.dat"),Path("output/derived_00_pk.dat"))
+               }}
+          Path("output/derived_coordinate_bundle_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("DERIVED_COORDINATE_BUNDLE_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: derived-coordinate-bundle-audit
+          path: output/derived_coordinate_bundle_audit.json
