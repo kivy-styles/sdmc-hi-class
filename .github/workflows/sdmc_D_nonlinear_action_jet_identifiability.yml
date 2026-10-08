@@ -1,0 +1,30 @@
+name: SDMC D nonlinear kinetic off-shell identifiability
+
+on:
+  push:
+    branches: [sdmc-D-forward-canonical-attractor]
+    paths:
+      - '.github/workflows/sdmc_D_nonlinear_action_jet_identifiability.yml'
+      - 'sdmc/audit_D_offshell_kinetic_higher_order_degeneracy.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scalar-action-jets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile model-identifiability audit
+        run: python3 -m py_compile sdmc/audit_D_offshell_kinetic_higher_order_degeneracy.py
+      - name: Prove non-uniqueness of quadratic and higher scalar interactions on a shared background
+        run: python3 sdmc/audit_D_offshell_kinetic_higher_order_degeneracy.py
+      - name: Save complete action-jet proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-D-nonlinear-action-jet-proof
+          path: output/D_offshell_kinetic_jet_nonuniqueness/proof.json
+          if-no-files-found: warn
