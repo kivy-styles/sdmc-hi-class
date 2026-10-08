@@ -1,0 +1,58 @@
+name: SDMC Dfloor tracker exact full Planck
+
+on:
+  push:
+    branches: [sdmc-late300-Dfloor-tracker-test]
+    paths:
+      - '.github/workflows/sdmc_Dfloor_tracker_full_planck.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-planck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Replay accepted exact full-Planck workflow with tracker Dfloor
+        run: |
+          python3 -m pip install -q pyyaml
+          git fetch --depth=1 origin sdmc-g022-a034-exact-fullplik
+          git show FETCH_HEAD:.github/workflows/sdmc_r032_edge024_qbest_covariant_full_plik.yml > /tmp/base.yml
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,subprocess,yaml
+          s=Path("/tmp/base.yml").read_text()
+          old="0.05181542627513409"
+          new="0.047226890271848634"
+          n=s.count(old)
+          if n < 1: raise RuntimeError(f"expected Dfloor occurrence, found {n}")
+          s=s.replace(old,new)
+          s=s.replace("SDMC_COVARIANT_G022_A034","SDMC_DFLOOR_TRACKER")
+          s=s.replace("COVARIANT_G022_A034","DFLOOR_TRACKER")
+          data=yaml.safe_load(s)
+          for step in data["jobs"]["fast-full-plik"]["steps"]:
+              script=step.get("run")
+              if not script: continue
+              env=os.environ.copy()
+              for k,v in (step.get("env") or {}).items(): env[str(k)]=str(v)
+              print(f"=== REPLAY STEP: {step.get('name','unnamed')} ===",flush=True)
+              subprocess.run(["bash","-lc",script],check=True,env=env)
+          PY
+      - name: Print result
+        if: always()
+        run: |
+          cat output/fast_fullplik_delta.txt || true
+          cat output/fast_fullplik_profile.csv || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dfloor-tracker-full-planck
+          path: |
+            output/fast_fullplik_delta.txt
+            output/fast_fullplik_profile.csv
+          if-no-files-found: warn
