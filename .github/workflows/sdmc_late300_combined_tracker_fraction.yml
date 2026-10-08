@@ -1,0 +1,85 @@
+name: SDMC late300 combined early-tracker fraction audit
+
+on:
+  push:
+    branches: [sdmc-late300-kinetic-derivability-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_combined_tracker_fraction.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover accepted free covariant background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Combine early structural fractions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,numpy as np,math
+          p=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
+          ls=p.read_text().splitlines()
+          hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(p)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+          z=np.asarray(d["z"],float)
+          rho_tot=np.asarray(d["(.)rho_tot"],float)
+          rho_smg=np.asarray(d["(.)rho_smg"],float)
+          rho_fld=np.asarray(d["(.)rho_fld"],float)
+          Om_smg=rho_smg/rho_tot
+          Om_fld=rho_fld/rho_tot
+          Om_sum=Om_smg+Om_fld
+
+          rad=(z>1e4)&(z<1e6)&(Om_sum>0)
+          mat=(z>50)&(z<500)&(Om_sum>0)
+
+          def stats(x,m):
+              y=np.asarray(x)[m]
+              return {"median":float(np.median(y)),"mean":float(np.mean(y)),
+                      "min":float(np.min(y)),"max":float(np.max(y))}
+          def lam(frac,num,m):
+              y=np.sqrt(num/np.clip(frac[m],1e-300,None))
+              return {"median":float(np.median(y)),"mean":float(np.mean(y)),
+                      "min":float(np.min(y)),"max":float(np.max(y))}
+
+          out={
+            "status":"combined free-action early tracker fraction audit",
+            "accepted_lambda_e":18.40625,
+            "radiation":{
+              "Omega_smg":stats(Om_smg,rad),"Omega_fld":stats(Om_fld,rad),"Omega_sum":stats(Om_sum,rad),
+              "lambda_from_smg":lam(Om_smg,4,rad),
+              "lambda_from_fld":lam(Om_fld,4,rad),
+              "lambda_from_sum":lam(Om_sum,4,rad)
+            },
+            "matter":{
+              "Omega_smg":stats(Om_smg,mat),"Omega_fld":stats(Om_fld,mat),"Omega_sum":stats(Om_sum,mat),
+              "lambda_from_smg":lam(Om_smg,3,mat),
+              "lambda_from_fld":lam(Om_fld,3,mat),
+              "lambda_from_sum":lam(Om_sum,3,mat)
+            }
+          }
+          Path("output/combined_tracker_fraction.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("COMBINED_TRACKER_FRACTION",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: combined-tracker-fraction
+          path: output/combined_tracker_fraction.json
