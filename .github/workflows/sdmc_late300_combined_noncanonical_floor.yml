@@ -1,0 +1,118 @@
+name: SDMC late300 combined noncanonical floor closure
+
+on:
+  push:
+    branches: [sdmc-late300-combined-noncanonical-floor]
+    paths:
+      - '.github/workflows/sdmc_late300_combined_noncanonical_floor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  derive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover accepted target background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Derive combined structural noncanonical floor
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math,numpy as np
+
+          bg=next(Path("recovered").rglob("linear_cov_target_00_background.dat"))
+          ini=next(Path("recovered").rglob("linear_cov_target.ini"))
+          # Parse candidate parameters from accepted target input
+          pars=None; expn=None
+          for raw in ini.read_text().splitlines():
+              q=raw.split("#",1)[0].strip()
+              if q.startswith("parameters_smg") and "=" in q:
+                  pars=[float(x.strip()) for x in q.split("=",1)[1].split(",")]
+              if q.startswith("expansion_smg") and "=" in q:
+                  expn=[float(x.strip()) for x in q.split("=",1)[1].split(",")]
+          AF,ZC,W,D0,pD,Df=pars[:6]
+          lam=expn[1]
+
+          lines=bg.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(bg)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+          z=np.asarray(d["z"],float)
+          rho_tot=np.asarray(d["(.)rho_tot"],float)
+          rho_s=np.asarray(d["(.)rho_smg"],float)
+          p_s=np.asarray(d["(.)p_smg"],float)
+          rho_f=np.asarray(d["(.)rho_fld"],float)
+          w_f=np.asarray(d["(.)w_fld"],float)
+          D=np.asarray(d["kin (D)"],float)
+          aB=np.asarray(d["braiding_smg"],float)
+
+          ws=np.divide(p_s,rho_s,out=np.full_like(rho_s,np.nan),where=np.abs(rho_s)>0)
+          Os=rho_s/rho_tot; Of=rho_f/rho_tot
+          ent=3*Os*(1+ws)+3*Of*(1+w_f)
+          bra=1.5*aB*aB
+          # isolate alpha_K-like floor; in deep radiation braiding is negligible
+          alphaK=D-bra
+          ratio=np.divide(alphaK,ent,out=np.full_like(alphaK,np.nan),where=np.abs(ent)>1e-15)
+          rK=np.divide(ratio-1,6-2*ratio,out=np.full_like(ratio,np.nan),where=np.abs(6-2*ratio)>1e-12)
+          csX=(1+2*rK)/(1+6*rK)
+          wX=(1+rK)/(1+3*rK)
+
+          windows={
+            "1e7_5e7":(z>=1e7)&(z<=5e7),
+            "1e6_1e7":(z>=1e6)&(z<1e7),
+            "1e5_1e6":(z>=1e5)&(z<1e6),
+          }
+          def stats(x,m):
+              y=np.asarray(x)[m]; y=y[np.isfinite(y)]
+              return {"n":int(len(y)),"median":float(np.median(y)),"mean":float(np.mean(y)),
+                      "min":float(np.min(y)),"max":float(np.max(y))}
+          rows={}
+          for k,m in windows.items():
+              rows[k]={
+                "D":stats(D,m),"combined_enthalpy":stats(ent,m),"ratio_D_over_enthalpy":stats(ratio,m),
+                "rK_implied":stats(rK,m),"cs2_X_implied":stats(csX,m),"w_X_implied":stats(wX,m),
+                "Omega_struct":stats(Os+Of,m)
+              }
+
+          Dr=16/(lam*lam)
+          R=Df/Dr
+          r_floor=(R-1)/(6-2*R)
+          cs_floor=(1+2*r_floor)/(1+6*r_floor)
+          w_floor=(1+r_floor)/(1+3*r_floor)
+
+          out={
+            "status":"combined structural noncanonical kinetic-floor closure",
+            "accepted":{"lambda_e":lam,"D_floor":Df,"D0":D0,"pD":pD},
+            "canonical_radiation_enthalpy_16_over_lambda2":Dr,
+            "accepted_floor_over_canonical":R,
+            "rK_required_to_map_canonical_to_floor":r_floor,
+            "cs2_X_from_required_rK":cs_floor,
+            "w_X_from_required_rK":w_floor,
+            "manuscript_causal_bound":{"cs2_X_gt":0.9,"rK_lt":0.0294,
+                                      "required_rK_passes":bool(r_floor<0.0294 and cs_floor>0.9)},
+            "windows":rows,
+            "interpretation":"If the total early structural sector supplies the canonical tracker enthalpy 16/lambda^2, the accepted D_floor is obtained by a modest noncanonical kinetic enhancement. This becomes an origin derivation only if the UV/structural action independently fixes rK."
+          }
+          Path("output/combined_noncanonical_floor.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("COMBINED_NONCANONICAL_FLOOR",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: combined-noncanonical-floor
+          path: output/combined_noncanonical_floor.json
