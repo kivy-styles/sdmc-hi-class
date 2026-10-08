@@ -1,0 +1,30 @@
+name: SDMC D kinetic full physical endpoint and joint selection audit
+
+on:
+  push:
+    branches: [sdmc-late300-D-covariant-true-inputs]
+    paths:
+      - '.github/workflows/sdmc_D_full_physical_joint_closure.yml'
+      - 'sdmc/audit_D_physical_endpoint_and_joint_selection.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  theory-and-model-selection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax-check complete D-sector and statistical audit
+        run: python3 -m py_compile sdmc/audit_D_physical_endpoint_and_joint_selection.py
+      - name: Verify physical endpoints, non-unique kinetic handoff and test ledger
+        run: python3 sdmc/audit_D_physical_endpoint_and_joint_selection.py
+      - name: Preserve exact reproducibility outputs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-D-full-physical-joint-closure
+          path: output/D_full_closure_joint_audit/
+          if-no-files-found: warn
