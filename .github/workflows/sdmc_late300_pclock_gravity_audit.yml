@@ -1,0 +1,158 @@
+name: SDMC late300 structural-slope clock gravity audit
+
+on:
+  push:
+    branches: [sdmc-late300-pclock-gravity-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_pclock_gravity_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted late300 covariant outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Test p-clock transition and gravity relations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+          from scipy.interpolate import CubicSpline
+          from scipy.optimize import brentq
+
+          def read_bg(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(path)
+              if a.ndim==1:a=a[None,:]
+              return {n:a[:,i] for i,n in enumerate(names)}
+
+          d=read_bg(next(Path("recovered").rglob("linear_cov_free_00_background.dat")))
+          z=np.asarray(d["z"],float)
+          N=-np.log1p(z)
+          o=np.argsort(N)
+          z=z[o]; N=N[o]
+          H=np.asarray(d["H [1/Mpc]"],float)[o]
+          tG=np.asarray(d["proper time [Gyr]"],float)[o]
+          F=np.asarray(d["M*^2_smg"],float)[o]
+          aM=np.asarray(d["M2_running_smg"],float)[o]
+
+          Mpc_c_Gyr=0.003261563777
+          p=1.0/(H*(tG/Mpc_c_Gyr))
+          sp=CubicSpline(N,p)
+          pp=sp(N,1)
+          ppp=sp(N,2)
+          lnF=np.log(F)
+
+          # accepted transition coordinates from target ini
+          ini=next(Path("recovered").rglob("linear_cov_target.ini"))
+          kin=exp=None
+          for raw in ini.read_text().splitlines():
+              q=raw.split("#",1)[0].strip()
+              if q.startswith("parameters_smg") and "=" in q:
+                  kin=[float(x.strip()) for x in q.split("=",1)[1].split(",")]
+              if q.startswith("expansion_smg") and "=" in q:
+                  exp=[float(x.strip()) for x in q.split("=",1)[1].split(",")]
+          AF,zc,width,D0,powD,Dfloor=kin
+          Ox,lam,zt,dNt,Al,tauA,Bl,tauB=exp
+
+          # Stable interpolation functions in the late classical branch.
+          ps=CubicSpline(N,p)
+          pps=CubicSpline(N,pp)
+          ppps=CubicSpline(N,ppp)
+
+          def Nofz(zz): return -math.log1p(zz)
+          def sample_at(zz):
+              nn=Nofz(zz)
+              return {"z":zz,"ln_a":nn,"p":float(ps(nn)),"dp_dlnA":float(pps(nn)),
+                      "d2p_dlnA2":float(ppps(nn)),
+                      "F":float(np.exp(CubicSpline(N,lnF)(nn))),
+                      "alphaM":float(CubicSpline(N,aM)(nn))}
+
+          # p-based landmarks over 0<z<100.
+          m=(z>=0)&(z<=100)&np.isfinite(p)&np.isfinite(pp)&np.isfinite(ppp)
+          ii=np.where(m)[0]
+          imaxdp=ii[np.argmax(np.abs(pp[ii]))]
+          imaxcurv=ii[np.argmax(np.abs(ppp[ii]))]
+
+          # Crossings of physically simple p values.
+          crossings={}
+          for pv in [1.5, 4/3, 1.25, 1.2, 1.1, 1.05]:
+              fvals=p-pv
+              cs=[]
+              for i in ii[:-1]:
+                  if not m[i+1]: continue
+                  if fvals[i]==0 or fvals[i]*fvals[i+1]<0:
+                      try:
+                          root=brentq(lambda x: float(ps(x)-pv),N[i],N[i+1])
+                          cs.append({"ln_a":float(root),"z":float(math.exp(-root)-1)})
+                      except Exception:
+                          pass
+              crossings[str(pv)]=cs
+
+          # Fit alphaM = gamma * (-p') and lnF = c + gamma*(p_ref-p)
+          mf=(z>=0.1)&(z<=15)&np.isfinite(aM)&np.isfinite(pp)
+          x=-pp[mf]; y=aM[mf]
+          gamma=float(np.dot(x,y)/np.dot(x,x))
+          res=y-gamma*x
+          fit_der={"gamma":gamma,"corr":float(np.corrcoef(x,y)[0,1]),
+                   "rms":float(np.sqrt(np.mean(res*res))),"max_abs":float(np.max(np.abs(res)))}
+
+          # affine lnF vs p
+          X=np.c_[np.ones(np.sum(mf)),p[mf]]
+          beta=np.linalg.lstsq(X,lnF[mf],rcond=None)[0]
+          pred=X@beta
+          fit_int={"intercept":float(beta[0]),"coef_p":float(beta[1]),
+                   "corr":float(np.corrcoef(p[mf],lnF[mf])[0,1]),
+                   "rms_lnF":float(np.sqrt(np.mean((lnF[mf]-pred)**2))),
+                   "max_abs_lnF":float(np.max(np.abs(lnF[mf]-pred)))}
+
+          # compare alpha_M peak and p clock features
+          imF=ii[np.argmax(aM[ii])]
+          out={
+            "status":"test structural-slope p as the transition clock and source of gravitational weakening",
+            "accepted":{"z_t":zt,"z_c":zc,"A_F":AF,"width":width},
+            "samples":{"at_z_t":sample_at(zt),"at_z_c":sample_at(zc)},
+            "p_clock_landmarks":{
+              "max_abs_dp":{"z":float(z[imaxdp]),"p":float(p[imaxdp]),"dp_dlnA":float(pp[imaxdp])},
+              "max_abs_curvature":{"z":float(z[imaxcurv]),"p":float(p[imaxcurv]),"d2p_dlnA2":float(ppp[imaxcurv])},
+              "crossings":crossings
+            },
+            "gravity_landmarks":{
+              "alphaM_peak":{"z":float(z[imF]),"alphaM":float(aM[imF]),"p":float(p[imF]),"dp_dlnA":float(pp[imF])}
+            },
+            "fits":{
+              "alphaM_equals_gamma_times_minus_dp":fit_der,
+              "lnF_affine_in_p":fit_int
+            },
+            "verdict":{
+              "p_clock_for_z_t":"supported only if a simple p landmark lies close to z_t",
+              "p_clock_for_z_c":"supported only if a simple p/derivative landmark lies close to z_c",
+              "F_from_p":"requires residuals much smaller than the accepted lnF amplitude to count as a derivation"
+            }
+          }
+          Path("output/pclock_gravity_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("PCLOCK_GRAVITY_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pclock-gravity-audit
+          path: output/pclock_gravity_audit.json
