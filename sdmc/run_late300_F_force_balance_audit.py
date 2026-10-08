@@ -120,5 +120,10 @@ if r1:
     best=min(r1,key=lambda r:abs(r["z"]-ZC))
     out["CR1_closest_to_accepted_center"]=best
     out["CR1_fractional_z_difference"]=(best["z"]-ZC)/ZC
+    Nc_force=float(best["ln_a"])
+    slope_force=float(np.interp(Nc_force,N,dcr))
+    out["CR1_local_slope_dlnCR_dlnA"]=slope_force
+    out["CR1_logistic_width_inverse_slope"]=1.0/abs(slope_force) if slope_force!=0 else None
+    out["accepted_width_fractional_difference_from_force_width"]=(1.0/abs(slope_force)-W)/W if slope_force!=0 else None
 Path("output/F_force_balance_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("F_FORCE_BALANCE_AUDIT",json.dumps(out,sort_keys=True))
