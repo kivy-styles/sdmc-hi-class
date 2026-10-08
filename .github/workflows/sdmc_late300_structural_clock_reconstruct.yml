@@ -49,12 +49,16 @@ jobs:
           o=np.argsort(Nloga)
           z=z[o]; Nloga=Nloga[o]
           rho_f=np.asarray(d["(.)rho_fld"],float)[o]
-          w=np.asarray(d["(.)w_fld"],float)[o]
+          w_f=np.asarray(d["(.)w_fld"],float)[o]
+          rho_s=np.asarray(d["(.)rho_smg"],float)[o]
+          p_s=np.asarray(d["(.)p_smg"],float)[o]
           rho_tot=np.asarray(d["(.)rho_tot"],float)[o]
           Omr=np.asarray(d["Omega_r(z)"],float)[o]
           Omm=np.asarray(d["Omega_m(z)"],float)[o]
 
-          Ophi=rho_f/rho_tot
+          # The manuscript structural scalar is the SMG sector, not the auxiliary fld bookkeeping component.
+          Ophi=rho_s/rho_tot
+          w=np.divide(p_s,rho_s,out=np.full_like(rho_s,np.nan),where=np.abs(rho_s)>0)
           p=1.5*(1+w)
           Ns=Xi*p*np.sqrt(np.clip(Ophi,0,None))
 
@@ -108,7 +112,7 @@ jobs:
           jzt=int(np.argmin(np.abs(z-zt)))
 
           out={
-            "status":"structural-clock reconstruction from accepted late300 background",
+            "status":"structural-clock reconstruction from accepted late300 SMG sector",
             "notation":{"structural_clock":"N_s=dt_s/dt_c","numerical_time":"mathcal_N=ln(a)=-ln(1+z)"},
             "columns_available":[n for n in names if ("rho" in n.lower() or "w_" in n.lower() or "omega" in n.lower())],
             "radiation_tracker":{
@@ -120,7 +124,7 @@ jobs:
             "transition":{
               "candidate_z_t":zt,
               "candidate_sample":{"z":float(z[jzt]),"ln_a":float(Nloga[jzt]),"Ns":float(Ns[jzt]),
-                                  "dlnNs_dlnA":float(dln[jzt]),"w_fld":float(w[jzt]),"Omega_fld":float(Ophi[jzt])},
+                                  "dlnNs_dlnA":float(dln[jzt]),"w_smg":float(w[jzt]),"Omega_smg":float(Ophi[jzt])},
               "max_abs_dlnNs":{"z":float(z[imax]),"ln_a":float(Nloga[imax]),"value":float(dln[imax]),"Ns":float(Ns[imax])},
               "max_abs_curvature":{"z":float(z[icurv]),"ln_a":float(Nloga[icurv]),"value":float(ddln[icurv]),"Ns":float(Ns[icurv])},
               "fractional_departure_from_matter_plateau":departures
