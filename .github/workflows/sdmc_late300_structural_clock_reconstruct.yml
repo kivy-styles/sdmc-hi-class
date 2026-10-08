@@ -1,0 +1,140 @@
+name: SDMC late300 structural-clock reconstruction
+
+on:
+  push:
+    branches: [sdmc-late300-structural-clock-reconstruct]
+    paths:
+      - '.github/workflows/sdmc_late300_structural_clock_reconstruct.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  reconstruct:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted target background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Reconstruct structural lapse
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+
+          Xi=math.sqrt(8*math.pi/3)
+          target=next(Path("recovered").rglob("linear_cov_target_00_background.dat"))
+          lines=target.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(target)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+
+          z=np.asarray(d["z"],float)
+          Nloga=-np.log1p(z)
+          o=np.argsort(Nloga)
+          z=z[o]; Nloga=Nloga[o]
+          rho_f=np.asarray(d["(.)rho_fld"],float)[o]
+          w=np.asarray(d["(.)w_fld"],float)[o]
+          rho_tot=np.asarray(d["(.)rho_tot"],float)[o]
+          Omr=np.asarray(d["Omega_r(z)"],float)[o]
+          Omm=np.asarray(d["Omega_m(z)"],float)[o]
+
+          Ophi=rho_f/rho_tot
+          p=1.5*(1+w)
+          Ns=Xi*p*np.sqrt(np.clip(Ophi,0,None))
+
+          # Direct tracker slope estimates.
+          lam_r=np.sqrt(4/np.clip(Ophi,1e-300,None))
+          lam_m=np.sqrt(3/np.clip(Ophi,1e-300,None))
+          lam_Nr=Ns/Xi
+          lam_Nm=Ns/math.sqrt(2*math.pi)
+
+          # Conservative plateau selections.
+          rad=(Omr>0.90)&(Ophi>0)&np.isfinite(Ns)
+          mat=(Omm>0.90)&(Omr<0.05)&(z>30)&(Ophi>0)&np.isfinite(Ns)
+          # Relax matter window if standard 90% domination is too restrictive.
+          if np.sum(mat)<8:
+              mat=(Omm>0.80)&(Omr<0.10)&(z>30)&(Ophi>0)&np.isfinite(Ns)
+
+          def stats(x,mask):
+              if np.sum(mask)==0:return None
+              y=np.asarray(x)[mask]
+              return {"n":int(np.sum(mask)),"median":float(np.median(y)),
+                      "mean":float(np.mean(y)),"std":float(np.std(y)),
+                      "min":float(np.min(y)),"max":float(np.max(y)),
+                      "z_min":float(np.min(z[mask])),"z_max":float(np.max(z[mask]))}
+
+          # Structural-clock transition markers in the matter-to-late domain.
+          mask=(z>1)&(z<100)&np.isfinite(Ns)&(Ns>0)
+          lnNs=np.log(np.clip(Ns,1e-300,None))
+          dln=np.gradient(lnNs,Nloga,edge_order=2)
+          ddln=np.gradient(dln,Nloga,edge_order=2)
+          inds=np.where(mask)[0]
+          imax=inds[np.argmax(np.abs(dln[inds]))]
+          icurv=inds[np.argmax(np.abs(ddln[inds]))]
+
+          # Matter tracker plateau reference and first fractional departure moving forward.
+          mat_ref=float(np.median(Ns[mat])) if np.sum(mat) else None
+          departures={}
+          if mat_ref:
+              # ordered in increasing ln a; use z<max matter range and search toward today
+              frac=np.abs(Ns/mat_ref-1)
+              for th in [0.01,0.025,0.05,0.10]:
+                  idx=np.where(mask & (frac>=th))[0]
+                  # choose earliest cosmic-time departure after high-z matter plateau:
+                  # among z<100, select largest z satisfying departure contiguous toward lower z
+                  if len(idx):
+                      j=idx[np.argmax(z[idx])]
+                      departures[str(th)]={"z":float(z[j]),"ln_a":float(Nloga[j]),"Ns":float(Ns[j])}
+
+          # Values near candidate z_t.
+          cand=json.loads(Path("sdmc/late300_candidate.json").read_text())["parameters"]
+          zt=cand["z_t"]
+          jzt=int(np.argmin(np.abs(z-zt)))
+
+          out={
+            "status":"structural-clock reconstruction from accepted late300 background",
+            "notation":{"structural_clock":"N_s=dt_s/dt_c","numerical_time":"mathcal_N=ln(a)=-ln(1+z)"},
+            "columns_available":[n for n in names if ("rho" in n.lower() or "w_" in n.lower() or "omega" in n.lower())],
+            "radiation_tracker":{
+              "Ns":stats(Ns,rad),"lambda_from_Omega":stats(lam_r,rad),"lambda_from_Ns":stats(lam_Nr,rad)
+            },
+            "matter_tracker":{
+              "Ns":stats(Ns,mat),"lambda_from_Omega":stats(lam_m,mat),"lambda_from_Ns":stats(lam_Nm,mat)
+            },
+            "transition":{
+              "candidate_z_t":zt,
+              "candidate_sample":{"z":float(z[jzt]),"ln_a":float(Nloga[jzt]),"Ns":float(Ns[jzt]),
+                                  "dlnNs_dlnA":float(dln[jzt]),"w_fld":float(w[jzt]),"Omega_fld":float(Ophi[jzt])},
+              "max_abs_dlnNs":{"z":float(z[imax]),"ln_a":float(Nloga[imax]),"value":float(dln[imax]),"Ns":float(Ns[imax])},
+              "max_abs_curvature":{"z":float(z[icurv]),"ln_a":float(Nloga[icurv]),"value":float(ddln[icurv]),"Ns":float(Ns[icurv])},
+              "fractional_departure_from_matter_plateau":departures
+            },
+            "candidate_lambda_e":cand["lambda_e"],
+            "candidate_expected_plateaus":{
+              "Nr":Xi*cand["lambda_e"],
+              "Nm":math.sqrt(2*math.pi)*cand["lambda_e"]
+            }
+          }
+          Path("output/structural_clock_reconstruction.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("STRUCTURAL_CLOCK_RECONSTRUCTION",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: structural-clock-reconstruction
+          path: output/structural_clock_reconstruction.json
