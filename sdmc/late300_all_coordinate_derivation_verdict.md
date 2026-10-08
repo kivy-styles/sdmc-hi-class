@@ -95,3 +95,50 @@ A "zero free parameters after action reconstruction" replay is not a valid reaso
 - Latest HSC TATT: run 37764359939.
 
 **Next solvable closure step:** Supply/derive independent coefficient functions and initial conditions for F and G2/G3/G4, plus the thermal transfer/activation sector and early structural fraction. Once these equations select the scalar trajectory and H(z) *without using late300 as a reconstruction input*, rerun all ten extraction formulas, cosmological gates, and a properly predeclared model-family Bayesian evidence calculation.
+
+
+## New follow-up: D0 correction action-level and causal bound (8 October 2026)
+
+### Physical meaning and distinct transition windows
+
+The SDMC author clarified that **D0 was added as a correction to Dfloor**; it is not an unrelated kinetic base. Accordingly,
+
+D(N)=Dfloor + D0 S_D(N)^pD, with S_D(N)=[1+exp(-(N-Nc,D)/wD)]^-1.
+
+Accepted baseline Dfloor=0.05181542627513409, corrective amplitude D0=0.34231919445927034, pD=1, S_D(0)=0.9919691128046833. Hence correction today=0.33957006762377623, D(0)=0.3913854938989103, and the late asymptote Dlate=0.3941346207344044.
+
+**Important hidden shape dependence:** In the "F-only force centre" derived-bundle workflow, the source patch \`sdmc/patch_F_only_force_center.py\` intentionally preserves the **historical D correction window** (z_c,D=3.927876388467848, wD=0.33114133956842123) while moving the **F force window** to z_c,F=4.034077502899133, wF=0.32925377073762596. Treating these two windows as interchangeable gives a wrong D0 causality formula. The derived F force profile therefore does not itself derive the independent kinetic window profile.
+
+### Conditional correction extraction identities
+
+If both endpoints arise from an independently evolved microscopic action, D0 = Dlate-Dfloor. At the D transition midpoint Nc,D=-ln(1+z_c,D), where S_D=1/2 and S_D'=1/(4wD),
+
+D0 = [2^(pD+1) wD/pD] * [dD/dN at Nc,D].
+
+The accepted pD=1 trajectory has midpoint slope=0.2584388851188267; the equation recovers D0=0.34231919445927034. **This is a diagnostic inversion of the chosen profile, not an independent prediction of its derivative.**
+
+### Exact background-preserving kinetic degeneracy
+
+Within the permitted linear-G3 reconstructed action class G2=k1(phi)X+k2(phi)X^2-V(phi), G3=g(phi)X, G4=F(phi)/2, introduce
+
+deltaG2 = mu(phi)*[X-Xbg(phi)]^2.
+
+On the background X=Xbg(phi), deltaG2=deltaG2_X=deltaG2_phi=0, but deltaG2_XX=2mu. Thus the background scalar/Friedmann solution and no-slip F,G3 are preserved while the scalar kinetic response changes. In the existing reconstructed-action conventions, deltaD=4mu Xbg/F. Choosing mu=F*(deltaD0*S_D^pD)/(4Xbg) changes only the correction amplitude along this chosen trajectory. The checked cases are deltaD0=-0.04,0,+0.04, with six tested redshifts each; all action-level identities passed in run **37803894563**. This is a **mathematical non-uniqueness construction**, not an independently motivated or observationally verified alternative theory.
+
+### Subluminal kinetic correction lower bound from real hi_class
+
+The native scalar propagation relation is c_s^2=N_s/[Dfloor+D0*S_D^pD], with N_s the action/background-determined sound-speed numerator. If N_s remains unchanged at fixed background and other EFT functions, gradient positivity only enforces N_s>=0; the condition 0<=c_s^2<=1 gives the *inequality*
+
+D0 >= max_N [(N_s(N)-Dfloor)/S_D(N)^pD] for S_D>0, truncated at zero if the RHS is negative.
+
+A full 23-point hi_class scan at force-derived A_F=0.020520, force F zc=4.0340775 and fixed Dfloor=0.0518154263 found that D0=0.01918 has max c_s^2=1.000116565185 (fails), while D0=0.01920 has max c_s^2=0.9998365574303 (passes); direct numerical interpolation gives a threshold of **D0≈0.019188325854**. The sound-speed numerator inferred by D*c_s^2 was invariant across the sampled z<=100 backgrounds at a maximum relative discrepancy of **8.935e-13**, supporting the fixed-numerator assumption in this specific parameterized calculation. The same pass/fail classification held over the full saved background redshift domain. These checks are in run **37804436088**, with corrected D-window source in follow-up **37804665278**.
+
+For the true accepted D window, the analytic bound from the accepted reference numerator agrees with the numerical transition at **D0≈0.0191883**. An earlier preliminary analytic value ≈0.01917473 was an error caused by incorrectly using the *derived F window* instead of the *historical D correction window*; it must not be cited as the physical causal threshold.
+
+The accepted correction D0=0.3423191945 is much larger than the minimum required by this subluminal criterion, and many smaller corrections are numerically healthy. The inequality cannot independently select the accepted D0.
+
+### Revised complexity conclusion
+
+Dfloor and D0 represent the early baseline and an added, time-dependent corrective response *within one kinetic sector*, but two physical interpretations do not imply two independent microscopic origin mechanisms. If the complete action independently fixes the early and late kinetic support, D0 is a computed difference and should not be separately charged. At present the accepted kinetic amplitude and the legacy D transition window were historically selected; the remaining statistical freedom cannot be removed merely by renaming D0 a correction. Model-family AIC/BIC and Bayesian evidence remain conditional until the kinetic action and boundary conditions predict D(N) without using late300's data-selected profile.
+
+Source scripts: \`sdmc/audit_late300_D0_correction_action_degeneracy.py\`; \`sdmc/run_late300_D0_correction_causality_scan.py\`. Source runs: 37803894563, 37804436088 and 37804665278.
