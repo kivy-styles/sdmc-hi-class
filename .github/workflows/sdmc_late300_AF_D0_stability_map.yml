@@ -90,8 +90,8 @@ jobs:
               bg=Path(root+"00_background.dat")
               if bg.exists():
                 ls=bg.read_text().splitlines()
-                hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\\s)1\\s*:",x)][-1].lstrip("#").strip()
-                ms=list(re.finditer(r"(\\d+)\\s*:\\s*",hdr)); names=[]
+                hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+                ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
                 for i,m in enumerate(ms):
                   e=ms[i+1].start() if i+1<len(ms) else len(hdr); names.append(hdr[m.end():e].strip())
                 a=np.loadtxt(bg); d={n:a[:,i] for i,n in enumerate(names)}
