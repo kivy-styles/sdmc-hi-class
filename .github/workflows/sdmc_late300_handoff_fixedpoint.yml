@@ -1,0 +1,138 @@
+name: SDMC late300 handoff fixed-point refine
+
+on:
+  push:
+    branches: [sdmc-late300-handoff-fixedpoint]
+    paths:
+      - '.github/workflows/sdmc_late300_handoff_fixedpoint.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        helper_zt: [16.60,16.68,16.72,16.76,16.80,16.88,16.96]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies and SDMC base patches
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential >/dev/null
+          python3 -m pip install --upgrade pip >/dev/null
+          python3 -m pip install numpy scipy >/dev/null
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+      - name: Recover accepted target and free input
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+          cp "$(find recovered -name linear_cov_target.ini -print -quit)" output/linear_cov_target.ini
+          cp "$(find recovered -name linear_cov_target_00_background.dat -print -quit)" output/linear_cov_target_00_background.dat
+          cp "$(find recovered -name linear_cov_free.ini -print -quit)" output/linear_cov_free.ini
+      - name: Reconstruct accepted action then move only helper zt
+        run: |
+          python3 sdmc/run_late300_linear_covariant.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("source/background.c")
+          s=p.read_text()
+          pat=r"double zt\s*=\s*[-+0-9.eE]+;"
+          hits=re.findall(pat,s)
+          if len(hits)!=1:
+              raise RuntimeError(f"expected exactly one frozen zt helper, got {hits}")
+          s=re.sub(pat,'double zt = ${{ matrix.helper_zt }};',s,count=1)
+          p.write_text(s)
+          print("HELPER_ZT_OVERRIDE", "${{ matrix.helper_zt }}")
+          PY
+          make clean >/dev/null
+          make -j2 class >/dev/null
+      - name: Free-evolve fixed action with modified helper handoff
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("output/linear_cov_free.ini")
+          s=p.read_text()
+          s=re.sub(r"(?m)^\s*root\s*=.*$","root = output/free_",s)
+          s=re.sub(r"(?m)^\s*write background\s*=.*$","write background = yes",s)
+          p.write_text(s)
+          PY
+          ./class output/linear_cov_free.ini > output/free.log 2>&1
+      - name: Reconstruct activation-curvature handoff
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math,numpy as np
+
+          p=Path("output/free_00_background.dat")
+          ls=p.read_text().splitlines()
+          hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr); names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(p)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+          z=np.asarray(d["z"],float); N=-np.log1p(z); o=np.argsort(N)
+          z=z[o]; N=N[o]
+          H=np.asarray(d["H [1/Mpc]"],float)[o]
+          tG=np.asarray(d["proper time [Gyr]"],float)[o]
+          F=np.asarray(d["M*^2_smg"],float)[o]
+          aM=np.asarray(d["M2_running_smg"],float)[o]
+          Om=np.asarray(d["Omega_m(z)"],float)[o]; Or=np.asarray(d["Omega_r(z)"],float)[o]
+          H0=float(H[np.argmin(np.abs(z))]); Om0=float(Om[np.argmin(np.abs(z))]); Or0=float(Or[np.argmin(np.abs(z))])
+          aa=np.exp(N); E=H/H0
+          pchrono=1/(H*(tG/0.003261563777))
+          rhoX=E*E*F*(1+aM)-Om0*aa**(-3)-Or0*aa**(-4)
+          good=(rhoX>0)&np.isfinite(rhoX)
+          pX=np.full_like(rhoX,np.nan)
+          idx=np.where(good)[0]
+          for g in np.split(idx,np.where(np.diff(idx)>1)[0]+1):
+              if len(g)>=5:
+                  pX[g]=-0.5*np.gradient(np.log(rhoX[g]),N[g],edge_order=2)
+          Achi=2*(pchrono-pX)
+          d1=np.gradient(Achi,N,edge_order=2)
+          d2=np.gradient(d1,N,edge_order=2)
+          d3=np.gradient(d2,N,edge_order=2)
+          m=(z>=8)&(z<=40)&np.isfinite(d3)
+          roots=[]
+          ii=np.where(m)[0]
+          for i in ii[:-1]:
+              if not m[i+1]: continue
+              y0,y1=d3[i],d3[i+1]
+              if np.isfinite(y0) and np.isfinite(y1) and y0*y1<0:
+                  f=-y0/(y1-y0); Nx=N[i]+f*(N[i+1]-N[i])
+                  roots.append(float(math.exp(-Nx)-1))
+          # choose root closest to accepted curvature-selected handoff
+          target=16.718058803739734
+          pick=min(roots,key=lambda x:abs(x-target)) if roots else None
+          out={"helper_z_t":float("${{ matrix.helper_zt }}"),
+               "d3Achi_zero_roots_z":roots,
+               "root_near_16p7":pick,
+               "distance_from_helper":None if pick is None else float(pick-float("${{ matrix.helper_zt }}")),
+               "distance_from_structural_candidate":None if pick is None else float(pick-target)}
+          Path("output/handoff_fixedpoint.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("HANDOFF_FIXEDPOINT_REFINE",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: handoff-fixedpoint-${{ matrix.helper_zt }}
+          path: output/handoff_fixedpoint.json
