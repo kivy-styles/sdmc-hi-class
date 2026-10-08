@@ -159,6 +159,34 @@ def audit():
         "missing":"Independent kinetic coefficient functions rather than back-solving them from D"}
     tests.append("positive kinetic family with non-unique exponent")
 
+    # Provenance correction from the SDMC author: D0 was introduced as a
+    # structural transition correction to Dfloor, NOT as an unrelated
+    # baseline kinetic sector. Its coefficient remains unspecified until
+    # total late kinetic support is independently predicted.
+    floor_accepted=p["D_floor"]; D0_accepted=p["D0"]
+    wD=float(p["width"]); zD=float(p["z_c"])
+    c_today=D0_accepted*s_step(0.,zD,wD)**p["kinetic_power"]
+    D_today=floor_accepted+c_today
+    D_late=floor_accepted+D0_accepted
+    need(close(D_late-floor_accepted,D0_accepted,1e-13),"D0 is late-minus-floor amplitude")
+    need(close(D_today,0.3913854938989103,1e-12),"accepted late300 D(0)")
+    need(close(d_support(-200.,floor_accepted,D0_accepted,p["kinetic_power"],zD,wD),floor_accepted,1e-12),
+         "early kinetic floor baseline")
+    d["D0_correction_provenance"]={
+        "physical_role":"D0 is a transition-dependent correction to Dfloor, not an independent unrelated kinetic sector",
+        "equation":"D(N)=Dfloor+D0*(SD(N)**pD)",
+        "early_asymptote":floor_accepted,
+        "late_asymptote":D_late,
+        "identity_for_corrective_amplitude":"D0 = D_late - Dfloor, if both endpoints independently determined and SD(+infty)=1",
+        "accepted_S_today":s_step(0.,zD,wD),
+        "accepted_correction_today":c_today,
+        "accepted_D_today":D_today,
+        "family_dimension_note":"Do not double-count a derived correction if a microphysical total D and floor are independently predicted; historical freedom persists while the late normalization was selected using data.",
+        "derivation_status":"corrective meaning verified; value not independently predicted from accepted reconstructed action",
+    }
+    tests.append("D0 conditional correction to baseline Dfloor")
+
+
     # The accepted covariant reconstruction is an explicit inverse map:
     # for fixed F, H, etc. *any* D target gives a different (k1,k2)
     # that exactly matches alphaK. This algebraic test does not assert
@@ -295,7 +323,7 @@ def audit():
        "z_c":"force-equality root conditional on reconstructed action/profile",
        "DeltaN_F":"force-profile descriptor conditional on reconstructed action/profile",
        "D_floor":"conditional kessence/tracker normalization; independent rK missing",
-       "D0":"candidate structural normalization; not uniquely action-derived",
+       "D0":"transition-dependent correction to Dfloor; not a second unrelated kinetic origin; correction size conditionally given by D_late-Dfloor",
        "pD":"pD=1 leading analytic response; higher-power alternatives remain",
        "lambda_e":"inverts fr but fr originates from imposed lambda unless independently predicted",
        "z_t":"curvature-helper fixed point conditional on definition of map",
