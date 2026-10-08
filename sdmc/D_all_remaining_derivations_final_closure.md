@@ -115,9 +115,9 @@ such that **I(u)-I(u0)=n-n0** for u,u0≠1. Eight independently integrated scala
 
 Source: [sdmc/run_D_full_forward_IR_and_UV_identifiability.py](https://github.com/kivy-styles/sdmc-hi-class/blob/sdmc-D-forward-canonical-attractor/sdmc/run_D_full_forward_IR_and_UV_identifiability.py).
 
-The exact first-order equations were integrated via 4th-order Runge-Kutta, Δn=.002, from n=0 to n=12 for **eight distinct physically consistent initial (u,Om,Or)** states (including positive, zero and negative initial scalar velocities). The constraint was independently reconstructed from conserved rho_m, rho_r and the original exponential potential normalization at each step.
+The exact first-order equations were integrated via 4th-order Runge-Kutta, Δn=.002, from n=0 to n=12 for **eight distinct physically consistent initial (u,Om,Or)** states (including positive, zero and negative initial scalar velocities). Crucially, **all eight now use one fixed canonical action** with F∞=exp(0.020520), Z_BI=4π/3 and C=1 in units tP*S0=1, and common V0=4 F∞ Z_BI. Their initial H0 is obtained separately from the Friedmann constraint, rather than incorrectly assigning a different potential to each seed. The constraint was independently reconstructed from conserved rho_m, rho_r and the original exponential potential normalization at each step.
 
-Latest CI [37833225296](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/37833225296): **8/8 forward evolutions successful**; maximum |u(12)-1|≈2.4962×10^-6; maximum independently evaluated Friedmann residual≈6.8023×10^-12. The script also checked eight scalar-only orbits, seven cubic transition-width cases and five very different Planck clock/stretch normalizations.
+Corrected fixed-action CI [37833534154](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/37833534154): **8/8 forward evolutions successful**; maximum |u(12)-1|≈2.4962×10^-6; maximum independently evaluated Friedmann residual≈6.8023×10^-12. The script also checked eight scalar-only orbits, seven cubic transition-width cases and five very different Planck clock/stretch normalizations.
 
 **Limit:** The solver starts within the mature canonical action. It does NOT claim that the earlier finite late300 action has been evolved through its unknown operator transition.
 
@@ -251,7 +251,7 @@ not exp[-best-fit chi2/2]. If extra dimensions were historically tuned on data, 
 ## Provenance and reproducibility
 
 - [Forward canonical IR equations and eight-seed numerical trajectories](https://github.com/kivy-styles/sdmc-hi-class/blob/sdmc-D-forward-canonical-attractor/sdmc/run_D_full_forward_IR_and_UV_identifiability.py)
-- [Final forward-action CI run 37833225296](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/37833225296): JSON verdict, 8-seed trajectories CSV, canonical lapse and exact scalar orbits.
+- [Final fixed-action forward CI run 37833534154](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/37833534154): JSON verdict, 8-seed trajectories CSV, canonical lapse and exact scalar orbits.
 - [Higher-order UV jet non-identifiability proof](https://github.com/kivy-styles/sdmc-hi-class/blob/sdmc-D-forward-canonical-attractor/sdmc/audit_D_offshell_kinetic_higher_order_degeneracy.py)
 - [Jet-proof CI run 37833138647](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/37833138647): 28 algebraic cases.
 - [Full earlier kinetic endpoint/likelihood audit run 37830802991](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/37830802991).
