@@ -1,0 +1,351 @@
+name: SDMC corrected D alternatives true covariant Planck-lite
+
+on:
+  push:
+    branches:
+      - sdmc-late300-derived-coordinate-bundle
+    paths:
+      - '.github/workflows/sdmc_late300_true_D_replacements.yml'
+      - 'sdmc/verify_late300_D_replacement.py'
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  linear-covariant-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        case: [accepted_D, D0_2pi_lambda, D0_Xi_sqrtF, D0_force_candidate, floor_16_lambda2, combined_2pi_floor]
+    env:
+      D_REPLACEMENT_CASE: ${{ matrix.case }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy cobaya
+
+      - name: Apply SDMC parameterized patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          python3 sdmc/patch_F_only_force_center.py
+          make clean && make -j2 class
+
+      - name: Generate late300 parameterized target
+        run: |
+          mkdir -p output
+          cat > output/linear_cov_target.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.02052, 4.034077502899133, 0.32925377073762596, 0.3419932122356156, 1.0, 0.05181542627513409
+          expansion_model = sdmc_full
+          expansion_smg = 0.7014079815036496, 18.40625, 16.742289660253434, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
+          write background = yes
+          write_thermodynamics = yes
+          root = output/linear_cov_target_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 1
+          perturbations_verbose = 0
+          output_verbose = 1
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,math
+          variants={
+            "accepted_D":(0.34231919445927034,0.05181542627513409),
+            "D0_2pi_lambda":(2*math.pi/18.40625,0.05181542627513409),
+            "D0_Xi_sqrtF":(0.342002216921491,0.05181542627513409),
+            "D0_force_candidate":(0.3419932122356156,0.05181542627513409),
+            "floor_16_lambda2":(0.34231919445927034,16./18.40625**2),
+            "combined_2pi_floor":(2*math.pi/18.40625,16./18.40625**2),
+          }
+          case=os.environ["D_REPLACEMENT_CASE"]
+          d0,df=variants[case]
+          p=Path("output/linear_cov_target.ini")
+          s=p.read_text()
+          old="parameters_smg = 0.02052, 4.034077502899133, 0.32925377073762596, 0.3419932122356156, 1.0, 0.05181542627513409"
+          new=f"parameters_smg = 0.02052, 4.034077502899133, 0.32925377073762596, {d0:.17g}, 1.0, {df:.17g}"
+          if s.count(old)!=1:raise RuntimeError("Expected exactly one kinetic target line")
+          p.write_text(s.replace(old,new))
+          print("TRUE_D_REPLACEMENT_CONFIG",case,new,flush=True)
+          PY
+          ./class output/linear_cov_target.ini
+          python3 sdmc/verify_late300_D_replacement.py --case "$D_REPLACEMENT_CASE" --output output/true_D_target_provenance.json
+          echo 'TARGET_OUTPUT_INVENTORY'
+          find output -maxdepth 1 -type f -printf '%f\n' | sort | tee output/linear_cov_target_file_inventory.txt
+
+      - name: Reconstruct and install derived-bundle linear-G3 action
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("sdmc/run_late300_linear_covariant.py")
+          s=p.read_text()
+          old="Dtarget=DFLOOR+D0*S**POWER"
+          new="NcD=-np.log1p(3.927876388467848)\nxxD=(N-NcD)/(2.*0.33114133956842123)\nSD=.5*(1.+np.tanh(xxD))\nDtarget=DFLOOR+D0*SD**POWER"
+          if old not in s: raise RuntimeError("Dtarget anchor missing")
+          p.write_text(s.replace(old,new,1))
+          print("DERIVED_BUNDLE_COVARIANT_D_WINDOW_PRESERVED")
+          PY
+          python3 sdmc/run_late300_linear_covariant.py
+          cat output/linear_cov_reconstruction_summary.txt
+          make clean && make -j2 class
+
+      - name: Free evolve reconstructed linear-G3 action
+        run: |
+          cat > output/linear_cov_free.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_linear_audit
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
+          write background = yes
+          write_thermodynamics = yes
+          root = output/linear_cov_free_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 1
+          perturbations_verbose = 0
+          output_verbose = 1
+          EOF
+          set +e
+          ./class output/linear_cov_free.ini > output/linear_cov_free.log 2>&1
+          rc=$?
+          set -e
+          cat output/linear_cov_free.log
+          echo "LINEAR_COV_FREE_RETURNCODE=$rc"
+          echo "$rc" > output/linear_cov_free_returncode.txt
+          if [ "$rc" -eq 0 ]; then
+            python3 sdmc/verify_late300_D_replacement.py --case "$D_REPLACEMENT_CASE" --validate-free --output output/true_D_replacement_verdict.json
+          fi
+          echo 'FREE_OUTPUT_INVENTORY'
+          find output -maxdepth 1 -type f -printf '%f\n' | sort | tee output/linear_cov_free_file_inventory.txt
+          test "$rc" -eq 0
+
+      - name: Compare free evolution to target
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,json
+
+          def read(path):
+              p=Path(path)
+              if not p.exists(): return None
+              lines=p.read_text().splitlines()
+              hdr=[l for l in lines if l.startswith('#') and re.search(r'1\s*:',l)][-1].lstrip('#').strip()
+              ms=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(p)
+              return {n:a[:,i] for i,n in enumerate(names)}
+
+          t=read('output/linear_cov_target_00_background.dat')
+          c=read('output/linear_cov_free_00_background.dat')
+          if c is None:
+              print('LINEAR_COV_COMPARISON unavailable: free background missing')
+              raise SystemExit(0)
+
+          Nt=-np.log1p(t['z']); Nc=-np.log1p(c['z'])
+          o=np.argsort(Nt); Nt=Nt[o]
+          def ti(name):
+              return np.interp(Nc,Nt,t[name][o])
+
+          Ht=ti('H [1/Mpc]')
+          Ft=ti('M*^2_smg')
+          Hrel=np.abs(c['H [1/Mpc]']/Ht-1.)
+          Frel=np.abs(c['M*^2_smg']/Ft-1.)
+          z=c['z']
+          m100=z<=100.
+          m1e4=z<=1.e4
+          slip=np.abs(c['braiding_smg']+2.*c['M2_running_smg'])
+
+          phi=None
+          for k in c:
+              kl=k.lower()
+              if kl.startswith('phi') and 'prime' not in kl:
+                  phi=c[k]; break
+          phierr=float(np.max(np.abs(phi-Nc))) if phi is not None else float('nan')
+
+          i0=int(np.argmin(np.abs(z)))
+          out={
+            'max_abs_dH_H_z100':float(Hrel[m100].max()),
+            'max_abs_dH_H_z1e4':float(Hrel[m1e4].max()),
+            'max_abs_dF_F_z100':float(Frel[m100].max()),
+            'min_D_z100':float(c['kin (D)'][m100].min()),
+            'min_cs2_z100':float(c['c_s^2'][m100].min()),
+            'max_cs2_z100':float(c['c_s^2'][m100].max()),
+            'max_abs_noslip_z100':float(slip[m100].max()),
+            'max_abs_phi_minus_lna':phierr,
+            'F0':float(c['M*^2_smg'][i0]),
+            'alphaM0':float(c['M2_running_smg'][i0]),
+            'D0':float(c['kin (D)'][i0]),
+            'cs2_0':float(c['c_s^2'][i0]),
+          }
+          print('LINEAR_COV_REPLAY_COMPARISON',json.dumps(out,sort_keys=True))
+          Path('output/linear_cov_replay_comparison.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Compare full Boltzmann observables
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,json
+
+          out={}
+          tcl=Path('output/linear_cov_target_00_cl_lensed.dat')
+          ccl=Path('output/linear_cov_free_00_cl_lensed.dat')
+          if tcl.exists() and ccl.exists():
+              a=np.loadtxt(tcl); b=np.loadtxt(ccl)
+              if a.shape != b.shape or not np.allclose(a[:,0],b[:,0]):
+                  raise RuntimeError(f'C_l grids differ {a.shape} {b.shape}')
+              labels=['TT','EE','TE','BB','PP','TP','EP']
+              for j in range(1,min(a.shape[1],8)):
+                  scale=max(float(np.max(np.abs(a[:,j]))),1e-300)
+                  out['Cl_'+labels[j-1]+'_max_norm_abs']=float(np.max(np.abs(b[:,j]-a[:,j]))/scale)
+                  mask=np.abs(a[:,j])>1e-8*scale
+                  if np.any(mask):
+                      out['Cl_'+labels[j-1]+'_max_frac_masked']=float(np.max(np.abs((b[mask,j]-a[mask,j])/a[mask,j])))
+
+          tp=sorted(Path('output').glob('linear_cov_target_*pk.dat'))
+          cp=sorted(Path('output').glob('linear_cov_free_*pk.dat'))
+          out['pk_target_files']=len(tp); out['pk_cov_files']=len(cp)
+          for i,(pt,pc) in enumerate(zip(tp,cp)):
+              a=np.loadtxt(pt); b=np.loadtxt(pc)
+              if not np.allclose(a[:,0],b[:,0]):
+                  y=np.interp(a[:,0],b[:,0],b[:,1])
+              else:
+                  y=b[:,1]
+              mask=np.abs(a[:,1])>1e-30
+              out[f'Pk_{i:02d}_max_frac']=float(np.max(np.abs((y[mask]-a[mask,1])/a[mask,1])))
+              out[f'Pk_{i:02d}_rms_frac']=float(np.sqrt(np.mean(((y[mask]-a[mask,1])/a[mask,1])**2)))
+
+          print('LINEAR_COV_BOLTZMANN_COMPARISON',json.dumps(out,sort_keys=True))
+          Path('output/linear_cov_boltzmann_comparison.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Planck high-l Plik-lite on each genuinely reconstructed candidate
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          if not TTTEEE_lite_native.install(path='planck_packages',no_progress_bars=True):
+              raise RuntimeError('Plik-lite installation failed')
+          PY
+          python3 sdmc/evaluate_planck_pliklite.py \
+            --packages planck_packages \
+            --output output/true_D_pliklite.csv \
+            "$D_REPLACEMENT_CASE=output/linear_cov_free_00_cl_lensed.dat"
+          cat output/true_D_pliklite.csv
+
+      - name: Preserve audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: true-D-covariant-${{ matrix.case }}
+          path: |
+            output/linear_cov_target.ini
+            output/true_D_target_provenance.json
+            output/true_D_replacement_verdict.json
+            output/true_D_pliklite.csv
+            output/linear_cov_target_file_inventory.txt
+            output/linear_cov_target_00_background.dat
+            output/linear_cov_target_*thermodynamics.dat
+            output/linear_cov_reconstruction_summary.txt
+            output/linear_cov_action_kinetic_coefficients.json
+            output/linear_cov_free.ini
+            output/linear_cov_free_file_inventory.txt
+            output/linear_cov_free.log
+            output/linear_cov_free_returncode.txt
+            output/linear_cov_free_00_background.dat
+            output/linear_cov_free_*thermodynamics.dat
+            output/obscan_*.ini
+            output/obscan_*.log
+            output/obscan_*_background.dat
+            output/obscan_*_thermodynamics.dat
+            output/linear_cov_replay_comparison.json
+            output/linear_cov_boltzmann_comparison.json
+            output/late300_local_screening_proxy.txt
+            output/late300_structural_composite_audit.json
+            output/late300_activation_factorization_audit.json
+            output/linear_cov_target_00_cl_lensed.dat
+            output/linear_cov_free_00_cl_lensed.dat
+            output/linear_cov_target_*pk.dat
+            output/linear_cov_free_*pk.dat
+          if-no-files-found: warn
