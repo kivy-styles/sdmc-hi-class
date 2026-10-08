@@ -1,0 +1,32 @@
+name: SDMC kinetic finite-to-canonical covariant matching audit
+
+on:
+  push:
+    branches: [sdmc-late300-D-covariant-true-inputs]
+    paths:
+      - '.github/workflows/sdmc_D_canonical_IR_action_matching.yml'
+      - 'sdmc/audit_D_canonical_IR_action_matching.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  match-action:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify source matches the audited reconstructed action
+        run: |
+          python3 -m py_compile sdmc/audit_D_canonical_IR_action_matching.py
+          test -f sdmc/run_late300_linear_covariant.py
+      - name: Derive canonical field conversion and future matching necessities
+        run: python3 sdmc/audit_D_canonical_IR_action_matching.py
+      - name: Archive complete matching equations, conditions and source guard
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-D-canonical-IR-matching-audit
+          path: output/D_canonical_IR_match/
+          if-no-files-found: warn
