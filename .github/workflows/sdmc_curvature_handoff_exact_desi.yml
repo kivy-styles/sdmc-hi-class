@@ -1,0 +1,61 @@
+name: SDMC curvature-handoff official DESI gate
+
+on:
+  push:
+    branches: [sdmc-late300-activation-min-handoff-test]
+    paths:
+      - '.github/workflows/sdmc_curvature_handoff_exact_desi.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Replay accepted late300 DESI workflow with curvature handoff
+        run: |
+          python3 -m pip install -q pyyaml
+          git fetch --depth=1 origin sdmc-g022-a034-exact-desi
+          git show FETCH_HEAD:.github/workflows/sdmc_r032_edge024_qbest_covariant_desi.yml > /tmp/late300_desi.yml
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,subprocess,yaml
+          p=Path("/tmp/late300_desi.yml")
+          s=p.read_text()
+          old="16.19317622240633"
+          new="16.78177310642457"
+          n=s.count(old)
+          if n < 3:
+              raise RuntimeError(f"expected >=3 z_t occurrences, found {n}")
+          s=s.replace(old,new)
+          s=s.replace("COVARIANT_G022_A034_CLEAN","CURVATURE_HANDOFF")
+          data=yaml.safe_load(s)
+          for step in data["jobs"]["acoustic-physical-desi"]["steps"]:
+              script=step.get("run")
+              if not script: continue
+              env=os.environ.copy()
+              for k,v in (step.get("env") or {}).items(): env[str(k)]=str(v)
+              print(f"=== REPLAY STEP: {step.get('name','unnamed')} ===",flush=True)
+              subprocess.run(["bash","-lc",script],check=True,env=env)
+          PY
+      - name: Print DESI result
+        if: always()
+        run: cat output/desi_dr1_fs_summary.csv || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: curvature-handoff-exact-desi
+          path: |
+            output/desi_dr1_fs_profile.csv
+            output/desi_dr1_fs_summary.csv
+            output/desi_cov_00_background.dat
+            output/desi_cov_00_thermodynamics.dat
+            output/desi_cov_00_z*_pk.dat
+            output/covariant_replay_comparison.csv
+          if-no-files-found: warn
