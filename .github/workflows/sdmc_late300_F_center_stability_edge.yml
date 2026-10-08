@@ -4,7 +4,7 @@ on:
   push:
     branches: [sdmc-late300-F-only-force-center]
     paths:
-      - '.github/workflows/sdmc_late300_F_only_force_center.yml'
+      - '.github/workflows/sdmc_late300_F_center_stability_edge.yml'
   workflow_dispatch:
 
 permissions:
