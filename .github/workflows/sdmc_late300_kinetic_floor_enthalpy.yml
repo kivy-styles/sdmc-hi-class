@@ -1,0 +1,111 @@
+name: SDMC late300 kinetic floor from sector enthalpy
+
+on:
+  push:
+    branches: [sdmc-late300-kinetic-derivability-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_kinetic_floor_enthalpy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  derive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover accepted free covariant background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Derive early kinetic floor from structural enthalpy
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,numpy as np
+
+          p=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
+          ls=p.read_text().splitlines()
+          hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(p)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+
+          z=np.asarray(d["z"],float)
+          rho_tot=np.asarray(d["(.)rho_tot"],float)
+          rho_s=np.asarray(d["(.)rho_smg"],float)
+          p_s=np.asarray(d["(.)p_smg"],float)
+          rho_f=np.asarray(d["(.)rho_fld"],float)
+          w_f=np.asarray(d["(.)w_fld"],float)
+          D=np.asarray(d["kin (D)"],float)
+          aB=np.asarray(d["braiding_smg"],float)
+
+          Om_s=rho_s/rho_tot
+          Om_f=rho_f/rho_tot
+          w_s=np.divide(p_s,rho_s,out=np.full_like(rho_s,np.nan),where=np.abs(rho_s)>0)
+
+          ent_s=3*Om_s*(1+w_s)
+          ent_f=3*Om_f*(1+w_f)
+          braid=1.5*aB*aB
+          pred=ent_s+ent_f+braid
+
+          def stats(x,m):
+              y=np.asarray(x)[m]
+              return {"median":float(np.nanmedian(y)),"mean":float(np.nanmean(y)),
+                      "min":float(np.nanmin(y)),"max":float(np.nanmax(y))}
+
+          windows={}
+          for lo,hi in [(1e3,1e4),(1e4,1e5),(1e5,1e6),(1e6,1e7),(1e7,5e7)]:
+              m=(z>=lo)&(z<hi)&np.isfinite(pred)&np.isfinite(D)
+              if np.sum(m):
+                  rel=pred[m]/D[m]-1
+                  windows[f"{lo:g}_{hi:g}"]={
+                    "n":int(np.sum(m)),
+                    "D":stats(D,m),
+                    "Omega_smg":stats(Om_s,m),
+                    "w_smg":stats(w_s,m),
+                    "Omega_fld":stats(Om_f,m),
+                    "w_fld":stats(w_f,m),
+                    "enthalpy_smg":stats(ent_s,m),
+                    "enthalpy_fld":stats(ent_f,m),
+                    "braiding_term":stats(braid,m),
+                    "prediction":stats(pred,m),
+                    "relative_residual":stats(rel,np.ones(np.sum(m),dtype=bool)) if False else {
+                      "median":float(np.median(rel)),"mean":float(np.mean(rel)),
+                      "min":float(np.min(rel)),"max":float(np.max(rel))
+                    }
+                  }
+
+          rad=(z>1e6)&(z<5e7)&np.isfinite(pred)&np.isfinite(D)
+          out={
+            "status":"derive Dfloor from split-sector structural enthalpy",
+            "formula":"D_pred=3 Omega_smg(1+w_smg)+3 Omega_fld(1+w_fld)+3/2 alpha_B^2",
+            "deep_radiation":{
+              "D_actual":stats(D,rad),
+              "D_pred":stats(pred,rad),
+              "smg_term":stats(ent_s,rad),
+              "fld_term":stats(ent_f,rad),
+              "braiding_term":stats(braid,rad),
+              "ratio_pred_to_actual":float(np.median(pred[rad]/D[rad])),
+              "abs_residual_median":float(np.median(pred[rad]-D[rad]))
+            },
+            "windows":windows
+          }
+          Path("output/kinetic_floor_enthalpy.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("KINETIC_FLOOR_ENTHALPY",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kinetic-floor-enthalpy
+          path: output/kinetic_floor_enthalpy.json
