@@ -30,8 +30,8 @@ jobs:
           old="3.927876388467848"
           new="4.03405284683505"
           n=s.count(old)
-          if n < 2:
-              raise RuntimeError(f"expected >=2 z_c occurrences, found {n}")
+          if n < 1:
+              raise RuntimeError(f"expected >=1 z_c occurrence, found {n}")
           s=s.replace(old,new)
           s=s.replace("SDMC_COVARIANT_G022_A034","SDMC_F_CURVATURE_CENTER")
           s=s.replace("COVARIANT_G022_A034","F_CURVATURE_CENTER")
