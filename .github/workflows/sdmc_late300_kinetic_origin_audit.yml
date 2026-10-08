@@ -1,0 +1,149 @@
+name: SDMC late300 kinetic-origin audit
+
+on:
+  push:
+    branches: [sdmc-late300-kinetic-origin-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_kinetic_origin_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Test kinetic structural identities
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+
+          ini=next(Path("recovered").rglob("linear_cov_target.ini"))
+          pars={}
+          for raw in ini.read_text().splitlines():
+              q=raw.split("#",1)[0].strip()
+              if not q or "=" not in q: continue
+              k,v=[x.strip() for x in q.split("=",1)]
+              pars[k]=v
+          kin=[float(x.strip()) for x in pars["parameters_smg"].split(",")]
+          exp=[float(x.strip()) for x in pars["expansion_smg"].split(",")]
+          AF,zc,width,D0,powD,Dfloor=kin
+          Ox,lam,zt,dNt,Al,tauA,Bl,tauB=exp
+
+          bg=next(Path("recovered").rglob("linear_cov_target_00_background.dat"))
+          ls=bg.read_text().splitlines()
+          hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(bg)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+          z=np.asarray(d["z"],float)
+          N=-np.log1p(z)
+          o=np.argsort(N); z=z[o]; N=N[o]
+
+          Nc=-math.log1p(zc)
+          S=.5*(1+np.tanh((N-Nc)/(2*width)))
+          D=Dfloor+D0*S**powD
+          F=np.asarray(d["M*^2_smg"],float)[o]
+          alphaM=np.asarray(d["M2_running_smg"],float)[o]
+          alphaB=-2*alphaM
+          Qs=2*F*D/(2-alphaB)**2
+
+          j0=int(np.argmin(np.abs(z)))
+          Xi=math.sqrt(8*math.pi/3)
+          D_rad=16/(lam*lam)
+          D_mat=9/(lam*lam)
+          D0_Xi=1/Xi
+          Dtoday=float(D[j0]); Qstoday=float(Qs[j0]); Stoday=float(S[j0])
+
+          # Simple no-new-constant hypotheses
+          hypotheses={
+            "Dfloor_equals_Drad":{
+              "prediction":D_rad,"actual":Dfloor,
+              "fractional_residual":(Dfloor-D_rad)/Dfloor
+            },
+            "Dfloor_equals_Dmat":{
+              "prediction":D_mat,"actual":Dfloor,
+              "fractional_residual":(Dfloor-D_mat)/Dfloor
+            },
+            "D0_equals_Xi_inverse":{
+              "prediction":D0_Xi,"actual":D0,
+              "fractional_residual":(D0-D0_Xi)/D0
+            },
+            "D0_equals_one_third":{
+              "prediction":1/3,"actual":D0,
+              "fractional_residual":(D0-1/3)/D0
+            },
+            "Qs_today_equals_one_fifth":{
+              "prediction":0.2,"actual":Qstoday,
+              "fractional_residual":(Qstoday-0.2)/Qstoday
+            },
+            "D_today_equals_two_fifths":{
+              "prediction":0.4,"actual":Dtoday,
+              "fractional_residual":(Dtoday-0.4)/Dtoday
+            }
+          }
+
+          # If Qs0=1/5 were fundamental, infer the D0 it would require.
+          Dreq_Q=.2*(2-alphaB[j0])**2/(2*F[j0])
+          D0req_Q=(Dreq_Q-Dfloor)/(Stoday**powD)
+
+          # If D0=Xi^-1, infer present Qs.
+          DXi=Dfloor+D0_Xi*S**powD
+          QXi=2*F*DXi/(2-alphaB)**2
+
+          # local slope p_eff = d ln(D-Dfloor)/d ln S
+          mask=(S>1e-4)&(S<1-1e-4)&((D-Dfloor)>0)
+          peff=np.gradient(np.log(D[mask]-Dfloor),np.log(S[mask]),edge_order=2)
+
+          out={
+            "status":"late300 kinetic structural-origin audit",
+            "accepted":{"lambda_e":lam,"Dfloor":Dfloor,"D0":D0,"pD":powD,
+                        "D_today":Dtoday,"Qs_today":Qstoday,"S_today":Stoday},
+            "structural_constants":{"Xi_v":Xi,"Xi_v_inverse":D0_Xi},
+            "canonical_tracker_support":{"D_rad_16_over_lambda2":D_rad,"D_mat_9_over_lambda2":D_mat},
+            "hypotheses":hypotheses,
+            "derived_if_Qs0_equals_1_over_5":{
+              "D_required_today":float(Dreq_Q),
+              "D0_required":float(D0req_Q),
+              "D0_residual":float(D0-D0req_Q)
+            },
+            "derived_if_D0_equals_Xi_inverse":{
+              "Qs_today":float(QXi[j0]),
+              "max_abs_D_difference":float(np.max(np.abs(DXi-D)))
+            },
+            "profile_linearity":{
+              "p_eff_median":float(np.median(peff)),
+              "p_eff_std":float(np.std(peff)),
+              "comment":"This only audits that the accepted profile is linear in S; it is not independent evidence for pD=1."
+            },
+            "provenance_verdict":{
+              "Dfloor":"canonical radiation tracker gives a close lower normalization but leaves a ~10% offset unexplained",
+              "D0":"Xi_v^-1 is numerically close, but repository history says D0 was inherited to preserve present kinetic normalization; no manuscript identity currently derives equality",
+              "pD":"pD=1 is the leading linear-response ansatz and is internally exact for the accepted profile, but no independent microscopic theorem has yet selected it"
+            }
+          }
+          Path("output/kinetic_origin_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("KINETIC_ORIGIN_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kinetic-origin-audit
+          path: output/kinetic_origin_audit.json
