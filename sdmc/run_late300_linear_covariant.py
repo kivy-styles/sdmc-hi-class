@@ -312,3 +312,40 @@ if np.any(np.isfinite(cs2)):
 Path("output/linear_cov_reconstruction_summary.txt").write_text("\n".join(summary)+"\n")
 print("LINEAR_COVARIANT_RECONSTRUCTION")
 print("\n".join(summary))
+
+# Action-level coefficient diagnostics: the reconstructed present-epoch
+# k2 Z/k1 is not the positive-rK parameter inferred conditionally from
+# Manuscript B's *reduced prethermal* k-essence limit.
+z_vals=np.expm1(-N)
+samples=[]
+for z_requested in [0.,0.5,1.,4.,16.74228966,100.,1090.,10000.]:
+    j=int(np.argmin(np.abs(np.log1p(z_vals)-np.log1p(z_requested))))
+    k1v=float(k1[j])
+    k2z=float(k2[j]*X[j])
+    px=k1v+2.*k2z
+    energy=k1v+6.*k2z
+    samples.append({
+      "requested_z":z_requested,
+      "sampled_z":float(z_vals[j]),
+      "k1":k1v,
+      "k2_times_Z":k2z,
+      "rK_covariant_coefficients":k2z/k1v if abs(k1v)>1e-16 else None,
+      "P_Z_reduced":px,
+      "P_Z_plus_2ZP_ZZ_reduced":energy,
+      "reduced_kessence_cs2_without_G3_G4_V":px/energy if abs(energy)>1e-16 else None,
+      "positive_k1_k2_reduced_limit_applies":bool(k1v>0 and k2z>0),
+    })
+sign_changes=np.flatnonzero(np.signbit(k1[1:])!=np.signbit(k1[:-1]))
+action_audit={
+ "status":"reconstructed-coefficient evaluation, not microscopic coefficient prediction",
+ "action":"G2=k1(phi)Z+k2(phi)Z**2-V(phi); G3=g(phi)Z; G4=F(phi)/2",
+ "sample_count":len(N),
+ "samples":samples,
+ "k1_sign_change_redshift_brackets":[[float(z_vals[i]),float(z_vals[i+1])] for i in sign_changes[:30]],
+ "k1_negative_node_fraction":float(np.mean(k1<0)),
+ "k2Z_positive_node_fraction":float(np.mean(k2*X>0)),
+ "scientific_qualification":"The reconstructed coefficients were chosen from the accepted late300 trajectory. The reduced positive-k1,k2 relation and its c_s are not valid substitutes for full Horndeski propagation or a first-principles early rK selector.",
+}
+Path("output/linear_cov_action_kinetic_coefficients.json").write_text(json.dumps(action_audit,indent=2,sort_keys=True)+"\n")
+print("ACTION_KINETIC_COEFFICIENT_AUDIT",json.dumps(action_audit,sort_keys=True))
+
