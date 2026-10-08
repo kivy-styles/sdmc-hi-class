@@ -87,7 +87,15 @@ def eval_case(label,seed):
     u,Om,Or=seed
     check(1.-u*u/3.-Om-Or>0., "initial positive canonical potential fraction")
     initial_y=1.-u*u/3.-Om-Or
-    y=(u,Om,Or,0.,0.)
+    # IMPORTANT: Use ONE fixed canonical action/potential for every seed.
+    # In dimensionless units tP*S0=1, Z_BI=4pi/3, C=1 and phi0=0.
+    # V0=4F*Z_BI is a SINGLE theory coefficient shared by all eight seeds.
+    # Solve Friedmann for a different allowed initial H0 in each seed.
+    Z_BI=4*math.pi/3
+    common_V0=4*F_DERIVED*Z_BI
+    H0=math.sqrt(common_V0/(3*F_DERIVED*initial_y))
+    logH0=math.log(H0)
+    y=(u,Om,Or,0.,logH0)
     total=int(round(END_N/STEPSIZE))
     rows=[]
     max_friedmann_err=0.
@@ -95,16 +103,16 @@ def eval_case(label,seed):
     for i in range(total+1):
         n=i*STEPSIZE
         u,Om,Or,phi,logH=y
-        H=math.exp(logH)
+        H=math.exp(logH-logH0)
         epsilon=u*u+1.5*Om+2.*Or
         yV=1.-u*u/3.-Om-Or
         K=u*u/3.
         q=epsilon-1.
         # Check actual independent matter, radiation and scalar potential
         # terms against the integrated Friedmann equation.
-        Om_direct=seed[1]*math.exp(-3*n-2*logH)
-        Or_direct=seed[2]*math.exp(-4*n-2*logH)
-        yV_direct=initial_y*math.exp(-2*phi-2*logH)
+        Om_direct=seed[1]*math.exp(-3*n-2*(logH-logH0))
+        Or_direct=seed[2]*math.exp(-4*n-2*(logH-logH0))
+        yV_direct=initial_y*math.exp(-2*phi-2*(logH-logH0))
         friedmann=K+Om_direct+Or_direct+yV_direct
         max_friedmann_err=max(max_friedmann_err,abs(friedmann-1.))
         max_omega_sum_err=max(max_omega_sum_err,abs(K+Om+Or+yV-1.))
@@ -137,6 +145,8 @@ def eval_case(label,seed):
       "case":label,"initial_u":seed[0],"initial_Omega_m":seed[1],
       "initial_Omega_r":seed[2],
       "initial_potential_fraction":initial_y,
+      "common_action_V0":common_V0,
+      "initial_H0_in_common_units":H0,
       "final_u":uf,"final_D":2*uf*uf,"final_Omega_m":Omf,
       "final_Omega_r":Orf,"final_epsilon":epsf,"final_q":epsf-1.,
       "matter_u_minus_one_over_Omega_m":matter_u_ratio,
@@ -296,6 +306,8 @@ def main():
        "mature_G3":"0","mature_G4":"F∞/2",
        "sigma_phi_map":"sigma=C exp(phi)",
        "mature_G2_phi":"2 F∞ X_phi - V0 exp(-2 phi)",
+       "same_action_all_eight_seeds":True,
+       "shared_V0_in_units_tP_S0_equals_1":4*F_DERIVED*4*math.pi/3,
        "canonical_dimless_slope":math.sqrt(2.),
        "mature_F_from_force_derived_AF":F_DERIVED,
        "mature_k1_phi":2*F_DERIVED,
