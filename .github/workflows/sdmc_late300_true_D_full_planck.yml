@@ -1,0 +1,82 @@
+name: SDMC true D replacements exact full Planck
+
+on:
+  push:
+    branches: [sdmc-late300-derived-coordinate-bundle]
+    paths:
+      - '.github/workflows/sdmc_late300_true_D_full_planck.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  real-D-full-plik:
+    name: "Planck full ${{ matrix.case }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      matrix:
+        case: [accepted_D, D0_2pi_lambda, D0_Xi_sqrtF, D0_force_candidate, floor_16_lambda2, combined_2pi_floor]
+    env:
+      D_REPLACEMENT_CASE: ${{ matrix.case }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install full Planck likelihood interface
+        run: |
+          python3 -m pip install -q numpy scipy pandas cobaya iminuit
+          mkdir -p output inputs
+      - name: Install Planck high-l, low-l, and lensing data
+        run: |
+          ok=0
+          for attempt in 1 2 3; do
+            echo "Full Planck install attempt $attempt"
+            if python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          if not TTTEEE.install(path='planck_full',no_progress_bars=True):raise SystemExit(2)
+          for cls in (TT,EE,LensingNative):
+              if not cls.install(path='planck_packages',no_progress_bars=True):raise SystemExit(3)
+          print("PLANCK_FULL_DATA_READY")
+          PY
+            then ok=1; break; fi
+            sleep $((attempt*5))
+          done
+          test "$ok" -eq 1
+      - name: Fetch verified exact candidate-specific covariant spectra
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 37806771106 --repo "${{ github.repository }}" \
+            --name "true-D-covariant-$D_REPLACEMENT_CASE" --dir inputs
+          test -f inputs/true_D_replacement_verdict.json
+          test -s inputs/linear_cov_free_00_cl_lensed.dat
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          v=json.loads(Path("inputs/true_D_replacement_verdict.json").read_text())
+          expected=os.environ["D_REPLACEMENT_CASE"]
+          if v["case"]!=expected:raise RuntimeError(f"artifact case {v['case']} != {expected}")
+          if v["free_max_abs_dH_H_z100"]>1e-3 or v["free_min_cs2_z100"]<=0 or v["free_max_cs2_z100"]>1:
+              raise RuntimeError("candidate failed provenance and stability gate")
+          print("FULL_PLIK_TRUE_D_INPUT_VERIFIED",expected,v["D0_correction"],v["D_floor_baseline"],
+                v["free_spectrum_sha256"],flush=True)
+          PY
+      - name: Independently profile complete Planck likelihood for this real D action
+        run: |
+          python3 sdmc/profile_late300_true_D_full_planck.py
+          cat output/true_D_full_planck_profile.csv
+      - name: Save full Planck profile and provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "true-D-full-Planck-${{ matrix.case }}"
+          path: |
+            inputs/true_D_replacement_verdict.json
+            inputs/linear_cov_reconstruction_summary.txt
+            output/true_D_full_planck_profile.csv
+          if-no-files-found: warn
