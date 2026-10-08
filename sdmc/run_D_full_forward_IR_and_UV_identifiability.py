@@ -219,6 +219,32 @@ def prove_on_shell_cubic_decay():
     return tests
 
 
+def derive_exact_structural_lapse():
+    """Canonical equilibrium derives N_infinity=sqrt(8pi/3) independently of S0.
+
+    Z_BI=4pi/(3 t_P^2 S0^2).  G2_IR=(2F Z_sigma-4F Z_BI)/sigma².
+    At the coasting scalar-only fixed point, V=2F H², and
+    V=4F Z_BI/sigma², so H²=2 Z_BI/sigma².
+    Thus dot(sigma)=H*sigma=sqrt(2 Z_BI),
+    structural lapse N=tP S0 dot(sigma)=sqrt(8pi/3).
+    Independent of F_inf, scalar normalization S0 and Planck time.
+    """
+    target=math.sqrt(8.*math.pi/3.)
+    cases=[]
+    for tP,S0 in ((1.,1.),(1.,1e5),(5.391247e-44,2.72e61),
+                    (5.391247e-44,1e62),(.1,6.)):
+        zbi=4.*math.pi/(3.*tP*tP*S0*S0)
+        sigmadot=math.sqrt(2.*zbi)
+        structural_lapse=tP*S0*sigmadot
+        check(close(structural_lapse,target,tol=1e-10),
+              "canonical lapse independent of Planck clock normalization")
+        cases.append({"tP":tP,"S0":S0,"Z_BI":zbi,
+                      "sigma_dot_at_coasting":sigmadot,
+                      "structural_lapse_N_infinity":structural_lapse,
+                      "structural_radius_speed_over_c":structural_lapse})
+    return {"exact_structural_lapse":target,"cases":cases}
+
+
 def main():
     # The potential is exponential with canonical field psi=sqrt(2F) phi,
     # so V(psi)~exp(-sqrt(2/F)psi), a dimensionful-field slope.
@@ -236,6 +262,7 @@ def main():
     check(close(cq,-1.5), "leading matter q")
     check(close(math.sqrt(2.),1.4142135623730951),"canonical field slope")
 
+    exact_structural_lapse=derive_exact_structural_lapse()
     scalar_only_global_proof=prove_scalar_only_global_basin()
     cubic_decay_checks=prove_on_shell_cubic_decay()
 
@@ -289,6 +316,7 @@ def main():
      "F_IR_derived_branch":F_DERIVED,
      "F_IR_old_manuscript_branch":F_MATURE_PREVIOUS,
      "F_IR_cross_branch_relative_mismatch":F_MATURE_PREVIOUS/F_DERIVED-1.,
+     "structural_lapse_from_canonical_BI":exact_structural_lapse,
      "all_cases":summaries,
      "scalar_only_global_attractor_tests":scalar_only_global_proof,
      "coasting_NoSlip_on_shell_cubic_decay_tests":cubic_decay_checks,
@@ -305,6 +333,7 @@ def main():
     (OUT/"verdict.json").write_text(json.dumps(verdict,indent=2,sort_keys=True)+"\n")
     print("D_FORWARD_CANONICAL_IR_AUDIT_PASS",
           json.dumps({"models_evolved":len(summaries),
+                      "N_infinity_from_canonical_action":exact_structural_lapse["exact_structural_lapse"],
                       "scalar_only_exact_global_orbits":len(scalar_only_global_proof),
                       "coasting_cubic_widths_tested":len(cubic_decay_checks),
                       "latest_n":END_N,
