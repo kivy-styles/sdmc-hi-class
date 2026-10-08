@@ -4,7 +4,7 @@ on:
   push:
     branches: [sdmc-late300-derived-coordinate-bundle]
     paths:
-      - '.github/workflows/sdmc_late300_derived_F_observables.yml'
+      - '.github/workflows/sdmc_late300_derived_coordinate_bundle.yml'
   workflow_dispatch:
 
 permissions:
