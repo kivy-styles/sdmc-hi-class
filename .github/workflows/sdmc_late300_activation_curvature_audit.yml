@@ -1,0 +1,172 @@
+name: SDMC late300 activation-curvature handoff audit
+
+on:
+  push:
+    branches: [sdmc-late300-activation-curvature-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_activation_curvature_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  derive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted free covariant background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Reconstruct p, pX and activation handoff
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+
+          pth=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
+          lines=pth.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          arr=np.loadtxt(pth)
+          if arr.ndim==1: arr=arr[None,:]
+          d={n:arr[:,i] for i,n in enumerate(names)}
+
+          z=np.asarray(d["z"],float)
+          N=-np.log1p(z)
+          o=np.argsort(N)
+          z=z[o]; N=N[o]
+          H=np.asarray(d["H [1/Mpc]"],float)[o]
+          tG=np.asarray(d["proper time [Gyr]"],float)[o]
+          F=np.asarray(d["M*^2_smg"],float)[o]
+          aM=np.asarray(d["M2_running_smg"],float)[o]
+          H0=float(H[np.argmin(np.abs(z))])
+          E=H/H0
+
+          # CLASS time conversion: 1 Mpc/c = 0.003261563777 Gyr.
+          Mpc_c_Gyr=0.003261563777
+          tMpc=tG/Mpc_c_Gyr
+          pchrono=1.0/(H*tMpc)
+
+          # Present density fractions from saved background to avoid hard coding.
+          Om=np.asarray(d["Omega_m(z)"],float)[o]
+          Or=np.asarray(d["Omega_r(z)"],float)[o]
+          Om0=float(Om[np.argmin(np.abs(z))])
+          Or0=float(Or[np.argmin(np.abs(z))])
+          aa=np.exp(N)
+
+          # Positive action-level source from manuscript equation:
+          # rhoX/(3 Mpl^2 H0^2) = E^2(F+F') - Om0 a^-3 - Or0 a^-4,
+          # with F'=alpha_M F.
+          rhoX=E*E*F*(1.0+aM)-Om0*aa**(-3)-Or0*aa**(-4)
+          good=(rhoX>0)&np.isfinite(rhoX)
+          lnr=np.full_like(rhoX,np.nan)
+          lnr[good]=np.log(rhoX[good])
+
+          # Differentiate only across positive contiguous region; use local gradient.
+          pX=np.full_like(rhoX,np.nan)
+          idx=np.where(good)[0]
+          if len(idx)>5:
+              groups=np.split(idx,np.where(np.diff(idx)>1)[0]+1)
+              for g in groups:
+                  if len(g)>=5:
+                      pX[g]=-0.5*np.gradient(lnr[g],N[g],edge_order=2)
+
+          Achi=2*(pchrono-pX)
+
+          # Restrict handoff search to matter-era neighborhood; avoid late F-transition.
+          m=(z>=8)&(z<=40)&np.isfinite(Achi)&np.isfinite(pX)&np.isfinite(pchrono)
+          im=np.where(m)[0]
+          imin=im[np.argmin(Achi[im])]
+          imaxgrad=im[np.argmax(np.abs(np.gradient(Achi,N,edge_order=2)[im]))]
+          dA=np.gradient(Achi,N,edge_order=2)
+          d2A=np.gradient(dA,N,edge_order=2)
+          d3A=np.gradient(d2A,N,edge_order=2)
+
+          # Invariant activation-curvature features in the handoff interval.
+          curv_features={}
+          if len(im):
+              i2max=im[np.argmax(np.abs(d2A[im]))]
+              i3max=im[np.argmax(np.abs(d3A[im]))]
+              curv_features["max_abs_second"]={"z":float(z[i2max]),"ln_a":float(N[i2max]),"d2A":float(d2A[i2max]),"Achi":float(Achi[i2max])}
+              curv_features["max_abs_third"]={"z":float(z[i3max]),"ln_a":float(N[i3max]),"d3A":float(d3A[i3max]),"Achi":float(Achi[i3max])}
+              zeros2=[]
+              zeros3=[]
+              for ii0 in im[:-1]:
+                  if not m[ii0+1]: continue
+                  for arr,name,outlist in [(d2A,"d2",zeros2),(d3A,"d3",zeros3)]:
+                      y0,y1=arr[ii0],arr[ii0+1]
+                      if np.isfinite(y0) and np.isfinite(y1) and y0*y1<0:
+                          frac=-y0/(y1-y0)
+                          Nx=N[ii0]+frac*(N[ii0+1]-N[ii0])
+                          outlist.append({"ln_a":float(Nx),"z":float(math.exp(-Nx)-1)})
+              curv_features["second_zero_crossings"]=zeros2
+              curv_features["third_zero_crossings"]=zeros3
+
+          # Zero crossings of Achi in the handoff interval.
+          zeros=[]
+          ii=np.where(m)[0]
+          for i in ii[:-1]:
+              if not m[i+1]: continue
+              y0,y1=Achi[i],Achi[i+1]
+              if np.isfinite(y0) and np.isfinite(y1) and y0*y1<0:
+                  frac=-y0/(y1-y0)
+                  Nz=N[i]+frac*(N[i+1]-N[i])
+                  zeros.append({"ln_a":float(Nz),"z":float(math.exp(-Nz)-1)})
+
+          ini=next(Path("recovered").rglob("linear_cov_target.ini"))
+          zt=None
+          for raw in ini.read_text().splitlines():
+              q=raw.split("#",1)[0].strip()
+              if q.startswith("expansion_smg") and "=" in q:
+                  vals=[float(x.strip()) for x in q.split("=",1)[1].split(",")]
+                  zt=vals[2]
+                  break
+          if zt is None:
+              raise RuntimeError("could not recover candidate z_t from target ini")
+          j=int(np.argmin(np.abs(z-zt)))
+
+          out={
+            "status":"late300 free-action chronological activation handoff derivation",
+            "candidate_z_t":zt,
+            "candidate_sample":{"z":float(z[j]),"p":float(pchrono[j]),"pX":float(pX[j]),"Achi":float(Achi[j]),
+                                "F":float(F[j]),"alphaM":float(aM[j])},
+            "handoff_features":{
+              "Achi_min":{"z":float(z[imin]),"ln_a":float(N[imin]),"Achi":float(Achi[imin]),
+                          "p":float(pchrono[imin]),"pX":float(pX[imin])},
+              "max_abs_dAchi":{"z":float(z[imaxgrad]),"ln_a":float(N[imaxgrad]),"dAchi_dlnA":float(dA[imaxgrad]),
+                               "Achi":float(Achi[imaxgrad])},
+              "Achi_zero_crossings":zeros,
+              "activation_curvature_features":curv_features
+            },
+            "tracker_windows":{
+              "radiation":{
+                "p_median":float(np.nanmedian(pchrono[(z>1e5)&(z<1e7)])),
+                "pX_median":float(np.nanmedian(pX[(z>1e5)&(z<1e7)])),
+                "Achi_median":float(np.nanmedian(Achi[(z>1e5)&(z<1e7)]))
+              },
+              "matter":{
+                "p_median":float(np.nanmedian(pchrono[(z>30)&(z<300)])),
+                "pX_median":float(np.nanmedian(pX[(z>30)&(z<300)])),
+                "Achi_median":float(np.nanmedian(Achi[(z>30)&(z<300)]))
+              }
+            }
+          }
+          Path("output/activation_curvature_handoff.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("ACTIVATION_CURVATURE_HANDOFF",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: activation-curvature-handoff
+          path: output/activation_handoff.json
