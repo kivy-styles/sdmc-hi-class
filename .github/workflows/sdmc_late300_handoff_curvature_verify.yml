@@ -1,0 +1,120 @@
+name: SDMC late300 activation-curvature handoff verification
+
+on:
+  push:
+    branches: [sdmc-late300-handoff-curvature-verify]
+    paths:
+      - '.github/workflows/sdmc_late300_handoff_curvature_verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover free covariant background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Locate invariant activation curvature features
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+
+          p=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
+          ls=p.read_text().splitlines()
+          hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(p)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+          z=np.asarray(d["z"],float); N=-np.log1p(z)
+          o=np.argsort(N); z=z[o]; N=N[o]
+          H=np.asarray(d["H [1/Mpc]"],float)[o]
+          tG=np.asarray(d["proper time [Gyr]"],float)[o]
+          F=np.asarray(d["M*^2_smg"],float)[o]
+          aM=np.asarray(d["M2_running_smg"],float)[o]
+          Om=np.asarray(d["Omega_m(z)"],float)[o]
+          Or=np.asarray(d["Omega_r(z)"],float)[o]
+          H0=float(H[np.argmin(np.abs(z))]); E=H/H0
+          Om0=float(Om[np.argmin(np.abs(z))]); Or0=float(Or[np.argmin(np.abs(z))])
+          aa=np.exp(N)
+
+          Mpc_c_Gyr=0.003261563777
+          pchrono=1/(H*(tG/Mpc_c_Gyr))
+          rhoX=E*E*F*(1+aM)-Om0*aa**(-3)-Or0*aa**(-4)
+
+          good=(rhoX>0)&np.isfinite(rhoX)
+          pX=np.full_like(rhoX,np.nan)
+          idx=np.where(good)[0]
+          if len(idx)>5:
+              groups=np.split(idx,np.where(np.diff(idx)>1)[0]+1)
+              for g in groups:
+                  if len(g)>=5:
+                      pX[g]=-0.5*np.gradient(np.log(rhoX[g]),N[g],edge_order=2)
+
+          Achi=2*(pchrono-pX)
+          d1=np.gradient(Achi,N,edge_order=2)
+          d2=np.gradient(d1,N,edge_order=2)
+          d3=np.gradient(d2,N,edge_order=2)
+
+          m=(z>=8)&(z<=40)&np.isfinite(Achi)&np.isfinite(d1)&np.isfinite(d2)
+          ii=np.where(m)[0]
+
+          def crossings(y):
+              out=[]
+              for i in ii[:-1]:
+                  if not m[i+1]: continue
+                  y0,y1=y[i],y[i+1]
+                  if not(np.isfinite(y0) and np.isfinite(y1)): continue
+                  if y0==0:
+                      Nz=N[i]
+                  elif y0*y1<0:
+                      f=-y0/(y1-y0)
+                      Nz=N[i]+f*(N[i+1]-N[i])
+                  else:
+                      continue
+                  zz=math.exp(-Nz)-1
+                  out.append({"ln_a":float(Nz),"z":float(zz)})
+              return out
+
+          zcand=16.78177310642457
+          zacc=16.19317622240633
+          jcan=int(np.argmin(np.abs(z-zcand)))
+          jacc=int(np.argmin(np.abs(z-zacc)))
+          imin=ii[np.argmin(Achi[ii])]
+          islope=ii[np.argmax(np.abs(d1[ii]))]
+
+          out={
+            "status":"activation-curvature verification of structural handoff",
+            "candidate_curvature_handoff_z":zcand,
+            "accepted_late300_z_t":zacc,
+            "Achi_min":{"z":float(z[imin]),"Achi":float(Achi[imin]),"d1":float(d1[imin]),"d2":float(d2[imin])},
+            "max_abs_slope":{"z":float(z[islope]),"Achi":float(Achi[islope]),"d1":float(d1[islope]),"d2":float(d2[islope])},
+            "d1_zero_crossings":crossings(d1),
+            "d2_zero_crossings":crossings(d2),
+            "d3_zero_crossings":crossings(d3),
+            "candidate_sample":{"z":float(z[jcan]),"Achi":float(Achi[jcan]),"d1":float(d1[jcan]),"d2":float(d2[jcan]),"d3":float(d3[jcan])},
+            "accepted_sample":{"z":float(z[jacc]),"Achi":float(Achi[jacc]),"d1":float(d1[jacc]),"d2":float(d2[jacc]),"d3":float(d3[jacc])}
+          }
+          Path("output/handoff_curvature_verify.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("HANDOFF_CURVATURE_VERIFY",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: handoff-curvature-verify
+          path: output/handoff_curvature_verify.json
