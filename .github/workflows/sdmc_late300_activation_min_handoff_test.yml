@@ -1,0 +1,185 @@
+name: SDMC late300 activation-min handoff test
+
+on:
+  push:
+    branches: [sdmc-late300-activation-min-handoff-test]
+    paths:
+      - '.github/workflows/sdmc_late300_activation_min_handoff_test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+
+      - name: Apply accepted parameterized SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+
+      - name: Recover accepted late300 target for comparison
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p accepted output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir accepted
+
+      - name: Run structurally selected handoff candidate
+        run: |
+          cat > output/activation_min.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.02048146490100771, 3.927876388467848, 0.33114133956842123, 0.34231919445927034, 1.0, 0.05181542627513409
+          expansion_model = sdmc_full
+          expansion_smg = 0.7014079815036496, 18.40625, 18.07334256431, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
+          write background = yes
+          write_thermodynamics = yes
+          root = output/activation_min_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 1
+          perturbations_verbose = 0
+          output_verbose = 1
+          EOF
+          ./class output/activation_min.ini | tee output/activation_min.log
+
+      - name: Compare to accepted late300
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np,re,json,math
+
+          def findacc(name):
+              xs=list(Path("accepted").rglob(name))
+              if not xs: raise RuntimeError(f"missing accepted {name}")
+              return xs[0]
+
+          def read_table(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[l for l in lines if l.startswith("#") and re.search(r"(?:^|\s)1\s*:",l)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(path)
+              if a.ndim==1:a=a[None,:]
+              return {n:a[:,i] for i,n in enumerate(names)}
+
+          a=read_table(findacc("linear_cov_target_00_background.dat"))
+          v=read_table("output/activation_min_00_background.dat")
+          Na=-np.log1p(a["z"]); Nv=-np.log1p(v["z"])
+          o=np.argsort(Na); Na=Na[o]
+          def ai(k): return np.interp(Nv,Na,a[k][o])
+
+          Hrel=v["H [1/Mpc]"]/ai("H [1/Mpc]")-1
+          z=v["z"]
+          m100=z<=100
+          out={
+            "structural_z_t":18.07334256431,
+            "accepted_z_t":16.19317622240633,
+            "max_abs_dH_H_z100":float(np.max(np.abs(Hrel[m100]))),
+            "rms_dH_H_z100":float(np.sqrt(np.mean(Hrel[m100]**2))),
+            "D_min_all":float(np.min(v["kin (D)"])),
+            "cs2_min_all":float(np.min(v["c_s^2"])),
+            "cs2_max_all":float(np.max(v["c_s^2"])),
+            "max_abs_noslip":float(np.max(np.abs(v["braiding_smg"]+2*v["M2_running_smg"]))),
+          }
+
+          # Thermodynamic landmarks
+          tv=read_table("output/activation_min_00_thermodynamics.dat")
+          ta=read_table(findacc("linear_cov_target_00_thermodynamics.dat"))
+          zv=tv["z"]; za=ta["z"]
+          out["zstar_variant"]=float(zv[np.argmax(tv["g [Mpc^-1]"])])
+          out["zstar_accepted"]=float(za[np.argmax(ta["g [Mpc^-1]"])])
+          # nearest background interpolation for sound horizon at zstar
+          sv=np.argsort(v["z"]); sa=np.argsort(a["z"])
+          out["rs_star_variant_Mpc"]=float(np.interp(out["zstar_variant"],v["z"][sv],v["comov.snd.hrz."][sv]))
+          out["rs_star_accepted_Mpc"]=float(np.interp(out["zstar_accepted"],a["z"][sa],a["comov.snd.hrz."][sa]))
+
+          # C_l residuals against accepted target
+          ca=np.loadtxt(findacc("linear_cov_target_00_cl_lensed.dat"))
+          cv=np.loadtxt("output/activation_min_00_cl_lensed.dat")
+          if ca.shape!=cv.shape or not np.allclose(ca[:,0],cv[:,0]):
+              raise RuntimeError("Cl grid mismatch")
+          labels=["TT","EE","TE","BB","PP","TP","EP"]
+          for j in range(1,min(ca.shape[1],8)):
+              scale=max(float(np.max(np.abs(ca[:,j]))),1e-300)
+              out[f"Cl_{labels[j-1]}_rms_norm"]=float(np.sqrt(np.mean((cv[:,j]-ca[:,j])**2))/scale)
+              mask=np.abs(ca[:,j])>1e-6*scale
+              if np.any(mask):
+                  out[f"Cl_{labels[j-1]}_max_frac_masked"]=float(np.max(np.abs((cv[mask,j]-ca[mask,j])/ca[mask,j])))
+
+          # pk at z=0
+          pa=np.loadtxt(findacc("linear_cov_target_00_z1_pk.dat"))
+          pv=np.loadtxt("output/activation_min_00_z1_pk.dat")
+          yy=np.interp(pa[:,0],pv[:,0],pv[:,1])
+          out["Pk_z0_rms_frac"]=float(np.sqrt(np.mean(((yy-pa[:,1])/pa[:,1])**2)))
+          out["Pk_z0_max_frac"]=float(np.max(np.abs((yy-pa[:,1])/pa[:,1])))
+
+          Path("output/activation_min_comparison.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("ACTIVATION_MIN_HANDOFF_TEST",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: activation-min-handoff-test
+          path: |
+            output/activation_min.ini
+            output/activation_min.log
+            output/activation_min_comparison.json
+            output/activation_min_00_background.dat
+            output/activation_min_00_thermodynamics.dat
+            output/activation_min_00_cl_lensed.dat
+            output/activation_min_*pk.dat
