@@ -17,6 +17,9 @@ These are exact identities *after* the F trajectory has been specified, not inde
 
 For the independent kinetic support D(N)=D_floor+D_0 S_D(N)^{p_D}, with alpha_B=-2alpha_M (No-Slip),
 
+**Authorial correction (8 October 2026):** D_0 was introduced as a **correction to D_floor**, not a second unrelated kinetic baseline or separate physical mechanism. In the present ansatz D_floor is the early-structural base support and D_0 S_D(N)^p_D is a time-dependent corrective increment. Consequently, if **independent** evolution of the same action predicts both asymptotic kinetic support levels, D_0 = D_late - D_floor is a conditional derived difference. For the accepted late300 window, the code yields S_D(0)=0.9919691128, D_correction(0)=0.3395700676 and D(0)=0.3913854939; at infinite late N, D_late=0.3941346207. The asymptotic full late normalization is not yet predicted without using the accepted trajectory. The physical relation reduces the number of **origins** that need explaining, but does not erase a statistically tunable normalization unless the same dynamics fix both endpoints.
+
+
 D = alpha_K + (3/2) alpha_B^2 = alpha_K + 6 alpha_M^2.
 
 If a *microscopic* action independently provided D(N), the asymptotic values would fix D_floor and D_0, and the logarithmic slope would fix p_D. Here the accepted action coefficients were reconstructed from an already selected target D(N). The linear-G3 inversion in \`sdmc/run_late300_linear_covariant.py\` explicitly gives
@@ -62,7 +65,7 @@ Finally Omega_x0=1-(omega_b+omega_cdm+omega_r)/(H0/100)^2=**0.7014079815036496**
 | z_c | 3.927876 | 4.0340775 | Force-balance *conditional on reconstructed trajectory* |
 | Delta N_F | 0.33114134 | 0.32925377 | Force profile *conditional on reconstruction* |
 | D_floor | 0.051815426 | 0.051815426 | No; rK calculation is inverse mapping |
-| D_0 | 0.342319194 | 0.341993212 | No; plausible no-fit structural candidate |
+| D_0 | 0.342319194 | 0.341993212 | Transition correction to D_floor, D_0=D_late-D_floor if endpoints independently derived; magnitude currently data-selected |
 | p_D | 1 | 1 | Minimal analytic choice, no unique selector |
 | lambda_e | 18.40625 | 18.40625 | No; tracker fraction not independently predicted |
 | z_t | 16.193176 | 16.742290 | Conditional helper-dependent fixed-point candidate |
