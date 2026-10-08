@@ -1,8 +1,8 @@
-name: SDMC curvature-handoff official DESI gate
+name: SDMC F-force-descriptors official DESI gate
 
 on:
   push:
-    branches: [sdmc-late300-activation-min-handoff-test]
+    branches: [sdmc-late300-F-force-descriptors]
     paths:
       - '.github/workflows/sdmc_curvature_handoff_exact_desi.yml'
   workflow_dispatch:
@@ -28,13 +28,13 @@ jobs:
           import os,subprocess,yaml
           p=Path("/tmp/late300_desi.yml")
           s=p.read_text()
-          old="16.19317622240633"
-          new="16.78177310642457"
+          old="0.02048146490100771, 3.927876388467848, 0.33114133956842123, 0.34231919445927034, 1.0, 0.05181542627513409"
+          new="0.02048146490100771, 4.03405284683505, 0.32925377073762596, 0.34231919445927034, 1.0, 0.05181542627513409"
           n=s.count(old)
-          if n < 3:
-              raise RuntimeError(f"expected >=3 z_t occurrences, found {n}")
+          if n < 1:
+              raise RuntimeError(f"expected >=1 F descriptor occurrence, found {n}")
           s=s.replace(old,new)
-          s=s.replace("COVARIANT_G022_A034_CLEAN","CURVATURE_HANDOFF")
+          s=s.replace("COVARIANT_G022_A034_CLEAN","F_FORCE_DESCRIPTORS")
           data=yaml.safe_load(s)
           for step in data["jobs"]["acoustic-physical-desi"]["steps"]:
               script=step.get("run")
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: curvature-handoff-exact-desi
+          name: F-force-descriptors-exact-desi
           path: |
             output/desi_dr1_fs_profile.csv
             output/desi_dr1_fs_summary.csv
