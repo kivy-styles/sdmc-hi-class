@@ -67,7 +67,13 @@ jobs:
                   lv=np.sqrt(4/Om_sum[m])
                   windows[f"{lo:g}_{hi:g}"]={
                     "n":int(np.sum(m)),
+                    "Omega_smg_median":float(np.median(Om_smg[m])),
+                    "Omega_fld_median":float(np.median(Om_fld[m])),
                     "Omega_sum_median":float(np.median(Om_sum[m])),
+                    "smg_fraction_of_sum":float(np.median(Om_smg[m]/Om_sum[m])),
+                    "fld_fraction_of_sum":float(np.median(Om_fld[m]/Om_sum[m])),
+                    "lambda2_Omega_smg_using_accepted":float(np.median(Om_smg[m])*18.40625**2),
+                    "lambda2_Omega_fld_using_accepted":float(np.median(Om_fld[m])*18.40625**2),
                     "lambda_sum_median":float(np.median(lv)),
                     "lambda_sum_min":float(np.min(lv)),
                     "lambda_sum_max":float(np.max(lv))
