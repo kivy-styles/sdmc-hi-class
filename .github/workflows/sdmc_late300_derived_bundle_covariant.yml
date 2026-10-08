@@ -271,39 +271,6 @@ jobs:
           Path('output/linear_cov_boltzmann_comparison.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
           PY
 
-      - name: Action-derived N, Km and Kp audit
-        if: always()
-        run: |
-          python3 sdmc/run_late300_structural_composite_audit.py
-
-      - name: Action-level activation factorization audit
-        if: always()
-        run: |
-          python3 sdmc/run_late300_activation_factorization_audit.py
-
-      - name: Local decoupling-limit screening proxy
-        if: always()
-        run: |
-          python3 sdmc/run_late300_local_screening_proxy.py
-
-      - name: Self-consistent baryon/recombination sensitivity sweep
-        if: always()
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          base=Path('output/linear_cov_free.ini').read_text()
-          omega0=0.022083219194622913
-          for tag,factor in [('b090',0.90),('b095',0.95),('b100',1.00),('b105',1.05),('b110',1.10)]:
-              txt=base
-              txt=txt.replace(f'omega_b = {omega0}',f'omega_b = {omega0*factor:.17g}')
-              txt=txt.replace('root = output/linear_cov_free_',f'root = output/obscan_{tag}_')
-              txt='\n'.join(line for line in txt.splitlines() if not line.startswith('output = '))
-              txt=txt.replace('lensing = yes','lensing = no')
-              Path(f'output/obscan_{tag}.ini').write_text(txt+'\n')
-          PY
-          for tag in b090 b095 b100 b105 b110; do
-            ./class output/obscan_${tag}.ini > output/obscan_${tag}.log 2>&1
-          done
       - name: Preserve audit
         if: always()
         uses: actions/upload-artifact@v4
