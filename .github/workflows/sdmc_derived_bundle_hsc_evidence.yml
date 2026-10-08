@@ -1,0 +1,98 @@
+name: SDMC derived-bundle HSC nested evidence
+
+on:
+  push:
+    branches: [sdmc-late300-derived-bundle-model-selection]
+    paths:
+      - '.github/workflows/sdmc_derived_bundle_hsc_evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import validated HSC evidence scripts
+        run: |
+          git fetch origin sdmc-late300-hsc-evidence-local-retry:refs/remotes/origin/sdmc-late300-hsc-evidence-local-retry
+          for f in             sdmc/run_late300_desy3_weyl_tomography.py             sdmc/run_late300_hscy3_weyl.py             sdmc/run_late300_hsc_react_cutscan.py             sdmc/run_late300_hsc_react_fullfit.py
+          do
+            git show origin/sdmc-late300-hsc-evidence-local-retry:$f > $f
+          done
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy sacc dynesty
+
+      - name: Recover derived-bundle Weyl and ReACT products
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output output/react_dense baseline
+          gh run download 37762830727 --repo "${{ github.repository }}"             --name derived-bundle-native-weyl --dir output
+          gh run download 37763161878 --repo "${{ github.repository }}"             --name derived-bundle-react-exact --dir output/react_dense
+          gh run download 37693333670 --repo "${{ github.repository }}"             --name hsc-evidence-local021 --dir baseline
+          test -d output/weyl_spectra
+          test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
+
+      - name: Download HSC-Y3 public products
+        run: |
+          rm -rf cosmosis-standard-library
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+
+      - name: Run derived-bundle conditional nuisance evidence
+        run: |
+          python3 sdmc/run_late300_hsc_react_fullfit.py late300 | tee output/derived_bundle_hsc_evidence.log
+
+      - name: Compare against converged local021 evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,math
+          d=json.loads(Path("output/hsc_conditional_evidence/late300.json").read_text())
+          hits=list(Path("baseline").rglob("local021.json"))
+          if len(hits)!=1:
+              raise RuntimeError(f"local021 comparator ambiguity: {hits}")
+          l=json.loads(hits[0].read_text())
+          ld=float(d["logZ_shared_data_normalization_omitted"])
+          ll=float(l["logZ_shared_data_normalization_omitted"])
+          delta=ld-ll
+          err=math.hypot(float(d["logZerr"]),float(l["logZerr"]))
+          out={
+            "status":"conditional HSC Bayes factor for no-fit derived structural bundle",
+            "logZ_derived_bundle":ld,
+            "logZerr_derived_bundle":float(d["logZerr"]),
+            "logZ_local021":ll,
+            "logZerr_local021":float(l["logZerr"]),
+            "delta_logZ_derived_minus_local021":delta,
+            "delta_logZ_error_quadrature":err,
+            "BF_derived_over_local021":math.exp(max(-700,min(700,delta))),
+            "derived_converged":not bool(d["terminated_by_maxcall"]),
+            "local021_converged":not bool(l["terminated_by_maxcall"]),
+            "qualification":"Fixed derived structural cosmology; HSC nuisance coordinates marginalized. Full SDMC family prior volume is not included."
+          }
+          Path("output/derived_bundle_hsc_bayes.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("DERIVED_BUNDLE_HSC_BAYES",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: derived-bundle-hsc-evidence
+          path: |
+            output/hsc_conditional_evidence/*
+            output/derived_bundle_hsc_evidence.log
+            output/derived_bundle_hsc_bayes.json
+          if-no-files-found: warn
