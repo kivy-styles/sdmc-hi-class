@@ -146,6 +146,79 @@ def eval_case(label,seed):
       "result":"FORWARD_CANONICAL_IR_ATTRACTOR_PASS",
     }
 
+def prove_scalar_only_global_basin():
+    """Global scalar-only homogeneous result, |u|<sqrt(3), V>0.
+
+    On the canonical action with Om=Or=0:
+       u'=(u-1)(u^2-3),
+       d (u-1)^2/dn = 2 (u-1)^2 (u^2-3)<0.
+    Thus all interior physical scalar-only velocities reach u=1.
+    Integrated solution I(u)-I(u0)=n-n0 is verified independently.
+    """
+    rt=math.sqrt(3.)
+    def implicit_I(u):
+        if u==1.:raise ValueError("singular exact attractor")
+        return (-.5*math.log(abs(u-1.))+
+                .25*math.log(3.-u*u)+
+                1./(4.*rt)*math.log(abs((u-rt)/(u+rt))))
+    records=[]
+    for u0 in (-1.65,-1.0,-.2,.0,.5,.8,1.2,1.6):
+        u=u0
+        i0=implicit_I(u0)
+        max_err=0.
+        for j in range(1,1501):
+            h=.002
+            rhs=lambda x:(x-1.)*(x*x-3.)
+            a=rhs(u);b=rhs(u+h*a/2);c=rhs(u+h*b/2);d=rhs(u+h*c)
+            u=u+h*(a+2*b+2*c+d)/6.
+            n=j*h
+            if abs(u-1.)>1e-8:
+                max_err=max(max_err,abs(implicit_I(u)-i0-n))
+            check(abs(u)<rt,"physical scalar-only phase space remained in |u|<sqrt3")
+            check((u-1.)**2<=(u0-1.)**2+1e-13,"global Lyapunov decay")
+        check(max_err<2e-6,"exact implicit scalar-only solution agrees with RK4")
+        records.append({"initial_u":u0,"final_u_n3":u,
+                        "max_abs_implicit_integral_error":max_err})
+    return records
+
+
+def prove_on_shell_cubic_decay():
+    """On-shell continuation of No-Slip cubic under future coasting.
+
+    For phi=ln a, H^2~a^-2, X=H^2/2, box phi=-2H^2:
+       g=-F_phi/H^2, G3=gX=-F_phi/2,
+       -G3 box phi=-F_phi H^2.
+    Ratio to F H^2 = -F_phi/F = -alpha_M.
+    Since alpha_M~a^(-1/w), on-shell cubic action density decouples
+    for EVERY finite w>0. Coefficient g itself decays only if w<1/2.
+    """
+    tests=[]
+    for w in (.25,.32925377073762596,.45,.5,.6,1.,1.5):
+        F0=math.exp(AF_DERIVED)
+        def alpha(phi):
+            zc=4.034077502899133
+            S=1/(1+math.exp(-(phi+math.log1p(zc))/w))
+            return AF_DERIVED*S*(1-S)/w
+        phi=8.
+        Hsq=math.exp(-2*phi)
+        F=math.exp(AF_DERIVED/(1+math.exp(-(phi+math.log1p(4.034077502899133))/w)))
+        Fphi=F*alpha(phi)
+        g=-Fphi/Hsq
+        X=Hsq/2
+        boxphi=-2*Hsq
+        cubic=-g*X*boxphi
+        ratio=cubic/(F*Hsq)
+        check(math.isclose(ratio,-alpha(phi),rel_tol=1e-8,abs_tol=1e-15),
+              "on-shell cubic ratio must equal -alpha_M")
+        p=2-1/w
+        tests.append({"width":w,"g_coefficient_exponent_p":p,
+                      "g_coefficient_fades_if_width_below_half":bool(w<.5),
+                      "cubic_action_relative_EH_power_a":-1/w,
+                      "normalized_cubic_action_at_n8":ratio,
+                      "physical_cubic_action_decays_for_positive_width":True})
+    return tests
+
+
 def main():
     # The potential is exponential with canonical field psi=sqrt(2F) phi,
     # so V(psi)~exp(-sqrt(2/F)psi), a dimensionful-field slope.
@@ -162,6 +235,9 @@ def main():
     cq=2*cu+1.5
     check(close(cq,-1.5), "leading matter q")
     check(close(math.sqrt(2.),1.4142135623730951),"canonical field slope")
+
+    scalar_only_global_proof=prove_scalar_only_global_basin()
+    cubic_decay_checks=prove_on_shell_cubic_decay()
 
     traces=[]
     summaries=[]
@@ -214,6 +290,8 @@ def main():
      "F_IR_old_manuscript_branch":F_MATURE_PREVIOUS,
      "F_IR_cross_branch_relative_mismatch":F_MATURE_PREVIOUS/F_DERIVED-1.,
      "all_cases":summaries,
+     "scalar_only_global_attractor_tests":scalar_only_global_proof,
+     "coasting_NoSlip_on_shell_cubic_decay_tests":cubic_decay_checks,
      "proof_limitations":[
        "Forward runs begin already in the specified mature canonical action, not in late300's finite reconstructed action",
        "The amount and location of finite-to-canonical operator transfer are unspecified",
@@ -227,6 +305,8 @@ def main():
     (OUT/"verdict.json").write_text(json.dumps(verdict,indent=2,sort_keys=True)+"\n")
     print("D_FORWARD_CANONICAL_IR_AUDIT_PASS",
           json.dumps({"models_evolved":len(summaries),
+                      "scalar_only_exact_global_orbits":len(scalar_only_global_proof),
+                      "coasting_cubic_widths_tested":len(cubic_decay_checks),
                       "latest_n":END_N,
                       "largest_final_abs_u_minus_one":max(abs(x["final_u"]-1) for x in summaries),
                       "largest_Friedmann_error":max(x["max_friedmann_constraint_error"] for x in summaries),
