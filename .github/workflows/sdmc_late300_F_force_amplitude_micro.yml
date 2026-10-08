@@ -1,0 +1,120 @@
+name: SDMC late300 force-window amplitude micro-refine
+
+on:
+  push:
+    branches: [sdmc-late300-F-force-amplitude-micro]
+    paths:
+      - '.github/workflows/sdmc_late300_F_force_amplitude_micro.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        AF: [0.02049,0.02050,0.02052,0.02054,0.02056,0.02060,0.02070,0.02080,0.02090]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies and patches
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential >/dev/null
+          python3 -m pip install --upgrade pip >/dev/null
+          python3 -m pip install numpy scipy >/dev/null
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          python3 sdmc/patch_F_only_force_center.py
+          make clean >/dev/null && make -j2 class >/dev/null
+      - name: Run force-derived window
+        run: |
+          mkdir -p output
+          cat > output/test.ini <<EOF
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = ${{ matrix.AF }}, 4.034077502899133, 0.32925377073762596, 0.34231919445927034, 1.0, 0.05181542627513409
+          expansion_model = sdmc_full
+          expansion_smg = 0.7014079815036496, 18.40625, 16.19317622240633, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output =
+          write background = yes
+          root = output/test_
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          set +e
+          ./class output/test.ini > output/run.log 2>&1
+          echo $? > output/rc
+          set -e
+      - name: Summarize
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,numpy as np
+          AF=float("${{ matrix.AF }}"); rc=int(Path("output/rc").read_text())
+          log=Path("output/run.log").read_text(errors="replace")
+          out={"A_F":AF,"z_c":4.034077502899133,"width":0.32925377073762596,"returncode":rc}
+          bg=Path("output/test_00_background.dat")
+          if bg.exists():
+              ls=bg.read_text().splitlines()
+              hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr); names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(bg); d={n:a[:,i] for i,n in enumerate(names)}
+              z=d["z"]; cs=d["c_s^2"]; D=d["kin (D)"]; F=d["M*^2_smg"]
+              i=int(np.argmin(cs))
+              out.update(success=True,min_cs2=float(cs[i]),z_at_min_cs2=float(z[i]),min_D=float(np.min(D)),
+                         F_today=float(F[np.argmin(np.abs(z))]),F_max=float(np.max(F)))
+          else:
+              out["success"]=False
+              g=re.search(r"minimum c_s\^2=([^ ]+) at a=([^\s]+)",log)
+              if g:
+                  aa=float(g.group(2)); out.update(min_cs2_reported=float(g.group(1)),a_failure=aa,z_failure=1/aa-1)
+          Path("output/summary.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("F_FORCE_AMPLITUDE_SCAN",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: F-force-AF-${{ matrix.AF }}
+          path: |
+            output/summary.json
+            output/run.log
