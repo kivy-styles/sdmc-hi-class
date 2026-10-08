@@ -1,0 +1,47 @@
+name: SDMC late300 kinetic correction causal scan
+
+on:
+  push:
+    branches: [sdmc-late300-AF-D0-stability-map]
+    paths:
+      - '.github/workflows/sdmc_late300_D0_correction_causality_scan.yml'
+      - 'sdmc/run_late300_D0_correction_causality_scan.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  corrective-causal-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies and compile SDMC/hi_class
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential >/dev/null
+          python3 -m pip install numpy >/dev/null
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          python3 sdmc/patch_F_only_force_center.py
+          make clean >/dev/null && make -j2 class >/dev/null
+          python3 -m py_compile sdmc/run_late300_D0_correction_causality_scan.py
+      - name: Scan actual corrective D0 amplitudes and sound speed
+        run: |
+          python3 sdmc/run_late300_D0_correction_causality_scan.py
+      - name: Preserve full causal scan and necessary bound
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-D0-correction-causality-scan
+          path: output/D0_correction_causality/causal_scan.json
+          if-no-files-found: warn
