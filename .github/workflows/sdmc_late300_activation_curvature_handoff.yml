@@ -1,0 +1,149 @@
+name: SDMC late300 activation-curvature handoff audit
+
+on:
+  push:
+    branches: [sdmc-late300-activation-curvature-handoff]
+    paths:
+      - '.github/workflows/sdmc_late300_activation_curvature_handoff.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover free covariant background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Audit activation curvature landmarks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+          from scipy.interpolate import UnivariateSpline
+
+          bg=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
+          lines=bg.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          arr=np.loadtxt(bg)
+          if arr.ndim==1:arr=arr[None,:]
+          d={n:arr[:,i] for i,n in enumerate(names)}
+
+          z=np.asarray(d["z"],float)
+          N=-np.log1p(z)
+          o=np.argsort(N); z=z[o]; N=N[o]
+          H=np.asarray(d["H [1/Mpc]"],float)[o]
+          tG=np.asarray(d["proper time [Gyr]"],float)[o]
+          F=np.asarray(d["M*^2_smg"],float)[o]
+          aM=np.asarray(d["M2_running_smg"],float)[o]
+          Om=np.asarray(d["Omega_m(z)"],float)[o]
+          Or=np.asarray(d["Omega_r(z)"],float)[o]
+
+          Mpc_c_Gyr=0.003261563777
+          p=1/(H*(tG/Mpc_c_Gyr))
+          H0=float(H[np.argmin(np.abs(z))]); E=H/H0
+          Om0=float(Om[np.argmin(np.abs(z))]); Or0=float(Or[np.argmin(np.abs(z))])
+          a=np.exp(N)
+          rhoX=E*E*F*(1+aM)-Om0*a**-3-Or0*a**-4
+          good=(rhoX>0)&np.isfinite(rhoX)&np.isfinite(p)
+          idx=np.where(good)[0]
+          # largest contiguous good block
+          groups=np.split(idx,np.where(np.diff(idx)>1)[0]+1)
+          g=max(groups,key=len)
+          Ng=N[g]; zg=z[g]; pg=p[g]; rg=rhoX[g]
+          # exact-ish spline derivatives on dense native grid; tiny smoothing to suppress differencing noise
+          splr=UnivariateSpline(Ng,np.log(rg),s=1e-10*len(Ng),k=5)
+          pX=-0.5*splr.derivative(1)(Ng)
+          splp=UnivariateSpline(Ng,pg,s=1e-12*len(Ng),k=5)
+          pfit=splp(Ng)
+          Achi=2*(pfit-pX)
+          sA=UnivariateSpline(Ng,Achi,s=1e-8*len(Ng),k=5)
+          A=sA(Ng); A1=sA.derivative(1)(Ng); A2=sA.derivative(2)(Ng); A3=sA.derivative(3)(Ng)
+          sX=UnivariateSpline(Ng,pX,s=1e-8*len(Ng),k=5)
+          X1=sX.derivative(1)(Ng); X2=sX.derivative(2)(Ng); X3=sX.derivative(3)(Ng)
+
+          m=(zg>=8)&(zg<=40)
+          ii=np.where(m)[0]
+
+          def point(i):
+              return {"z":float(zg[i]),"ln_a":float(Ng[i]),"Achi":float(A[i]),"dA":float(A1[i]),
+                      "d2A":float(A2[i]),"d3A":float(A3[i]),"p":float(pfit[i]),"pX":float(pX[i]),
+                      "dpX":float(X1[i]),"d2pX":float(X2[i]),"d3pX":float(X3[i])}
+
+          features={}
+          for name,vec,mode in [
+              ("Achi_min",A,"min"),
+              ("max_abs_dAchi",np.abs(A1),"max"),
+              ("max_positive_d2Achi",A2,"max"),
+              ("min_d2Achi",A2,"min"),
+              ("max_abs_d2Achi",np.abs(A2),"max"),
+              ("max_abs_d3Achi",np.abs(A3),"max"),
+              ("max_abs_dpX",np.abs(X1),"max"),
+              ("max_abs_d2pX",np.abs(X2),"max"),
+              ("max_positive_d2pX",X2,"max"),
+              ("min_d2pX",X2,"min")]:
+              jj=ii[np.argmax(vec[ii])] if mode=="max" else ii[np.argmin(vec[ii])]
+              features[name]=point(jj)
+
+          # zero crossings of second derivatives (inflections)
+          def zeros(vec):
+              out=[]
+              for k in ii[:-1]:
+                  if not m[k+1]: continue
+                  y0,y1=vec[k],vec[k+1]
+                  if y0==0 or y0*y1<0:
+                      frac=0 if y0==0 else -y0/(y1-y0)
+                      nn=Ng[k]+frac*(Ng[k+1]-Ng[k])
+                      out.append({"ln_a":float(nn),"z":float(math.exp(-nn)-1)})
+              return out
+          features["Achi_inflections"]=zeros(A2)
+          features["pX_inflections"]=zeros(X2)
+
+          # accepted z_t from target ini
+          ini=next(Path("recovered").rglob("linear_cov_target.ini"))
+          zt=None
+          for raw in ini.read_text().splitlines():
+              q=raw.split("#",1)[0].strip()
+              if q.startswith("expansion_smg") and "=" in q:
+                  vals=[float(x.strip()) for x in q.split("=",1)[1].split(",")]
+                  zt=vals[2]; break
+          nn=-math.log1p(zt)
+          # interpolate diagnostics at accepted zt
+          accepted={
+            "z":zt,"ln_a":nn,
+            "Achi":float(sA(nn)),
+            "dA":float(sA.derivative(1)(nn)),
+            "d2A":float(sA.derivative(2)(nn)),
+            "d3A":float(sA.derivative(3)(nn)),
+            "p":float(splp(nn)),
+            "pX":float(sX(nn)),
+            "dpX":float(sX.derivative(1)(nn)),
+            "d2pX":float(sX.derivative(2)(nn)),
+            "d3pX":float(sX.derivative(3)(nn))
+          }
+
+          out={"status":"activation-curvature structural handoff audit",
+               "accepted_z_t_sample":accepted,
+               "features":features}
+          Path("output/activation_curvature_handoff.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("ACTIVATION_CURVATURE_HANDOFF",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: activation-curvature-handoff
+          path: output/activation_curvature_handoff.json
