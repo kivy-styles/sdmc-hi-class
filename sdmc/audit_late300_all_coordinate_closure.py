@@ -216,6 +216,40 @@ def audit():
          "missing":"UV/activation-curvature dynamics independent of the already chosen handoff ansatz"}
     tests.append("handoff midpoint tautology is not a selector")
 
+    # Re-read completed 8-helper curvature-root job diagnostics from
+    # github.com/kivy-styles/sdmc-hi-class/actions/runs/37763535074.
+    # A given helper produces several curvature-derivative zeros.
+    # A near-match must not be mistaken for a unique microscopic transition.
+    handoff_scan=[
+      (16.738,16.74298834420653),
+      (16.74,16.741331979409132),
+      (16.742,16.741843194390437),
+      (16.7422,16.74217300780501),
+      (16.7423,16.743144040965365),
+      (16.7424,16.74275794986044),
+      (16.744,16.74272969535322),
+      (16.746,16.742235841754663),
+    ]
+    roots=[item[1] for item in handoff_scan]
+    resids=[item[1]-item[0] for item in handoff_scan]
+    sign_reversals=sum((resids[j]>=0)!=(resids[j-1]>=0) for j in range(1,len(resids)))
+    need(len(handoff_scan)==8 and sign_reversals>=2, "curvature-root diagnostics")
+    d["handoff_fixedpoint_root_robustness"]={
+       "source_workflow_run":37763535074,
+       "helper_root_pairs":handoff_scan,
+       "selected_root_min_over_scan":min(roots),
+       "selected_root_max_over_scan":max(roots),
+       "root_spread":max(roots)-min(roots),
+       "nearby_root_minus_helper_min":min(resids),
+       "nearby_root_minus_helper_max":max(resids),
+       "root_residual_sign_changes":sign_reversals,
+       "other_curvature_derivative_roots_at_helper_16p7422":[29.61244254821877,11.30344270081078],
+       "conclusion":"The observed curvature-derivative map has several event roots and numerical variation across nearby helper inputs. The 16.742... event is a reproducible candidate, but 8-figure unique physical selection is not established.",
+       "clarification":"Other event roots at fixed helper are not proven additional fixed points; they are different zeros of the curvature diagnostic.",
+    }
+    tests.append("handoff root multiplicity and numerical sensitivity")
+
+
     # Late lobes: exactly invertible once the H/Hflat residual is *given*,
     # but those residual anchors encode observational or additional
     # action-dependent background information.
