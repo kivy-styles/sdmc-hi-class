@@ -60,9 +60,23 @@ jobs:
               return {"median":float(np.median(y)),"mean":float(np.mean(y)),
                       "min":float(np.min(y)),"max":float(np.max(y))}
 
+          windows={}
+          for lo,hi in [(1e3,1e4),(1e4,1e5),(1e5,1e6),(1e6,1e7),(1e7,5e7)]:
+              m=(z>=lo)&(z<hi)&(Om_sum>0)
+              if np.sum(m):
+                  lv=np.sqrt(4/Om_sum[m])
+                  windows[f"{lo:g}_{hi:g}"]={
+                    "n":int(np.sum(m)),
+                    "Omega_sum_median":float(np.median(Om_sum[m])),
+                    "lambda_sum_median":float(np.median(lv)),
+                    "lambda_sum_min":float(np.min(lv)),
+                    "lambda_sum_max":float(np.max(lv))
+                  }
+
           out={
             "status":"combined free-action early tracker fraction audit",
             "accepted_lambda_e":18.40625,
+            "radiation_windows":windows,
             "radiation":{
               "Omega_smg":stats(Om_smg,rad),"Omega_fld":stats(Om_fld,rad),"Omega_sum":stats(Om_sum,rad),
               "lambda_from_smg":lam(Om_smg,4,rad),
