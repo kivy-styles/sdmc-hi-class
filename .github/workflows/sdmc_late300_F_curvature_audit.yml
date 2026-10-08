@@ -130,7 +130,88 @@ jobs:
           Path("output/F_curvature_diagnostic.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
           print("F_CURVATURE_DIAGNOSTIC",json.dumps(out,sort_keys=True))
           PY
+
+      - name: Evaluate exact Shift curvature decomposition
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+          from scipy.interpolate import CubicSpline
+
+          bg=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
+          lines=bg.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\\s)1\\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\\d+)\\s*:\\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(bg)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+          required=["z","H [1/Mpc]","M*^2_smg","M2_running_smg","Shift","phi_smg"]
+          miss=[x for x in required if x not in d]
+          if miss: raise RuntimeError(f"missing {miss}; names={names}")
+
+          z=np.asarray(d["z"],float)
+          N=-np.log1p(z)
+          o=np.argsort(N)
+          z=z[o]; N=N[o]
+          H=np.asarray(d["H [1/Mpc]"],float)[o]
+          F=np.asarray(d["M*^2_smg"],float)[o]
+          alphaM=np.asarray(d["M2_running_smg"],float)[o]
+          Shift=np.asarray(d["Shift"],float)[o]
+          phi=np.asarray(d["phi_smg"],float)[o]
+
+          # General F_phi = (dF/dN)/(dphi/dN), so this does not assume dphi/dN=1.
+          dFdN=np.gradient(F,N,edge_order=2)
+          dphidN=np.gradient(phi,N,edge_order=2)
+          Fphi=np.divide(dFdN,dphidN,out=np.full_like(F,np.nan),where=np.abs(dphidN)>1e-12)
+          h=np.gradient(np.log(H),N,edge_order=2)
+          Ric=6*H*H*(2+h)
+          curvature=0.5*Fphi*Ric
+          remainder=Shift-curvature
+          CR=np.divide(np.abs(curvature),np.abs(remainder),
+                       out=np.full_like(curvature,np.nan),where=np.abs(remainder)>1e-30)
+
+          ini=next(Path("recovered").rglob("linear_cov_target.ini"))
+          zc=None
+          for raw in ini.read_text().splitlines():
+              q=raw.split("#",1)[0].strip()
+              if q.startswith("parameters_smg") and "=" in q:
+                  vals=[float(x.strip()) for x in q.split("=",1)[1].split(",")]
+                  zc=vals[1]; break
+          if zc is None: raise RuntimeError("zc not recovered")
+
+          m=(z>=0.05)&(z<=20)&np.isfinite(CR)&(CR>0)
+          ids=np.where(m)[0]
+          y=np.log(CR)
+          crossings=[]
+          for i in ids[:-1]:
+              if not m[i+1]: continue
+              if np.isfinite(y[i]) and np.isfinite(y[i+1]) and y[i]*y[i+1]<=0 and y[i]!=y[i+1]:
+                  f=-y[i]/(y[i+1]-y[i])
+                  nn=N[i]+f*(N[i+1]-N[i])
+                  crossings.append({"ln_a":float(nn),"z":float(math.exp(-nn)-1)})
+          closest=min(crossings,key=lambda r:abs(r["z"]-zc)) if crossings else None
+          j=int(np.argmin(np.abs(z-zc)))
+          out={
+            "status":"exact covariant Shift decomposition of curvature versus intrinsic+kinetic/braiding scalar force",
+            "accepted_z_c":zc,
+            "at_zc":{"z":float(z[j]),"CR_exact_shift":float(CR[j]),
+                     "curvature":float(curvature[j]),"remainder":float(remainder[j]),
+                     "dphi_dlnA":float(dphidN[j])},
+            "CR_equals_1_crossings":crossings,
+            "closest_crossing_to_zc":closest,
+            "relative_z_difference":None if closest is None else float(closest["z"]/zc-1),
+            "caution":"The action being decomposed was reconstructed from the accepted late300 trajectory. A close crossing supplies a physical origin criterion inside that action, but is not yet a UV first-principles prediction of F."
+          }
+          Path("output/F_curvature_exact_shift.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\\n")
+          print("F_CURVATURE_EXACT_SHIFT",json.dumps(out,sort_keys=True))
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: F-curvature-diagnostic
-          path: output/F_curvature_diagnostic.json
+          path: |
+            output/F_curvature_diagnostic.json
+            output/F_curvature_exact_shift.json
