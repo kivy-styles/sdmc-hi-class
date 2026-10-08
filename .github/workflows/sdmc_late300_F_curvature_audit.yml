@@ -141,8 +141,8 @@ jobs:
 
           bg=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
           lines=bg.read_text().splitlines()
-          hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\\s)1\\s*:",x)][-1].lstrip("#").strip()
-          ms=list(re.finditer(r"(\\d+)\\s*:\\s*",hdr)); names=[]
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
           for i,m in enumerate(ms):
               e=ms[i+1].start() if i+1<len(ms) else len(hdr)
               names.append(hdr[m.end():e].strip())
