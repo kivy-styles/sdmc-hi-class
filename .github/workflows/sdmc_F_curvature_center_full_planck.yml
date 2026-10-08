@@ -1,0 +1,59 @@
+name: SDMC F-curvature-center exact full Planck gate
+
+on:
+  push:
+    branches: [sdmc-late300-F-curvature-center-test]
+    paths:
+      - '.github/workflows/sdmc_F_curvature_center_full_planck.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-planck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Replay accepted exact full-Planck workflow with curvature handoff
+        run: |
+          python3 -m pip install -q pyyaml
+          git fetch --depth=1 origin sdmc-g022-a034-exact-fullplik
+          git show FETCH_HEAD:.github/workflows/sdmc_r032_edge024_qbest_covariant_full_plik.yml > /tmp/late300_fullplanck.yml
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,subprocess,yaml
+          s=Path("/tmp/late300_fullplanck.yml").read_text()
+          old="3.927876388467848"
+          new="4.03405284683505"
+          n=s.count(old)
+          if n < 2:
+              raise RuntimeError(f"expected >=2 z_c occurrences, found {n}")
+          s=s.replace(old,new)
+          s=s.replace("SDMC_COVARIANT_G022_A034","SDMC_F_CURVATURE_CENTER")
+          s=s.replace("COVARIANT_G022_A034","F_CURVATURE_CENTER")
+          data=yaml.safe_load(s)
+          for step in data["jobs"]["fast-full-plik"]["steps"]:
+              script=step.get("run")
+              if not script: continue
+              env=os.environ.copy()
+              for k,v in (step.get("env") or {}).items(): env[str(k)]=str(v)
+              print(f"=== REPLAY STEP: {step.get('name','unnamed')} ===",flush=True)
+              subprocess.run(["bash","-lc",script],check=True,env=env)
+          PY
+      - name: Print full-Planck result
+        if: always()
+        run: |
+          cat output/fast_fullplik_delta.txt || true
+          cat output/fast_fullplik_profile.csv || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: F-curvature-center-full-planck
+          path: |
+            output/fast_fullplik_delta.txt
+            output/fast_fullplik_profile.csv
+          if-no-files-found: warn
