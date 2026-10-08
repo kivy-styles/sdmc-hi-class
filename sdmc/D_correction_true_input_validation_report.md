@@ -55,7 +55,18 @@ Run 37807287174 used candidate-specific rebuilt covariant spectra and the offici
 | Canonical floor | 329.524673102794 | 340.532403392675 | -11.007730 |
 | Combined canonical floor + 2pi/lambda | 329.524692885322 | 340.532403392527 | -11.007711 |
 
-The initial accepted-D and D0=2pi/lambda jobs failed **before likelihood evaluation** on external DESI HDF5 downloads (timeouts on DESI host, 404 on mirror). A failed-jobs-only rerun was started. These failures are unrelated to physical stability. Verify the rerun job results before declaring all DESI cases closed.
+The initial accepted-D and D0=2pi/lambda jobs failed **before likelihood evaluation** on external DESI HDF5 downloads (timeouts on DESI host, 404 on mirror). A failed-jobs-only rerun was initiated, and **all four matrix jobs completed successfully in attempt 2**, with real model-specific covariant-action spectra.
+
+Complete DESI results from the corrected attempt:
+
+| True covariant case | D0 | Dfloor | SDMC chi2 | LCDM fixed-control chi2 | Delta chi2 |
+|---|---:|---:|---:|---:|---:|
+| accepted_D | 0.34231919445927034 | 0.05181542627513409 | 329.541566860942 | 340.532403392642 | -10.990836531700 |
+| D0_2pi_lambda | 0.34136151074659893 | 0.05181542627513409 | 329.541183024805 | 340.532403380123 | -10.991220355317 |
+| floor_16_lambda2 | 0.34231919445927034 | 0.047226890271848634 | 329.524673102794 | 340.532403392675 | -11.007730289881 |
+| combined_2pi_floor | 0.34136151074659893 | 0.047226890271848634 | 329.524692885322 | 340.532403392527 | -11.007710507204 |
+
+The canonical floor modestly improves chi2 by about 0.0169 relative to accepted D in this fixed-control DESI comparison. Changing only D0 has a much smaller effect, approximately -0.00038. The successful retry and artifacts demonstrate that the earlier failures were **download/infrastructure failures rather than candidate physics failures**.
 
 Note: the control is fixed in this workflow; it is not demonstrated to be an independently reoptimized local021.
 
