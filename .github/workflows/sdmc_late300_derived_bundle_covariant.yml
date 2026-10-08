@@ -282,6 +282,7 @@ jobs:
             output/linear_cov_target_00_background.dat
             output/linear_cov_target_*thermodynamics.dat
             output/linear_cov_reconstruction_summary.txt
+            output/linear_cov_action_kinetic_coefficients.json
             output/linear_cov_free.ini
             output/linear_cov_free_file_inventory.txt
             output/linear_cov_free.log
