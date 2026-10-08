@@ -1,5 +1,5 @@
 name: SDMC late300 F curvature diagnostic
-# retrigger
+# retrigger exact-shift
 
 on:
   push:
