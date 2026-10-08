@@ -20,7 +20,7 @@ WIDTH=0.32925377073762596
 DFLOOR=0.05181542627513409
 ZT=16.742289660253434
 D0_ACCEPTED=0.34231919445927034
-D0_VALUES=[0.0005,0.005,0.015,0.03,0.05,0.075,0.10,0.15,0.20,0.25,0.30,D0_ACCEPTED,0.38]
+D0_VALUES=[0.0005,0.005,0.015,0.018,0.019,0.01915,0.01917,0.01918,0.0192,0.01925,0.0195,0.02,0.025,0.03,0.05,0.075,0.10,0.15,0.20,0.25,0.30,D0_ACCEPTED,0.38]
 INI="""H0 = 69.71482083084993
 omega_b = 0.022083219194622913
 omega_cdm = 0.12299536722293603
@@ -92,7 +92,12 @@ def main():
                 N=-np.log1p(z[mask])
                 order=np.argsort(N)
                 curves[d0]=(N[order], (D[mask]*c[mask])[order])
+                full=(np.isfinite(c)&np.isfinite(D))
                 rec.update({
+                    "min_cs2_all":float(np.min(c[full])),
+                    "max_cs2_all":float(np.max(c[full])),
+                    "subluminal_all":bool(np.min(c[full])>=0 and np.max(c[full])<=1),
+                    "z_max_cs2_all":float(z[full][np.argmax(c[full])]),
                     "min_cs2_z100":float(np.min(c[mask])),
                     "max_cs2_z100":float(np.max(c[mask])),
                     "min_D_z100":float(np.min(D[mask])),
@@ -101,6 +106,7 @@ def main():
                     "z_max_cs2":float(z[mask][np.argmax(c[mask])]),
                     "subluminal_z100":bool(np.min(c[mask])>=0 and np.max(c[mask])<=1),
                     "sample_count_z100":int(np.sum(mask)),
+                    "sample_count_all":int(np.sum(full)),
                 })
             except Exception as exc:
                 rec["parse_error"]=str(exc)
@@ -134,12 +140,27 @@ def main():
         "independence_caveat":"The sound-speed numerator must be demonstrated invariant, not simply assumed; see recorded differences across actual CLASS cases."
     }
     (OUT/"causal_scan.json").write_text(json.dumps(summary,indent=2,sort_keys=True)+"\n")
+    max_numerator_change=max((q.get("sound_numerator_rel_difference_max_vs_accepted",0.0) for q in records),default=0.0)
+    with_cs=sorted([q for q in records if "max_cs2_z100" in q],key=lambda q:q["D0"])
+    bracket=next(( (a,b) for a,b in zip(with_cs,with_cs[1:]) if a["max_cs2_z100"]>1.0>=b["max_cs2_z100"]),None)
+    numerical_bound=None
+    if bracket:
+        a,b=bracket
+        numerical_bound=a["D0"]+(1-a["max_cs2_z100"])*(b["D0"]-a["D0"])/(b["max_cs2_z100"]-a["max_cs2_z100"])
+    summary["numerical_bracket"]=[a["D0"],b["D0"]] if bracket else None
+    summary["numerical_interpolated_cs2_eq1"] = numerical_bound
+    summary["max_relative_sound_numerator_change_z100_vs_reference"]=max_numerator_change
+    (OUT/"causal_scan.json").write_text(json.dumps(summary,indent=2,sort_keys=True)+"\\n".replace("\\\\n","\\n"))
     print("D0_CAUSALITY_SCAN_SUMMARY",json.dumps({
         "n":len(records),
         "successful":sum(q.get("returncode")==0 for q in records),
         "superluminal":sum(not q.get("subluminal_z100",False) for q in records if "subluminal_z100" in q),
         "necessary_lower_D0":necessary,
         "causal_D0_values":[q["D0"] for q in records if q.get("subluminal_z100")],
+        "causal_D0_values_all_z":[q["D0"] for q in records if q.get("subluminal_all")],
+        "numerical_threshold_bracket":summary["numerical_bracket"],
+        "numerical_interpolated_threshold":numerical_bound,
+        "max_numerator_rel_difference_across_scan":max_numerator_change,
     },sort_keys=True))
 
 if __name__=="__main__":
