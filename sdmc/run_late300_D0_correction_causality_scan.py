@@ -17,6 +17,10 @@ OUT=Path("output/D0_correction_causality");OUT.mkdir(parents=True,exist_ok=True)
 AF=0.020520
 ZC=4.034077502899133
 WIDTH=0.32925377073762596
+# Independent-kinetic branch deliberately preserves the accepted D transition
+# while moving only F to the force-derived centre/width. See patch_F_only_force_center.py.
+D_ZC=3.927876388467848
+D_WIDTH=0.33114133956842123
 DFLOOR=0.05181542627513409
 ZT=16.742289660253434
 D0_ACCEPTED=0.34231919445927034
@@ -67,8 +71,8 @@ def read_bg(path):
 
 def S_for_z(z):
     N=-np.log1p(z)
-    Nc=-np.log1p(ZC)
-    u=(N-Nc)/WIDTH
+    Nc=-np.log1p(D_ZC)
+    u=(N-Nc)/D_WIDTH
     return 1/(1+np.exp(-np.maximum(-700,np.minimum(700,u))))
 
 def main():
@@ -117,6 +121,10 @@ def main():
 
     if D0_ACCEPTED not in curves:
         raise RuntimeError("The accepted benchmark did not produce a background curve")
+    accepted_row=next(q for q in records if q["D0"]==D0_ACCEPTED)
+    expected_D0=DFLOOR + D0_ACCEPTED*float(S_for_z(np.asarray([0.]))[0])
+    if abs(expected_D0-accepted_row["D_z0"])>1e-9:
+        raise AssertionError(f"D-window mismatch: analytic D(0)={expected_D0}, native hi_class D(0)={accepted_row['D_z0']}")
     Nr,Nsr=curves[D0_ACCEPTED]
     zref=np.expm1(-Nr)
     Ss=S_for_z(zref)
@@ -133,11 +141,13 @@ def main():
     summary={
         "status":"hi_class numerical D0 correction causal bound audit",
         "theory_equation":"D=Dfloor+D0*S; c_s^2=N_s/D. For N_s>0 and S>0, subluminality requires D0 >= max_N ((N_s-Dfloor)/S), if N_s does not depend on D0.",
-        "AF":AF,"zc":ZC,"width":WIDTH,"Dfloor":DFLOOR,"z_t":ZT,
+        "AF":AF,"F_zc":ZC,"F_width":WIDTH,
+        "D_zc":D_ZC,"D_width":D_WIDTH,"Dfloor":DFLOOR,"z_t":ZT,
         "accepted_D0":D0_ACCEPTED,"records":records,
         "necessary_lower_D0_from_reference_numerator_and_subluminality_z100":necessary,
         "warning":"This is a conditional bound inferred from the already-selected background and Planck-mass trajectory. A bound is not a unique kinetic-correction prediction.",
-        "independence_caveat":"The sound-speed numerator must be demonstrated invariant, not simply assumed; see recorded differences across actual CLASS cases."
+        "independence_caveat":"The sound-speed numerator must be demonstrated invariant, not simply assumed; see recorded differences across actual CLASS cases.",
+        "window_provenance":"The force-derived F-window uses zc=4.0340775, width=0.32925377, but the kinetic correction D-window retains historical zc=3.92787639, width=0.33114134 in patch_F_only_force_center.py. Do not interchange them."
     }
     max_numerator_change=max((q.get("sound_numerator_rel_difference_max_vs_accepted",0.0) for q in records),default=0.0)
     with_cs=sorted([q for q in records if "max_cs2_z100" in q],key=lambda q:q["D0"])
