@@ -103,10 +103,7 @@ jobs:
           p=Path("sdmc/run_late300_linear_covariant.py")
           s=p.read_text()
           old="Dtarget=DFLOOR+D0*S**POWER"
-          new="""NcD=-np.log1p(3.927876388467848)
-xxD=(N-NcD)/(2.*0.33114133956842123)
-SD=.5*(1.+np.tanh(xxD))
-Dtarget=DFLOOR+D0*SD**POWER"""
+          new="NcD=-np.log1p(3.927876388467848)\\nxxD=(N-NcD)/(2.*0.33114133956842123)\\nSD=.5*(1.+np.tanh(xxD))\\nDtarget=DFLOOR+D0*SD**POWER"
           if old not in s: raise RuntimeError("Dtarget anchor missing")
           p.write_text(s.replace(old,new,1))
           print("DERIVED_BUNDLE_COVARIANT_D_WINDOW_PRESERVED")
