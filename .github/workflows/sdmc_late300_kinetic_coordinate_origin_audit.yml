@@ -1,0 +1,105 @@
+name: SDMC late300 kinetic-coordinate origin audit
+
+on:
+  push:
+    branches: [sdmc-late300-kinetic-coordinate-origin-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_kinetic_coordinate_origin_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover accepted late300 background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Audit kinetic coordinate origins
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+
+          cand=json.loads(Path("sdmc/late300_candidate.json").read_text())["parameters"]
+          bg=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
+          lines=bg.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          arr=np.loadtxt(bg)
+          if arr.ndim==1: arr=arr[None,:]
+          d={n:arr[:,i] for i,n in enumerate(names)}
+          z=np.asarray(d["z"],float)
+          j0=int(np.argmin(np.abs(z)))
+
+          lam=float(cand["lambda_e"])
+          Dfloor=float(cand["D_floor"]); D0=float(cand["D0"]); pD=float(cand["kinetic_power"])
+          AF=float(cand["A_F"])
+          Frad=16/(lam*lam)
+          Fmat=9/(lam*lam)
+
+          Dpresent=float(np.asarray(d["kin (D)"],float)[j0])
+          Fpresent=float(np.asarray(d["M*^2_smg"],float)[j0])
+          alphaM=np.asarray(d["M2_running_smg"],float)
+          zt=float(cand["z_t"])
+          jt=int(np.argmin(np.abs(z-zt)))
+          noslip_corr_zt=6*float(alphaM[jt])**2
+
+          S0=math.log(Fpresent)/AF
+          D0_from_present=(Dpresent-Dfloor)/(S0**pD)
+
+          Xi=math.sqrt(8*math.pi/3)
+          coincidence=(1/Xi)/math.sqrt(Fpresent)
+
+          out={
+            "status":"late300 kinetic coordinate origin audit",
+            "accepted":{"D_floor":Dfloor,"D0":D0,"pD":pD,"D_present":Dpresent,"F_present":Fpresent,"S0":S0},
+            "tracker":{
+              "D_rad_canonical":Frad,
+              "D_mat_canonical":Fmat,
+              "Dfloor_minus_Drad":Dfloor-Frad,
+              "Dfloor_fractional_excess_over_Drad":Dfloor/Frad-1,
+              "alphaM_at_zt":float(alphaM[jt]),
+              "noslip_6alphaM2_at_zt":noslip_corr_zt,
+              "offset_explained_fraction_by_noslip":noslip_corr_zt/(Dfloor-Frad)
+            },
+            "present_normalization":{
+              "D0_recovered_from_present_D":D0_from_present,
+              "relative_residual":(D0_from_present-D0)/D0
+            },
+            "discarded_shortcut":{
+              "Xi_inverse_over_sqrt_F0":coincidence,
+              "relative_difference_from_D0":(coincidence-D0)/D0,
+              "reason":"numerically close but no manuscript identity maps the late EFT D0 to the structural lapse normalization; mature canonical D tends to 2, so this is not accepted as a derivation"
+            },
+            "pD_status":{
+              "minimal_analytic_response":"pD=1 is the leading nonconstant Taylor response in one smooth structural order parameter",
+              "microscopic_theorem":False
+            },
+            "verdict":{
+              "D_floor":"not fully derived; canonical radiation tracker supplies a strong lower/anchor value but leaves a 9.7% noncanonical offset",
+              "D0":"reducible once present D is independently predicted; presently inherited through the reconstructed action",
+              "pD":"partly reducible by minimal analytic response, not yet unique microscopically"
+            }
+          }
+          Path("output/kinetic_coordinate_origin_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("KINETIC_COORDINATE_ORIGIN_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kinetic-coordinate-origin-audit
+          path: output/kinetic_coordinate_origin_audit.json
