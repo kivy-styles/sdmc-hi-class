@@ -1,8 +1,8 @@
-name: SDMC curvature-handoff Planck Plik-lite gate
+name: SDMC curvature-exact-handoff Planck Plik-lite gate
 
 on:
   push:
-    branches: [sdmc-late300-activation-min-handoff-test]
+    branches: [sdmc-late300-handoff-curvature-exact]
     paths:
       - '.github/workflows/sdmc_curvature_handoff_planck_pliklite.yml'
   workflow_dispatch:
@@ -42,7 +42,7 @@ jobs:
         run: |
           mkdir -p accepted output
           gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir accepted
-      - name: Run curvature-handoff candidate
+      - name: Run curvature-exact-handoff candidate
         run: |
           cat > output/curvature_handoff.ini <<'EOF'
           H0 = 69.71482083084993
@@ -64,7 +64,7 @@ jobs:
           gravity_model = sdmc_v3_independent_kinetic
           parameters_smg = 0.02048146490100771, 3.927876388467848, 0.33114133956842123, 0.34231919445927034, 1.0, 0.05181542627513409
           expansion_model = sdmc_full
-          expansion_smg = 0.7014079815036496, 18.40625, 16.78177310642457, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
+          expansion_smg = 0.7014079815036496, 18.40625, 16.718058803739734, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
           pert_initial_conditions_smg = zero
           method_qs_smg = fully_dynamic
           a_ini_over_a_today_default = 1.e-8
@@ -98,17 +98,17 @@ jobs:
       - name: Compare Plik-lite
         run: |
           ACC=$(find accepted -name linear_cov_target_00_cl_lensed.dat | head -1)
-          python3 sdmc/evaluate_planck_pliklite.py             --packages planck_packages             --output output/curvature_handoff_pliklite.csv             "ACCEPTED_LATE300=$ACC"             "CURVATURE_HANDOFF=output/curvature_handoff_00_cl_lensed.dat"
+          python3 sdmc/evaluate_planck_pliklite.py             --packages planck_packages             --output output/curvature_handoff_pliklite.csv             "ACCEPTED_LATE300=$ACC"             "CURVATURE_EXACT_HANDOFF=output/curvature_handoff_00_cl_lensed.dat"
           python3 - <<'PY'
           import pandas as pd,json
           d=pd.read_csv('output/curvature_handoff_pliklite.csv')
           print(d.to_string(index=False))
-          print("CURVATURE_HANDOFF_PLANCK_TABLE",json.dumps(d.to_dict(orient='records')))
+          print("CURVATURE_EXACT_HANDOFF_PLANCK_TABLE",json.dumps(d.to_dict(orient='records')))
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: curvature-handoff-planck-pliklite
+          name: curvature-exact-handoff-planck-pliklite
           path: |
             output/curvature_handoff_pliklite.csv
             output/curvature_handoff_00_cl_lensed.dat
