@@ -1,0 +1,151 @@
+name: SDMC late300 F-from-activation audit
+
+on:
+  push:
+    branches: [sdmc-late300-F-from-activation-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_F_from_activation_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover free covariant background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Test structural activation laws for F
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+          from scipy.integrate import cumulative_trapezoid
+
+          pth=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
+          lines=pth.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          arr=np.loadtxt(pth)
+          if arr.ndim==1: arr=arr[None,:]
+          d={n:arr[:,i] for i,n in enumerate(names)}
+
+          z=np.asarray(d["z"],float)
+          N=-np.log1p(z)
+          o=np.argsort(N)
+          z=z[o]; N=N[o]
+          H=np.asarray(d["H [1/Mpc]"],float)[o]
+          tG=np.asarray(d["proper time [Gyr]"],float)[o]
+          F=np.asarray(d["M*^2_smg"],float)[o]
+          alphaM=np.asarray(d["M2_running_smg"],float)[o]
+
+          Mpc_c_Gyr=0.003261563777
+          pchrono=1/(H*(tG/Mpc_c_Gyr))
+
+          H0=float(H[np.argmin(np.abs(z))]); E=H/H0
+          Om=np.asarray(d["Omega_m(z)"],float)[o]
+          Or=np.asarray(d["Omega_r(z)"],float)[o]
+          Om0=float(Om[np.argmin(np.abs(z))]); Or0=float(Or[np.argmin(np.abs(z))])
+          a=np.exp(N)
+
+          rhoX=E*E*F*(1+alphaM)-Om0*a**(-3)-Or0*a**(-4)
+          good=(rhoX>0)&np.isfinite(rhoX)
+          pX=np.full_like(rhoX,np.nan)
+          idx=np.where(good)[0]
+          if len(idx)>5:
+              groups=np.split(idx,np.where(np.diff(idx)>1)[0]+1)
+              for g in groups:
+                  if len(g)>=5:
+                      pX[g]=-0.5*np.gradient(np.log(rhoX[g]),N[g],edge_order=2)
+          Achi=2*(pchrono-pX)
+
+          # Integrate Achi=d ln chi/dN and normalize chi(today)=1.
+          gi=np.isfinite(Achi)
+          chi_rel=np.full_like(Achi,np.nan)
+          ids=np.where(gi)[0]
+          if len(ids)>10:
+              groups=np.split(ids,np.where(np.diff(ids)>1)[0]+1)
+              for g in groups:
+                  integ=np.r_[0,cumulative_trapezoid(Achi[g],N[g])]
+                  # normalize each contiguous group at its largest N to 1
+                  lchi=integ-integ[-1]
+                  chi_rel[g]=np.exp(lchi)
+
+          lnF=np.log(F)
+          dA=np.gradient(Achi,N,edge_order=2)
+
+          # Main F transition window.
+          m=(z>=0.3)&(z<=12)&np.isfinite(alphaM)&np.isfinite(Achi)&np.isfinite(chi_rel)&(chi_rel>0)
+          def fit_scale(x,y,mask):
+              xx=x[mask]; yy=y[mask]
+              den=float(np.dot(xx,xx))
+              if den<=0:return None
+              c=float(np.dot(xx,yy)/den)
+              r=yy-c*xx
+              return {"coef":c,"rms":float(np.sqrt(np.mean(r*r))),
+                      "max_abs":float(np.max(np.abs(r))),
+                      "corr":float(np.corrcoef(xx,yy)[0,1]) if len(xx)>2 else None}
+
+          # Test derivative-level candidate laws.
+          fits={
+            "alphaM_vs_Achi":fit_scale(Achi,alphaM,m),
+            "alphaM_vs_positive_Achi":fit_scale(np.maximum(Achi,0),alphaM,m),
+            "alphaM_vs_abs_dAchi":fit_scale(np.abs(dA),alphaM,m),
+            "alphaM_vs_dAchi":fit_scale(dA,alphaM,m),
+          }
+
+          # Integral-level power law lnF = c + gamma lnchi over transition.
+          mp=m&(chi_rel>0)
+          x=np.log(chi_rel[mp]); y=lnF[mp]
+          X=np.c_[np.ones(len(x)),x]
+          beta=np.linalg.lstsq(X,y,rcond=None)[0]
+          pred=X@beta
+          power={"intercept":float(beta[0]),"gamma":float(beta[1]),
+                 "rms_lnF":float(np.sqrt(np.mean((y-pred)**2))),
+                 "max_abs_lnF":float(np.max(np.abs(y-pred))),
+                 "corr":float(np.corrcoef(x,y)[0,1])}
+
+          # Landmark comparison.
+          imF=int(np.argmax(alphaM))
+          imA=np.where((z>=0.3)&(z<=12)&np.isfinite(Achi))[0]
+          iA=imA[np.argmax(Achi[imA])]
+          idA=imA[np.argmax(np.abs(dA[imA]))]
+
+          out={
+            "status":"test whether Planck-mass history can be generated from structural activation",
+            "accepted_F_landmarks":{
+              "alphaM_peak_z":float(z[imF]),"alphaM_peak":float(alphaM[imF]),
+              "F_today":float(F[np.argmin(np.abs(z))]),"lnF_today":float(lnF[np.argmin(np.abs(z))])
+            },
+            "activation_landmarks":{
+              "Achi_peak_z":float(z[iA]),"Achi_peak":float(Achi[iA]),
+              "abs_dAchi_peak_z":float(z[idA]),"dAchi":float(dA[idA])
+            },
+            "derivative_fits":fits,
+            "powerlaw_F_of_chi":power,
+            "interpretation_rule":{
+              "pass_powerlaw_if_rms_lnF_lt_1e-4":bool(power["rms_lnF"]<1e-4),
+              "pass_alphaM_Achi_if_rms_lt_1e-4":bool(fits["alphaM_vs_Achi"] and fits["alphaM_vs_Achi"]["rms"]<1e-4)
+            }
+          }
+          Path("output/F_from_activation_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("F_FROM_ACTIVATION_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: F-from-activation-audit
+          path: output/F_from_activation_audit.json
