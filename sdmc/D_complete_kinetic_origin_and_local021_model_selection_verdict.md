@@ -112,3 +112,50 @@ For any **specific shared likelihood**, Delta AIC=Delta chi2+2 Delta k and Delta
 Executable audit: sdmc/audit_D_physical_endpoint_and_joint_selection.py. GitHub Action **37830802991** passed eight test groups and archived JSON, conditional Planck/DESI CSV and kinetic handoff curves. Branch: sdmc-late300-D-covariant-true-inputs. Original accepted late300 benchmark unchanged.
 
 Proof runs: 37803894563 (action degeneracy), 37804665278 (corrected causal bound), 37807119146 (full Planck), 37807287174 (DESI), 37817678495 (independent replay), 37764900113/37764410555/37764359939 (local021 conditional evidence and TATT).
+
+
+## Addendum: source-guarded canonical covariant action-matching theorem (8 October 2026)
+
+**New completed test:** [GitHub run 37831641596](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/37831641596), eight checks successful; source [sdmc/audit_D_canonical_IR_action_matching.py](https://github.com/kivy-styles/sdmc-hi-class/blob/sdmc-late300-D-covariant-true-inputs/sdmc/audit_D_canonical_IR_action_matching.py). These are **analytic necessary conditions on a possible physical continuation**, not independent forward covariant future evolution.
+
+### Mature canonical structural field in the finite field convention
+
+The manuscript's mature canonical action for sigma and Z_sigma=-1/2(nabla sigma)^2 is
+
+    G2_IR=(2 F∞ Z_sigma-4 F∞ Z_BI)/sigma²,
+    G3_IR=0; G4_IR=F∞/2; D_IR=2; c_s2_IR=1.
+
+On the mature coasting branch p=d ln sigma/d ln a->1, define sigma=C*exp(phi), phi=ln a, C>0. Then Z_sigma=sigma² X_phi, with X_phi=-1/2(nabla phi)^2. This implies
+
+    G2_IR(phi,X_phi)=2 F∞ X_phi-(4 F∞ Z_BI/C²)*exp(-2 phi).
+
+The exact same-field canonical IR coefficients required for the mature action are
+
+    k1_IR=2 F∞,  k2_IR=0, g_IR=0,
+    V_IR(phi)=(4 F∞ Z_BI/C²)*exp(-2 phi).
+
+For phi=ln a coasting, X_phi=H²/2 and alphaK=2X_phi*G2_X/(H² F∞)=2; alphaB=0, so D_IR=2. These are new explicit coefficient boundary conditions, not a guessed kinetic interpolation.
+
+For force-derived AF=0.020520, F∞=exp(AF)=1.020731982678702, so k1_IR=2.041463965357404. Independently validated derived-reference coefficients currently have k1(today)=-0.0913078779588896 and k2*X(today)=+0.0825143261780817. If the same field convention and continuous operator coefficients apply, k1 must cross zero before the canonical IR limit, while quadratic kinetic effects must decouple. The sign change **does not by itself imply a ghost**; the full Horndeski scalar kinetic and sound-speed functions are decisive.
+
+### Necessary on-shell No-Slip G3 decay on coasting
+
+The selected linear-G3 reconstruction gives *on its target trajectory* g(phi)=-F_phi/H² for
+
+    F=exp(AF S_F(phi)), S_F=[1+exp(-(phi-phi_c)/wF)]^-1.
+
+Assume a future coasting history H² proportional to a^-2 and phi=ln a, on which this same No-Slip trajectory relation persists. Then F_phi is proportional to a^(-1/wF), giving the *required* asymptotic on-shell cubic coefficient
+
+    g(phi) proportional to a^[2-1/wF].
+
+The coefficient g decays if **wF<1/2**. For derived wF=.32925377073762596, 2-1/wF=**-1.03717098747**. Direct logistic-derivative sampling from phi=10 to 12 reproduces the exponent with ~1e-15 difference, and alternative widths .45, .50 and .60 correctly classify decay/borderline/growth.
+
+**Critical scope:** This relation was reconstructed from a selected background, **not independently specified off-shell as a future-action law**. One cannot infer that the original fixed coefficient table will follow the future coasting H. The reconstruction source sdmc/run_late300_linear_covariant.py builds CubicSpline coefficient tables from the fitted target grid; its C interpolator extends beyond that grid by reusing the **last cubic segment**. This is a numerical extrapolation, not physical action closure. No automatic convergence to the mature state was proven.
+
+### Inter-branch gravitational normalization
+
+The derived finite force transition has F∞=1.020731982678702, but the older structural-clock manuscript's matured branch reports F∞ approximately 1.023885427695. Their ratio differs from one by **0.003089395718**, approximately 0.309%. An action with one fixed gravitational normalization must reconcile these calibrated branches or derive a new future F evolution; simply matching D cannot satisfy both exact limits. Different calibrated model branches are being compared, so this is a theoretical matching issue, **not** a direct observational exclusion.
+
+### What is still needed before claiming closed first principles
+
+The radio-era canonical tracker gives the conditional baseline and the mature canonical action supplies necessary operator limits. A unique entire kinetic flow still needs independently supplied functional coefficients k1(phi),k2(phi),V(phi),g(phi),F(phi), microscopic energy transfer and boundary conditions, and a genuine forward (not inverse-matched) homogeneous/perturbative evolution satisfying D>0, 0<=c_s2<=1, and consistent No-Slip. The source-defined out-of-domain cubic continuation is insufficient. No full family Bayes factor against local021 follows from this analytic matching audit.
