@@ -1,0 +1,133 @@
+name: SDMC late300 kinetic-coordinate derivability audit
+
+on:
+  push:
+    branches: [sdmc-late300-kinetic-derivability-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_kinetic_derivability_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted target and free backgrounds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Audit kinetic coordinates
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,math
+          import numpy as np
+
+          cand=json.loads(Path("sdmc/late300_candidate.json").read_text())["parameters"]
+          Df=float(cand["D_floor"]); D0=float(cand["D0"]); pD=float(cand["kinetic_power"])
+          AF=float(cand["A_F"]); zc=float(cand["z_c"]); width=float(cand["width"])
+          lam=float(cand["lambda_e"])
+          Nc=-math.log1p(zc)
+
+          def read_bg(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[x for x in lines if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  names.append(hdr[m.end():e].strip())
+              a=np.loadtxt(path)
+              if a.ndim==1:a=a[None,:]
+              return {n:a[:,i] for i,n in enumerate(names)}
+
+          def audit(path,label):
+              d=read_bg(path)
+              z=np.asarray(d["z"],float)
+              N=-np.log1p(z)
+              o=np.argsort(N); z=z[o]; N=N[o]
+              D=np.asarray(d["kin (D)"],float)[o]
+              aB=np.asarray(d["braiding_smg"],float)[o]
+              aM=np.asarray(d["M2_running_smg"],float)[o]
+              cs=np.asarray(d["c_s^2"],float)[o]
+              S=0.5*(1+np.tanh((N-Nc)/(2*width)))
+              model=Df+D0*np.power(S,pD)
+              j0=int(np.argmin(np.abs(z)))
+              D0_from_today=(D[j0]-Df)/(S[j0]**pD)
+
+              # Infer power law after subtracting floor.
+              m=(S>0.02)&(S<0.98)&(D>Df+1e-10)&np.isfinite(D)
+              x=np.log(S[m]); y=np.log(D[m]-Df)
+              if len(x)>5:
+                  X=np.c_[np.ones(len(x)),x]
+                  beta=np.linalg.lstsq(X,y,rcond=None)[0]
+                  fitp=float(beta[1]); fitamp=float(np.exp(beta[0]))
+                  rms=float(np.sqrt(np.mean((y-X@beta)**2)))
+              else:
+                  fitp=fitamp=rms=None
+
+              # Early plateaus where F transition is absent.
+              rad=(z>1e4)&(z<1e6)
+              mat=(z>50)&(z<500)
+              def st(x,m):
+                  return {"median":float(np.nanmedian(x[m])),"mean":float(np.nanmean(x[m])),
+                          "min":float(np.nanmin(x[m])),"max":float(np.nanmax(x[m]))}
+
+              alphaK=D-1.5*aB*aB
+              return {
+                "label":label,
+                "today":{"z":float(z[j0]),"S0":float(S[j0]),"D":float(D[j0]),
+                         "D0_reconstructed_from_today":float(D0_from_today),
+                         "D0_candidate":D0,"relative_residual":float(D0_from_today/D0-1)},
+                "profile_exactness":{"max_abs_D_minus_candidate_profile":float(np.max(np.abs(D-model))),
+                                     "rms":float(np.sqrt(np.mean((D-model)**2)))},
+                "power_inference":{"p_fit":fitp,"D0_fit":fitamp,"log_rms":rms},
+                "radiation":{"D":st(D,rad),"alphaK":st(alphaK,rad),
+                             "alphaB":st(aB,rad),"alphaM":st(aM,rad),"cs2":st(cs,rad)},
+                "matter":{"D":st(D,mat),"alphaK":st(alphaK,mat),
+                          "alphaB":st(aB,mat),"alphaM":st(aM,mat),"cs2":st(cs,mat)}
+              }
+
+          target=next(Path("recovered").rglob("linear_cov_target_00_background.dat"))
+          free=next(Path("recovered").rglob("linear_cov_free_00_background.dat"))
+
+          Dr=16/(lam*lam); Dm=9/(lam*lam)
+          simple={
+            "lambda_e":lam,
+            "D_floor_candidate":Df,
+            "radiation_tracker_prediction_16_over_lambda2":Dr,
+            "matter_tracker_prediction_9_over_lambda2":Dm,
+            "floor_minus_Dr":Df-Dr,
+            "floor_times_lambda2":Df*lam*lam,
+            "nearest_half_integer_coefficient":round(2*Df*lam*lam)/2,
+            "nearest_half_integer_prediction":(round(2*Df*lam*lam)/2)/(lam*lam),
+            "D0_candidate":D0,
+            "Xi_v_inverse":math.sqrt(3/(8*math.pi)),
+            "D0_over_Xi_v_inverse":D0/math.sqrt(3/(8*math.pi)),
+            "D0_minus_Xi_v_inverse":D0-math.sqrt(3/(8*math.pi))
+          }
+
+          out={"status":"late300 kinetic-coordinate derivability audit",
+               "simple_structural_hypotheses":simple,
+               "target":audit(target,"target"),
+               "free_covariant":audit(free,"free_covariant"),
+               "interpretation":{
+                  "D0":"conditionally derived if present D, floor, switch S0 and power are independently fixed",
+                  "pD":"derived only if free action reproduces a robust power-law exponent without imposing it",
+                  "Dfloor":"not derived merely by stability saturation; compare early action plateau to tracker prediction"
+               }}
+          Path("output/kinetic_derivability_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("KINETIC_DERIVABILITY_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kinetic-derivability-audit
+          path: output/kinetic_derivability_audit.json
