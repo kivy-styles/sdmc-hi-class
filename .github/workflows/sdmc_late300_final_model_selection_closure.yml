@@ -1,0 +1,115 @@
+name: SDMC late300 final conditional model-selection closure
+
+on:
+  push:
+    branches: [sdmc-late300-final-model-selection-closure]
+    paths:
+      - '.github/workflows/sdmc_late300_final_model_selection_closure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy >/dev/null
+      - name: Recover completed evidence, TATT, and derivation artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/planck inputs/hsc inputs/tatt_late inputs/tatt_local inputs/derivation output
+          gh run download 37637638799 --repo "${{ github.repository }}" --name planck-conditional-bayes-factor-highprecision --dir inputs/planck
+          gh run download 37693333670 --repo "${{ github.repository }}" --name hsc-conditional-bayes-factor --dir inputs/hsc
+          gh run download 37693633262 --repo "${{ github.repository }}" --name hsc-tatt-warm-late300 --dir inputs/tatt_late
+          gh run download 37695593050 --repo "${{ github.repository }}" --name hsc-tatt-warm-local021 --dir inputs/tatt_local
+          gh run download 37698426992 --repo "${{ github.repository }}" --name late300-full-structural-derivation --dir inputs/derivation
+          find inputs -type f -maxdepth 8 -print | sort
+      - name: Build final closure ledger
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,math
+
+          def jfind(root, must=None):
+              files=list(Path(root).rglob("*.json"))
+              if must:
+                  files=[p for p in files if must in p.name]
+              if not files:
+                  raise RuntimeError(f"no json in {root} must={must}")
+              return json.loads(files[0].read_text())
+
+          planck=jfind("inputs/planck","planck_conditional_bayes_factor")
+          hsc=jfind("inputs/hsc","hsc_conditional_bayes_factor")
+          der=jfind("inputs/derivation","late300_full_structural_derivation")
+
+          def tatt(root,model):
+              js=list(Path(root).rglob("*.json"))
+              for p in js:
+                  d=json.loads(p.read_text())
+                  if d.get("model")==model and "fit" in d:
+                      return d
+              raise RuntimeError(f"missing TATT {model}")
+
+          tl=tatt("inputs/tatt_late","late300")
+          tc=tatt("inputs/tatt_local","local021")
+
+          dp=float(planck["delta_logZ_late300_minus_local021"])
+          ep=float(planck["delta_logZ_error_quadrature"])
+          dh=float(hsc["delta_logZ_late300_minus_local021"])
+          eh=float(hsc["delta_logZ_error_quadrature"])
+          dj=dp+dh
+          ej=math.hypot(ep,eh)
+
+          chl=float(tl["fit"]["chi2_total"])
+          chc=float(tc["fit"]["chi2_total"])
+          dchi=chl-chc
+          n=60
+          scenarios={}
+          for dk in range(0,6):
+              scenarios[str(dk)]={
+                "delta_AIC_late300_minus_local021":dchi+2*dk,
+                "delta_BIC_HSC_N60_late300_minus_local021":dchi+math.log(n)*dk
+              }
+
+          out={
+            "status":"final conditional model-selection closure with structural-complexity qualification",
+            "nested_evidence":{
+              "Planck":planck,
+              "HSC":hsc,
+              "Planck_plus_HSC":{
+                "delta_logZ_late300_minus_local021":dj,
+                "delta_logZ_error_quadrature":ej,
+                "BF_late300_over_local021":math.exp(dj),
+                "one_sigma_BF_interval":[math.exp(dj-ej),math.exp(dj+ej)],
+                "interpretation":"central value weakly favors late300, but uncertainty spans parity; conditional fixed-cosmology result only"
+              }
+            },
+            "TATT":{
+              "late300_chi2":chl,
+              "local021_chi2":chc,
+              "delta_chi2_late300_minus_local021":dchi,
+              "late300_optimizer_success":bool(tl["fit"].get("success",False)),
+              "local021_optimizer_success":bool(tc["fit"].get("success",False)),
+              "qualification":"Both use matched corrected-ReACT full-TATT nuisance spaces. Local021 two warm starts agree tightly but the current saved run hit its iteration cap; a longer formal-convergence continuation is running separately.",
+              "AIC_BIC_structural_delta_k_scenarios":scenarios
+            },
+            "structural_complexity":{
+              "coordinate_verdict":der["coordinate_verdict"],
+              "model_selection_consequence":der["model_selection_consequence"],
+              "replay_delta_k":0,
+              "qualification":"delta_k=0 is established only for post-reconstruction replay. Full-family delta_k cannot be set to zero until the remaining upstream structural laws are derived or assigned explicit priors."
+            }
+          }
+          Path("output/final_conditional_model_selection_closure.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("FINAL_CONDITIONAL_MODEL_SELECTION_CLOSURE",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: final-conditional-model-selection-closure
+          path: output/final_conditional_model_selection_closure.json
