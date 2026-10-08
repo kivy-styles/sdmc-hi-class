@@ -31,6 +31,25 @@ def invert_r_from_ratio(q: float) -> float:
     return (q-1.0)/(6.0-2.0*q)
 
 
+def reduced_rk_log_slope(r: float, b1: float, b2: float) -> float:
+    """d ln r/d ln a in reduced G2 with variable k1(sigma),k2(sigma).
+
+    b_i = d ln(k_i)/d ln(a) evaluated along the homogeneous scalar trajectory.
+    Starting from (k1+6k2 Z) sigma_ddot +3H(k1+2k2 Z) sigma_dot
+                +k1,sigma Z +3k2,sigma Z**2 = 0,
+    with Z=sigma_dot**2/2, r=k2 Z/k1, and no V,G3,G4 effects,
+    gives [(1+3r)(b2-2b1)-6(1+2r)]/(1+6r).
+    """
+    if r <= 0:
+        raise ValueError("positive ratio is required")
+    return ((1.0+3.0*r)*(b2-2.0*b1)-6.0*(1.0+2.0*r))/(1.0+6.0*r)
+
+
+def minimum_coefficient_combination_for_growth(r: float) -> float:
+    """A *strictly larger* b2-2b1 is necessary for growing r."""
+    return 6.0*(1.0+2.0*r)/(1.0+3.0*r)
+
+
 def do_audit():
     d_can = 16.0/(LAMBDA_ACCEPTED**2)
     q = D_FLOOR_ACCEPTED/d_can
@@ -53,6 +72,27 @@ def do_audit():
             "rK_compatible":inferred_r,
             "stable_reduced_G2":True,
         })
+    # New analytic condition: the early reduced G2 crossover is not generated
+    # by constant positive k1,k2 during ordinary homogeneous expansion.
+    growth_examples=[]
+    for rk in [0.001, r, 1.0, 11.0, 100.0]:
+        threshold=minimum_coefficient_combination_for_growth(rk)
+        static=reduced_rk_log_slope(rk,0.0,0.0)
+        just_above=reduced_rk_log_slope(rk,0.0,threshold+0.1)
+        assert static < 0 and just_above > 0
+        assert math.isclose(reduced_rk_log_slope(rk,0.0,threshold),0.0,abs_tol=2e-14)
+        growth_examples.append({"rK":rk,
+                                "d_ln_r_d_ln_a_constant_coefficients":static,
+                                "required_b2_minus_2b1_strictly_above":threshold,
+                                "growth_with_b2_above_threshold":just_above})
+    dynamical_criterion={
+        "equation":"dlnr/dlna = ((1+3r)*(b2-2*b1)-6*(1+2r))/(1+6r)",
+        "definitions":"b_i=d ln k_i / d ln a along the homogeneous field trajectory",
+        "regime":"reduced homogeneous G2=k1(sigma) Z+k2(sigma) Z^2, absent V,G3,G4 and bath transfer",
+        "growth_condition":"b2-2*b1 > 6*(1+2*r)/(1+3*r)",
+        "examples":growth_examples,
+        "limitation":"Necessary local condition only in the reduced action, not a full SDMC structural coordinate selector",
+    }
     return {
         "status":"PASS: algebraic map is invertible but rK is not independently selected",
         "assumptions":[
@@ -75,6 +115,7 @@ def do_audit():
             "allowed_Dfloor_interval_at_fixed_lambda":[d_can,d_bound],
         },
         "continuous_counterexamples":alternatives,
+        "reduced_action_dynamical_growth_test":dynamical_criterion,
         "scientific_conclusion":{
             "confirmed":"Accepted D_floor is consistent with a positive-G2 rK approximately 0.02553 and the causal guide.",
             "not_confirmed":"No independent coefficient ratio k2(Z) Z/k1(Z), early trajectory Z(N), or independent early structural fraction has been derived here.",
