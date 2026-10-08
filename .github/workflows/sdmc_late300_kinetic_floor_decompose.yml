@@ -1,8 +1,8 @@
-name: SDMC late300 kinetic-floor covariant decomposition
+name: SDMC late300 noncanonical kinetic identity audit
 
 on:
   push:
-    branches: [sdmc-late300-kinetic-derivability-audit]
+    branches: [sdmc-late300-kinetic-noncanonical-identity]
     paths:
       - '.github/workflows/sdmc_late300_kinetic_floor_decompose.yml'
   workflow_dispatch:
@@ -90,17 +90,43 @@ jobs:
               y=np.asarray(x)[m]
               return {"median":float(np.median(y)),"mean":float(np.mean(y)),
                       "min":float(np.min(y)),"max":float(np.max(y))}
+          # For K=k1 X+k2 X^2-V and negligible braiding,
+          # alpha_K / [3 Omega_smg (1+w_smg)] = (1+6 rK)/(1+2 rK),
+          # rK=k2 X/k1. Compare the rK inferred from the EFT ratio to
+          # the reconstructed action ratio. This diagnoses the noncanonical
+          # origin of the kinetic excess; it is not an origin derivation because
+          # the covariant coefficients were reconstructed from the chosen D.
+          rho_tot=np.asarray(d["(.)rho_tot"],float)[order][keep]
+          rho_smg=np.asarray(d["(.)rho_smg"],float)[order][keep]
+          p_smg=np.asarray(d["(.)p_smg"],float)[order][keep]
+          Om_smg=rho_smg/rho_tot
+          w_smg=np.divide(p_smg,rho_smg,out=np.full_like(rho_smg,np.nan),where=np.abs(rho_smg)>0)
+          ent_smg=3*Om_smg*(1+w_smg)
+          ratio=np.divide(alphaK_target,ent_smg,out=np.full_like(alphaK_target,np.nan),where=np.abs(ent_smg)>1e-15)
+          r_from_ratio=np.divide(ratio-1,6-2*ratio,out=np.full_like(ratio,np.nan),where=np.abs(6-2*ratio)>1e-12)
+          r_from_action=np.divide(terms["k2"],6*terms["k1"],out=np.full_like(alphaK_target,np.nan),where=np.abs(terms["k1"])>1e-15)
+
           out={
-            "status":"covariant decomposition of early kinetic floor",
+            "status":"noncanonical identity audit for early kinetic floor",
             "lambda_e":lam,
             "canonical_tracker":{"Dr_16_over_lambda2":16/(lam*lam),"Dm_9_over_lambda2":9/(lam*lam)},
             "radiation":{
               "alphaK_target":stats(alphaK_target,rad),"sum_terms":stats(total,rad),
+              "smg_enthalpy":stats(ent_smg,rad),
+              "alphaK_over_smg_enthalpy":stats(ratio,rad),
+              "rK_from_alphaK_enthalpy":stats(r_from_ratio,rad),
+              "rK_from_reconstructed_action":stats(r_from_action,rad),
+              "rK_abs_difference":stats(np.abs(r_from_ratio-r_from_action),rad),
               "terms":{k:stats(v,rad) for k,v in terms.items()},
               "D_target":stats(Dtarget,rad),"alphaB2_term":stats(1.5*alphaB*alphaB,rad)
             },
             "matter":{
               "alphaK_target":stats(alphaK_target,mat),"sum_terms":stats(total,mat),
+              "smg_enthalpy":stats(ent_smg,mat),
+              "alphaK_over_smg_enthalpy":stats(ratio,mat),
+              "rK_from_alphaK_enthalpy":stats(r_from_ratio,mat),
+              "rK_from_reconstructed_action":stats(r_from_action,mat),
+              "rK_abs_difference":stats(np.abs(r_from_ratio-r_from_action),mat),
               "terms":{k:stats(v,mat) for k,v in terms.items()},
               "D_target":stats(Dtarget,mat),"alphaB2_term":stats(1.5*alphaB*alphaB,mat)
             }
@@ -111,9 +137,9 @@ jobs:
           out["radiation"]["floor_excess_over_canonical"]=excess
           out["radiation"]["term_fractions_of_excess"]={k:(v/excess if excess!=0 else None) for k,v in rad_med.items()}
           Path("output/kinetic_floor_decomposition.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
-          print("KINETIC_FLOOR_DECOMPOSITION",json.dumps(out,sort_keys=True))
+          print("KINETIC_NONCANONICAL_IDENTITY",json.dumps(out,sort_keys=True))
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: kinetic-floor-decomposition
+          name: kinetic-noncanonical-identity
           path: output/kinetic_floor_decomposition.json
