@@ -1,0 +1,94 @@
+name: SDMC derived-bundle Planck conditional evidence
+
+on:
+  push:
+    branches: [sdmc-late300-derived-bundle-model-selection]
+    paths:
+      - '.github/workflows/sdmc_derived_bundle_planck_evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import validated Planck evidence script
+        run: |
+          git fetch origin sdmc-late300-planck-evidence-highprecision:refs/remotes/origin/sdmc-late300-planck-evidence-highprecision
+          git show origin/sdmc-late300-planck-evidence-highprecision:sdmc/run_late300_planck_conditional_nested.py > sdmc/run_late300_planck_conditional_nested.py
+
+      - name: Install dependencies and official Planck likelihoods
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy cobaya dynesty
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE import TTTEEE
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          if not TTTEEE.install(path='planck_full',no_progress_bars=True):
+              raise SystemExit('full Plik install failed')
+          for cls in (TT,EE,LensingNative):
+              if not cls.install(path='planck_packages',no_progress_bars=True):
+                  raise SystemExit(f'Planck install failed: {cls}')
+          print('PLANCK_DERIVED_EVIDENCE_DATA_READY')
+          PY
+
+      - name: Recover derived covariant spectrum and converged local021 evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/derived baseline output/conditional_evidence
+          gh run download 37763161783 --repo "${{ github.repository }}"             --name derived-bundle-linear-g3-covariant-audit --dir inputs/derived
+          gh run download 37637638799 --repo "${{ github.repository }}"             --name planck-evidence-highprecision-local021 --dir baseline
+          DERIVED=$(find inputs/derived -name 'linear_cov_free_00_cl_lensed.dat' -print -quit)
+          test -n "$DERIVED"
+          test -s "$DERIVED"
+          test -s baseline/local021.json
+          echo "$DERIVED" > output/derived_spectrum_path.txt
+
+      - name: Run high-precision derived-bundle Planck nuisance evidence
+        run: |
+          SPEC=$(cat output/derived_spectrum_path.txt)
+          python3 sdmc/run_late300_planck_conditional_nested.py             --model late300 --spectrum "$SPEC"             --out output/conditional_evidence/derived_bundle.json             --nlive 240 --dlogz 0.25 --maxcall 600000             | tee output/conditional_evidence/derived_bundle.log
+
+      - name: Compare with converged local021 evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,math
+          d=json.loads(Path("output/conditional_evidence/derived_bundle.json").read_text())
+          l=json.loads(Path("baseline/local021.json").read_text())
+          zd=float(d["logZ_shared_prior_normalization_omitted"])
+          zl=float(l["logZ_shared_prior_normalization_omitted"])
+          delta=zd-zl
+          err=math.hypot(float(d["logZerr"]),float(l["logZerr"]))
+          out={
+            "status":"high-precision conditional Planck evidence for no-fit derived bundle",
+            "logZ_derived_bundle":zd,
+            "logZerr_derived_bundle":float(d["logZerr"]),
+            "logZ_local021":zl,
+            "logZerr_local021":float(l["logZerr"]),
+            "delta_logZ_derived_minus_local021":delta,
+            "delta_logZ_error_quadrature":err,
+            "BF_derived_over_local021":math.exp(max(-700,min(700,delta))),
+            "qualification":"Fixed derived cosmology; Planck nuisance parameters marginalized with the same high-precision priors/settings as the accepted-action evidence."
+          }
+          Path("output/derived_bundle_planck_bayes.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("DERIVED_BUNDLE_PLANCK_BAYES",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: derived-bundle-planck-evidence
+          path: |
+            output/conditional_evidence/*
+            output/derived_bundle_planck_bayes.json
+          if-no-files-found: warn
