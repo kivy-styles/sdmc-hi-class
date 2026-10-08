@@ -1,0 +1,148 @@
+name: SDMC late300 D0=2pi/lambda test
+
+on:
+  push:
+    branches: [sdmc-late300-D0-2pi-lambda-test]
+    paths:
+      - '.github/workflows/sdmc_late300_D0_2pi_lambda_test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas cobaya
+      - name: Apply accepted patches and build
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean && make -j2 class
+      - name: Recover accepted spectrum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p accepted output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir accepted
+      - name: Run D0 structural candidate
+        run: |
+          python3 - <<'PY'
+          import math
+          print("D0_STRUCTURAL",2*math.pi/18.40625)
+          PY
+          cat > output/d0_structural.ini <<'EOF'
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.02048146490100771, 3.927876388467848, 0.33114133956842123, 0.34136151074659893, 1.0, 0.05181542627513409
+          expansion_model = sdmc_full
+          expansion_smg = 0.7014079815036496, 18.40625, 16.19317622240633, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output = tCl,pCl,lCl,mPk
+          lensing = yes
+          l_max_scalars = 3000
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0
+          write background = yes
+          root = output/d0_structural_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/d0_structural.ini
+      - name: Stability and spectrum audit
+        run: |
+          python3 - <<'PY'
+          import numpy as np,re,json
+          from pathlib import Path
+          def read(path):
+              ls=Path(path).read_text().splitlines()
+              hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); ns=[]
+              for i,m in enumerate(ms):
+                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+                  ns.append(hdr[m.end():e].strip())
+              a=np.loadtxt(path)
+              if a.ndim==1:a=a[None,:]
+              return {n:a[:,i] for i,n in enumerate(ns)}
+          v=read("output/d0_structural_00_background.dat")
+          a=read(next(Path("accepted").rglob("linear_cov_target_00_background.dat")))
+          Nv=-np.log1p(v["z"]); Na=-np.log1p(a["z"]); o=np.argsort(Na); Na=Na[o]
+          Hrel=v["H [1/Mpc]"]/np.interp(Nv,Na,a["H [1/Mpc]"][o])-1
+          out={
+            "D_min":float(np.min(v["kin (D)"])),
+            "cs2_min":float(np.min(v["c_s^2"])),
+            "cs2_max":float(np.max(v["c_s^2"])),
+            "max_abs_noslip":float(np.max(np.abs(v["braiding_smg"]+2*v["M2_running_smg"]))),
+            "max_abs_dH_H":float(np.max(np.abs(Hrel)))
+          }
+          Path("output/d0_structural_audit.json").write_text(json.dumps(out,indent=2)+"\n")
+          print("D0_STRUCTURAL_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - name: Install Plik-lite and compare
+        run: |
+          python3 - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          if not TTTEEE_lite_native.install(path='planck_packages',no_progress_bars=True):
+              raise SystemExit("install failed")
+          PY
+          ACC=$(find accepted -name linear_cov_target_00_cl_lensed.dat | head -1)
+          python3 sdmc/evaluate_planck_pliklite.py             --packages planck_packages             --output output/d0_structural_pliklite.csv             "ACCEPTED_LATE300=$ACC"             "D0_2PI_OVER_LAMBDA=output/d0_structural_00_cl_lensed.dat"
+          python3 - <<'PY'
+          import pandas as pd,json
+          d=pd.read_csv("output/d0_structural_pliklite.csv")
+          print(d.to_string(index=False))
+          print("D0_STRUCTURAL_PLANCK_TABLE",json.dumps(d.to_dict(orient="records")))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: d0-2pi-lambda-test
+          path: |
+            output/d0_structural_audit.json
+            output/d0_structural_pliklite.csv
+            output/d0_structural_00_background.dat
+            output/d0_structural_00_cl_lensed.dat
+            output/d0_structural_00_z1_pk.dat
