@@ -1,0 +1,119 @@
+name: SDMC late300 kinetic-floor covariant decomposition
+
+on:
+  push:
+    branches: [sdmc-late300-kinetic-derivability-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_kinetic_floor_decompose.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  decompose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted target background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Decompose alphaK on early tracker
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re,math
+          import numpy as np
+          from scipy.interpolate import CubicSpline
+
+          cand=json.loads(Path("sdmc/late300_candidate.json").read_text())["parameters"]
+          AF=float(cand["A_F"]); ZC=float(cand["z_c"]); WIDTH=float(cand["width"])
+          D0=float(cand["D0"]); DF=float(cand["D_floor"]); POW=float(cand["kinetic_power"])
+          lam=float(cand["lambda_e"])
+
+          path=next(Path("recovered").rglob("linear_cov_target_00_background.dat"))
+          lines=path.read_text().splitlines()
+          hdr=[l for l in lines if l.startswith("#") and re.search(r"1\s*:",l)][-1].lstrip("#").strip()
+          marks=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(marks):
+              e=marks[i+1].start() if i+1<len(marks) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          arr=np.loadtxt(path)
+          d={n:arr[:,i] for i,n in enumerate(names)}
+          Nraw=-np.log1p(d["z"]); order=np.argsort(Nraw)
+          N=Nraw[order]; z=np.asarray(d["z"])[order]
+          H=np.asarray(d["H [1/Mpc]"])[order]
+          rho=np.asarray(d["(.)rho_smg"])[order]
+          pre=np.asarray(d["(.)p_smg"])[order]
+          keep=np.r_[True,np.diff(N)>1e-12]
+          N,z,H,rho,pre=N[keep],z[keep],H[keep],rho[keep],pre[keep]
+
+          lnHsp=CubicSpline(N,np.log(H))
+          h=lnHsp(N,1); Hpa=H*H*h; X=.5*H*H
+          Nc=-np.log1p(ZC)
+          xx=(N-Nc)/(2*WIDTH); tt=np.tanh(xx); uu=1-tt*tt
+          S=.5*(1+tt); S1=uu/(4*WIDTH); S2=-tt*uu/(4*WIDTH*WIDTH)
+          F=np.exp(AF*S); F1=F*(AF*S1); F2=F*((AF*S1)**2+AF*S2)
+
+          g=-F1/(H*H)
+          gsp=CubicSpline(N,g); g1=gsp(N,1)
+
+          Dtarget=DF+D0*S**POW
+          alphaM=F1/F; alphaB=-2*alphaM
+          alphaK_target=Dtarget-1.5*alphaB*alphaB
+
+          R=3*rho + 2*g1*X*X + 6*F1*H*H + 3*(F-1)*H*H
+          P=3*pre + 2*g1*X*X - 2*X*F2 - 3*(F-1)*H*H - 2*(F-1)*Hpa - 2*F1*(H*H+Hpa)
+          C=(R+P)/(2*X)
+          k2=(F*alphaK_target-C+4*g1*X-6*g*H*H)/(4*X)
+          k1=C-2*k2*X
+
+          pref=2*X/(H*H*F)
+          terms={
+            "k1":pref*k1,
+            "k2":pref*(6*k2*X),
+            "gprime":pref*(-4*g1*X),
+            "g_braiding":pref*(6*g*H*H)
+          }
+          total=sum(terms.values())
+
+          rad=(z>1e4)&(z<1e6)
+          mat=(z>50)&(z<500)
+          def stats(x,m):
+              y=np.asarray(x)[m]
+              return {"median":float(np.median(y)),"mean":float(np.mean(y)),
+                      "min":float(np.min(y)),"max":float(np.max(y))}
+          out={
+            "status":"covariant decomposition of early kinetic floor",
+            "lambda_e":lam,
+            "canonical_tracker":{"Dr_16_over_lambda2":16/(lam*lam),"Dm_9_over_lambda2":9/(lam*lam)},
+            "radiation":{
+              "alphaK_target":stats(alphaK_target,rad),"sum_terms":stats(total,rad),
+              "terms":{k:stats(v,rad) for k,v in terms.items()},
+              "D_target":stats(Dtarget,rad),"alphaB2_term":stats(1.5*alphaB*alphaB,rad)
+            },
+            "matter":{
+              "alphaK_target":stats(alphaK_target,mat),"sum_terms":stats(total,mat),
+              "terms":{k:stats(v,mat) for k,v in terms.items()},
+              "D_target":stats(Dtarget,mat),"alphaB2_term":stats(1.5*alphaB*alphaB,mat)
+            }
+          }
+          # Quantify which covariant terms account for excess over canonical tracker.
+          rad_med={k:float(np.median(v[rad])) for k,v in terms.items()}
+          excess=DF-16/(lam*lam)
+          out["radiation"]["floor_excess_over_canonical"]=excess
+          out["radiation"]["term_fractions_of_excess"]={k:(v/excess if excess!=0 else None) for k,v in rad_med.items()}
+          Path("output/kinetic_floor_decomposition.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("KINETIC_FLOOR_DECOMPOSITION",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kinetic-floor-decomposition
+          path: output/kinetic_floor_decomposition.json
