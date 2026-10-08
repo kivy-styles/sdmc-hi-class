@@ -1,0 +1,56 @@
+name: SDMC D0=2pi/lambda official DESI
+
+on:
+  push:
+    branches: [sdmc-late300-D0-2pi-lambda-test]
+    paths:
+      - '.github/workflows/sdmc_D0_2pi_lambda_exact_desi.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Replay accepted exact DESI workflow with D0=2pi/lambda
+        run: |
+          python3 -m pip install -q pyyaml
+          git fetch --depth=1 origin sdmc-g022-a034-exact-desi
+          git show FETCH_HEAD:.github/workflows/sdmc_r032_edge024_qbest_covariant_desi.yml > /tmp/base.yml
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,subprocess,yaml
+          s=Path("/tmp/base.yml").read_text()
+          old="0.34231919445927034"
+          new="0.34136151074659893"
+          n=s.count(old)
+          if n < 1: raise RuntimeError(f"expected D0 occurrence, found {n}")
+          s=s.replace(old,new)
+          s=s.replace("COVARIANT_G022_A034_CLEAN","D0_2PI_LAMBDA")
+          data=yaml.safe_load(s)
+          for step in data["jobs"]["acoustic-physical-desi"]["steps"]:
+              script=step.get("run")
+              if not script: continue
+              env=os.environ.copy()
+              for k,v in (step.get("env") or {}).items(): env[str(k)]=str(v)
+              print(f"=== REPLAY STEP: {step.get('name','unnamed')} ===",flush=True)
+              subprocess.run(["bash","-lc",script],check=True,env=env)
+          PY
+      - name: Print result
+        if: always()
+        run: cat output/desi_dr1_fs_summary.csv || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: d0-2pi-lambda-exact-desi
+          path: |
+            output/desi_dr1_fs_profile.csv
+            output/desi_dr1_fs_summary.csv
+            output/covariant_replay_comparison.csv
+          if-no-files-found: warn
