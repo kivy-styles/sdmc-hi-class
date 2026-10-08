@@ -1,8 +1,8 @@
-name: SDMC curvature-handoff official DESI gate
+name: SDMC curvature-exact-handoff official DESI gate
 
 on:
   push:
-    branches: [sdmc-late300-activation-min-handoff-test]
+    branches: [sdmc-late300-handoff-curvature-exact]
     paths:
       - '.github/workflows/sdmc_curvature_handoff_exact_desi.yml'
   workflow_dispatch:
@@ -29,12 +29,12 @@ jobs:
           p=Path("/tmp/late300_desi.yml")
           s=p.read_text()
           old="16.19317622240633"
-          new="16.78177310642457"
+          new="16.718058803739734"
           n=s.count(old)
           if n < 3:
               raise RuntimeError(f"expected >=3 z_t occurrences, found {n}")
           s=s.replace(old,new)
-          s=s.replace("COVARIANT_G022_A034_CLEAN","CURVATURE_HANDOFF")
+          s=s.replace("COVARIANT_G022_A034_CLEAN","CURVATURE_EXACT_HANDOFF")
           data=yaml.safe_load(s)
           for step in data["jobs"]["acoustic-physical-desi"]["steps"]:
               script=step.get("run")
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: curvature-handoff-exact-desi
+          name: curvature-exact-handoff-exact-desi
           path: |
             output/desi_dr1_fs_profile.csv
             output/desi_dr1_fs_summary.csv
