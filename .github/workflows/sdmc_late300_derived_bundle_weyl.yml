@@ -1,0 +1,171 @@
+name: SDMC derived-bundle native-Weyl spectra
+
+on:
+  push:
+    branches: [sdmc-late300-derived-coordinate-bundle]
+    paths:
+      - '.github/workflows/sdmc_late300_derived_bundle_weyl.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  weyl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential >/dev/null
+          python3 -m pip install numpy scipy >/dev/null
+      - name: Apply SDMC patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          python3 sdmc/patch_F_only_force_center.py
+          make clean >/dev/null && make -j2 class >/dev/null
+      - name: Recover derived-bundle covariant target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output
+          gh run download 37762498050 --repo "${{ github.repository }}" --name derived-bundle-linear-g3-covariant-audit --dir output
+          test -f output/linear_cov_target.ini
+          test -f output/linear_cov_target_00_background.dat
+      - name: Reconstruct derived-bundle covariant action
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("sdmc/run_late300_linear_covariant.py")
+          s=p.read_text()
+          old="Dtarget=DFLOOR+D0*S**POWER"
+          new="NcD=-np.log1p(3.927876388467848)\nxxD=(N-NcD)/(2.*0.33114133956842123)\nSD=.5*(1.+np.tanh(xxD))\nDtarget=DFLOOR+D0*SD**POWER"
+          if old not in s: raise RuntimeError("Dtarget anchor missing")
+          p.write_text(s.replace(old,new,1))
+          PY
+          python3 sdmc/run_late300_linear_covariant.py
+          cat output/linear_cov_reconstruction_summary.txt
+          make clean >/dev/null && make -j2 class >/dev/null
+      - name: Prepare dense redshift grid
+        run: |
+          python3 - <<'PY'
+          import numpy as np
+          z=np.round(np.arange(0,3.5001,0.05),5)
+          open('output/zgrid.txt','w').write(','.join(f'{x:g}' for x in z))
+          print("DERIVED_WEYL_ZGRID",len(z))
+          PY
+          mkdir -p output/weyl_spectra
+      - name: Run derived covariant linear Weyl spectra
+        run: |
+          ZGRID="$(cat output/zgrid.txt)"
+          cat > output/late300_weyl.ini <<EOF
+          H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_covariant_linear_audit
+          parameters_smg = 0.0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          modes = s
+          output = mPk,wPk
+          P_k_max_h/Mpc = 20.0
+          z_pk = ${ZGRID}
+          write background = yes
+          root = output/weyl_spectra/late300_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/late300_weyl.ini > output/late300_weyl.log 2>&1
+          cp output/late300_weyl.ini output/late300_nl.ini
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('output/late300_nl.ini'); s=p.read_text()
+          s=s.replace('output = mPk,wPk','output = mPk')
+          s=s.replace('root = output/weyl_spectra/late300_','root = output/weyl_spectra/late300_nl_')
+          s+='\nnon linear = halofit\n'
+          p.write_text(s)
+          PY
+          ./class output/late300_nl.ini > output/late300_nl.log 2>&1
+      - name: Run matched local021 spectra
+        run: |
+          ZGRID="$(cat output/zgrid.txt)"
+          cat > output/local021_weyl.ini <<EOF
+          H0 = 68.56859
+          omega_b = 0.02240637
+          omega_cdm = 0.11824151
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.051092661998245e-9
+          n_s = 0.96495932
+          tau_reio = 0.04498538
+          modes = s
+          output = mPk,wPk
+          P_k_max_h/Mpc = 20.0
+          z_pk = ${ZGRID}
+          write background = yes
+          root = output/weyl_spectra/local021_
+          format = class
+          input_verbose = 0
+          background_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/local021_weyl.ini > output/local021_weyl.log 2>&1
+          cp output/local021_weyl.ini output/local021_nl.ini
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('output/local021_nl.ini'); s=p.read_text()
+          s=s.replace('output = mPk,wPk','output = mPk')
+          s=s.replace('root = output/weyl_spectra/local021_','root = output/weyl_spectra/local021_nl_')
+          s+='\nnon linear = halofit\n'
+          p.write_text(s)
+          PY
+          ./class output/local021_nl.ini > output/local021_nl.log 2>&1
+          echo "DERIVED_WEYL_COUNTS $(find output/weyl_spectra -name 'late300_*pk_weyl.dat' | wc -l) $(find output/weyl_spectra -name 'late300_*_pk.dat' | wc -l)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: derived-bundle-native-weyl
+          path: |
+            output/weyl_spectra/*
+            output/*weyl.ini
+            output/*nl.ini
+            output/*weyl.log
+            output/*nl.log
+            output/zgrid.txt
+            output/linear_cov_reconstruction_summary.txt
+          if-no-files-found: warn
