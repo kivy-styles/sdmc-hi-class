@@ -1,0 +1,106 @@
+name: SDMC derived-bundle HSC TATT model-selection refit
+
+on:
+  push:
+    branches: [sdmc-late300-derived-bundle-model-selection]
+    paths:
+      - '.github/workflows/sdmc_derived_bundle_hsc_tatt.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  tatt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import validated HSC/TATT analysis scripts
+        run: |
+          git fetch origin sdmc-hsc-tatt-refine2:refs/remotes/origin/sdmc-hsc-tatt-refine2
+          for f in             sdmc/run_late300_desy3_weyl_tomography.py             sdmc/run_late300_hscy3_weyl.py             sdmc/run_late300_hsc_react_cutscan.py             sdmc/run_late300_hsc_tatt_react.py             sdmc/run_late300_hsc_tatt_warmstart.py
+          do
+            git show origin/sdmc-hsc-tatt-refine2:$f > $f
+          done
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs
+          git lfs install
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy astropy sacc
+          python3 -m pip install "git+https://github.com/joezuntz/FAST-PT/"
+
+      - name: Recover derived-bundle Weyl and ReACT products
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output output/react_dense
+          gh run download 37762830727 --repo "${{ github.repository }}"             --name derived-bundle-native-weyl --dir output
+          gh run download 37763161878 --repo "${{ github.repository }}"             --name derived-bundle-react-exact --dir output/react_dense
+          test -d output/weyl_spectra
+          test -s output/react_dense/react_late300/late300_react_target_spectrum.npz
+
+      - name: Recover accepted late300 warm starts and local021 completed comparator
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p warm_inputs/nla/late300 warm_inputs/conditional/late300 baseline
+          gh run download 37631035746 --repo "${{ github.repository }}"             --name hsc-react-full-late300-us_native-retry --dir warm_inputs/nla/late300
+          gh run download 37645312182 --repo "${{ github.repository }}"             --name hsc-tatt-conditional-late300 --dir warm_inputs/conditional/late300
+          gh run download 37695593050 --repo "${{ github.repository }}"             --name hsc-tatt-warm-local021 --dir baseline
+          find warm_inputs baseline -type f -maxdepth 7 -print
+
+      - name: Download HSC-Y3 public products
+        run: |
+          rm -rf cosmosis-standard-library
+          git clone --depth 1 https://github.com/cosmosis-developers/cosmosis-standard-library.git
+          cd cosmosis-standard-library && git lfs pull || true
+          cd ..
+
+      - name: Run derived-bundle full TATT refinement
+        run: |
+          python3 sdmc/run_late300_hsc_tatt_warmstart.py late300 | tee output/derived_bundle_hsc_tatt.log
+
+      - name: Compare against completed local021 TATT fit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,math
+          d=json.loads(Path("output/hsc_tatt_warm/late300.json").read_text())
+          hits=list(Path("baseline").rglob("local021.json"))
+          if len(hits)!=1:
+              raise RuntimeError(f"local021 comparator ambiguity: {hits}")
+          l=json.loads(hits[0].read_text())
+          cd=float(d["fit"]["chi2_total"]); cl=float(l["fit"]["chi2_total"])
+          delta=cd-cl
+          out={
+            "status":"derived-bundle versus local021 HSC full-TATT model selection",
+            "chi2_derived_bundle":cd,
+            "chi2_local021":cl,
+            "delta_chi2_derived_minus_local021":delta,
+            "derived_optimizer_success":bool(d["fit"]["success"]),
+            "local021_optimizer_success":bool(l["fit"]["success"]),
+            "AIC_delta_by_regular_extra_dimensions":{},
+            "BIC_delta_Neff60_by_regular_extra_dimensions":{}
+          }
+          for k in range(0,6):
+              out["AIC_delta_by_regular_extra_dimensions"][str(k)]=delta+2*k
+              out["BIC_delta_Neff60_by_regular_extra_dimensions"][str(k)]=delta+k*math.log(60.0)
+          Path("output/derived_bundle_model_selection.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("DERIVED_BUNDLE_TATT_MODEL_SELECTION",json.dumps(out,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: derived-bundle-hsc-tatt-model-selection
+          path: |
+            output/hsc_tatt_warm/*
+            output/derived_bundle_hsc_tatt.log
+            output/derived_bundle_model_selection.json
+          if-no-files-found: warn
