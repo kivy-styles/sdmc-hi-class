@@ -139,7 +139,6 @@ def main():
         "warning":"This is a conditional bound inferred from the already-selected background and Planck-mass trajectory. A bound is not a unique kinetic-correction prediction.",
         "independence_caveat":"The sound-speed numerator must be demonstrated invariant, not simply assumed; see recorded differences across actual CLASS cases."
     }
-    (OUT/"causal_scan.json").write_text(json.dumps(summary,indent=2,sort_keys=True)+"\n")
     max_numerator_change=max((q.get("sound_numerator_rel_difference_max_vs_accepted",0.0) for q in records),default=0.0)
     with_cs=sorted([q for q in records if "max_cs2_z100" in q],key=lambda q:q["D0"])
     bracket=next(( (a,b) for a,b in zip(with_cs,with_cs[1:]) if a["max_cs2_z100"]>1.0>=b["max_cs2_z100"]),None)
@@ -150,7 +149,7 @@ def main():
     summary["numerical_bracket"]=[a["D0"],b["D0"]] if bracket else None
     summary["numerical_interpolated_cs2_eq1"] = numerical_bound
     summary["max_relative_sound_numerator_change_z100_vs_reference"]=max_numerator_change
-    (OUT/"causal_scan.json").write_text(json.dumps(summary,indent=2,sort_keys=True)+"\\n".replace("\\\\n","\\n"))
+    (OUT/"causal_scan.json").write_text(json.dumps(summary,indent=2,sort_keys=True)+"\n")
     print("D0_CAUSALITY_SCAN_SUMMARY",json.dumps({
         "n":len(records),
         "successful":sum(q.get("returncode")==0 for q in records),
