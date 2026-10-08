@@ -5,6 +5,7 @@ on:
     branches: [sdmc-late300-kinetic-structural-hypothesis]
     paths:
       - '.github/workflows/sdmc_late300_structural_kinetic_test.yml'
+      - 'sdmc/run_structural_kinetic_hypothesis.py'
   workflow_dispatch:
 
 permissions:
@@ -35,73 +36,8 @@ jobs:
           make clean >/dev/null
           make -j2 class >/dev/null
           mkdir -p output
-      - name: Generate matched inputs
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import json,math
-          c=json.loads(Path("sdmc/late300_candidate.json").read_text())["parameters"]
-          xi_inv=math.sqrt(3/(8*math.pi))
-          dcanon=16/(c["lambda_e"]**2)
-          cases={
-            "accepted":(c["D0"],c["D_floor"],1.0),
-            "xiD0":(xi_inv,c["D_floor"],1.0),
-            "canonFloor":(c["D0"],dcanon,1.0),
-            "structural":(xi_inv,dcanon,1.0),
-          }
-          base=f"""H0 = {c['H0']}
-omega_b = {c['omega_b']}
-omega_cdm = {c['omega_cdm']}
-N_ncdm = 0
-N_ur = 3.046
-T_cmb = 2.7255
-YHe = 0.2453
-A_s = {c['A_s']}
-n_s = {c['n_s']}
-tau_reio = {c['tau_reio']}
-Omega_Lambda = 0
-Omega_fld = 3.1443554e-8
-fluid_equation_of_state = SDMC_TRACKER
-cs2_fld = 0.003
-use_ppf = no
-Omega_smg = -1
-gravity_model = sdmc_v3_independent_kinetic
-expansion_model = sdmc_full
-expansion_smg = {c['Omega_x0']}, {c['lambda_e']}, {c['z_t']}, 0.5, {c['A_late']}, 0.25, {c['B_late']}, 1.5
-pert_initial_conditions_smg = zero
-method_qs_smg = fully_dynamic
-a_ini_over_a_today_default = 1.e-8
-a_ini_test_qs_smg = 1.e-8
-pert_ic_ini_z_ref_smg = 1.e7
-a_min_stability_test_smg = 1.e-8
-output_background_smg = 3
-modes = s
-output = tCl,pCl,lCl,mPk
-lensing = yes
-l_max_scalars = 2500
-P_k_max_h/Mpc = 1.0
-z_pk = 0
-write background = yes
-write thermodynamics = no
-format = class
-input_verbose = 0
-background_verbose = 0
-thermodynamics_verbose = 0
-perturbations_verbose = 0
-transfer_verbose = 0
-primordial_verbose = 0
-harmonic_verbose = 0
-fourier_verbose = 0
-lensing_verbose = 0
-output_verbose = 0
-"""
-          meta={"Xi_v_inverse":xi_inv,"canonical_radiation_floor":dcanon,"cases":{}}
-          for tag,(d0,df,powr) in cases.items():
-              s=base+f"parameters_smg = {c['A_F']}, {c['z_c']}, {c['width']}, {d0}, {powr}, {df}\nroot = output/{tag}_\n"
-              Path(f"output/{tag}.ini").write_text(s)
-              meta["cases"][tag]={"D0":d0,"Dfloor":df,"power":powr}
-          Path("output/structural_kinetic_inputs.json").write_text(json.dumps(meta,indent=2)+"\n")
-          PY
+      - name: Prepare matched inputs
+        run: python3 sdmc/run_structural_kinetic_hypothesis.py prepare
       - name: Run matched models
         run: |
           set +e
@@ -110,62 +46,8 @@ output_verbose = 0
             echo "$?" > "output/${tag}.rc"
           done
           set -e
-      - name: Compare stability and observables
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re,json,numpy as np
-
-          def bg(tag):
-              p=Path(f"output/{tag}_00_background.dat")
-              ls=p.read_text().splitlines()
-              hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
-              ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
-              for i,m in enumerate(ms):
-                  e=ms[i+1].start() if i+1<len(ms) else len(hdr)
-                  names.append(hdr[m.end():e].strip())
-              a=np.loadtxt(p)
-              return {n:a[:,i] for i,n in enumerate(names)}
-
-          def cmp(pa,pb):
-              A=np.loadtxt(pa); B=np.loadtxt(pb)
-              if A.ndim==1:A=A[None,:]
-              if B.ndim==1:B=B[None,:]
-              n=min(A.shape[1],B.shape[1])
-              x=A[:,0]; xb=B[:,0]
-              vals=[]
-              for j in range(1,n):
-                  bb=np.interp(x,xb,B[:,j]); aa=A[:,j]
-                  peak=max(float(np.max(np.abs(aa))),float(np.max(np.abs(bb))),1e-300)
-                  vals.append(float(np.max(np.abs(aa-bb))/peak))
-              return max(vals) if vals else None
-
-          base=bg("accepted")
-          out={"status":"no-fit structural kinetic hypothesis test","cases":{}}
-          for tag in ["accepted","xiD0","canonFloor","structural"]:
-              rc=int(Path(f"output/{tag}.rc").read_text())
-              rec={"returncode":rc}
-              if rc==0:
-                  d=bg(tag); z=d["z"]; m=z<=100
-                  rec["stability"]={
-                    "min_D_z100":float(np.min(d["kin (D)"][m])),
-                    "min_cs2_z100":float(np.min(d["c_s^2"][m])),
-                    "max_cs2_z100":float(np.max(d["c_s^2"][m])),
-                    "max_abs_noslip_z100":float(np.max(np.abs(d["braiding_smg"][m]+2*d["M2_running_smg"][m])))
-                  }
-                  if tag!="accepted":
-                      rec["observable_residuals"]={
-                        "unlensed_cl_peaknorm":cmp("output/accepted_00_cl.dat",f"output/{tag}_00_cl.dat"),
-                        "lensed_cl_peaknorm":cmp("output/accepted_00_cl_lensed.dat",f"output/{tag}_00_cl_lensed.dat"),
-                        "pk_peaknorm":cmp("output/accepted_00_pk.dat",f"output/{tag}_00_pk.dat")
-                      }
-              else:
-                  log=Path(f"output/{tag}.log").read_text(errors="replace")
-                  rec["error_tail"]=[x for x in log.splitlines() if "error" in x.lower() or "instability" in x.lower()][-10:]
-              out["cases"][tag]=rec
-          Path("output/structural_kinetic_test.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
-          print("STRUCTURAL_KINETIC_TEST",json.dumps(out,sort_keys=True))
-          PY
+      - name: Analyze
+        run: python3 sdmc/run_structural_kinetic_hypothesis.py analyze
       - uses: actions/upload-artifact@v4
         if: always()
         with:
