@@ -39,7 +39,7 @@ def main():
     outdir=Path("output/hsc_tatt_warm"); outdir.mkdir(parents=True,exist_ok=True)
     for i,x in enumerate(starts):
         r=minimize(obj.objective_tatt,x,method="L-BFGS-B",bounds=bounds,
-                   options={"maxiter":240,"ftol":1e-10,"gtol":1e-7,"maxls":40})
+                   options={"maxiter":600,"ftol":1e-10,"gtol":1e-7,"maxls":40})
         rec={"start":i,"chi2":float(r.fun),"success":bool(r.success),
              "message":str(r.message),"nfev":int(r.nfev),"nit":int(r.nit),
              "x":r.x.tolist()}
