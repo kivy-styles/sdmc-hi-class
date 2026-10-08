@@ -1,0 +1,30 @@
+name: SDMC D true forward canonical IR homogeneous and origin audit
+
+on:
+  push:
+    branches: [sdmc-D-forward-canonical-attractor]
+    paths:
+      - '.github/workflows/sdmc_D_full_forward_IR_and_UV_audit.yml'
+      - 'sdmc/run_D_full_forward_IR_and_UV_identifiability.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  forward-ir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python derivation audit
+        run: python3 -m py_compile sdmc/run_D_full_forward_IR_and_UV_identifiability.py
+      - name: Evolve actual mature canonical action with Friedmann constraint and perturbative eigenmodes
+        run: python3 sdmc/run_D_full_forward_IR_and_UV_identifiability.py
+      - name: Archive forward trajectories and analytic derivations
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-D-forward-canonical-IR-eight-seeds
+          path: output/D_mature_forward_IR_identifiability/
+          if-no-files-found: warn
