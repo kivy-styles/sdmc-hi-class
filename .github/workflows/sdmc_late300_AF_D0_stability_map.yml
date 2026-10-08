@@ -211,6 +211,9 @@ jobs:
           outpath.write_text(json.dumps(result,indent=2,sort_keys=True)+"\n")
           print("AF_HANDOFF_SUMMARY",json.dumps({k:v for k,v in result.items() if k!="rows"},sort_keys=True))
           PY
+      - name: Audit non-circularity of rK kinetic-floor inference
+        run: |
+          python3 sdmc/audit_late300_rk_non_circularity.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -218,3 +221,4 @@ jobs:
           path: |
             output/AF_D0_stability_map.json
             output/AF_handoff_threshold.json
+            output/rk_non_circularity_audit.json
