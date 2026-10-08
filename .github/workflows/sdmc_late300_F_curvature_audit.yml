@@ -1,0 +1,135 @@
+name: SDMC late300 F curvature diagnostic
+
+on:
+  push:
+    branches: [sdmc-late300-F-curvature-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_F_curvature_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted target background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Evaluate reduced curvature-loading diagnostic
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,math,json
+          import numpy as np
+          from scipy.interpolate import CubicSpline
+
+          ini=next(Path("recovered").rglob("linear_cov_target.ini"))
+          def iv(key):
+              for raw in ini.read_text().splitlines():
+                  line=raw.split("#",1)[0].strip()
+                  if line.startswith(key) and "=" in line:
+                      return [float(x.strip()) for x in line.split("=",1)[1].split(",")]
+              raise RuntimeError(key)
+          kin=iv("parameters_smg")
+          AF,ZC,WIDTH,D0,POWER,DFLOOR=kin
+
+          bg=next(Path("recovered").rglob("linear_cov_target_00_background.dat"))
+          ls=bg.read_text().splitlines()
+          hdr=[l for l in ls if l.startswith("#") and re.search(r"(?:^|\s)1\s*:",l)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          a=np.loadtxt(bg)
+          if a.ndim==1:a=a[None,:]
+          d={n:a[:,i] for i,n in enumerate(names)}
+          N=-np.log1p(d["z"])
+          o=np.argsort(N)
+          N=N[o]; H=np.asarray(d["H [1/Mpc]"],float)[o]
+          rho=np.asarray(d["(.)rho_smg"],float)[o]
+          pre=np.asarray(d["(.)p_smg"],float)[o]
+          keep=np.r_[True,np.diff(N)>1e-12]
+          N,H,rho,pre=[x[keep] for x in (N,H,rho,pre)]
+          z=np.exp(-N)-1
+
+          lnHsp=CubicSpline(N,np.log(H))
+          h=lnHsp(N,1)
+          Hpa=H*H*h
+          X=.5*H*H
+
+          Nc=-math.log1p(ZC)
+          xx=(N-Nc)/(2*WIDTH)
+          tt=np.tanh(xx); uu=1-tt*tt
+          S=.5*(1+tt)
+          S1=uu/(4*WIDTH)
+          S2=-tt*uu/(4*WIDTH*WIDTH)
+          F=np.exp(AF*S)
+          F1=F*(AF*S1)
+          F2=F*((AF*S1)**2+AF*S2)
+          g=-F1/(H*H)
+          g1=CubicSpline(N,g)(N,1)
+          Dtar=DFLOOR+D0*S**POWER
+          aM=F1/F; aB=-2*aM
+          aK=Dtar-1.5*aB*aB
+
+          RR=3*rho+2*g1*X*X+6*F1*H*H+3*(F-1)*H*H
+          PP=3*pre+2*g1*X*X-2*X*F2-3*(F-1)*H*H-2*(F-1)*Hpa-2*F1*(H*H+Hpa)
+          C=(RR+PP)/(2*X)
+          k2=(F*aK-C+4*g1*X-6*g*H*H)/(4*X)
+          k1=C-2*k2*X
+          V=.5*(RR-PP)-k2*X*X
+
+          if np.any(V<=0):
+              raise RuntimeError(f"V non-positive min={V.min()}")
+          V1=CubicSpline(N,V)(N,1)
+
+          # sigma=N reconstruction, dot(sigma)=H; geometric flat-FLRW Ricci scalar.
+          Ric=6*H*H*(2+h)
+          num=np.abs(.5*F1*Ric)
+          den=np.abs(V1)
+          CR=np.divide(num,den,out=np.full_like(num,np.nan),where=den>1e-30)
+
+          m=(z>=0.05)&(z<=20)&np.isfinite(CR)&(CR>0)
+          ii=np.where(m)[0]
+          crossings=[]
+          y=np.log(CR)
+          for i in ii[:-1]:
+              if not m[i+1]: continue
+              if y[i]*y[i+1] <= 0 and y[i]!=y[i+1]:
+                  f=-y[i]/(y[i+1]-y[i])
+                  nn=N[i]+f*(N[i+1]-N[i])
+                  crossings.append({"ln_a":float(nn),"z":float(math.exp(-nn)-1)})
+
+          ip=ii[np.argmax(CR[ii])]
+          jzc=int(np.argmin(np.abs(z-ZC)))
+          # closest C_R=1 point to zc
+          closest=min(crossings,key=lambda r:abs(r["z"]-ZC)) if crossings else None
+
+          out={
+            "status":"reduced potential-only curvature-loading diagnostic; K_sigma omitted so this is not the full C_R",
+            "assumption":"accepted linear reconstruction uses sigma=ln(a), dot(sigma)=H",
+            "accepted":{"A_F":AF,"z_c":ZC,"width":WIDTH},
+            "at_zc":{"z":float(z[jzc]),"CR_V":float(CR[jzc]),"F":float(F[jzc]),"alphaM":float(aM[jzc]),
+                     "Ricci_over_H2":float(Ric[jzc]/H[jzc]**2)},
+            "CR_equals_1_crossings":crossings,
+            "closest_crossing_to_zc":closest,
+            "peak_in_z_0p05_20":{"z":float(z[ip]),"CR_V":float(CR[ip])},
+            "verdict":"A crossing near z_c would support, but not prove, curvature-trigger timing. Full derivation requires K_sigma from the noncanonical scalar equation."
+          }
+          Path("output/F_curvature_diagnostic.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("F_CURVATURE_DIAGNOSTIC",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: F-curvature-diagnostic
+          path: output/F_curvature_diagnostic.json
