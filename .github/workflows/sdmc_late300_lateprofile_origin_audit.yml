@@ -1,0 +1,145 @@
+name: SDMC late300 late-profile origin audit
+
+on:
+  push:
+    branches: [sdmc-late300-lateprofile-origin-audit]
+    paths:
+      - '.github/workflows/sdmc_late300_lateprofile_origin_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  derive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: python3 -m pip install numpy scipy >/dev/null
+      - name: Recover accepted target background
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p recovered output
+          gh run download 37581925240 --repo "${{ github.repository }}" --name late300-linear-g3-covariant-audit --dir recovered
+      - name: Solve late amplitudes from two closure conditions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,json,math
+          import numpy as np
+          from scipy.integrate import quad
+          from scipy.optimize import brentq
+          from scipy.interpolate import CubicSpline
+
+          ini=next(Path("recovered").rglob("linear_cov_target.ini"))
+          vals={}
+          for raw in ini.read_text().splitlines():
+              q=raw.split("#",1)[0].strip()
+              if not q or "=" not in q: continue
+              k,v=[x.strip() for x in q.split("=",1)]
+              vals[k]=v
+          H0=float(vals["H0"])
+          h=H0/100.
+          ob=float(vals["omega_b"]); oc=float(vals["omega_cdm"])
+          # Use the same radiation normalization as the structural audit.
+          omega_r=4.17998772e-5
+          Om=(ob+oc)/(h*h); Or=omega_r/(h*h)
+
+          exp=[float(x.strip()) for x in vals["expansion_smg"].split(",")]
+          Ox,lam,zt,dN,Aacc,tauA,Bacc,tauB=exp
+
+          bg=next(Path("recovered").rglob("linear_cov_target_00_background.dat"))
+          ls=bg.read_text().splitlines()
+          hdr=[x for x in ls if x.startswith("#") and re.search(r"(?:^|\s)1\s*:",x)][-1].lstrip("#").strip()
+          ms=list(re.finditer(r"(\d+)\s*:\s*",hdr)); names=[]
+          for i,m in enumerate(ms):
+              e=ms[i+1].start() if i+1<len(ms) else len(hdr)
+              names.append(hdr[m.end():e].strip())
+          ar=np.loadtxt(bg)
+          if ar.ndim==1:ar=ar[None,:]
+          d={n:ar[:,i] for i,n in enumerate(names)}
+          z=np.asarray(d["z"],float)
+          H=np.asarray(d["H [1/Mpc]"],float)
+          o=np.argsort(z); z=z[o]; H=H[o]
+          keep=np.r_[True,np.diff(z)>1e-12]
+          z=z[keep]; H=H[keep]
+          spl=CubicSpline(z,np.log(H))
+          q0_target=-1.0+float(spl(0,1))
+
+          # Target distance to last scattering, using accepted background itself.
+          zstar=1089.447210
+          zmax=min(zstar,float(z[-1]))
+          chi_target=quad(lambda zz: math.exp(-float(spl(zz))),0,zmax,epsabs=1e-8,epsrel=2e-10,limit=800)[0]
+
+          def tracker_f(zz):
+              a=1/(1+zz)
+              rm=Om*a**-3; rr=Or*a**-4
+              xr=rr/(rm+rr)
+              f0=(3+xr)/(lam*lam)
+              N=math.log(a); Nt=-math.log1p(zt)
+              W=.5*(1-math.tanh((N-Nt)/dN))
+              return W*f0
+
+          def Eraw(zz,A,B):
+              a=1/(1+zz)
+              base=Om*a**-3+Or*a**-4+Ox
+              g=1+A*zz*math.exp(-zz/tauA)-B*zz*zz*math.exp(-zz/tauB)
+              f=tracker_f(zz)
+              return math.sqrt(base*g*g/(1-f))
+
+          # Normalize to the same physical H0 at z=0; residual tracker there is tiny but included.
+          def E(zz,A,B):
+              return Eraw(zz,A,B)/Eraw(0,A,B)
+
+          def q0_model(A):
+              dz=1e-5
+              # q=-1 + d ln H / dz at z=0 because 1+z=1
+              ep=E(dz,A,Bacc); em=E(0,A,Bacc)
+              # one-sided 5-point-ish Richardson using spline-like polynomial stencil
+              h1=1e-5
+              ys=[math.log(E(k*h1,A,Bacc)) for k in range(5)]
+              deriv=(-25*ys[0]+48*ys[1]-36*ys[2]+16*ys[3]-3*ys[4])/(12*h1)
+              return -1+deriv
+
+          Aderived=brentq(lambda A:q0_model(A)-q0_target,-0.2,0.2,xtol=1e-14)
+
+          def chi(B):
+              return 299792.458/H0*quad(lambda zz:1/E(zz,Aderived,B),0,zstar,
+                                        epsabs=1e-8,epsrel=2e-9,limit=800)[0]
+          # target H is already in 1/Mpc, so its integral is Mpc.
+          Bderived=brentq(lambda B:chi(B)-chi_target,-0.1,0.1,xtol=1e-13)
+
+          # Also solve B if A is held to accepted value, separating the A residual.
+          B_if_Aacc=brentq(lambda B:(299792.458/H0*quad(lambda zz:1/E(zz,Aacc,B),0,zstar,
+                                                       epsabs=1e-8,epsrel=2e-9,limit=800)[0])-chi_target,
+                           -0.1,0.1,xtol=1e-13)
+
+          out={
+            "status":"late-profile amplitudes reduced to present-q and acoustic-distance closures",
+            "accepted":{"A_late":Aacc,"B_late":Bacc,"tau_A":tauA,"tau_B":tauB},
+            "target_conditions":{"q0":q0_target,"zstar":zstar,"chi_star_Mpc":chi_target},
+            "derived":{
+              "A_from_exact_q0_with_tracker":Aderived,
+              "A_residual":Aderived-Aacc,
+              "B_from_distance_after_derived_A":Bderived,
+              "B_residual":Bderived-Bacc,
+              "B_from_distance_with_accepted_A":B_if_Aacc,
+              "B_residual_if_Aaccepted":B_if_Aacc-Bacc
+            },
+            "classification":{
+              "A_late":"not independent once present q0 is predicted by SDMC",
+              "B_late":"not independent once the target comoving/acoustic distance is predicted by SDMC",
+              "caveat":"Using q0 and chi_star from the accepted fitted cosmology demonstrates algebraic reducibility, not first-principles prediction."
+            }
+          }
+          Path("output/lateprofile_origin_audit.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("LATEPROFILE_ORIGIN_AUDIT",json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lateprofile-origin-audit
+          path: output/lateprofile_origin_audit.json
