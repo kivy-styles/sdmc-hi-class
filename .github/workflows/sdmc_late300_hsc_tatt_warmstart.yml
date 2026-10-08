@@ -1,8 +1,8 @@
-name: SDMC HSC local021 TATT warm-start refinement
+name: SDMC HSC local021 TATT final convergence
 
 on:
   push:
-    branches: [sdmc-hsc-tatt-refine2-local021]
+    branches: [sdmc-hsc-tatt-local021-final-convergence]
     paths:
       - 'sdmc/run_late300_hsc_tatt_warmstart.py'
       - '.github/workflows/sdmc_late300_hsc_tatt_warmstart.yml'
