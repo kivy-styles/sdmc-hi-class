@@ -1,0 +1,61 @@
+name: SDMC D corrections genuine covariant Planck comparison
+
+on:
+  push:
+    branches: [sdmc-late300-D-covariant-true-inputs]
+    paths:
+      - '.github/workflows/sdmc_D_true_input_covariant_planck.yml'
+      - 'sdmc/replay_D_covariant_true_inputs.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  true-input-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        case:
+          - derived_reference
+          - D0_2pi_over_lambda
+          - Dfloor_tracker
+          - composite_2pi_tracker
+          - D0_Xi_over_sqrtF
+          - historical_D0
+    steps:
+      - name: Checkout source branch and original independent reconstruction
+        uses: actions/checkout@v4
+      - name: Install solver, spline, YAML, and real Plik-lite tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pyyaml cobaya
+          python3 -m py_compile sdmc/replay_D_covariant_true_inputs.py
+      - name: Build and reconstruct candidate-specific covariant action and compute high-l Planck likelihood
+        run: |
+          python3 sdmc/replay_D_covariant_true_inputs.py --case "${{ matrix.case }}" --planck
+      - name: Upload real-action parameter and perturbation provenance
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-D-true-input-${{ matrix.case }}
+          path: |
+            output/D_true_inputs_provenance.json
+            output/D_true_inputs_planck_pliklite.csv
+            output/linear_cov_target.ini
+            output/linear_cov_free.ini
+            output/linear_cov_reconstruction_summary.txt
+            output/linear_cov_action_kinetic_coefficients.json
+            output/linear_cov_replay_comparison.json
+            output/linear_cov_boltzmann_comparison.json
+            output/linear_cov_free_returncode.txt
+            output/linear_cov_target_00_cl_lensed.dat
+            output/linear_cov_free_00_cl_lensed.dat
+            output/linear_cov_target_00_background.dat
+            output/linear_cov_free_00_background.dat
+          if-no-files-found: warn
