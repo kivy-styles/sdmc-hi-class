@@ -1,8 +1,8 @@
-name: SDMC late300 force-window amplitude micro-refine
+name: SDMC late300 force-window amplitude nano-refine
 
 on:
   push:
-    branches: [sdmc-late300-F-force-amplitude-micro]
+    branches: [sdmc-late300-F-force-amplitude-nano]
     paths:
       - '.github/workflows/sdmc_late300_F_force_amplitude_micro.yml'
   workflow_dispatch:
@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        AF: [0.02049,0.02050,0.02052,0.02054,0.02056,0.02060,0.02070,0.02080,0.02090]
+        AF: [0.020500,0.020502,0.020504,0.020506,0.020508,0.020510,0.020512,0.020514,0.020516,0.020518,0.020520]
     steps:
       - uses: actions/checkout@v4
       - name: Dependencies and patches
