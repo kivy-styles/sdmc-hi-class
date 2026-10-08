@@ -1,0 +1,135 @@
+name: SDMC coupled AF-handoff stability threshold
+
+on:
+  push:
+    branches: [sdmc-late300-AF-D0-stability-map]
+    paths:
+      - '.github/workflows/sdmc_late300_AF_handoff_threshold.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  threshold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build independent kinetic No-Slip branch
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y build-essential >/dev/null
+          python3 -m pip install --upgrade pip >/dev/null
+          python3 -m pip install numpy >/dev/null
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+          python3 sdmc/install_sdmc_v3_independent_kinetic.py
+          python3 sdmc/patch_F_only_force_center.py
+          make clean >/dev/null && make -j2 class >/dev/null
+          mkdir -p output
+      - name: Measure paired structural-handoff stability thresholds
+        run: |
+          python3 - <<'PY'
+          import json, re, subprocess
+          from pathlib import Path
+          import numpy as np
+          outpath=Path("output/AF_handoff_threshold.json")
+          AFs=[0.0205160,0.0205170,0.0205173,0.0205175,0.0205177,0.0205179,0.0205180,0.0205182,0.0205200]
+          zts=[("historical",16.19317622240633),("derived_fixedpoint",16.742289660253434)]
+          D0=0.34231919445927034
+          common="""H0 = 69.71482083084993
+          omega_b = 0.022083219194622913
+          omega_cdm = 0.12299536722293603
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.1047019076951746e-09
+          n_s = 0.9628416801318527
+          tau_reio = 0.053167105823755265
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          expansion_model = sdmc_full
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          a_ini_over_a_today_default = 1.e-8
+          a_ini_test_qs_smg = 1.e-8
+          pert_ic_ini_z_ref_smg = 1.e7
+          a_min_stability_test_smg = 1.e-8
+          output_background_smg = 3
+          modes = s
+          output =
+          write background = yes
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          """
+          rows=[]
+          def checkpoint():
+            outpath.write_text(json.dumps({"experiment":"paired-AF-handoff-stability","rows":rows},indent=2,sort_keys=True)+"\n")
+          for case,zt in zts:
+            for AF in AFs:
+              tag=f"threshold_{case}_af{AF:.7f}".replace(".","p")
+              ini=Path("output")/(tag+".ini")
+              root=f"output/{tag}_"
+              ini.write_text(common+f"expansion_smg = 0.7014079815036496, 18.40625, {zt}, 0.5, 0.024822032167576252, 0.25, 0.01264704344701022, 1.5\nparameters_smg = {AF}, 4.034077502899133, 0.32925377073762596, {D0}, 1.0, 0.05181542627513409\nroot = {root}\n")
+              p=subprocess.run(["./class",str(ini)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+              rec={"case":case,"z_t":zt,"A_F":AF,"D0":D0,"returncode":p.returncode,"success":p.returncode==0}
+              bg=Path(root+"00_background.dat")
+              if bg.exists():
+                try:
+                  lines=bg.read_text().splitlines()
+                  header=[l for l in lines if l.startswith("#") and re.search(r"(?:^|\s)1\s*:",l)][-1].lstrip("#").strip()
+                  matches=list(re.finditer(r"(\d+)\s*:\s*",header))
+                  names=[header[m.end():matches[i+1].start() if i+1<len(matches) else len(header)].strip() for i,m in enumerate(matches)]
+                  data=np.atleast_2d(np.loadtxt(bg))
+                  cols={n:data[:,i] for i,n in enumerate(names)}
+                  cs=cols["c_s^2"];d=cols["kin (D)"];z=cols["z"]
+                  i=int(np.argmin(cs))
+                  rec.update(min_cs2=float(cs[i]),z_min_cs2=float(z[i]),min_D=float(np.min(d)))
+                except Exception as e:
+                  rec["parse_error"]=repr(e)
+                  rec["success"]=False
+              else:
+                match=re.search(r"minimum c_s\^2=([^ ]+) at a=([^\s]+)",p.stdout)
+                if match:
+                  rec.update(min_cs2=float(match.group(1)),z_failure=float(1/float(match.group(2))-1))
+                else:
+                  rec["missing_cs2"]=True
+              rows.append(rec)
+              checkpoint()
+              print("AF_HANDOFF_POINT",json.dumps(rec,sort_keys=True),flush=True)
+          thresholds={}
+          for case,zt in zts:
+            rr=sorted([r for r in rows if r["case"]==case and "min_cs2" in r],key=lambda r:r["A_F"])
+            pair=next(((a,b) for a,b in zip(rr,rr[1:]) if a["min_cs2"]<=0<b["min_cs2"]),None)
+            if pair:
+              a,b=pair
+              estimate=a["A_F"]+(0-a["min_cs2"])*(b["A_F"]-a["A_F"])/(b["min_cs2"]-a["min_cs2"])
+              thresholds[case]={"bracket":[a["A_F"],b["A_F"]],"linear_zero_estimate":estimate}
+            else:
+              thresholds[case]={"bracket":None,"linear_zero_estimate":None}
+          result={"status":"paired handoff experiment complete","fixed":{"zc":4.034077502899133,"width":0.32925377073762596,"D0":D0,"Dfloor":0.05181542627513409},"thresholds":thresholds,"rows":rows,"note":"Linear zero estimates are local numerical interpolations, not microscopic derivations."}
+          outpath.write_text(json.dumps(result,indent=2,sort_keys=True)+"\n")
+          print("AF_HANDOFF_SUMMARY",json.dumps({k:v for k,v in result.items() if k!="rows"},sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: AF-handoff-threshold
+          path: output/AF_handoff_threshold.json
