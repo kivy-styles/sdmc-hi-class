@@ -1,4 +1,5 @@
 name: SDMC coupled AF-handoff stability threshold
+# Paired fixed-background sound-speed sign test; no likelihood refit.
 
 on:
   push:
