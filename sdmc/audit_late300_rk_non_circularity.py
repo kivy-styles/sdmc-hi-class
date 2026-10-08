@@ -85,6 +85,37 @@ def do_audit():
                                 "d_ln_r_d_ln_a_constant_coefficients":static,
                                 "required_b2_minus_2b1_strictly_above":threshold,
                                 "growth_with_b2_above_threshold":just_above})
+    # Apply Manuscript B Eq.9.7 as an additional *conditional* assumption:
+    # p = dlnS/dlna = 2+1/(1+3r), only when activation/transfer vanish.
+    # If k2/k1^2 scales as S**m along the solution, b2-2*b1=m*p.
+    structural_examples=[]
+    for rk in [0.001, r, 1.0, 11.0, 100.0]:
+        p_struct = 2.0+1.0/(1.0+3.0*rk)
+        mcrit=minimum_coefficient_combination_for_growth(rk)/p_struct
+        assert math.isclose(mcrit,2.0,abs_tol=1e-12)
+        tests={}
+        for m in [1.9,2.0,2.1]:
+            direct=reduced_rk_log_slope(rk,0.0,m*p_struct)
+            closed=3.0*(1.0+2.0*rk)*(m-2.0)/(1.0+6.0*rk)
+            assert math.isclose(direct,closed,abs_tol=1e-12)
+            tests[str(m)]=direct
+        assert tests["1.9"]<0 and abs(tests["2.0"])<1e-12 and tests["2.1"]>0
+        structural_examples.append({
+            "rK":rk,"p_assuming_no_activation_or_transfer":p_struct,
+            "m_critical":mcrit,"dlnr_dlna_for_m":tests,
+        })
+    structural_power_criterion={
+        "assumptions":[
+            "reduced positive G2 with no G3, G4 mixing or potential forcing",
+            "Manuscript B Eq. 9.7 p = 2+1/(1+3r), requiring A_chi=0 and q_J=0",
+            "along-trajectory scaling k2/k1^2 proportional to S**m",
+        ],
+        "derived_formula":"dlnr/dlna = 3*(1+2*r)*(m-2)/(1+6*r)",
+        "m_critical":2.0,
+        "interpretation":"m>2 permits growth; m=2 freezes; m<2 decays",
+        "examples":structural_examples,
+        "open_problem":"Derive m, coefficient functions and source terms from the full accepted covariant SDMC action rather than assume the scaling.",
+    }
     dynamical_criterion={
         "equation":"dlnr/dlna = ((1+3r)*(b2-2*b1)-6*(1+2r))/(1+6r)",
         "definitions":"b_i=d ln k_i / d ln a along the homogeneous field trajectory",
@@ -116,6 +147,7 @@ def do_audit():
         },
         "continuous_counterexamples":alternatives,
         "reduced_action_dynamical_growth_test":dynamical_criterion,
+        "conditional_structural_power_test":structural_power_criterion,
         "scientific_conclusion":{
             "confirmed":"Accepted D_floor is consistent with a positive-G2 rK approximately 0.02553 and the causal guide.",
             "not_confirmed":"No independent coefficient ratio k2(Z) Z/k1(Z), early trajectory Z(N), or independent early structural fraction has been derived here.",
