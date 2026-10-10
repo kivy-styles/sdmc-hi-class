@@ -1,0 +1,33 @@
+name: SDMC early galaxy SMBH microscopic coefficient audit
+
+on:
+  push:
+    branches:
+      - sdmc-early-galaxy-smbh-microscopic-audit-20261010
+    paths:
+      - 'sdmc/audit_early_galaxy_smbh_microphysics.py'
+      - 'sdmc/late300_candidate.json'
+      - '.github/workflows/sdmc_early_galaxy_smbh_microphysics_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  microscopic-coefficient-consistency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install integration dependency
+        run: python3 -m pip install scipy
+      - name: Run independent analytic and halo scale audit
+        run: |
+          python3 sdmc/audit_early_galaxy_smbh_microphysics.py
+      - name: Preserve results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-early-galaxy-smbh-uv-consistency
+          path: output/early_galaxy_smbh_uv/*
+          if-no-files-found: warn
