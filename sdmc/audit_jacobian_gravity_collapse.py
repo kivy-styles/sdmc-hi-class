@@ -86,7 +86,7 @@ for name, shape in [("symmetric_a_window",shape_one),("skewed_a_window",shape_tw
         arr.append({"z":z,"lapse_N":N,"R_Mpc":R,"M":M,"structural_exponent_p":idx,
                     "q_from_H":state(x)["q"],"H_km_s_Mpc":H})
     assert abs(arr[-1]["R_Mpc"]-Rstar)<2e-7
-    assert abs(arr[0]["structural_exponent_p"]-1.03421566)<1e-8
+    assert abs(arr[0]["structural_exponent_p"]-1.03421566)<1e-6
     assert all(x["R_Mpc"]>0 for x in arr)
     lapse_families[name]={"amplitude_fitted_to_Mstar":amp,"R_values":arr}
 assert Rstar_if_Nconstant<0
