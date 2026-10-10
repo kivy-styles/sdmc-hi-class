@@ -1,0 +1,32 @@
+name: SDMC Jacobian gravity and collapse audit
+
+on:
+  push:
+    branches:
+      - sdmc-early-galaxy-smbh-microscopic-audit-20261010
+    paths:
+      - 'sdmc/audit_jacobian_gravity_collapse.py'
+      - 'sdmc/late300_candidate.json'
+      - '.github/workflows/sdmc_jacobian_gravity_collapse_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  jacobian-gravity-collapse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install scientific solver
+        run: python3 -m pip install scipy
+      - name: Audit late300 Jacobian/lapse reconstruction and linear growth
+        run: python3 sdmc/audit_jacobian_gravity_collapse.py
+      - name: Preserve reproducible diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-jacobian-gravity-collapse-diagnostics
+          path: output/jacobian_gravity_collapse/*
+          if-no-files-found: warn
