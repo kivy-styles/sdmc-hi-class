@@ -173,6 +173,25 @@ With `m_eff²>0`, `calR_N<0`, and late300's `F_N>0`, the explicit time-dependent
 
 For the complete action the scalar source is not just `U_sigma`: it is the exact `dot J+3HJ=P_sigma` above. Solve that equation instead of fixing a desired `F(N)` by an external logistic gate.
 
+## 6b. Conditional numerical handoff reconstructed from the accepted background
+
+The Friedmann constraint determines the Jordan action-split density along the already selected late300 history, without separately knowing the reconstructed on-shell coefficients:
+
+```
+rho_X^J/(3 M² H0²) = F(z) E²(z) - Omega_m0 (1+z)^3 - Omega_r0 (1+z)^4,
+Q_J(z) = rho_X^J(z)/rho_m(z).
+q(z) = -1 - d ln H/dN.
+```
+
+Numerically, using the canonical late300 background prescription: 
+
+- `Q_J=1` at `z≈0.34925`, a model-*diagnosed* equal action-split contribution to the Friedmann right-hand side.
+- `q=0` at `z≈0.70723`, the separate onset of accelerated expansion. These two epochs need not coincide.
+- `Q_J(z=0)≈2.41849`.
+- `rho_X^J` crosses zero near `z≈4.03906` and `z≈8.75646`. The source split is not a globally positive vacuum fluid; do not log `chi_J` or `Q_J` between these roots.
+
+These are **conditional results of the already fitted background**. They do not demonstrate a unique independent activation mechanism or a free-action solution, and cannot be used as a new likelihood improvement. They distinguish a matter/structural *contribution equality* from the *cosmic acceleration* crossover, from the early tracker shutoff at `z_t=16.1932`, and from the selected `F` centre at `z_c=3.9279`.
+
 ## 7. Dynamical handoff algorithm and falsification criteria
 
 1. Specify one microphysically motivated, covariant `k1(sigma), k2(sigma), g(sigma), V(sigma), F(sigma)` independent of the accepted target `H(z)`, `F(N)`, `z_t`, and late `delta_H`.
