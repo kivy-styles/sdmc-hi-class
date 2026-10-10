@@ -1,0 +1,29 @@
+name: SDMC radiation mapper scalar activation audit
+
+on:
+  push:
+    branches:
+      - sdmc-early-galaxy-smbh-microscopic-audit-20261010
+    paths:
+      - 'sdmc/audit_radiation_mapper_activation.py'
+      - '.github/workflows/sdmc_radiation_mapper_activation_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  radiation-mapper-activation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify radiation mapper and activation identities
+        run: python3 sdmc/audit_radiation_mapper_activation.py
+      - name: Preserve results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-radiation-mapper-activation-identities
+          path: output/radiation_mapper_activation/*
+          if-no-files-found: warn
