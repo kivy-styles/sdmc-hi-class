@@ -73,6 +73,40 @@ def make_model(p):
         eps = 1e-4
         return (curvature(n + eps) - curvature(n - eps)) / (2 * eps)
 
+    def structural_ratio(z):
+        n = -math.log1p(z)
+        a_inv = 1.0 + z
+        rho_m = om * a_inv**3
+        rho_r = ore * a_inv**4
+        f, _ = f_and_alpha(n)
+        rho_x_j = f * e2(n) - rho_m - rho_r
+        return rho_x_j / rho_m
+
+    def deceleration(z):
+        n = -math.log1p(z)
+        return -1.0 - dlnh_dn(n)
+
+    def bisect_z(fn, lo, hi):
+        flo = fn(lo)
+        fhi = fn(hi)
+        if flo * fhi > 0:
+            raise RuntimeError('redshift interval does not bracket a crossing')
+        for _ in range(70):
+            mid = 0.5 * (lo + hi)
+            fm = fn(mid)
+            if flo * fm <= 0:
+                hi = mid
+                fhi = fm
+            else:
+                lo = mid
+                flo = fm
+        return 0.5 * (lo + hi)
+
+    def rho_x_j_over_3M2H02(z):
+        n = -math.log1p(z)
+        f, _ = f_and_alpha(n)
+        return f * e2(n) - om * (1.0 + z)**3 - ore * (1.0 + z)**4
+
     records = []
     for label, z in [
         ("last_scattering", 1090.0),
@@ -102,6 +136,13 @@ def make_model(p):
         "H0_input_km_s_Mpc": p["H0"],
         "Omega_m0": om, "Omega_r0": ore, "Omega_x0": ox,
         "matter_dilution_factor_at_F_center": (1.0 + p["z_c"])**3,
+        "action_split_Q_equals_one_z_from_selected_background": bisect_z(lambda z: structural_ratio(z) - 1.0, 0.3, 0.4),
+        "acceleration_q_equals_zero_z_from_selected_background": bisect_z(deceleration, 0.7, 0.8),
+        "action_split_rhoX_J_zero_crossings_z_from_selected_background": [
+        bisect_z(rho_x_j_over_3M2H02, 4.0, 5.0),
+        bisect_z(rho_x_j_over_3M2H02, 8.0, 9.0),
+        ],
+        "Q_J_today": structural_ratio(0.0),
         "results": records,
         "stable_adiabatic_curvature_minimum_contradicted_at_F_center":
             records[2]["F_N"] > 0 and records[2]["dRcal_dN_over_H0_squared"] < 0,
@@ -120,4 +161,6 @@ if __name__ == "__main__":
     assert at_center["dRcal_dN_over_H0_squared"] < 0
     assert abs(at_center["Rcal_over_H0_squared"] - 109.9169) < 0.1
     assert abs(at_center["alpha_M"] - 0.0154628) < 1e-5
+    assert abs(results["action_split_Q_equals_one_z_from_selected_background"] - 0.34925) < 0.002
+    assert abs(results["acceleration_q_equals_zero_z_from_selected_background"] - 0.70723) < 0.003
     print(json.dumps(results, indent=2))
