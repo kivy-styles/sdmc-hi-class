@@ -41,6 +41,18 @@ This derivation fixes the **relative geometric numerical coefficient 8** for the
 
 **Critical timing problem:** Manuscript B §55.2 explicitly requires the prethermal spatial curvature selector `W -> 0` in the infrared after selecting the flat branch. Therefore the inherited selector has `alphaK_spatial -> 0` by the galaxy-formation era. Using it as a nonzero dwarf-scale filter at z~5–20 requires either a **new matter-era reactivation of W**, or a separate allowed spatial-gradient invariant with an independent coefficient. Neither law is present as a parameter-free prediction. The earlier claimed availability of a k^4 galaxy filter is therefore *architectural*, not achieved for the frozen original selector history.
 
+### Additional sign no-go for the inherited selector alone
+
+A further variational check is available without choosing any free UV coefficient. Inside a locally constant-curvature patch, hold the Jordan 3-curvature fixed in the variation of the relative dilation `u`. Because `gamma_ij=M^2 exp(2u)h_ij`, intrinsic Riemann-squared scales as `M^-4 exp(-4u)`. The positive selector potential therefore has the form
+
+`V_K(u) = 6 B W eta_K H^4 kappa^2 M^-4 exp(-4u)`.
+
+Its derivative at the locked branch is
+
+`dV_K/du|_(u=0) = -24 B W eta_K H^4 kappa^2 M^-4 < 0`
+
+for a nonzero curved patch and positive `B,W,eta_K`. Combining it with the positive mass potential `V_map=(mu_V^4/2)u^2`, a minimum is displaced toward **u>0**. Under the earlier conditional local-volume rule `1+delta_S=(1+delta_J)exp(-3u)`, this *dilutes* rather than enhances the effective overdensity. Hence the original positive flatness selector acting on an isotropic, locally uniform patch has both (i) the halo-scale magnitude deficiency already noted in Manuscript B §27.1 and (ii) the wrong sign for the proposed contraction-driven collapse. A separately specified signed nonlinear source such as `u*kappa^3` can reverse that effect, but **its coefficient is independent**; this calculation does not derive `g3`. Curvature-gradient and full local constraint effects could change this simple patch-level conclusion and require separate evaluation.
+
 ## C. Independent quasistatic halo screening test
 
 Introduce the dimensionful trace mass `m`, propagation speed `c_ell`, and the spatial quartic coefficient `alphaK_spatial`. The subhorizon static response of the trace to a specified local nonlinear source has the conditional normalized form
