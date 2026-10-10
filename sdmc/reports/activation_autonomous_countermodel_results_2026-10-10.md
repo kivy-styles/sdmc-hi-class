@@ -73,6 +73,39 @@ The accepted **late300 target** instead has `F(today)≈1.020525`, `alpha_M(toda
 6. `phi` in this canonical action is **not established to equal** the manuscript's direct structural clock `ln(S/S0)`; the matter-era structural target `p≈3/2` is not reproduced. Identifying the fields would require a justified field redefinition and consistent transformation of all coefficients.
 7. Neither `H0` nor the absolute potential scale is predicted: `V_IR` is normalized by a reference density. There has been **no** Planck, DESI, SH0ES, BBN, growth, or Bayesian-evidence test of this countermodel.
 
+## Stronger analytic consequence: No-Slip requires a kinetic-braiding law
+
+For the restricted Horndeski class with `G4=M²F(phi)/2`, `G5=0`, and no `G4_X`, the exact linear-perturbation background identity is
+
+```
+alpha_M = dot(phi) F_phi /(H F)
+
+alpha_B = [2 dot(phi)/(H M²F)] [X G3_X - (M²/2) F_phi].
+```
+
+Demanding the accepted **No-Slip branch** `alpha_B=-2 alpha_M` yields
+
+```
+X G3_X = -(M²/2) F_phi.
+```
+
+The canonical autonomous test has `G3=0` and therefore `alpha_B=-alpha_M` whenever `F_phi !=0`: the toy **fails the exact accepted No-Slip identity**, even though it passes the background Bianchi check. This is a precise physical reason not to promote it.
+
+For the accepted restricted *linear-G3* action `G3=g(phi)X`, exact No-Slip **along a given trajectory** requires
+
+```
+g(phi) = - M² F_phi(phi)/[2 X_bg(phi)].
+```
+
+But the function `X_bg(phi)` must itself emerge from the actual field equations. Defining `g(phi)` from a preselected `X_bg(phi)` is a background reconstruction, not an independent derivation. One possible off-shell closure for `X>0` is `G3=-(M²/2)F_phi ln(X/Xstar)+C(phi)`, which satisfies the No-Slip identity algebraically, but its `X->0` behavior and kinetic stability must be tested; it is not identical to the accepted linear-G3 action.
+
+## A second obstacle: accumulated F excursion versus tiny present drift
+
+Canonical late300 has `ln F(today)≈0.020316` while `alpha_M(today)≈0.000493`, a ratio of order **41**. The representative autonomous exponential coupling instead gives `ln F(today)≈0.008676` and `alpha_M(today)≈0.015388`, ratio about **0.56**. In a pure `F=exp(beta phi)` law, `alpha_M=beta phi_N`, so any substantial ongoing field motion keeps the Planck-mass running appreciable. Reproducing the late300 combination of accumulated `F` excursion and tiny current drift therefore requires the field motion to slow sufficiently, or `F_phi/F` to become much smaller by the present epoch (for example near a derived plateau).
+
+The history-dependent plateau is **not** supplied by merely setting a small present-day `dot G/G`; it must be generated from a fixed action with a physically determined characteristic field scale and initial state.
+
+
 ## Next necessary physical completion
 
 Replace the illustrative `F=exp(beta phi), G3=0` with **independently specified** manuscript-consistent `F(sigma), G3=g(sigma)X, k1(sigma),k2(sigma),V(sigma)` that satisfy No-Slip, positivity, and the radiation/matter/stiff/mature limits. Then solve the *full* Friedmann + scalar + perturbation evolution without referencing an imposed late300 `H(N)` or `F(N)`, and test the emergent late handoff against all observables. In the absence of independent coefficient functions and UV initial-state selection, such a unique prediction cannot currently be claimed.
