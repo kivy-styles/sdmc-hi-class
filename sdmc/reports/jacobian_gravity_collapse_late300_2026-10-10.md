@@ -1,6 +1,6 @@
 # SDMC structural/Jacobian reconstruction, gravitational influence, and early-halo collapse
 
-**10 October 2026 — completed continuation; late300 unchanged.**  
+> **IMPORTANT CORRIGENDUM (2026-10-10):** Section 3's negative recombination radius was obtained by mixing the Part-IX/late266 value `p0=1.03421566` and `N0=3.41350846` with the separately fitted late300 `H0` and `H(z)`. It is **not a test of the accepted chronological closure and must not be cited as a failure of constant classical lapse.** In the adopted Part-IX chronology `S/S0=t_c/t0`, `N` is constant over the classical era (including radiation and matter), while `p=1/(Ht)` changes. Recalibrate to late300's own cosmic age `t0=13.59689 Gyr`: holding `S0` fixed from the earlier `N=3.41350846, t0=13.612978` reference gives `N_late300=3.41755`, `p0_late300=1.03153`, `p_star=1.68167`, `M_star=0.0295062`, and `R_star=0.38532 Mpc`; the manuscript benchmark `M_star=0.0294675` differs by 0.13%. See `sdmc/audit_structural_lapse_chronology_correction.py` and `sdmc/reports/structural_lapse_chronology_correction_2026-10-10.md`. The old negative-radius calculation is retained only as a **cross-branch normalization-error demonstration**, not evidence that an evolving lapse is mandatory during radiation and matter. The growth comparisons remain conditional unchanged-background proxies.\n\n**10 October 2026 — completed continuation; late300 unchanged.**  
 **Scientific status:** verified **background identity**, nonunique inverse lapse reconstruction, and controlled **conditional** linear-growth/free-fall proxies. **No independently derived scalar gravitational force or new early-galaxy/SMBH candidate**.
 
 ## 1. Sources and exact definitions
@@ -42,7 +42,7 @@ The analytic `q(z)=-1-dlnH/dln a` gives:
 
 The effective `Omega_m(z)` can be slightly above 1 around z7 because `delta_H<0` and the effective modified sector can be negative under that diagnostic split. This is not a negative *physical matter density*. q is a **background deceleration diagnostic**, not an enhancement of local collapse by itself.
 
-## 3. The crucial inverse-lapse consistency issue
+## 3. Superseded cross-branch inverse-lapse test (NOT an accepted constant-N no-go)
 
 For comparison with the manuscript values, use `N_s0=3.41350846`, `p0=1.03421566`; they infer `R0=(N_s0/p0)c/H0=14193.36794 Mpc`. The earlier recombination mapper is `M(z*=1090)=0.02946748423`, implying the conditional matched target
 `Rstar=Mstar a_star R0=0.3833573291 Mpc`, within about 0.4% of the earlier manuscript's rounded `Rstar≈0.3848 Mpc`. **These are not claimed to be an independently co-evolved exact full-action trajectory; they are cross-manuscript endpoint constraints.**
@@ -51,7 +51,7 @@ Integrate `dR/dx=c N_s/H` **backward** using the late300 H(z). An erroneously co
 
 `R_constN(z*) = R0 -(c N_s0/H0)∫_{x*}^0 dx/E(x) = -36.57225 Mpc`.
 
-A negative radius is unacceptable. The interval-weighted mean lapse required to hit the same two geometry endpoints is
+This negative value arises from **inconsistent cross-branch normalizations**, not a physically derived negative radius; see the corrigendum above. The interval-weighted mean lapse required to hit the same two geometry endpoints is
 
 `<N_s>_dt = (R0-Rstar)/(c[t0-tstar]) = 3.40464347`
 
