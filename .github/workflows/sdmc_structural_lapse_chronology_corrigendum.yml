@@ -1,0 +1,27 @@
+name: SDMC structural lapse chronological corrigendum
+on:
+  push:
+    branches:
+      - sdmc-early-galaxy-smbh-microscopic-audit-20261010
+    paths:
+      - 'sdmc/audit_structural_lapse_chronology_correction.py'
+      - '.github/workflows/sdmc_structural_lapse_chronology_corrigendum.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chronological-lapse-consistency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scientific integrator
+        run: python3 -m pip install scipy
+      - name: Audit accepted versus retired N reconstructions
+        run: python3 sdmc/audit_structural_lapse_chronology_correction.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-lapse-chronology-corrigendum
+          path: output/lapse_chronology_corrigendum/*
+          if-no-files-found: warn
