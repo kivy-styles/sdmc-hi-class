@@ -1,4 +1,5 @@
 name: Publish SDMC Cosmology Laboratory
+# Re-trigger deployment after GitHub Pages was enabled.
 
 on:
   push:
