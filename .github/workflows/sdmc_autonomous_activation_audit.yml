@@ -1,0 +1,37 @@
+name: SDMC autonomous activation handoff audit
+
+on:
+  push:
+    branches:
+      - sdmc-activation-handoff-equations-audit-20261010
+    paths:
+      - 'sdmc/run_activation_autonomous_countermodel.py'
+      - 'sdmc/audit_activation_handoff_sign.py'
+      - '.github/workflows/sdmc_autonomous_activation_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  autonomous-background-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Forward evolve the independent canonical countermodel
+        run: |
+          mkdir -p output/activation_handoff_audit
+          python3 sdmc/run_activation_autonomous_countermodel.py | tee output/activation_handoff_audit/autonomous.jsonl
+      - name: Evaluate prescribed late300 background for reference only
+        run: |
+          python3 sdmc/audit_activation_handoff_sign.py | tee output/activation_handoff_audit/late300_reference.json
+      - name: Preserve diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-autonomous-activation-handoff-diagnostics
+          path: output/activation_handoff_audit/*
+          if-no-files-found: warn
