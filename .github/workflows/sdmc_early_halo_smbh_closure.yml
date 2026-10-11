@@ -1,0 +1,72 @@
+name: SDMC early-halo SMBH nonlinear closure diagnostics
+
+on:
+  push:
+    branches:
+      - sdmc-early-halo-smbh-closure-audit-20261012
+    paths:
+      - '.github/workflows/sdmc_early_halo_smbh_closure.yml'
+      - 'sdmc/run_sdmc_early_halo_closure.py'
+      - 'sdmc/test_sdmc_early_halo_closure.py'
+      - 'sdmc/plot_sdmc_early_halo_closure.py'
+      - 'sdmc/reports/early_galaxy_smbh_closure_audit_2026_10_12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install numerical dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy scipy matplotlib
+      - name: Run 3D Jacobian, cutoff, and SMBH calculations
+        run: |
+          cd sdmc
+          python run_sdmc_early_halo_closure.py --output results --grid 40
+          python -m unittest -v test_sdmc_early_halo_closure
+          python plot_sdmc_early_halo_closure.py
+      - name: Additional resolution and seed checks
+        run: |
+          cd sdmc
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from run_sdmc_early_halo_closure import jacobian_3d
+          checks=[]
+          for n,seed in [(24,20261012),(32,20261012),(40,20261012),
+                         (48,20261012),(40,1337),(40,2025)]:
+              x=jacobian_3d(n,seed)
+              assert x["max_det_invariant_error"] < 1e-12
+              assert x["mass_conservation_cellwise_max_error"] < 1e-12
+              assert x["max_AMGM_violation"] < 1e-12
+              checks.append(dict(grid=n,seed=seed,
+                mean_J=x["mean_J"],mean_aniso_to_iso_J_ratio=x["mean_aniso_to_iso_J_ratio"],
+                max_invariant_error=x["max_det_invariant_error"],
+                frac_delta_above_1=x["fraction_cells_delta_above_1"]))
+          Path("results/robustness.json").write_text(json.dumps(checks,indent=2))
+          print("ANISOTROPIC_ROBUSTNESS_PASS",json.dumps(checks))
+          PY
+      - name: Scientific limitations
+        run: |
+          echo 'These are pre-shell-crossing geometric and conditional screening calculations.'
+          echo 'Not a coupled SDMC 3-D gravity/N-body run; not exact FRESCO catalogue posterior.'
+          echo 'No new matter creation; g3 and alpha_K^UV remain microscopic inputs.'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-early-halo-smbh-closure-diagnostics
+          path: |
+            sdmc/results/*
+            sdmc/reports/early_galaxy_smbh_closure_audit_2026_10_12.md
+          if-no-files-found: warn
