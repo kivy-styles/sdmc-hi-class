@@ -1,0 +1,98 @@
+name: SDMC versus LCDM 50-candidate SN-only FIRST, joint likelihood SECOND
+
+on:
+  push:
+    branches:
+      - sdmc-lcdm-matched-free-evolution-search-20261012
+    paths:
+      - '.github/workflows/sdmc_sn_first_then_joint.yml'
+      - 'sdmc/run_separate_sn_then_joint_ranking.py'
+      - 'sdmc/test_separate_sn_then_joint_ranking.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  stage1-standalone-sn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install ranking-only dependencies
+        run: python -m pip install numpy pandas
+      - name: Validate standalone-before-joint logic
+        run: |
+          cd sdmc
+          python -m unittest -v test_separate_sn_then_joint_ranking
+      - name: Download completed 50-evolution source table
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/paired_verified output/paired_free_evolution
+          gh run download 38274914841 --repo kivy-styles/sdmc-hi-class \
+             --name paired-sdmc-local021-cmb-h0-candidate-search \
+             --dir /tmp/paired_verified
+          find /tmp/paired_verified -type f -maxdepth 8 | sort
+          CAND=$(find /tmp/paired_verified -name candidate_table.csv -type f -print -quit)
+          test -n "$CAND"
+          cp "$CAND" output/paired_free_evolution/candidate_table.csv
+          test "$(tail -n+2 output/paired_free_evolution/candidate_table.csv | wc -l)" -eq 50
+          echo 50_VERIFIED_EVOLUTIONS_IMPORTED
+      - name: STAGE 1 - rank Pantheon+ Union3 DES-Y5 individually (NO Planck or BAO in scoring)
+        run: |
+          python sdmc/run_separate_sn_then_joint_ranking.py \
+             --input output/paired_free_evolution/candidate_table.csv \
+             --output output/sn_independent_first --stage sn
+          cat output/sn_independent_first/sn_summary.json
+      - name: Upload standalone SN results BEFORE any joint scores
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage1-independent-pantheon-union3-desy5-SN
+          path: |
+            output/sn_independent_first/sn_summary.json
+            output/sn_independent_first/sn_*_rank.csv
+          if-no-files-found: error
+
+  stage2-one-sn-per-joint:
+    needs: stage1-standalone-sn
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install numpy pandas
+      - name: Load the exact same independently evolved 50-candidate table
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/paired_verified output/paired_free_evolution
+          gh run download 38274914841 --repo kivy-styles/sdmc-hi-class \
+             --name paired-sdmc-local021-cmb-h0-candidate-search \
+             --dir /tmp/paired_verified
+          CAND=$(find /tmp/paired_verified -name candidate_table.csv -type f -print -quit)
+          test -n "$CAND"
+          cp "$CAND" output/paired_free_evolution/candidate_table.csv
+      - name: STAGE 2 - Planck-lite + DESI DR1 BAO + ONE SN dataset per score
+        run: |
+          python sdmc/run_separate_sn_then_joint_ranking.py \
+             --input output/paired_free_evolution/candidate_table.csv \
+             --output output/sn_then_joint --stage joint
+          cat output/sn_then_joint/joint_summary.json
+          echo 'DO NOT LABEL DESI DR1 BAO AS DESI FULL SHAPE.'
+          echo 'DO NOT ADD Pantheon+ Union3 and DES-Y5 likelihoods together.'
+      - name: Upload three separate joint candidate tables
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage2-Planck-DESI-BAO-plus-each-SN-separately
+          path: |
+            output/sn_then_joint/joint_summary.json
+            output/sn_then_joint/joint_*_rank.csv
+          if-no-files-found: error
