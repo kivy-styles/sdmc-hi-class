@@ -1,6 +1,6 @@
 # SDMC Investigation L — Primordial Lithium, \(^{7}\mathrm{Be}\) and the early structural tracker
 
-**12 October 2026** · **Research status:** early analytical audit plus independent historical nuclear-network cross-check. **Investigation G is ON HOLD**; the gravitational-history/structural-clock/Jacobian research and accepted Late300 action are unchanged.
+**12 October 2026** · **Research status:** numerical audit COMPLETE, with a successfully executed historical nuclear-network cross-check; modern PRIMAT microscopic action calculation still outstanding. **Investigation G is ON HOLD**; the gravitational-history/structural-clock/Jacobian research and accepted Late300 action are unchanged.
 
 ## 1. Existing manuscript and observational basis
 
@@ -54,7 +54,7 @@ A new branch specifically for this investigation is created: \`sdmc-primordial-l
 6. \(f_r=.04\);
 7. \(f_r=.0625\).
 
-All cases use identical network/neutron lifetime \(879.4\) s/\(N_\nu=3.046\)/nuclear rates. The radiationlike scalar fraction is implemented as a **separately conserved \(T^4\) dark-density proxy**, with \(\kappa_\rho=f_r/(1-f_r)\) and \(\rho_D\propto T^4\); zero entropy and zero direct nuclear couplings. Across electron–positron annihilation this is only an *approximate* representation of a constant fractional SDMC tracker. The \(\nu\)-decoupling and neutrino transport of a modern PRIMAT run may differ.
+All cases use identical network/neutron lifetime \(879.4\) s/\(N_\nu=3.046\)/nuclear rates. The final validated solver implements a **fixed fraction of the actual instantaneous physical radiation/plasma energy**, \(H^2/H_{\rm std}^2=1/(1-f_r)\); zero entropy transfer and zero direct nuclear couplings. Across electron–positron annihilation this is only an *approximate* representation of a constant fractional SDMC tracker. The \(\nu\)-decoupling and neutrino transport of a modern PRIMAT run may differ.
 
 **Do not substitute the proxy for a genuine derived SDMC \(H(T)\)**, and do not claim that a historical alternative network is as precise as modern PRIMAT or PArthENoPE. Report direct Li7, Be7, eventual total, D, He3 and Yp separately; observe their mutual tradeoffs. The workflow must actually succeed before its numerical outputs are claimed as executed.
 
@@ -82,3 +82,70 @@ The independent historical BBN network is designed to quantify this tradeoff and
 - [2025 Particle Data Group, *Big Bang Nucleosynthesis*](https://pdg.lbl.gov/2025/reviews/rpp2025-rev-bbang-nucleosynthesis.pdf), §§24.3–24.6.
 - [AlterBBN v2 code paper](https://arxiv.org/abs/1806.11095) and [pinned historical AlterBBN fork](https://github.com/espensem/AlterBBN_master/tree/8219dd4b578244e36d56ebda31541705ae382093).
 - [2025–26 \(^{7}\)Be nuclear-reaction measurements](https://www.sciencedirect.com/science/article/pii/S0375947425002350).
+
+
+---
+
+## 7. COMPLETED: independently integrated matched nuclear network, with the correct H² profile
+
+**Final successful execution:** [GitHub run 38291398803](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/38291398803), \`success\`. Seven central-rate nuclear-network integrations were completed and validated, including all six original radiation-era density/expansion calculations of the pinned legacy AlterBBN engine.
+
+### Source-level technical corrections verified
+
+The first serial compilation succeeded but revealed that returned \`ratioH[8]\` already includes the \({}^{7}\mathrm{Be}\to{}^{7}\mathrm{Li}\) post-BBN conversion (\`bbn.c\` lines 1196 and 1995). **The correctly reported eventual Li7/H is returned \`ratioH[8]\`, not \`ratioH[8]+ratioH[9]\`.** Direct Li7 can be reported as total minus separate surviving Be7.
+
+A second correction was essential: the upstream \`dark_density\` routine and Hubble equation use inconsistent historical energy-density unit conventions, and a fixed \(T^4\) source does NOT guarantee constant fractional radiation energy through electron–positron annihilation. The **final** version patches **six H evaluations** only, replacing dark-density additions with an instantaneous scaling
+\[
+H_{\rm SDMC}^2(T)=H_{\rm standard}^2(T)\,[1+\kappa],
+\quad \kappa=f_r/(1-f_r).
+\]
+The code retains the actual time-dependent photon, electron–positron, neutrino and baryon energy density at each step. Nuclear reaction rates and nuclear abundance ODEs are **not** changed; no lithium-specific sink, matter creation or unknown gravitational projection is introduced. This is a source-pinned constant-fraction BBN background approximation, not an autonomous SDMC field equation or modern PRIMAT.
+
+**The earlier workflow 38290688144**, before isotope/source correction, **double-counted Be7 and underweighted expansion and must NOT be used**. **Workflow 38291079141**, after correcting source units but using a fixed \(T^4\) relative density, was a *different* model with an artificially growing relative dark fraction at low T; its Li7 −3.4% is not the preferred SDMC constant-tracker result. Only **38291398803** passes the final physical-background gate.
+
+### 7.1 Direct BBN nuclear-network abundances
+
+Same baryon-density control uses accepted \(\omega_b=0.022083219194622913\), \(\eta_{10}=6.04741985558\), \(N_\nu=3.046\), \(\tau_n=879.4\) seconds, the same historical nuclear rates and initial conditions.
+
+| BBN abundance | Control at same \(\omega_b\), zero tracker | Accepted Late300 tracker | Relative change |
+|---|---:|---:|---:|
+| Helium-4 mass fraction \(Y_p\) | 0.246937143567 | **0.247984924126** | **+0.424311%** |
+| Deuterium D/H | \(2.486886577338\times10^{-5}\) | **\(2.515294512460\times10^{-5}\)** | **+1.142309%** |
+| Helium-3/H | \(1.038285125463\times10^{-5}\) | \(1.041693434059\times10^{-5}\) | +0.328263% |
+| Direct Li-7/H at BBN freeze-out | \(2.906474460896\times10^{-11}\) | \(2.937299944152\times10^{-11}\) | +1.060580% |
+| Surviving Be-7/H precursor | \(5.001246594067\times10^{-10}\) | \(4.960320399345\times10^{-10}\) | −0.818320% |
+| **Eventual total Li-7/H** | \(5.291894040157\times10^{-10}\) | **\(5.254050393761\times10^{-10}\)** | **−0.715125%** |
+
+**Almost 94.4% of eventual Li7 was synthesized as Be7**, with the remaining ~5.6% being surviving direct Li7. As predicted, a faster expansion mildly decreases surviving Be7 while increasing direct Li7, and the net Li7 change is far too small to solve the cosmological lithium excess.
+
+The direct-network lithium estimate is \(\sim3.62\times\) the PDG 2025 metal-poor stellar central value \((1.45\pm.25)\times10^{-10}\). A further decrease of \(\sim72.40\%\) would be needed to meet that central value if no stellar depletion occurs. A merely illustrative selective irreversible destruction optical depth would need \(\tau_{\rm destroy}=\ln(5.25405/1.45)=1.28744\). Neither such a source nor such a rate follows from accepted Late300.
+
+At the chosen PDG observed D/H \((2.508\pm.029)\times10^{-5}\), the Late300 background-proxy central result differs by 0.25 quoted observational standard deviations. The helium result differs by about 0.79 of the *representative* PDG helium observational uncertainty \(0.0034\). These are **not a complete likelihood**: they omit modern network rate covariance, helium systematic pooling and BBN/neutrino solver differences. The historical-engine local021 D/H differs by ~2.8 observation-only standard deviations, demonstrating why **this code cannot be used for high-precision cosmological model selection** against a full modern nuclear network.
+
+### 7.2 Radiation-fraction stress test at Late300's accepted \(\omega_b\)
+
+| \(f_r\) used as a constant-fraction background proxy | H speed-up | \(Y_p\) | D/H (\(10^{-5}\)) | Eventual Li7/H (\(10^{-10}\)) |
+|---|---:|---:|---:|---:|
+| 0 | 0% | 0.246937 | 2.486887 | 5.291894 |
+| 0.010000 (\(\lambda=20\)) | 0.504% | 0.247824 | 2.511416 | 5.260036 |
+| **0.011807 (accepted \(\lambda=18.40625\))** | **0.596%** | **0.247985** | **2.515295** | **5.254050** |
+| 0.017778 (\(\lambda=15\)) | 0.901% | 0.248520 | 2.527829 | 5.234477 |
+| 0.040000 (\(\lambda=10\)) | 2.062% | 0.250541 | 2.599495 | 5.117408 |
+| 0.062500 (\(\lambda=8\)) | 3.280% | 0.252638 | 2.647469 | 5.045230 |
+
+At high tracker fractions, deuterium and helium are pushed progressively upward while lithium remains nowhere near the stellar central value. These are **stress-test parameterizations**, not observationally accepted SDMC alternatives.
+
+### 7.3 Why the two independent numerical estimates differ
+
+The original Part VIII PRIMAT-*calibrated local sensitivity* at \(\lambda=20\) predicted a **−0.568%** Li response and +0.835% D response. The pinned legacy direct nuclear-network at the *current* matched Late300 baryon density and \(\lambda=20\) gives **−0.602%** Li and **+0.986%** D. At accepted \(\lambda=18.40625\), this network gives **−0.715%** Li and **+1.142%** D, compared with extrapolated PRIMAT-calibrated response around **−0.671%** Li and **+0.986%** D (different reference baryon density). 
+
+Thus the direction and scale of independent calculations agree, while differences reflect source code vintage, radiation modeling and baryon-density normalization. The appropriate scientific conclusion is not that SDMC solved lithium but that its small uniform BBN tracker remains compatible with basic D/He while making only percent-level adjustments to Li.
+
+### 7.4 Exact reproducibility and preserved status
+
+- [Completed source-pinned independent BBN workflow](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/38291398803), passing all internal nuclear, isotope-accounting and parameter-matching checks.
+- [Source-level instantaneous-background patch](https://github.com/kivy-styles/sdmc-hi-class/blob/sdmc-primordial-lithium-investigation-L-20261012/sdmc/lithium/patch_alterbbn_instantaneous_tracker_H.py).
+- [Nuclear-wrapper with exact post-capture accounting](https://github.com/kivy-styles/sdmc-hi-class/blob/sdmc-primordial-lithium-investigation-L-20261012/sdmc/lithium/run_legacy_alterbbn_tracker.c).
+- [Archived complete seven-run test sheet](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/38291398803) in \`investigation-L-Late300-Li7-Be7-deuterium-helium-network\`.
+
+**Final current scientific verdict: SDMC Late300's existing accepted uniform early tracker does NOT solve primordial lithium.** The nuclear network verifies the limitation quantitatively. Part IV and Part IX's verdict is still valid. Investigation G remains on hold. A separate matter-creation theory or a forced post-BBN neutron source is not introduced.
