@@ -35,7 +35,7 @@ jobs:
           cd external/AlterBBN_lithium
           git checkout --detach 8219dd4b578244e36d56ebda31541705ae382093
           test "$(git rev-parse HEAD)" = "8219dd4b578244e36d56ebda31541705ae382093"
-          make -j2 libbbn.a
+          make libbbn.a
           gcc -O2 -std=gnu99 -I. -Isrc -o sdmc_lithium.x \
             ../../sdmc/lithium/run_legacy_alterbbn_tracker.c \
             -Lsrc -lbbn -lm
