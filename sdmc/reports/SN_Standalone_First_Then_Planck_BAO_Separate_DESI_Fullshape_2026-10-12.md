@@ -3,7 +3,7 @@
 **Date:** 12 October 2026  
 **Source run:** [50 fully evolved candidates, matched CLASS+BOLTZMANN screen](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/38274914841)  
 **Two-stage postanalysis:** [38277644360 — SUCCESS](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/38277644360)  
-**Actual official DESI DR1 P0/P2/P4 full-shape:** [38277970929 — distinct extended workflow](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/38277970929), status to be independently checked; do NOT copy BAO chi2 into full-shape column.
+**Actual official DESI DR1 P0/P2/P4 full-shape:** [38277970929 — distinct extended workflow](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/38277970929), status **SUCCESS for both matrix cases**, verified against separate job logs and official DESI FS artifact CSVs; do NOT copy BAO chi2 into full-shape column.
 
 ## Scientific correction
 
@@ -62,3 +62,38 @@ Two-stage tests: \`sdmc/run_separate_sn_then_joint_ranking.py\`; \`sdmc/test_sep
 Official DESI full shape extension: \`.github/workflows/sdmc_matched_three_candidates_fullshape_desi.yml\`, adapted from the existing SDMC six-bin official DESI FS profile test and the verified accepted Late300 linear-G3 reconstructed action.
 
 **Verdict:** SN-only samples each weakly prefer the best SDMC screen by raw chi2 of order 0.07–0.12; joint Planck-lite + DR1 BAO + one SN favors local021 by ≈1.82–1.91. These are different questions, and actual DESI full-shape must be evaluated separately.
+
+
+## FINAL FOLLOW-UP: official DESI DR1 galaxy full-shape results (actual jobs completed)
+
+[Full-shape GitHub Actions workflow #38277970929](https://github.com/kivy-styles/sdmc-hi-class/actions/runs/38277970929) successfully ran both matrices, **accepted_Late300** and **candidate_zc_minus**, using the restricted accepted linear-G3 covariant action reconstructed once per candidate and then evolved through the CLASS transfer solver with expansion-model input removed. The same locally optimized flat-ΛCDM **local021** was matched in both cases. DESI six-tracer official DR1 input HDF5/window/covariance files, P0/P2/P4, the existing EPT/REPT transfer treatment and multistart nuisance profiling were used.
+
+### Standalone DESI DR1 full-shape ONLY
+
+| Fixed model | Custom profiled official-DR1-data FS χ² | Δχ² versus local021 |
+|---|---:|---:|
+| ΛCDM local021 | 331.937262326103 | 0 |
+| **Accepted SDMC Late300** | **329.451426389657** | **−2.485835936446** |
+| **Modified SDMC zc-minus** | **329.456368232153** | **−2.480894093950** |
+
+The accepted Late300 fits DESI FS better than zc-minus by χ²=**0.0049418425**, a negligible difference. Both FS calculations have six tracer blocks with optimizer-best success; some independent optimization seeds converge to slightly different local minima, so finer reproducibility/nuisance profiling is desirable. These results come from **official DR1 survey data in the repository's custom PT+profile model**, not a DESI collaboration full posterior.
+
+Full-shape workflow artifacts:
+- \`desi-fullshape-accepted_Late300-versus-local021\` (per-tracer CSV, profile summary, full CLASS transfers).
+- \`desi-fullshape-candidate_zc_minus-versus-local021\`.
+
+### Standalone and joint must not be conflated
+
+**SN-only** results above were independently ranked before Planck or BAO were added. The **BAO-only three-joint results** above remain as the separate BAO-likelihood screen.
+
+Because DESI DR1 full-shape contains related clustering and BAO information, **do not naively add DESI DR1 BAO χ² on top of its full-shape χ²**. A separate exploratory joint comparison instead combines Planck-lite + DESI DR1 *full shape* + one of the three exclusive SN datasets:
+
+| One-SN Planck-lite + DESI FS joint | local021 χ² | accepted Late300 χ² | modified SDMC χ² | Δ χ² modified SDMC − local021 |
+|---|---:|---:|---:|---:|
+| Pantheon+ | 2756.850657636 | 2756.534441762 | **2756.425512759** | **−0.425144877** |
+| Union3 | 1379.419167690 | 1379.198906147 | **1379.089977143** | **−0.329190546** |
+| DES-Y5 | 3001.272059515 | 3000.975212015 | **3000.866283012** | **−0.405776503** |
+
+These are arithmetic sums of separately profiled fixed-candidate likelihood terms. They are **not** new full joint re-optimizations or Bayesian evidences; SN overlap means never sum all three joint columns. They differ from BAO-only screens, which favored local021. The sign change demonstrates why galaxy clustering full shape is an important discriminator and why the CMB alone does not choose a universally preferred H0.
+
+Do not replace accepted Late300 with the zc-minus candidate on χ² differences ~0.1 or claim a robust Hubble-tension resolution. Full official nuisance-prior likelihoods, nonlinear validity and family-level parameter counting remain essential before scientific promotion.
