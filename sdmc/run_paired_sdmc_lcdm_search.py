@@ -292,6 +292,8 @@ def evaluate(family,label,p,like,keep_selected=True):
             covdir.mkdir(exist_ok=True)
             shutil.copy2(ini,covdir/(label+".ini"))
             shutil.copy2(prefix+"00_background.dat",covdir/(label+"_00_background.dat"))
+            shutil.copy2(prefix+"00_cl_lensed.dat",covdir/(label+"_00_cl_lensed.dat"))
+            shutil.copy2(prefix+"00_thermodynamics.dat",covdir/(label+"_00_thermodynamics.dat"))
         print("PAIRED_CANDIDATE",json.dumps(rec,sort_keys=True),flush=True)
     except Exception as e:
         rec["error"]=repr(e)
