@@ -1,0 +1,153 @@
+name: SDMC versus LCDM matched CMB-inferred H0 and free-evolution candidate search
+
+on:
+  workflow_dispatch:
+    inputs:
+      budget_per_family:
+        description: 'Equal number of candidates evaluated in each family'
+        type: choice
+        options: ['17', '25', '33']
+        default: '25'
+  push:
+    branches:
+      - sdmc-lcdm-matched-free-evolution-search-20261012
+    paths:
+      - '.github/workflows/sdmc_lcdm_matched_free_search.yml'
+      - 'sdmc/run_paired_sdmc_lcdm_search.py'
+      - 'sdmc/run_paired_covariant_promotion.py'
+      - 'sdmc/test_paired_sdmc_lcdm_search.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdmc-lcdm-matched-free-search-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  independent-matched-search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential git
+          python -m pip install --upgrade pip
+          python -m pip install numpy scipy pandas cobaya
+      - name: Prepare Planck 2018 likelihoods
+        run: |
+          python - <<'PY'
+          from cobaya.likelihoods.planck_2018_highl_plik.TTTEEE_lite_native import TTTEEE_lite_native
+          from cobaya.likelihoods.planck_2018_lowl.TT import TT
+          from cobaya.likelihoods.planck_2018_lowl.EE import EE
+          from cobaya.likelihoods.planck_2018_lensing import native as LensingNative
+          for cls in (TTTEEE_lite_native,TT,EE,LensingNative):
+              assert cls.install(path='planck_packages',no_progress_bars=True), f"Planck install failed {cls}"
+          print("PLANCK_LITE_NATIVE_LOW_L_AND_LENSING_READY")
+          PY
+      - name: Download same calibrated distance datasets for both models
+        run: |
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          git clone --depth 1 https://github.com/CobayaSampler/bao_data.git bao_data
+          test -f sn_data/PantheonPlus/Pantheon+SH0ES.dat
+          test -f sn_data/Union3/lcparam_full.txt
+          test -f sn_data/DESY5/DES-SN5YR_HD.csv
+          test -f bao_data/desi_2024_gaussian_bao_ALL_GCcomb_mean.txt
+          test -f bao_data/desi_2024_gaussian_bao_ALL_GCcomb_cov.txt
+          echo DISTANCE_DATA_SAME_FOR_BOTH_READY
+      - name: Apply established SDMC native Boltzmann implementation
+        run: |
+          python sdmc/apply_sdmc_tracker_patch.py
+          python sdmc/apply_sdmc_full_background_patch.py
+          python sdmc/apply_sdmc_v2_noslip_patch.py
+          python sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python sdmc/apply_sdmc_split_sector_patch.py
+          python sdmc/fix_sdmc_split_sector_background.py
+          python sdmc/fix_parameterized_alphaM_refresh.py
+          python sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python sdmc/run_sdmc_cs2_term_audit.py instrument
+          python sdmc/install_sdmc_v3_independent_kinetic.py
+          make clean >/dev/null
+          make -j2 class >/dev/null
+          test -x ./class
+          echo SDMC_AND_LCDM_CLASS_READY
+      - name: Verify matched search design
+        run: |
+          cd sdmc
+          python -m unittest -v test_paired_sdmc_lcdm_search
+      - name: Evolve and score equal candidate budgets
+        env:
+          BUDGET_DISPATCH: ${{ inputs.budget_per_family }}
+        run: |
+          BUDGET="${BUDGET_DISPATCH:-25}"
+          python sdmc/run_paired_sdmc_lcdm_search.py --budget "$BUDGET" --extra-sn
+          cat output/paired_free_evolution/summary.json
+      - name: Reconstruct chosen SDMC action from winning target
+        run: |
+          if test -s output/paired_free_evolution/promotion_target.json; then
+            python sdmc/run_late300_linear_covariant.py
+            cat output/linear_cov_reconstruction_summary.txt
+            make clean >/dev/null
+            make -j2 class >/dev/null
+            echo FROZEN_COVARIANT_SDMC_ACTION_COMPILED
+          else
+            echo NO_SUITABLE_SDMC_SCREEN_CANDIDATE
+          fi
+      - name: Free evolve frozen reconstructed SDMC action and re-evaluate
+        run: |
+          if test -s output/paired_free_evolution/promotion_target.json; then
+            python sdmc/run_paired_covariant_promotion.py
+            cat output/paired_free_evolution/covariant_replay_result.json
+          fi
+      - name: Interpret results with symmetric validation and limitations
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          f=Path("output/paired_free_evolution/summary.json")
+          if not f.exists():
+              print("SEARCH_NOT_COMPLETED: see earlier step logs")
+              raise SystemExit(0)
+          d=json.loads(f.read_text())
+          print("EQUAL_EVALUATION_COUNTS",d["evaluation_counts"])
+          print("FAMILY_SUCCESS_COUNTS",d["success_counts"])
+          a,b=d["best"]["lcdm"],d["best"]["sdmc"]
+          if a and b:
+              print("PLANCK_BAO_PANTHEON_SCREEN_DELTA_SDMC_MINUS_LCDM",
+                    b["chi2_primary"]-a["chi2_primary"])
+              print("LCDM_BEST_H0",a["H0"],"SDMC_BEST_H0",b["H0"])
+              print("CMB_THETA100",a["theta100"],b["theta100"])
+          g=Path("output/paired_free_evolution/covariant_replay_result.json")
+          if g.exists():
+              c=json.loads(g.read_text())
+              print("COVARIANT_SDMC_REPLAY_STATUS",c["status"])
+              print("COVARIANT_VS_SCREENED_LCDM",
+                    c.get("delta_chi2_covariant_vs_best_screened_lcdm"))
+          print("LIMITATIONS: Plik-lite != official full-Plik; BAO != DESI full-shape.")
+          print("LIMITATIONS: SN covariance likelihoods separate; never sum competing SN sets.")
+          print("LIMITATIONS: SDMC action reconstructed from winning target, not UV predicted.")
+          print("LIMITATIONS: new screening leaders not independently validated globally; not Bayesian evidence.")
+          PY
+      - name: Archive complete candidate table and free-evolution diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paired-sdmc-local021-cmb-h0-candidate-search
+          path: |
+            output/paired_free_evolution/summary.json
+            output/paired_free_evolution/candidate_table.csv
+            output/paired_free_evolution/promotion_target.json
+            output/paired_free_evolution/covariant_replay_result.json
+            output/linear_cov_reconstruction_summary.txt
+            output/linear_cov_action_kinetic_coefficients.json
+          if-no-files-found: warn
