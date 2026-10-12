@@ -1,0 +1,54 @@
+name: SDMC 1.64S structural matter, photon baryon-loading and acoustic H0 falsification check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sdmc-structural-mass-baryon-loading-h0-test-20261013
+    paths:
+      - '.github/workflows/sdmc_structural_mass_Rb_H0_audit.yml'
+      - 'sdmc/test_structural_mass_baryon_loading_H0.py'
+      - 'sdmc/reports/structural_mass_baryon_loading_H0_2026_10_13.md'
+
+permissions:
+  contents: read
+
+jobs:
+  independent-physical-identity-versus-forced-density-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numerical integrator
+        run: python -m pip install scipy
+      - name: Recompute accepted Rb, acoustic H0, high-z mass law with conserved and forced cases
+        run: |
+          python sdmc/test_structural_mass_baryon_loading_H0.py --out output/structural_rb_H0_test.json
+          python - <<'PY'
+          import json
+          d=json.load(open('output/structural_rb_H0_test.json'))
+          assert abs(d['Rb_standard_recomb_z1090']-0.61486221617)<1e-8
+          assert abs(d['Rb_forced_baryon_Sminus2_z1090']-0.64733180819)<1e-8
+          assert abs(d['acoustic_at_fixed_accepted_H0']['accepted_physical']['rs_Mpc']-143.26085)<.1
+          assert d['BBN_H_boost_if_extra_rhostr_source_against_radiation']>1.45
+          assert d['accepted_tracker_BBN_H_boost']<1.01
+          assert abs(d['accepted_Late300_H0_full_model_km_s_Mpc']-69.71482083084993)<1e-9
+          assert d['T_recomb_K_forced_photons_Sminus2'] < 600
+          assert d['T_recomb_K_physical']>2900
+          print('PASS: no physical baryon-loading change under structural reparameterization')
+          print('PASS: inconsistent replacement gives large CMB and BBN distortions')
+          print('STATUS: H0 toy is theta-only inversion, NOT official Planck fit')
+          PY
+          cat output/structural_rb_H0_test.json
+      - name: Archive reproducible identities and redshift history
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: structural-Rb-H0-density-interpretation-audit
+          path: |
+            output/structural_rb_H0_test.json
+            sdmc/reports/structural_mass_baryon_loading_H0_2026_10_13.md
+          if-no-files-found: warn
