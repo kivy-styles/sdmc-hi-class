@@ -1,0 +1,56 @@
+name: SDMC Late300-local021 independence audit
+
+on:
+  push:
+    branches:
+      - sdmc-late300-local021-independence-audit-20261012
+    paths:
+      - '.github/workflows/sdmc_late300_local021_independence_audit.yml'
+      - 'sdmc/run_late300_independence_audit.py'
+      - 'sdmc/test_late300_independence_audit.py'
+      - 'sdmc/reports/late300_local021_independence_audit_2026_10_12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-checked-independence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numerical dependencies
+        run: python -m pip install numpy
+      - name: Recompute accepted Late300 target-function rank
+        run: |
+          python sdmc/run_late300_independence_audit.py --output output/late300_local021_independence.json
+      - name: Seven numerical regression tests
+        run: |
+          cd sdmc
+          python -m unittest -v test_late300_independence_audit
+      - name: Verify scientific interpretation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("output/late300_local021_independence.json").read_text())
+          assert d["ranks"]["H_F_D"]["rank"] == 10
+          assert abs(d["omega_flat_closure"]["residual"])<1e-12
+          assert d["model_selection"]["additional_retuning_during_frozen_action_replay"] == 0
+          assert d["model_selection"]["physical_family_delta_k"] == "NOT DERIVED"
+          print("SUCCESS: ten locally distinct target function directions")
+          print("CRITICAL: the physical SDMC-family parameter count is NOT established by this test.")
+          print("No new Planck/DESI/SN likelihood, AIC/BIC or family evidence is claimed.")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late300-local021-independence-audit
+          path: |
+            output/late300_local021_independence.json
+            sdmc/reports/late300_local021_independence_audit_2026_10_12.md
+          if-no-files-found: warn

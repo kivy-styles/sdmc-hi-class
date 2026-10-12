@@ -1,0 +1,59 @@
+name: SDMC accepted F-D history integrals and structural-mapper clock audit
+
+on:
+  push:
+    branches:
+      - sdmc-late300-local021-independence-audit-20261012
+    paths:
+      - '.github/workflows/sdmc_F_D_structural_integral_audit.yml'
+      - 'sdmc/run_late300_F_D_structural_integrals.py'
+      - 'sdmc/reports/late300_F_D_integrals_structural_mapper_2026_10_12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  accepted-profile-and-clock-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install reproducible numerical dependencies
+        run: python -m pip install numpy scipy
+      - name: Integrate F and D histories over all Late300 eras
+        run: |
+          python sdmc/run_late300_F_D_structural_integrals.py --output output/late300_F_D_structural_integrals.json
+      - name: Verify exact integrals and preserve hypotheses as hypotheses
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          j=json.loads(Path('output/late300_F_D_structural_integrals.json').read_text())
+          assert j['max_lnF_integral_error']<1e-12
+          assert j['max_D_integral_error']<1e-12
+          assert abs(j['D0_over_AF']-16.713608919761782)<1e-10
+          rows=j['row_table']
+          pick=lambda z:next(t for t in rows if abs(t['redshift']-z)<1e-6)
+          assert abs(pick(0)['F']-1.0205247752843978)<1e-12
+          assert abs(pick(0)['D']-0.3913854938989103)<1e-12
+          assert abs(pick(1090)['M_mapper_chronological_approx']-0.0295062)<5e-7
+          assert pick(30)['beta_mapper_required'] < .001
+          assert pick(3.927876388467848)['beta_mapper_required'] > .03
+          assert pick(0)['beta_mapper_required'] > .015
+          assert .67 < j['illustrative_N3_projection']['fractional_N_shift_percent'] < .69
+          assert 'not an identity' in j['illustrative_N3_projection']['source_status']
+          print('PASS EXACT F-D INTEGRALS, CONDITIONAL CHRONOLOGICAL MAPPER, N^-3 NON-IDENTITY')
+          print('DO NOT claim a new independently predicted gravitational history.')
+          PY
+      - name: Archive source-backed scientific results
+        uses: actions/upload-artifact@v4
+        with:
+          name: SDMC-F-D-integral-structural-history-audit
+          path: |
+            output/late300_F_D_structural_integrals.json
+            sdmc/reports/late300_F_D_integrals_structural_mapper_2026_10_12.md
+          if-no-files-found: error
