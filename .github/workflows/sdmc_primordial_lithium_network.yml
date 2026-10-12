@@ -1,0 +1,78 @@
+name: SDMC Investigation L — primordial Lithium actual BBN reaction-network crosscheck
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sdmc-primordial-lithium-investigation-L-20261012
+    paths:
+      - '.github/workflows/sdmc_primordial_lithium_network.yml'
+      - 'sdmc/lithium/run_legacy_alterbbn_tracker.c'
+      - 'sdmc/lithium/analyze_lithium_bbn_network.py'
+      - 'sdmc/lithium/patch_alterbbn_instantaneous_tracker_H.py'
+
+permissions:
+  contents: read
+
+jobs:
+  matched-legacy-bbn-network:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install source build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential git
+          python -m pip install numpy
+      - name: Clone pin and build independent historical AlterBBN engine
+        run: |
+          git clone https://github.com/espensem/AlterBBN_master.git external/AlterBBN_lithium
+          cd external/AlterBBN_lithium
+          git checkout --detach 8219dd4b578244e36d56ebda31541705ae382093
+          test "$(git rev-parse HEAD)" = "8219dd4b578244e36d56ebda31541705ae382093"
+          python ../../sdmc/lithium/patch_alterbbn_instantaneous_tracker_H.py src/bbn.c
+          make libbbn.a
+          gcc -O2 -std=gnu99 -I. -Isrc -o sdmc_lithium.x \
+            ../../sdmc/lithium/run_legacy_alterbbn_tracker.c \
+            -Lsrc -lbbn -lm
+          test -x sdmc_lithium.x
+          echo LEGACY_ALTERBBN_INDEPENDENT_ENGINE_BUILT
+      - name: Evolve standard and SDMC radiationlike-tracker BBN reaction networks
+        run: |
+          set -eux
+          mkdir -p output/lithium
+          cd external/AlterBBN_lithium
+          O="../../output/lithium/bbn_network_stdout.txt"
+          : > "$O"
+          # All comparisons use identical nuclear data, neutron lifetime,
+          # Neff, and the 2016 historical network implementation.
+          ./sdmc_lithium.x local021_standard 0.022406369378007947 0.0 | tee -a "$O"
+          ./sdmc_lithium.x late300_same_baryon_standard 0.022083219194622913 0.0 | tee -a "$O"
+          ./sdmc_lithium.x late300_early_tracker 0.022083219194622913 0.011806722567962159 | tee -a "$O"
+          ./sdmc_lithium.x late300_lambda20 0.022083219194622913 0.0100 | tee -a "$O"
+          ./sdmc_lithium.x late300_lambda15 0.022083219194622913 0.017777777777777778 | tee -a "$O"
+          ./sdmc_lithium.x late300_lambda10 0.022083219194622913 0.04 | tee -a "$O"
+          ./sdmc_lithium.x late300_lambda8 0.022083219194622913 0.0625 | tee -a "$O"
+          echo SEVEN_TRUE_NUCLEAR_NETWORK_EVOLUTIONS_COMPLETED
+      - name: Independent 7Li plus 7Be accounting, deuterium and helium gates
+        run: |
+          python sdmc/lithium/analyze_lithium_bbn_network.py \
+             --input output/lithium/bbn_network_stdout.txt \
+             --output output/lithium
+          cat output/lithium/summary.json
+      - name: Archive independent nuclear-network results and provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: investigation-L-Late300-Li7-Be7-deuterium-helium-network
+          path: |
+            output/lithium/bbn_network_stdout.txt
+            output/lithium/summary.json
+            output/lithium/runs.csv
+          if-no-files-found: warn
