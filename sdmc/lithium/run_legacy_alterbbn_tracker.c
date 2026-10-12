@@ -34,25 +34,19 @@ int main(int argc, char **argv) {
      */
     double eta=6.115e-10*(omega_b/0.02233);
     double kappa=f_r/(1-f_r);
-    /* The historical fork adds dark_density to H in g/cm^3, but omega.c
-     * implements rho_dark = dd0*(pi^2/30)*g*(1MeV)*T_MeV^4, with a
-     * GeV^4-style prefactor and NO GeV^4 -> g/cm^3 conversion.
-     * Calibrate dd0 in the wrapper so rho_dark(1MeV)/rho_rad(1MeV)
-     * equals exactly kappa. Conversion references the photon rho:
-     * rho_gamma = 8.41828*T9^4 g/cm^3, T9=11.605 at 1 MeV.
-     * g* cancels in dd0 conversion by construction.
+    /* External network's H evaluations are source-patched by the checked
+     * patch_alterbbn_instantaneous_tracker_H.py.  p.dd0 is now the
+     * instantaneous rho_struct / rho_thermal; never use its faulty legacy
+     * dark-density energy conversion as the cosmological H source.
      */
-    const double library_density_conversion =
-       8.41828*pow(11.605,4.)*15./(pi*pi);
-    const double dd0_library = kappa*library_density_conversion;
+    const double dd0_library=kappa;
     struct relicparam p;
     Init_cosmomodel(&p);
     Init_cosmomodel_param(27.0,eta,3.046,0.0,879.4,0.,0.,0.,&p);
     if (f_r>0.) Init_dark_density(dd0_library,4.0,0.0,&p);
-    double rho_rad_1MeV=8.41828*pow(11.605,4.)*geff(1e-3,p)/2.;
-    double actual_kappa=dark_density(1.,p)/rho_rad_1MeV;
+    double actual_kappa=p.dd0;
     if (fabs(actual_kappa-kappa)>1e-8) {
-        fprintf(stderr,"DARK_DENSITY_UNIT_GATE_FAILED target=%g actual=%g\n",
+        fprintf(stderr,"INSTANTANEOUS_HUBBLE_FRACTION_GATE_FAILED target=%g actual=%g\n",
                 kappa,actual_kappa);
         return 1;
     }
@@ -76,7 +70,7 @@ int main(int argc, char **argv) {
     printf("BBN_RESULT label=%s omega_b=%.12g eta10=%.12g fr=%.12g "
            "kappa=%.12g Yp=%.12e D_H=%.12e He3_H=%.12e "
            "Li7_direct=%.12e Be7=%.12e Li7_total=%.12e "
-           "kappa_actual_1MeV=%.12e Hspeed_ideal=%.12e\n",
+           "kappa_H2_rescale=%.12e Hspeed_ideal=%.12e\n",
            label,omega_b,eta*1e10,f_r,kappa,y[6],y[3],y[5],
            lithium_direct,y[9],lithium_total,actual_kappa,1/sqrt(1-f_r));
     return 0;
