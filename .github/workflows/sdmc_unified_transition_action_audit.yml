@@ -1,0 +1,64 @@
+name: SDMC unified transition and No-Slip microscopic constraints
+
+on:
+  push:
+    branches:
+      - sdmc-late300-local021-independence-audit-20261012
+    paths:
+      - '.github/workflows/sdmc_unified_transition_action_audit.yml'
+      - 'sdmc/run_unified_transition_audit.py'
+      - 'sdmc/test_unified_transition_audit.py'
+      - 'sdmc/plot_unified_transition_audit.py'
+      - 'sdmc/reports/SDMC_Unified_Canonical_Horndeski_Transition_Audit_2026-10-12.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analytic-microphysics-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numerical dependencies
+        run: python -m pip install numpy matplotlib
+      - name: Recompute accepted Late300 necessary kinetic composite and tracker mismatch
+        run: python sdmc/run_unified_transition_audit.py --output output/late300_unified_transition_audit.json
+      - name: Eight independent regression checks
+        run: |
+          cd sdmc
+          python -m unittest -v test_unified_transition_audit
+      - name: Generate kinetic and handoff figures
+        run: python sdmc/plot_unified_transition_audit.py --out output/transition_plots
+      - name: Validate scientific scope
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('output/late300_unified_transition_audit.json').read_text())
+          a=d['exact_late300_transition']; t=d['two_exponential_candidate']
+          assert a['max_abs_identity_error']<1e-12
+          assert abs(a['C_D_over_lnF']-16.713608919761782)<1e-10
+          assert abs(a['Kcov_at_midpoint']-0.314317128)<1e-8
+          assert .02 < a['U_at_early_handoff'] < .024
+          assert t['canonical_matter_fraction_relative_change']>0.04
+          assert t['Late300_actual_tracker_fraction_at_zt_with_radiation']<0.005
+          assert d['scientific_verdict']['fundamental_delta_k']=='UNDETERMINED'
+          assert d['scientific_verdict']['new_full_observational_likelihood']=='NOT PERFORMED'
+          print('PASS: eight analytic checks, necessary action-composite closure, no new matter.')
+          print('WARNING: Not a forward Horndeski solution or new cosmological likelihood.')
+          PY
+      - name: Archive reproducible results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-unified-transition-microphysics-audit
+          path: |
+            output/late300_unified_transition_audit.json
+            output/transition_plots/*.png
+            sdmc/reports/SDMC_Unified_Canonical_Horndeski_Transition_Audit_2026-10-12.md
+          if-no-files-found: warn
