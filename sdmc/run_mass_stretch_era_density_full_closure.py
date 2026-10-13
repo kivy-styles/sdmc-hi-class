@@ -155,7 +155,7 @@ class Audit:
             lapse=LP*S/(299792458.*(self.age_H0(z)/self.H0_si))
             # Historically the numerical structural lapse implied by S/t.
             lhs=r["Omega_G_standard"]
-            rhs=2*self.k*p*p/lapse**2
+            rhs=2*self.k*p*p/lapse**2*(G*MP/(LP*299792458.**2))
             identity.append(abs(lhs-rhs))
         maxid=max(identity)
         assert maxid<1e-11, maxid
