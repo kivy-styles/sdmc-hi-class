@@ -24,7 +24,7 @@ A normalization evaluated instead from precise accepted Late300 ordinary physica
 \quad \rho_P=\frac{m_P}{\ell_P^3},
 \]
 \[
-\boxed{\rho_G/\rho_P=0.393234\ S^{-2}.}
+\boxed{\rho_G/\rho_P=0.393251\ S^{-2}.}
 \]
 If one uses a spherical Planck reference \(\rho_{P,\rm sph}=3m_P/(4\pi\ell_P^3)\), the equivalent coefficient is \(\rho_G/\rho_{P,\rm sph}=\kappa_0/S^2\). The familiar rounded \(\kappa=1.64\) gives \((3\kappa)/(4\pi)=0.39152\); do not mix the *rounded* formula and *more precisely normalized* numerical tables.
 
