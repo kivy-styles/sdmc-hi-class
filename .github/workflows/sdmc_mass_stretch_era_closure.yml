@@ -1,0 +1,67 @@
+name: SDMC universal mass-stretch era density full closure versus accepted Late300
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sdmc-mass-stretch-era-density-full-closure-20261013
+    paths:
+      - '.github/workflows/sdmc_mass_stretch_era_closure.yml'
+      - 'sdmc/run_mass_stretch_era_density_full_closure.py'
+      - 'sdmc/reports/universal_mass_structural_density_full_closure_2026-10-13.md'
+
+permissions:
+  contents: read
+
+jobs:
+  derive-and-reject-or-promote-physical-interpretations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install independent mathematical integrators and graph support
+        run: python -m pip install numpy scipy matplotlib
+      - name: Evolve historical Late300 structural clock and compare all candidate density sources
+        run: |
+          python sdmc/run_mass_stretch_era_density_full_closure.py \
+             --out output/structural_mass_full_closure.json \
+             --plots output/structural_mass_full_closure_plots
+      - name: Strict physical and dimensional checks
+        run: |
+          python - <<'PY'
+          import json,math
+          from pathlib import Path
+          d=json.loads(Path('output/structural_mass_full_closure.json').read_text())
+          assert 1.63<d['coefficient_k_from_partII']<1.66
+          assert abs(d['coefficient_k_from_partII']-d['coefficient_k_needed_to_match_Late300_matter_today'])<.03
+          assert d['max_analytic_OmegaG_vs_2k_p2_over_N2_error']<1e-11
+          rows=d['rows']
+          at=lambda z:next(t for t in rows if abs(t['z']-z)<1e-4)
+          assert abs(at(20)['rhoG_over_m']-.6520)<.004
+          assert abs(at(1090)['rhoG_over_m']-1.0611)<.005
+          assert abs(at(1e7)['rhoG_over_r']-1.1447)<.007
+          assert .28<at(0)['rhoG_over_full_Jordan']<.31
+          assert .79<at(1090)['rhoG_over_m_plus_r']<.82
+          assert at(20)['k_required_for_full_m_plus_r']>2.4
+          assert at(1e7)['k_required_for_full_m_plus_r']<1.5
+          assert at(0)['Qm_required_if_matter_tracks_Sminus2_over_Hrho']>.9
+          assert abs(at(1090)['Rb_conserved']-.61486221617)<1e-8
+          assert math.isclose(at(20)['Rb_conserved'],at(20)['Rb_structurally_reexpressed'],rel_tol=1e-12)
+          assert all(Path('output/structural_mass_full_closure_plots',x).exists() for x in [
+             'density_closure.png','epoch_structural_clock.png','mass_coefficient_closure.png'])
+          print('PASS: PLANCK UNITS, MASS VOLUME, FRIEDMANN SOURCE, ERA EXPONENT, K_m, R_b, BBN GATES')
+          print('SCIENTIFIC VERDICT: constant-k density cannot stand for all fluids with accepted S, H and F; no new H0.')
+          PY
+      - name: Archive full numerical profile and physical interpretation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-universal-mass-stretch-era-closure
+          path: |
+            output/structural_mass_full_closure.json
+            output/structural_mass_full_closure_plots/*.png
+            sdmc/reports/universal_mass_structural_density_full_closure_2026-10-13.md
+          if-no-files-found: warn
