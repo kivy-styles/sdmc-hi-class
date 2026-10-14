@@ -1,0 +1,23 @@
+name: SDMC late300 model-selection sensitivity
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install -q pandas
+      - name: Run AIC sensitivity ledger
+        run: |
+          python3 sdmc/run_late300_model_selection_audit.py
+          cat output/late300_model_selection/late300_model_selection_summary.json
+          cat output/late300_model_selection/late300_AIC_sensitivity.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-late300-model-selection-audit
+          path: output/late300_model_selection/*

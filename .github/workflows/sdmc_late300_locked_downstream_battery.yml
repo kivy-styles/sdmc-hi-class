@@ -1,0 +1,61 @@
+name: SDMC late300 locked accepted-action downstream battery
+
+on:
+  push:
+    branches:
+      - sdmc-late300-locked-battery
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  battery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas camb
+
+      - name: Download accepted-action late300 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p inputs/late300_action
+          gh run download 37579409032 --repo "${{ github.repository }}" \
+            --name late300-linear-g3-covariant-audit --dir inputs/late300_action
+          test -f inputs/late300_action/linear_cov_free_00_background.dat
+          test -f inputs/late300_action/linear_cov_free_00_thermodynamics.dat
+          cp inputs/late300_action/linear_cov_free_00_background.dat inputs/late300_action/desi_cov_00_background.dat
+          cp inputs/late300_action/linear_cov_free_00_thermodynamics.dat inputs/late300_action/desi_cov_00_thermodynamics.dat
+          test -f inputs/late300_action/linear_cov_free_00_z1_pk.dat
+          cp inputs/late300_action/linear_cov_free_00_z1_pk.dat inputs/late300_action/desi_cov_00_z1_pk.dat
+
+      - name: Install SN and BAO data
+        run: |
+          rm -rf sn_data bao_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          git clone --depth 1 https://github.com/CobayaSampler/bao_data.git bao_data
+
+      - name: Run locked accepted-action battery
+        run: |
+          python3 sdmc/run_late300_locked_uniform_battery.py
+          cat output/late300_locked_battery/successful_candidates_uniform_battery.csv
+          cat output/late300_locked_battery/uniform_gate_verdict.csv
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-late300-locked-downstream-battery
+          path: output/late300_locked_battery/*
+          if-no-files-found: warn

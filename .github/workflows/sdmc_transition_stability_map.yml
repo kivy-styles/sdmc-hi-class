@@ -1,0 +1,125 @@
+name: SDMC Transition Stability Map
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  stability-map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply SDMC runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/apply_sdmc_transition_bridge_patch.py
+          python3 sdmc/apply_sdmc_asym_transition_bridge_patch.py
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Map native scalar stability numerator through the full background
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, subprocess
+
+          OUT=Path('output'); OUT.mkdir(exist_ok=True)
+          omega_cdm=0.12000047526014168
+          Omega_fld=3.0549311e-8
+          expansion='0.716246932, 20.0, 21.26, 0.5, 0.021223342, 0.25, 0.0116038358, 1.5'
+
+          # Stability rejection is deliberately disabled only for this diagnostic.
+          # No CMB or matter spectra are computed.  We only ask hi_class to finish
+          # the background table so that the native c_s^2 numerator can be mapped
+          # on both sides of the point at which the ordinary run rejects the model.
+          cases = [
+              ('baseline_A0',              '0.1, 1.0e-4, 0.0,   15.0, -1.0, 1.0, 1.0'),
+              ('F_bump_bestwide',           '0.1, 1.0e-4, 0.01,  15.0, -1.0, 1.4, 1.0'),
+              ('F_bump_narrow',             '0.1, 1.0e-4, 0.01,  15.0, -1.0, 0.4, 1.0'),
+              ('F_bump_negative_wide',      '0.1, 1.0e-4, -0.01, 15.0, -1.0, 1.4, 1.0'),
+              ('alphaB_oneway_positive',    '0.1, 1.0e-4, 0.02,  15.0,  0.0, 0.5, 1.0'),
+              ('alphaB_oneway_negative',    '0.1, 1.0e-4, -0.02, 15.0,  0.0, 0.5, 1.0'),
+          ]
+
+          def ini_text(pars, root):
+              return f'''H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = {omega_cdm:.17g}
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          Omega_Lambda = 0
+          Omega_fld = {Omega_fld:.12g}
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_kp_transition_bridge
+          parameters_smg = {pars}
+          expansion_model = sdmc_full
+          expansion_smg = {expansion}
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          skip_stability_tests_smg = yes
+          output_background_smg = 3
+          write background = yes
+          root = {root}
+          format = class
+          write parameters = yes
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          output_verbose = 0
+          '''
+
+          rows=[]
+          for name, pars in cases:
+              root=f'output/{name}_'
+              ini=OUT/f'{name}.ini'
+              ini.write_text(ini_text(pars,root),encoding='utf-8')
+              cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,timeout=90)
+              (OUT/f'{name}.log').write_text(cp.stdout,encoding='utf-8')
+              bg=OUT/f'{name}_background.dat'
+              rows.append({'case':name,'returncode':cp.returncode,'background_exists':bg.exists(),
+                           'parameters_smg':pars})
+              print(name,'returncode',cp.returncode,'background',bg.exists(),flush=True)
+
+          with (OUT/'sdmc_transition_stability_map_manifest.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=['case','returncode','background_exists','parameters_smg'])
+              w.writeheader(); w.writerows(rows)
+          PY
+
+      - name: Preserve stability maps
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-transition-stability-map
+          path: |
+            output/sdmc_transition_stability_map_manifest.csv
+            output/baseline_A0_*
+            output/F_bump_bestwide_*
+            output/F_bump_narrow_*
+            output/F_bump_negative_wide_*
+            output/alphaB_oneway_positive_*
+            output/alphaB_oneway_negative_*
+          if-no-files-found: warn
