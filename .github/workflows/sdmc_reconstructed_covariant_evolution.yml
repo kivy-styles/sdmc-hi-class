@@ -1,0 +1,571 @@
+name: SDMC reconstructed covariant No-Slip evolution
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  evolve-reconstructed-covariant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas
+
+      - name: Apply SDMC target patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+          python3 sdmc/apply_sdmc_v3_native_noslip_patch.py
+          python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Add independent-kinetic target model
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          def rep(path,old,new):
+              p=Path(path); s=p.read_text()
+              if new in s: return
+              if s.count(old)!=1: raise RuntimeError(f'{path}: anchor count {s.count(old)}')
+              p.write_text(s.replace(old,new,1))
+
+          rep('include/background.h',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip,\n',
+              '    constant_alphas, sdmc_early_cs, sdmc_v2_noslip, sdmc_v2_late_noslip, sdmc_kp_late_noslip, sdmc_v3_native_noslip, sdmc_v3_independent_kinetic,\n')
+
+          anchor='''  if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          parser='''  if (strcmp(string1,"sdmc_v3_independent_kinetic") == 0) {
+             pba->gravity_model_smg = sdmc_v3_independent_kinetic;
+             pba->field_evolution_smg = _FALSE_;
+             pba->M2_evolution_smg = _FALSE_;
+             flag2=_TRUE_;
+             pba->parameters_2_size_smg = 6;
+             class_read_list_of_doubles("parameters_smg",pba->parameters_2_smg,pba->parameters_2_size_smg);
+             class_test(pba->parameters_2_smg[0] <= 0. || pba->parameters_2_smg[1] <= 0. ||
+                        pba->parameters_2_smg[2] <= 0. || pba->parameters_2_smg[3] <= 0. ||
+                        pba->parameters_2_smg[4] < 0. || pba->parameters_2_smg[5] <= 0., errmsg,
+                        "sdmc_v3_independent_kinetic requires positive AF,zc,width,D0,Dfloor and non-negative p");
+           }
+
+          if (strcmp(string1,"eft_alphas_power_law") == 0) {'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,parser)
+
+          canchor='''  else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          closure=r'''  else if (pba->gravity_model_smg == sdmc_v3_independent_kinetic) {
+            double AF=pba->parameters_2_smg[0];
+            double zc=pba->parameters_2_smg[1];
+            double width=pba->parameters_2_smg[2];
+            double D0=pba->parameters_2_smg[3];
+            double power=pba->parameters_2_smg[4];
+            double Dfloor=pba->parameters_2_smg[5];
+            double N=log(a);
+            double Nc=-log(1.+zc);
+            double x=(N-Nc)/(2.*width);
+            double th=tanh(x);
+            double ch=cosh(x);
+            double sech2=1./(ch*ch);
+            double S=.5*(1.+th);
+            double F=exp(AF*S);
+            double am=AF/(4.*width)*sech2;
+            double bra=-2.*am;
+            double D=Dfloor + D0*pow(S,power);
+            double ak=D-1.5*bra*bra;
+
+            pvecback[pba->index_bg_kineticity_smg]=ak;
+            pvecback[pba->index_bg_braiding_smg]=bra;
+            pvecback[pba->index_bg_tensor_excess_smg]=0.;
+            pvecback[pba->index_bg_M2_running_smg]=am;
+            pvecback[pba->index_bg_beyond_horndeski_smg]=0.;
+            pvecback[pba->index_bg_delta_M2_smg]=F-1.;
+            pvecback[pba->index_bg_M2_smg]=F;
+          }
+
+          else if (pba->gravity_model_smg == eft_alphas_power_law) {'''
+          rep('gravity_smg/gravity_models_smg.c',canchor,closure)
+          PY
+
+      - name: Build target hi_class
+        run: make -j2 class
+
+      - name: Generate independent subluminal target trajectory
+        run: |
+          mkdir -p output
+          cat > output/target_independent.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.164822e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg = -1
+          gravity_model = sdmc_v3_independent_kinetic
+          parameters_smg = 0.073128, 4.84, 1.426, 0.40, 1.0, 0.0001
+          expansion_model = sdmc_full
+          expansion_smg = 0.7073985893, 20.0, 21.10, 0.5, 0.01105624999, 0.25, 0.01951933685, 1.5
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          output_background_smg = 3
+          output = mPk
+          P_k_max_h/Mpc = 1.0
+          z_pk = 0
+          write background = yes
+          root = output/target_independent_
+          input_verbose = 0
+          background_verbose = 0
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/target_independent.ini
+
+      - name: Reconstruct covariant K L V functions and spline table
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np, pandas as pd, re, math
+          from scipy.interpolate import CubicSpline
+
+          src=Path('output/target_independent_00_background.dat')
+          lines=src.read_text().splitlines()
+          hdr=[x for x in lines if x.startswith('#') and '1:z' in x][-1].lstrip('#').strip()
+          marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+          for i,m in enumerate(marks):
+              end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+              names.append(hdr[m.end():end].strip())
+          arr=np.loadtxt(src)
+          d={n:arr[:,i] for i,n in enumerate(names)}
+
+          z=d['z']; phi=-np.log1p(z)
+          order=np.argsort(phi)
+          phi=phi[order]
+          H=d['H [1/Mpc]'][order]
+          rho=d['rho_tot_wo_smg_dbg'][order]
+          pres=d['p_tot_wo_smg_dbg'][order]
+
+          AF=0.073128; zc=4.84; width=1.426; D0=0.40; power=1.0; Dfloor=1.e-4
+          Nc=-math.log1p(zc)
+          x=(phi-Nc)/(2*width)
+          th=np.tanh(x); q=1/np.cosh(x)**2
+          S=.5*(1+th)
+          Sp=q/(4*width)
+          Spp=-q*th/(4*width**2)
+          Sppp=q*(3*th**2-1)/(8*width**3)
+
+          F=np.exp(AF*S)
+          Fp=F*(AF*Sp)
+          Fpp=F*((AF*Sp)**2+AF*Spp)
+          G4p=Fp/2; G4pp=Fpp/2
+          alphaM=AF*Sp
+          alphaB=-2*alphaM
+          D=Dfloor+D0*S**power
+          alphaK=D-1.5*alphaB**2
+
+          h=CubicSpline(phi,np.log(H))(phi,1)
+          X=H**2/2
+          Xstar=X[np.argmin(np.abs(phi))]
+          logx=np.log(X/Xstar)
+
+          R=-4*G4p*(h-2)-2*F*h-3*(rho+pres)/H**2
+          A=F*alphaK
+          L=(A-R)/(4*X)
+          C=2*G4pp*(1+logx)
+          K=1.5*R-0.5*A-C
+          V=3*F*H**2-3*rho-K*X-3*L*X**2-2*X*G4pp*logx+12*G4p*H**2
+
+          splines={name:CubicSpline(phi,val) for name,val in [('K',K),('L',L),('V',V),('H',H)]}
+
+          def carr(name,vals):
+              return f"static const double {name}[{len(vals)}] = {{\n" + \
+                     ",\n".join(f"{float(v):.17e}" for v in vals) + "\n};\n"
+
+          out=[]
+          out.append("#ifndef SDMC_RECONSTRUCTED_COVARIANT_TABLE_H\n#define SDMC_RECONSTRUCTED_COVARIANT_TABLE_H\n")
+          out.append("#include <math.h>\n")
+          out.append(f"#define SDMC_RECON_N {len(phi)}\n")
+          out.append(f"#define SDMC_XSTAR {Xstar:.17e}\n")
+          out.append(carr("sdmc_recon_phi",phi))
+          for name,sp in splines.items():
+              for j in range(4):
+                  out.append(carr(f"sdmc_{name}_c{j}",sp.c[j]))
+          out.append(r'''
+          static inline int sdmc_recon_interval(double x){
+            int lo=0, hi=SDMC_RECON_N-1;
+            if(x<=sdmc_recon_phi[0]) return 0;
+            if(x>=sdmc_recon_phi[SDMC_RECON_N-1]) return SDMC_RECON_N-2;
+            while(hi-lo>1){
+              int mid=(lo+hi)/2;
+              if(sdmc_recon_phi[mid] <= x) lo=mid; else hi=mid;
+            }
+            return lo;
+          }
+          static inline void sdmc_recon_eval(double x,
+              const double *c0,const double *c1,const double *c2,const double *c3,
+              double *v,double *d1,double *d2){
+            int i=sdmc_recon_interval(x);
+            double dx=x-sdmc_recon_phi[i];
+            *v=((c0[i]*dx+c1[i])*dx+c2[i])*dx+c3[i];
+            *d1=(3.*c0[i]*dx+2.*c1[i])*dx+c2[i];
+            *d2=6.*c0[i]*dx+2.*c1[i];
+          }
+          static inline void sdmc_recon_K(double x,double *v,double *d1,double *d2){
+            sdmc_recon_eval(x,sdmc_K_c0,sdmc_K_c1,sdmc_K_c2,sdmc_K_c3,v,d1,d2);
+          }
+          static inline void sdmc_recon_L(double x,double *v,double *d1,double *d2){
+            sdmc_recon_eval(x,sdmc_L_c0,sdmc_L_c1,sdmc_L_c2,sdmc_L_c3,v,d1,d2);
+          }
+          static inline void sdmc_recon_V(double x,double *v,double *d1,double *d2){
+            sdmc_recon_eval(x,sdmc_V_c0,sdmc_V_c1,sdmc_V_c2,sdmc_V_c3,v,d1,d2);
+          }
+          static inline double sdmc_recon_H(double x){
+            double v,d1,d2;
+            sdmc_recon_eval(x,sdmc_H_c0,sdmc_H_c1,sdmc_H_c2,sdmc_H_c3,&v,&d1,&d2);
+            return v;
+          }
+          #endif
+          ''')
+          Path('gravity_smg/sdmc_reconstructed_covariant_table.h').write_text(''.join(out))
+
+          Ksp=splines['K']; Lsp=splines['L']; Vsp=splines['V']
+          K1=Ksp(phi,1); L1=Lsp(phi,1); V1=Vsp(phi,1)
+          Fppp=F*((AF*Sp)**3+3*AF**2*Sp*Spp+AF*Sppp)
+          G4ppp=Fppp/2
+          G2X=K+2*L*X; G2XX=2*L
+          G2phi=K1*X+L1*X**2-V1
+          G2Xphi=K1+2*L1*X
+          G3phi=-G4pp*logx
+          G3X=-G4p/X
+          G3XX=G4p/X**2
+          G3Xphi=-G4pp/X
+          G3phiphi=-G4ppp*logx
+          aa=np.exp(phi)
+          phip=aa*H
+          phipp=(aa*H)**2*(1+h)
+          Hp=aa*H**2*h
+          R0=((G2X-2*G3phi+2*X*(G2XX-G3Xphi))/(aa*H)
+             +6*(G3X+X*G3XX)*aa**-2*phip)/3
+          R1=2*(-(G4p-X*G3X)/H)
+          R2=(- (G2phi-2*X*(G2Xphi-G3phiphi))*aa/H
+              +2*(G2X-2*G3phi-X*(G2XX-4*G3Xphi))*phip
+              -2*(6*G4p-3*X*G3X+6*X**2*G3XX)*aa*H)/3
+          scalar=R0*phipp+R1*Hp+R2
+          scale=np.abs(R0*phipp)+np.abs(R1*Hp)+np.abs(R2)+1e-300
+          rel=np.abs(scalar)/scale
+          mask=z[order]<100
+          pd.DataFrame({'phi':phi,'z':z[order],'H':H,'F':F,'alphaK':alphaK,
+                        'K':K,'LX':L*X,'V_over_H2':V/H**2,
+                        'scalar_residual_relative':rel}).to_csv(
+                        'output/covariant_reconstruction_onshell.csv',index=False)
+          Path('output/covariant_reconstruction_summary.txt').write_text(
+            f"Xstar={Xstar:.17e}\n"
+            f"scalar_rel_median_z100={np.median(rel[mask]):.17e}\n"
+            f"scalar_rel_max_z100={np.max(rel[mask]):.17e}\n"
+            f"K_min_z100={np.min(K[mask]):.17e}\nK_max_z100={np.max(K[mask]):.17e}\n"
+            f"LX_min_z100={np.min((L*X)[mask]):.17e}\nLX_max_z100={np.max((L*X)[mask]):.17e}\n"
+            f"V_H2_min_z100={np.min((V/H**2)[mask]):.17e}\nV_H2_max_z100={np.max((V/H**2)[mask]):.17e}\n"
+          )
+          print(Path('output/covariant_reconstruction_summary.txt').read_text())
+          PY
+
+      - name: Install reconstructed covariant Horndeski model
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          def rep(path,old,new):
+              p=Path(path); s=p.read_text()
+              if new in s: return
+              if s.count(old)!=1: raise RuntimeError(f'{path}: anchor count {s.count(old)}')
+              p.write_text(s.replace(old,new,1))
+
+          rep('include/background.h',
+              '    alpha_attractor_canonical,\n    cccg_exp\n};',
+              '    alpha_attractor_canonical,\n    cccg_exp,\n    sdmc_reconstructed_covariant\n};')
+
+          p=Path('gravity_smg/gravity_models_smg.c')
+          s=p.read_text()
+          if '#include "sdmc_reconstructed_covariant_table.h"' not in s:
+              s=s.replace('#include "gravity_models_smg.h"',
+                          '#include "gravity_models_smg.h"\n#include "sdmc_reconstructed_covariant_table.h"',1)
+              p.write_text(s)
+
+          anchor='''  if (strcmp(string1,"nkgb") == 0 || strcmp(string1,"n-kgb") == 0 || strcmp(string1,"N-KGB") == 0 || strcmp(string1,"nKGB") == 0) {'''
+          parser='''  if (strcmp(string1,"sdmc_reconstructed_covariant") == 0) {
+     pba->gravity_model_smg = sdmc_reconstructed_covariant;
+     pba->field_evolution_smg = _TRUE_;
+     pba->M2_evolution_smg = _FALSE_;
+     flag2=_TRUE_;
+     pba->parameters_size_smg = 1;
+     class_read_list_of_doubles("parameters_smg",pba->parameters_smg,pba->parameters_size_smg);
+     pba->tuning_index_smg = 0;
+   }
+
+  if (strcmp(string1,"nkgb") == 0 || strcmp(string1,"n-kgb") == 0 || strcmp(string1,"N-KGB") == 0 || strcmp(string1,"nKGB") == 0) {'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,parser)
+
+          anchor='''  else if(pba->gravity_model_smg == nkgb){'''
+          model=r'''  else if(pba->gravity_model_smg == sdmc_reconstructed_covariant){
+    const double AF=0.073128, zc=4.84, width=1.426;
+    const double Nc=-log(1.+zc);
+    double kval,k1,k2,lval,l1,l2,vval,v1,v2;
+    sdmc_recon_K(phi,&kval,&k1,&k2);
+    sdmc_recon_L(phi,&lval,&l1,&l2);
+    sdmc_recon_V(phi,&vval,&v1,&v2);
+
+    class_test(X <= 0.,pba->error_message,
+               "sdmc_reconstructed_covariant reached X <= 0 at phi=%g",phi);
+
+    double xx=(phi-Nc)/(2.*width);
+    double th=tanh(xx);
+    double ch=cosh(xx);
+    double q=1./(ch*ch);
+    double S=.5*(1.+th);
+    double Sp=q/(4.*width);
+    double Spp=-q*th/(4.*width*width);
+    double Sppp=q*(3.*th*th-1.)/(8.*pow(width,3));
+    double Spppp=q*th*(2.-3.*th*th)/(4.*pow(width,4));
+    double F=exp(AF*S);
+    double g1=AF*Sp, g2=AF*Spp, g3=AF*Sppp, g4=AF*Spppp;
+    double F1=F*g1;
+    double F2=F*(g1*g1+g2);
+    double F3=F*(g1*g1*g1+3.*g1*g2+g3);
+    double F4d=F*(pow(g1,4)+6.*g1*g1*g2+3.*g2*g2+4.*g1*g3+g4);
+    double G4p=.5*F1, G4pp=.5*F2, G4ppp=.5*F3, G4pppp=.5*F4d;
+    double lx=log(X/SDMC_XSTAR);
+
+    pgf->G2 = kval*X + lval*X*X - vval;
+    pgf->G2_X = kval + 2.*lval*X;
+    pgf->G2_XX = 2.*lval;
+    pgf->G2_XXX = 0.;
+    pgf->G2_phi = k1*X + l1*X*X - v1;
+    pgf->G2_Xphi = k1 + 2.*l1*X;
+    pgf->G2_XXphi = 2.*l1;
+    pgf->G2_phiphi = k2*X + l2*X*X - v2;
+    pgf->G2_Xphiphi = k2 + 2.*l2*X;
+
+    pgf->G3_X = -G4p/X;
+    pgf->G3_XX = G4p/(X*X);
+    pgf->G3_XXX = -2.*G4p/(X*X*X);
+    pgf->G3_phi = -G4pp*lx;
+    pgf->G3_Xphi = -G4pp/X;
+    pgf->G3_XXphi = G4pp/(X*X);
+    pgf->G3_phiphi = -G4ppp*lx;
+    pgf->G3_Xphiphi = -G4ppp/X;
+    pgf->G3_phiphiphi = -G4pppp*lx;
+
+    pgf->DG4 = .5*(F-1.);
+    pgf->G4 = .5*F;
+    pgf->G4_phi = G4p;
+    pgf->G4_phiphi = G4pp;
+    pgf->G4_phiphiphi = G4ppp;
+  }
+
+  else if(pba->gravity_model_smg == nkgb){'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,model)
+
+          anchor='''	  case nkgb:
+		  {'''
+          ic='''    case sdmc_reconstructed_covariant:
+      {
+        double phi_ini=log(a);
+        double H_ini=sdmc_recon_H(phi_ini);
+        pvecback_integration[pba->index_bi_phi_smg]=phi_ini;
+        pvecback_integration[pba->index_bi_phi_prime_smg]=a*H_ini;
+      }
+      break;
+
+	  case nkgb:
+		  {'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,ic)
+
+          anchor='''    case nkgb:
+     printf("Modified gravity: Kinetic Gravity Braiding'''
+          label='''    case sdmc_reconstructed_covariant:
+      printf("Modified gravity: SDMC reconstructed covariant No-Slip action (fixed spline reconstruction).\\n");
+    break;
+
+    case nkgb:
+     printf("Modified gravity: Kinetic Gravity Braiding'''
+          rep('gravity_smg/gravity_models_smg.c',anchor,label)
+          PY
+
+      - name: Rebuild covariant hi_class
+        run: |
+          make clean
+          make -j2 class
+
+      - name: Free-evolve covariant background
+        run: |
+          cat > output/covariant_background.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.164822e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg_debug = -1
+          gravity_model = sdmc_reconstructed_covariant
+          parameters_smg = 0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          output_background_smg = 3
+          write background = yes
+          root = output/covariant_free_
+          input_verbose = 0
+          background_verbose = 1
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          output_verbose = 0
+          EOF
+          ./class output/covariant_background.ini 2>&1 | tee output/covariant_background.log
+
+      - name: Compare free covariant trajectory to target
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np, pandas as pd, re
+          def read(path):
+              lines=Path(path).read_text().splitlines()
+              hdr=[x for x in lines if x.startswith('#') and '1:z' in x][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\d+)\s*:\s*',hdr)); names=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  names.append(hdr[m.end():end].strip())
+              return pd.DataFrame(np.loadtxt(path),columns=names)
+
+          t=read('output/target_independent_00_background.dat').sort_values('z')
+          c=read('output/covariant_free_00_background.dat').sort_values('z')
+          zgrid=np.unique(np.concatenate([np.geomspace(1e-4,100,500),np.array([0.])]))
+          zgrid=np.sort(zgrid)
+          def iv(df,col): return np.interp(zgrid,df.z,df[col])
+          rows={'z':zgrid}; summary=[]
+          for tag,col in [('H','H [1/Mpc]'),('F','M*^2_smg'),('alphaM','M2_running_smg'),
+                          ('alphaB','braiding_smg'),('alphaK','kineticity_smg'),
+                          ('D','kin (D)'),('cs2','c_s^2')]:
+              tv=iv(t,col); cv=iv(c,col)
+              rows[tag+'_target']=tv; rows[tag+'_covariant']=cv
+              frac=(cv-tv)/np.maximum(np.abs(tv),1e-30)
+              rows[tag+'_fracdiff']=frac
+              summary.append((tag,float(np.median(np.abs(frac))),float(np.max(np.abs(frac)))))
+          phi_cols=[x for x in c.columns if x.strip() in ('phi_smg','phi')]
+          if phi_cols:
+              ph=iv(c,phi_cols[0]); N=-np.log1p(zgrid)
+              rows['phi_minus_N']=ph-N
+              summary.append(('phi_minus_N_abs',float(np.median(np.abs(ph-N))),float(np.max(np.abs(ph-N)))))
+          pd.DataFrame(rows).to_csv('output/covariant_vs_target.csv',index=False)
+          cz=c[c.z<=100]
+          stab={'min_D_z100':float(cz['kin (D)'].min()),
+                'min_cs2_z100':float(cz['c_s^2'].min()),
+                'max_cs2_z100':float(cz['c_s^2'].max()),
+                'min_M2_z100':float(cz['M*^2_smg'].min()),
+                'max_abs_noslip_z100':float(np.max(np.abs(cz['braiding_smg']+2*cz['M2_running_smg'])))}
+          with open('output/covariant_vs_target_summary.txt','w') as fh:
+              for tag,med,mx in summary:
+                  fh.write(f'{tag}: median_abs={med:.17e} max_abs={mx:.17e}\n')
+              for k,v in stab.items(): fh.write(f'{k}={v:.17e}\n')
+          print(Path('output/covariant_vs_target_summary.txt').read_text())
+          PY
+
+      - name: Full Boltzmann run from covariant action
+        run: |
+          cat > output/covariant_full.ini <<'EOF'
+          H0 = 70.8514
+          omega_b = 0.02239952
+          omega_cdm = 0.12444227328918850
+          N_ncdm = 0
+          N_ur = 3.046
+          T_cmb = 2.7255
+          YHe = 0.2453
+          A_s = 2.164822e-9
+          n_s = 0.964
+          tau_reio = 0.0544
+          Omega_Lambda = 0
+          Omega_fld = 3.1443554e-8
+          fluid_equation_of_state = SDMC_TRACKER
+          cs2_fld = 0.003
+          use_ppf = no
+          Omega_smg_debug = -1
+          gravity_model = sdmc_reconstructed_covariant
+          parameters_smg = 0
+          pert_initial_conditions_smg = zero
+          method_qs_smg = fully_dynamic
+          output_background_smg = 3
+          modes = s
+          lensing = yes
+          l_max_scalars = 3000
+          output = tCl,pCl,lCl,mPk
+          P_k_max_h/Mpc = 6.0
+          z_pk = 0,0.295,0.5,0.510,0.706,0.934,1,1.321,1.484,2,2.330,3,5,10
+          write background = yes
+          write thermodynamics = yes
+          write parameters = yes
+          root = output/covariant_full_
+          format = class
+          input_verbose = 0
+          background_verbose = 1
+          thermodynamics_verbose = 0
+          perturbations_verbose = 0
+          spectra_verbose = 0
+          lensing_verbose = 0
+          output_verbose = 0
+          EOF
+          set +e
+          ./class output/covariant_full.ini > output/covariant_full.log 2>&1
+          rc=$?
+          set -e
+          cat output/covariant_full.log
+          echo "COVARIANT_FULL_RETURNCODE=$rc"
+          echo "$rc" > output/covariant_full_returncode.txt
+          exit $rc
+
+      - name: Preserve covariant reconstruction and evolution
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-reconstructed-covariant-noslip
+          path: |
+            output/target_independent_00_background.dat
+            output/covariant_reconstruction_onshell.csv
+            output/covariant_reconstruction_summary.txt
+            output/covariant_background.ini
+            output/covariant_background.log
+            output/covariant_free_00_background.dat
+            output/covariant_vs_target.csv
+            output/covariant_vs_target_summary.txt
+            output/covariant_full.ini
+            output/covariant_full.log
+            output/covariant_full_returncode.txt
+            output/covariant_full_00_*
+          if-no-files-found: warn
