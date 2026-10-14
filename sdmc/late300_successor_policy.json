@@ -1,0 +1,28 @@
+{
+  "canonical_name": "late300",
+  "historical_alias": "g022-A034",
+  "successor_policy": {
+    "must_not_worsen_primary_closure_without_compensation": true,
+    "hard_gates": [
+      "fair Planck+DESI < 0",
+      "fair Planck+DESI+Pantheon+ < 0",
+      "fair Planck+DESI+Union3 < 0",
+      "fair Planck+DESI+DES-Y5 < 0"
+    ],
+    "current_benchmark_values": {
+      "fair_P_plus_D": -0.11631964283344587,
+      "fair_P_plus_D_plus_PantheonPlus": -0.20248151194573438,
+      "fair_P_plus_D_plus_Union3": -0.1064546587095947,
+      "fair_P_plus_D_plus_DESY5": -0.18240234392033017
+    },
+    "secondary_metrics": [
+      "exact stability margin",
+      "No-Slip-corrected weak lensing",
+      "calibrated SH0ES",
+      "BAO",
+      "BBN",
+      "cosmic age",
+      "JWST/FRESCO"
+    ]
+  }
+}

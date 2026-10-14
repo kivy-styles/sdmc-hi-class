@@ -1,0 +1,61 @@
+name: SDMC g022-A034 uniform downstream battery
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  battery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip git unzip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas camb
+
+      - name: Download exact g022-A034 DESI artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf inputs
+          mkdir -p inputs/g022a034
+          gh run download 37462886455 --repo "${{ github.repository }}" \
+            --name sdmc-g022-a034-exact-desi --dir inputs/g022a034
+          test -f inputs/g022a034/desi_cov_00_background.dat
+          test -f inputs/g022a034/desi_cov_00_thermodynamics.dat
+          test -f inputs/g022a034/desi_cov_00_z1_pk.dat
+
+      - name: Install SN and BAO data
+        run: |
+          rm -rf sn_data bao_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          git clone --depth 1 https://github.com/CobayaSampler/bao_data.git bao_data
+
+      - name: Run uniform downstream battery
+        run: |
+          python3 sdmc/run_g022a034_uniform_battery.py
+
+      - name: Print results
+        if: always()
+        run: |
+          cat output/uniform_battery/successful_candidates_uniform_battery.csv || true
+          echo "--- VERDICT ---"
+          cat output/uniform_battery/uniform_gate_verdict.csv || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-g022-a034-uniform-battery
+          path: output/uniform_battery/*
+          if-no-files-found: warn
