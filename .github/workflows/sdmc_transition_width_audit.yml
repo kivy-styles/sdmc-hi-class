@@ -1,0 +1,202 @@
+name: SDMC transition-width native-cs2 audit
+
+on:
+  push:
+    branches:
+      - sdmc-boltzmann
+  workflow_dispatch:
+
+jobs:
+  transition-width-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply frozen SDMC runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/fix_parameterized_alphaM_refresh.py
+
+      - name: Expose exact native cs2 diagnostics
+        run: python3 sdmc/run_sdmc_cs2_term_audit.py instrument
+
+      - name: Build baseline hi_class
+        run: make -j2 class
+
+      - name: Sweep release and activation widths
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, math, re, subprocess
+
+          OUT = Path('output')
+          OUT.mkdir(exist_ok=True)
+          SOURCE = Path('gravity_smg/gravity_models_smg.c')
+          KPT = Path('sdmc/config/kp_split_sector_background_diagnostic.ini')
+          NKPT = Path('sdmc/config/nkp_v2_split_sector_background_diagnostic.ini')
+          KP_WIDTHS = [0.20, 0.30, 0.4467, 0.60, 0.80, 1.00, 1.25, 1.50, 2.00]
+          NKP_WIDTHS = [0.20, 0.30, 0.50, 0.70, 0.90, 1.10, 1.40, 1.80, 2.20]
+          DFLOOR = 1e-4
+
+          def parse_bg(path):
+              lines = path.read_text().splitlines()
+              hdr = [x for x in lines if x.startswith('#') and '1:z' in x][-1].lstrip('#').strip()
+              marks = list(re.finditer(r'(\d+)\s*:\s*', hdr))
+              names=[]
+              for i,m in enumerate(marks):
+                  end = marks[i+1].start() if i+1 < len(marks) else len(hdr)
+                  names.append(hdr[m.end():end].strip())
+              out=[]
+              for line in lines:
+                  if line.strip() and not line.startswith('#'):
+                      vals=[float(x) for x in line.split()]
+                      out.append(dict(zip(names,vals)))
+              return out
+
+          def derived(raw):
+              out=[]
+              for r in raw:
+                  z=r['z']; a=1/(1+z); H=r['H [1/Mpc]']
+                  F=r['M*^2_smg']; b=r['braiding_smg']; am=r['M2_running_smg']
+                  ten=r['tensor_excess_smg']; beh=r['beyond_horndeski_smg']
+                  rs=r['(.)rho_smg']; ps=r['(.)p_smg']
+                  rho_o=r['rho_tot_wo_smg_dbg']; p_o=r['p_tot_wo_smg_dbg']
+                  bp=r['braiding_prime_smg']
+                  t1=.5*(2-b)*(b+2*beh+2*am+2*beh*am-2*ten+b*ten)
+                  t2=1.5*(2-b)*(1+beh)*(rs+ps)/(H*H)
+                  t3=-1.5*(1+beh)*(2+2*beh-2*F+b*F)/F*(rho_o+p_o)/(H*H)
+                  t4=(1+beh)*bp/(a*H)
+                  out.append(dict(z=z,a=a,cs2num=r['cs2num'],D=r['kin (D)'],cs2=r['c_s^2'],
+                                  F=F,alphaM=am,alphaB=b,noslip=b+2*am,
+                                  term_mix=t1,term_smg=t2,term_non_smg=t3,term_bra_prime=t4,
+                                  rho_smg=rs,p_smg=ps,w_smg=(ps/rs if rs != 0 else float('nan')),
+                                  closure=t1+t2+t3+t4-r['cs2num']))
+              return out
+
+          def crossings(rows):
+              seq=sorted(rows,key=lambda x:x['z']); xs=[]
+              for a,b in zip(seq[:-1],seq[1:]):
+                  y1,y2=a['cs2num'],b['cs2num']
+                  if y1 == 0: xs.append(a['z'])
+                  elif y1*y2 < 0:
+                      xs.append(a['z']-y1*(b['z']-a['z'])/(y2-y1))
+              return xs
+
+          def intervals(rows):
+              seq=sorted(rows,key=lambda x:x['z']); ans=[]; start=None; last=None
+              for r in seq:
+                  neg=r['cs2num'] < 0
+                  if neg and start is None: start=r['z']
+                  if not neg and start is not None:
+                      ans.append((start,last)); start=None
+                  if neg: last=r['z']
+              if start is not None: ans.append((start,last))
+              return '|'.join(f'{a:.9g}:{b:.9g}' for a,b in ans)
+
+          def metrics(model,width,zact,rows,status='OK',rc=0):
+              if not rows:
+                  return dict(model=model,width=width,zact=zact,status=status,returncode=rc)
+              sub=[r for r in rows if r['z'] <= 100]
+              low=[r for r in sub if r['z'] <= 5]
+              high=[r for r in sub if r['z'] > 5]
+              mn=min(sub,key=lambda r:r['cs2num'])
+              ml=min(low,key=lambda r:r['cs2num']) if low else mn
+              mh=min(high,key=lambda r:r['cs2num']) if high else mn
+              z0=min(rows,key=lambda r:abs(r['z']))
+              return dict(
+                  model=model,width=width,zact=zact,status=status,returncode=rc,
+                  min_num=mn['cs2num'],z_min=mn['z'],min_num_lowz=ml['cs2num'],z_min_lowz=ml['z'],
+                  min_num_highz=mh['cs2num'],z_min_highz=mh['z'],
+                  negative_intervals=intervals(sub),zero_crossings='|'.join(f'{x:.11g}' for x in crossings(sub)),
+                  F0=z0['F'],alphaM0=z0['alphaM'],max_abs_noslip=max(abs(r['noslip']) for r in rows),
+                  max_abs_closure=max(abs(r['closure']) for r in rows),
+                  term_smg_at_min=mn['term_smg'],term_non_smg_at_min=mn['term_non_smg'],
+                  term_bra_prime_at_min=mn['term_bra_prime'],w_smg_at_min=mn['w_smg'],
+                  min_cs2=min(r['cs2'] for r in sub),min_D=min(r['D'] for r in sub),
+              )
+
+          def make_ini(base, root, params):
+              txt=base
+              txt=re.sub(r'^parameters_smg\s*=.*$',f'parameters_smg = {params}',txt,flags=re.M)
+              txt=re.sub(r'^output_background_smg\s*=.*$','output_background_smg = 3',txt,flags=re.M)
+              txt=re.sub(r'^root\s*=.*$',f'root = {root}',txt,flags=re.M)
+              return txt
+
+          def run_one(model,width,zact,base,params,tag):
+              root=f'output/sdmc_width_{tag}_'
+              ini=OUT/f'sdmc_width_{tag}.ini'
+              ini.write_text(make_ini(base,root,params))
+              cp=subprocess.run(['./class',str(ini)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+              (OUT/f'sdmc_width_{tag}.log').write_text(cp.stdout)
+              bg=Path(root+'00_background.dat')
+              if cp.returncode != 0 or not bg.exists():
+                  return metrics(model,width,zact,[],status='RUN_FAIL',rc=cp.returncode)
+              return metrics(model,width,zact,derived(parse_bg(bg)))
+
+          results=[]
+          base_source=SOURCE.read_text()
+          anchor='const double width = 0.4467;'
+          if base_source.count(anchor) != 1:
+              raise RuntimeError(f'Kp width anchor count={base_source.count(anchor)}')
+
+          kpbase=KPT.read_text()
+          try:
+              for width in KP_WIDTHS:
+                  src=base_source.replace(anchor,f'const double width = {width:.17g}; /* native-cs2 width audit */')
+                  SOURCE.write_text(src)
+                  cp=subprocess.run(['make','-j2','class'],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+                  (OUT/f'sdmc_width_Kp_build_{width:.4g}.log').write_text(cp.stdout)
+                  if cp.returncode != 0:
+                      results.append(metrics('Kp_core',width,4.38,[],status='BUILD_FAIL',rc=cp.returncode))
+                      continue
+                  tag=('Kp_w'+f'{width:.4g}').replace('.','p')
+                  results.append(run_one('Kp_core',width,4.38,kpbase,f'0.1, {DFLOOR:.17g}',tag))
+          finally:
+              SOURCE.write_text(base_source)
+              cp=subprocess.run(['make','-j2','class'],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+              (OUT/'sdmc_width_Kp_restore_build.log').write_text(cp.stdout)
+              if cp.returncode != 0:
+                  raise RuntimeError('failed to restore baseline Kp source/executable')
+
+          nkbase=NKPT.read_text()
+          for width in NKP_WIDTHS:
+              zact=21.45883112
+              tag=('NKp_w'+f'{width:.4g}').replace('.','p')
+              params=f'0.001, 0.1, {zact:.17g}, {width:.17g}, {DFLOOR:.17g}'
+              results.append(run_one('NKp_v2',width,zact,nkbase,params,tag))
+
+          fields=['model','width','zact','status','returncode','min_num','z_min','min_num_lowz','z_min_lowz',
+                  'min_num_highz','z_min_highz','negative_intervals','zero_crossings','F0','alphaM0','max_abs_noslip',
+                  'max_abs_closure','term_smg_at_min','term_non_smg_at_min','term_bra_prime_at_min','w_smg_at_min',
+                  'min_cs2','min_D']
+          with (OUT/'sdmc_transition_width_audit.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=fields); w.writeheader()
+              for r in results: w.writerow({k:r.get(k,'') for k in fields})
+
+          print('TRANSITION_WIDTH_AUDIT')
+          for r in results:
+              print(r)
+          PY
+
+      - name: Preserve transition-width audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-transition-width-audit
+          path: |
+            output/sdmc_transition_width_audit.csv
+            output/sdmc_width_*.log
+            output/sdmc_width_*_00_background.dat
+          if-no-files-found: warn

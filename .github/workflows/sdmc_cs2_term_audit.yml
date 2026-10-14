@@ -1,0 +1,150 @@
+name: SDMC cs2 Term Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sdmc-boltzmann
+
+jobs:
+  cs2-term-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Apply SDMC runtime patches
+        run: |
+          python3 sdmc/apply_sdmc_tracker_patch.py
+          python3 sdmc/apply_sdmc_full_background_patch.py
+          python3 sdmc/apply_sdmc_v2_noslip_patch.py
+          python3 sdmc/apply_sdmc_v2_smooth_noslip_patch.py
+          python3 sdmc/apply_sdmc_split_sector_patch.py
+          python3 sdmc/fix_sdmc_split_sector_background.py
+          python3 sdmc/apply_sdmc_transition_bridge_patch.py
+          python3 sdmc/apply_sdmc_asym_transition_bridge_patch.py
+
+      - name: Expose exact non-SMG density and pressure in background output
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('gravity_smg/background_smg.c')
+          s=p.read_text()
+          old='''\t\tclass_store_columntitle(titles,"cs2num",_TRUE_);\n\t\tclass_store_columntitle(titles,"cs2num_p",_TRUE_);'''
+          new=old+'''\n\t\tclass_store_columntitle(titles,"rho_tot_wo_smg_dbg",_TRUE_);\n\t\tclass_store_columntitle(titles,"p_tot_wo_smg_dbg",_TRUE_);'''
+          if old not in s:
+              raise SystemExit('title anchor not found')
+          s=s.replace(old,new,1)
+          old2='''\t\tclass_store_double(dataptr,pvecback[pba->index_bg_cs2num_smg],_TRUE_,storeidx);\n\t\tclass_store_double(dataptr,pvecback[pba->index_bg_cs2num_prime_smg],_TRUE_,storeidx);'''
+          new2=old2+'''\n\t\tclass_store_double(dataptr,pvecback[pba->index_bg_rho_tot_wo_smg],_TRUE_,storeidx);\n\t\tclass_store_double(dataptr,pvecback[pba->index_bg_p_tot_wo_smg],_TRUE_,storeidx);'''
+          if old2 not in s:
+              raise SystemExit('data anchor not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s)
+          print('exact rho_tot_wo_smg/p_tot_wo_smg diagnostics exposed')
+          PY
+
+      - name: Build hi_class
+        run: make -j2 class
+
+      - name: Run exact stability numerator audit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv, math, subprocess, re
+
+          OUT=Path('output'); OUT.mkdir(exist_ok=True)
+          omega_cdm=0.12000047526014168
+          Omega_fld=3.0549311e-8
+          expansion='0.716246932, 20.0, 21.26, 0.5, 0.021223342, 0.25, 0.0116038358, 1.5'
+          cases=[
+            ('baseline_A0','0.1, 1.0e-4, 0.0, 15.0, -1.0, 1.0, 1.0'),
+            ('F_bump_bestwide','0.1, 1.0e-4, 0.01, 15.0, -1.0, 1.4, 1.0'),
+          ]
+          def ini(pars,root):
+              return f'''H0 = 70.8514\nomega_b = 0.02239952\nomega_cdm = {omega_cdm:.17g}\nN_ncdm = 0\nN_ur = 3.046\nT_cmb = 2.7255\nYHe = 0.2453\nOmega_Lambda = 0\nOmega_fld = {Omega_fld:.12g}\nfluid_equation_of_state = SDMC_TRACKER\ncs2_fld = 0.003\nuse_ppf = no\nOmega_smg = -1\ngravity_model = sdmc_kp_transition_bridge\nparameters_smg = {pars}\nexpansion_model = sdmc_full\nexpansion_smg = {expansion}\npert_initial_conditions_smg = zero\nmethod_qs_smg = fully_dynamic\nskip_stability_tests_smg = yes\noutput_background_smg = 3\nwrite background = yes\nroot = {root}\nformat = class\nwrite parameters = yes\ninput_verbose = 0\nbackground_verbose = 0\nthermodynamics_verbose = 0\nperturbations_verbose = 0\noutput_verbose = 0\n'''
+
+          def read_table(path):
+              lines=path.read_text().splitlines()
+              hdr=[x for x in lines if x.startswith('#') and '1:z' in x][-1].lstrip('#').strip()
+              marks=list(re.finditer(r'(\\d+)\\s*:\\s*',hdr))
+              names=[]
+              for i,m in enumerate(marks):
+                  end=marks[i+1].start() if i+1<len(marks) else len(hdr)
+                  names.append(hdr[m.end():end].strip())
+              rows=[]
+              for x in lines:
+                  if x.strip() and not x.startswith('#'):
+                      vals=[float(v) for v in x.split()]
+                      rows.append(dict(zip(names,vals)))
+              return rows
+
+          fields=['case','z','a','cs2num','D','cs2','term_mix','term_smg_rhop','term_non_smg','term_bra_prime','sum_terms','closure_error','F','alphaM','alphaB','alphaB_prime_tau','rho_smg','p_smg','rho_wo','p_wo']
+          allrows=[]
+          summary=[]
+          for name,pars in cases:
+              prefix=f'output/{name}_'
+              ip=OUT/f'{name}.ini'; ip.write_text(ini(pars,prefix))
+              cp=subprocess.run(['./class',str(ip)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=90)
+              (OUT/f'{name}.log').write_text(cp.stdout)
+              bg=OUT/f'{name}_00_background.dat'
+              if cp.returncode!=0 or not bg.exists():
+                  summary.append({'case':name,'status':'RUN_FAIL','returncode':cp.returncode})
+                  continue
+              rows=read_table(bg)
+              minrec=None
+              for r in rows:
+                  z=r['z']; a=1./(1.+z); H=r['H [1/Mpc]']; F=r['M*^2_smg']; b=r['braiding_smg']; am=r['M2_running_smg']
+                  rs=r['(.)rho_smg']; ps=r['(.)p_smg']; rwo=r['rho_tot_wo_smg_dbg']; pwo=r['p_tot_wo_smg_dbg']; bp=r['braiding_prime_smg']
+                  t1=.5*(2.-b)*(b+2.*am)
+                  t2=1.5*(2.-b)*(rs+ps)/(H*H)
+                  t3=-1.5*(2.-2.*F+b*F)/F*(rwo+pwo)/(H*H)
+                  t4=bp/(a*H)
+                  c=t1+t2+t3+t4
+                  rec={'case':name,'z':z,'a':a,'cs2num':r['cs2num'],'D':r['kin (D)'],'cs2':r['c_s^2'],'term_mix':t1,'term_smg_rhop':t2,'term_non_smg':t3,'term_bra_prime':t4,'sum_terms':c,'closure_error':c-r['cs2num'],'F':F,'alphaM':am,'alphaB':b,'alphaB_prime_tau':bp,'rho_smg':rs,'p_smg':ps,'rho_wo':rwo,'p_wo':pwo}
+                  allrows.append(rec)
+                  if minrec is None or r['cs2num']<minrec['cs2num']:
+                      minrec=rec
+              # negative intervals below z=100 and all-z
+              for label,zmax in [('zlt100',100.),('all',1e300)]:
+                  sub=sorted([r for r in allrows if r['case']==name and r['z']<=zmax],key=lambda x:x['z'])
+                  neg=[r['cs2num']<0 for r in sub]
+                  intervals=[]
+                  start=None
+                  for i,v in enumerate(neg):
+                      if v and start is None: start=sub[i]['z']
+                      if start is not None and (not v or i==len(neg)-1):
+                          end=sub[i-1]['z'] if not v else sub[i]['z']
+                          intervals.append(f'{start:.9g}:{end:.9g}')
+                          start=None
+                  summary.append({'case':name,'status':'OK_'+label,'returncode':0,'min_cs2num':min(r['cs2num'] for r in sub),'z_at_min':min(sub,key=lambda r:r['cs2num'])['z'],'negative_intervals':'|'.join(intervals)})
+
+          with (OUT/'sdmc_cs2_term_audit.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(allrows)
+          sf=['case','status','returncode','min_cs2num','z_at_min','negative_intervals']
+          with (OUT/'sdmc_cs2_term_summary.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=sf); w.writeheader(); w.writerows([{k:r.get(k,'') for k in sf} for r in summary])
+          print('SUMMARY')
+          for r in summary: print(r)
+          print('MAX_CLOSURE_ERROR',max(abs(r['closure_error']) for r in allrows) if allrows else None)
+          PY
+
+      - name: Upload exact term audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdmc-cs2-term-audit
+          path: |
+            output/sdmc_cs2_term_audit.csv
+            output/sdmc_cs2_term_summary.csv
+            output/baseline_A0.log
+            output/F_bump_bestwide.log
+            output/baseline_A0_00_background.dat
+            output/F_bump_bestwide_00_background.dat
+          if-no-files-found: warn
