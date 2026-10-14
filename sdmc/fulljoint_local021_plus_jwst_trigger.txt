@@ -1,0 +1,1 @@
+trigger full-SDMC local021-plus-JWST multi-observable candidate search

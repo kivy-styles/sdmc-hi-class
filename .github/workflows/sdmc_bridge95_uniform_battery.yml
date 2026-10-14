@@ -1,0 +1,64 @@
+name: SDMC bridge95 uniform downstream battery
+
+on:
+  push:
+    branches:
+      - sdmc-bridge95-downstream
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  battery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip git unzip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy pandas camb
+
+      - name: Download exact D044P045-A034 DESI artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf inputs
+          mkdir -p inputs/bridge95
+          gh run download 37472532106 --repo "${{ github.repository }}" \
+            --name sdmc-bridge95-desi --dir inputs/bridge95
+          test -f inputs/bridge95/desi_cov_00_background.dat
+          test -f inputs/bridge95/desi_cov_00_thermodynamics.dat
+          test -f inputs/bridge95/desi_cov_00_z1_pk.dat
+
+      - name: Install SN and BAO data
+        run: |
+          rm -rf sn_data bao_data
+          git clone --depth 1 --branch v1.8 https://github.com/CobayaSampler/sn_data.git sn_data
+          git clone --depth 1 https://github.com/CobayaSampler/bao_data.git bao_data
+
+      - name: Run uniform downstream battery
+        run: |
+          python3 sdmc/run_bridge95_uniform_battery.py
+
+      - name: Print results
+        if: always()
+        run: |
+          cat output/bridge95_uniform_battery/bridge95_uniform_battery.csv || true
+          echo "--- VERDICT ---"
+          cat output/bridge95_uniform_battery/bridge95_gate_verdict.csv || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-bridge95-uniform-battery
+          path: output/bridge95_uniform_battery/*
+          if-no-files-found: warn
