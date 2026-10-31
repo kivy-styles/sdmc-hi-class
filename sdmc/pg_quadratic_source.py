@@ -156,6 +156,43 @@ def mode_energy_rate(ell,ell_dot,u,u_dot,k,coeff,H_j,H_s):
             -H_j*coeff.K*coeff.c_l2*k*k/coeff.a_j**2*ell**2
             -4*H_s*Ck*q*q+2*Ck*q*u_dot)
 
+
+def restricted_isotropic_pressure(ell,coeff,ell_dot=None,m=None,phi=None):
+    """Restricted homogeneous Jordan-a variation at FIXED structural S and fields.
+
+    The trace action has L=Ekin-Emass-Egrad-Ecurv, with
+    Egrad proportional to a_J^-2 and Ecurv proportional to a_s^-4.
+    When varying a_J at fixed S (hence fixed a_s), the spatial scale
+    derivative of a_J^3 L gives:
+        P_red=Ekin-Emass-Egrad/3-Ecurv.
+    This is NOT the complete pressure from varying all coupled ADM fields
+    or from an averaged inhomogeneous cosmological spacetime.
+    """
+    t=quadratic_energy_terms(ell,coeff,ell_dot,m,phi)
+    return t["kinetic"]-t["mass"]-t["gradient"]/3-t["curvature"]
+
+def restricted_isotropic_pressure_mean(ell,coeff,ell_dot=None,m=None,phi=None):
+    return float(restricted_isotropic_pressure(ell,coeff,ell_dot,m,phi).mean())
+
+def integrated_static_kernel(k,coeff):
+    """Eliminate the quadratic structural trace at FIXED metric/mapper driver.
+
+    E_static=K*omega0^2/2*ell^2+C_k*(u+ell/3)^2
+    => E_eff(u)=Keff*u^2 where
+       Keff=C_k*omega0^2/(omega0^2+2*C_k/(9*K)).
+    No Poisson source or gravitational mu is inferred from Keff alone.
+    """
+    k=float(k)
+    if k<0: raise ValueError("k>=0")
+    omega2=coeff.m_l2+coeff.c_l2*k*k/coeff.a_j**2
+    ck=coeff.C*k**4
+    stiff=2*ck/(9*coeff.K)
+    if omega2+stiff<=0: return 0.
+    return ck*omega2/(omega2+stiff)
+
+def integrated_static_energy(u,k,coeff):
+    return integrated_static_kernel(k,coeff)*u*u
+
 def harmonic_demo():
     """Deterministic 1d short-wave / long-envelope example only."""
     n=1024; length=2*np.pi
