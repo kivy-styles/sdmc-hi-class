@@ -23,8 +23,15 @@ jobs:
           while read -r artifact run_id artifact_name; do
             test -n "$artifact" || continue
             mkdir -p "archived/$artifact"
-            gh run download "$run_id" --repo "kivy-styles/sdmc-hi-class" --name "$artifact_name" --dir "archived/$artifact"
-            test "$(find "archived/$artifact" -name '*.json' | wc -l)" -eq 1
+            echo "RETRIEVE run=$run_id name=$artifact_name artifact=$artifact"
+            if ! gh run download "$run_id" --repo "kivy-styles/sdmc-hi-class" --name "$artifact_name" --dir "archived/$artifact"; then
+              echo "::error::GitHub archive download failed for $artifact_name"
+              exit 12
+            fi
+            find "archived/$artifact" -maxdepth 5 -type f -print
+            count="$(find "archived/$artifact" -name '*.json' | wc -l)"
+            echo "COUNT $artifact -> $count JSON files"
+            if [ "$count" -ne 1 ]; then echo "::error::Unexpected JSON count for $artifact"; exit 13; fi
           done <<'ARTIFACTS'
           11477412492 37609586600 desy3-react-nuisance-linear
           11477970090 37609586600 desy3-react-nuisance-us_native
