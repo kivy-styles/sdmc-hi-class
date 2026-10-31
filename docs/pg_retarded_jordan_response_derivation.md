@@ -163,6 +163,44 @@ frequency-dependent mixing with the Jordan metric. Combining a
 retarded trace susceptibility with a *static* non-braided H0 is only
 a mixed-order algebraic check, not a complete dynamical prediction.
 
+## 437a. No-Slip of the scalar sector is not automatically No-Slip of all geometry
+
+The accepted rolling Horndeski background uses alpha_B=-2alpha_M,
+which leads to equal Newtonian and Weyl gravitational strengths in
+the no-support scalar-only theory under its usual assumptions.
+
+With supporting-space perturbations, however, the rank-one update
+changes the metric observables differently in general.
+
+Use the physical metric projection l^T x=Phi_J-Psi_J, with l having
++1 on Phi and -1 on Psi. From the exact rank-one operator update,
+
+    slip_new = slip_0 - [
+         lambda (l^T H0^-1 v)(v^T H0^-1 b)
+         / (1+lambda v^T H0^-1 v)
+    ].
+
+Thus a no-slip baseline slip_0=0 can acquire a nonzero geometric slip,
+unless the structural excitation has no source projection
+(v^T H0^-1 b=0), no slip projection
+(l^T H0^-1 v=0), or an exactly zero geometric kernel.
+
+This is purely exact linear algebra applied to the action-derived
+structural response. It does not assert that the accepted SDMC
+full action necessarily produces slip. Once H0 is actually derived
+from rolling G3 and its ADM constraints, compute both:
+
+    Newtonian response Psi_J
+    Weyl response (Phi_J+Psi_J)/2
+
+rather than inheriting a scalar-only No-Slip equality.
+
+The function projected_metric_response and three new regression tests
+verify (i) a conditional slip induced from an initially no-slip
+baseline, (ii) aligned geometric coupling that preserves no slip,
+and (iii) the complex finite-frequency metric projections against
+direct inversion.
+
 ## 438. Why static gravity can fail at finite frequency
 
 Necessary but not sufficient conditions for the trace equilibrium
