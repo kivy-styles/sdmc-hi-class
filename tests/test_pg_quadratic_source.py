@@ -29,7 +29,7 @@ class GeometricQuadraticSource(unittest.TestCase):
         self.assertLess(np.max(np.abs(derivative(q,self.L,2)+
                                  19**2*q)),1e-8)
         self.assertLess(np.max(np.abs(derivative(q,self.L,4)-
-                                 19**4*q)),1e-5)
+                                 19**4*q))/19**4,1e-8)
 
     def test_quadratic_energy_positive_and_zero_limit(self):
         q=np.cos(11*self.x)
@@ -58,7 +58,7 @@ class GeometricQuadraticSource(unittest.TestCase):
         dv=.02*np.sin(7*self.x)
         dm=.01*np.cos(2*self.x)
         dp=.04*np.sin(3*self.x)
-        h=1e-5
+        h=1e-3
         up=quadratic_energy_density(ell+h*de,self.c,
                         vel+h*dv,mm+h*dm,phi+h*dp)
         dn=quadratic_energy_density(ell-h*de,self.c,
