@@ -1,0 +1,53 @@
+name: SDMC geometric-source quadratic averaging and mode-coupling checks
+
+on:
+  push:
+    branches: [sdmc-pg-quadratic-averaging-20261031]
+    paths:
+      - 'sdmc/pg_linear_perturbations.py'
+      - 'sdmc/pg_quadratic_source.py'
+      - 'tests/test_pg_linear_perturbations.py'
+      - 'tests/test_pg_quadratic_source.py'
+      - 'docs/pg_averaged_source_derivation.md'
+      - '.github/workflows/sdmc_pg_quadratic_averaging.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  action-to-average:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numerical tests
+        run: |
+          python3 -m pip install numpy scipy
+      - name: Compile action and averaged-source code
+        run: |
+          python3 -m py_compile sdmc/pg_linear_perturbations.py sdmc/pg_quadratic_source.py tests/test_pg_linear_perturbations.py tests/test_pg_quadratic_source.py
+      - name: Verify action variation, long-mode source and conservation controls
+        run: |
+          python3 -m unittest discover -s tests -p 'test_pg_*source.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Generate deterministic quadratic geometric-source example
+        run: |
+          mkdir -p output/pg_quadratic
+          python3 -m sdmc.pg_quadratic_source | tee output/pg_quadratic/short_long_mode_coupling.json
+          python3 -m sdmc.pg_linear_perturbations | tee output/pg_quadratic/conditional_gr_growth.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('output/pg_quadratic/short_long_mode_coupling.json')
+          r=json.loads(p.read_text())
+          assert abs(r['long_density_contrast_cosine_amplitude']-r['leading_separation_approximation'])<0.01
+          assert 'full ADM lapse/shift constraints' in r['not_tested']
+          print('PG_QUADRATIC_AVERAGING_GATE_PASSED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-pg-quadratic-averaging-results
+          path: output/pg_quadratic/
+          if-no-files-found: warn
