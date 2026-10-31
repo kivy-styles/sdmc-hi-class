@@ -11,7 +11,9 @@ from sdmc.pg_quadratic_source import (
     TraceCoefficients, derivative, gaussian_coarse_grain,
     quadratic_energy_terms, quadratic_energy_density,
     first_variation_energy, averaged_energy, coarse_grained_contrast,
-    energy_mode, mode_energy_rate, harmonic_demo
+    energy_mode, mode_energy_rate, harmonic_demo,
+    restricted_isotropic_pressure, restricted_isotropic_pressure_mean,
+    integrated_static_kernel, integrated_static_energy
 )
 
 class GeometricQuadraticSource(unittest.TestCase):
@@ -139,6 +141,66 @@ class GeometricQuadraticSource(unittest.TestCase):
         src=mode_energy_rate(.4,0.,.2,20.,2.,c,.1,.15)
         free=mode_energy_rate(.4,0.,.2,0.,2.,c,.1,.15)
         self.assertGreater(src,free)
+
+
+    def test_static_well_has_negative_restricted_isotropic_pressure(self):
+        ell=np.cos(8*self.x)
+        p=restricted_isotropic_pressure_mean(ell,self.c)
+        rho=averaged_energy(ell,self.c)
+        self.assertGreater(rho,0)
+        self.assertLess(p,0)
+        # Fixed-S, reduced isotropic metric variation ONLY.
+
+    def test_restricted_pressure_equals_scale_derivative_of_action(self):
+        ell=.4*np.cos(5*self.x)
+        vel=.2*np.sin(3*self.x)
+        a=self.c.a_j
+        def averaged_action(a_value):
+            c=TraceCoefficients(bf2=self.c.bf2,c_l2=self.c.c_l2,
+              m_l2=self.c.m_l2,w_eta=self.c.w_eta,
+              a_j=a_value,a_s=self.c.a_s,length=self.L)
+            t=quadratic_energy_terms(ell,c,ell_dot=vel)
+            lag=float(np.mean(t['kinetic']-t['mass']-
+                              t['gradient']-t['curvature']))
+            return a_value**3*lag
+        h=1e-5
+        scale_deriv=(averaged_action(a+h)-averaged_action(a-h))/(6*a*a*h)
+        pressure=restricted_isotropic_pressure_mean(ell,self.c,ell_dot=vel)
+        self.assertAlmostEqual(scale_deriv,pressure,
+                               delta=1e-6*abs(pressure)+1e-9)
+
+    def test_dust_pressure_requires_energy_balance_in_reduced_action(self):
+        ell=np.cos(7*self.x)
+        baseline=quadratic_energy_terms(ell,self.c)
+        required=(baseline['mass'].mean()+
+                  baseline['gradient'].mean()/3+
+                  baseline['curvature'].mean())
+        vel=np.full(self.n,np.sqrt(2*required/self.c.K))
+        p=restricted_isotropic_pressure_mean(ell,self.c,ell_dot=vel)
+        self.assertAlmostEqual(p,0.,delta=1e-10*required)
+
+    def test_integrated_trace_kernel_matches_direct_minimization(self):
+        c=self.c
+        for k in [.01,.5,3.,8.]:
+            u=.3
+            w=c.m_l2+c.c_l2*k*k/c.a_j**2
+            ck=c.C*k**4
+            lam=2*ck/(9*c.K)
+            ell=-3*lam/(w+lam)*u
+            total=.5*c.K*w*ell**2+ck*(u+ell/3)**2
+            reduced=integrated_static_energy(u,k,c)
+            self.assertAlmostEqual(total,reduced,
+                                   delta=abs(reduced)*1e-12+1e-12)
+            self.assertGreaterEqual(integrated_static_kernel(k,c),0.)
+
+    def test_curvature_metric_variation_is_not_a_density_prediction(self):
+        c=self.c;k=3.;u=.4;eps=1e-5
+        # u=m-Phi; variation w.r.t Phi gives -2*Keff*u.
+        num=(integrated_static_energy(u-eps,k,c)-
+             integrated_static_energy(u+eps,k,c))/(2*eps)
+        self.assertAlmostEqual(num,-2*integrated_static_kernel(k,c)*u,
+                               delta=1e-8*abs(num)+1e-9)
+        self.assertEqual(integrated_static_kernel(0.,c),0.)
 
     def test_demo_is_finite_and_nonzero(self):
         d=harmonic_demo()
