@@ -1,0 +1,58 @@
+name: SDMC excited structural-well ADM lapse shift and density sources
+
+on:
+  push:
+    branches: [sdmc-pg-inhomogeneous-adm-source-20261101]
+    paths:
+      - 'sdmc/pg_inhomogeneous_adm_source.py'
+      - 'tests/test_pg_inhomogeneous_adm_source.py'
+      - 'docs/pg_inhomogeneous_adm_source_derivation.md'
+      - '.github/workflows/sdmc_pg_inhomogeneous_adm_source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  structural-inhomogeneous-adm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numerical dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Verify excited-well source variations and all prior pg regressions
+        run: |
+          python3 -m py_compile sdmc/pg_inhomogeneous_adm_source.py tests/test_pg_inhomogeneous_adm_source.py
+          python3 -m unittest discover -s tests -p 'test_pg_inhomogeneous_adm_source.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_adiabatic_dilution.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_coupled_rolling_g3_trace.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_rolling_g3_adm.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_retarded_jordan_response.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_jordan_qs_covariant.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Export reduced off-shell ADM source and long-mode comparison
+        run: |
+          mkdir -p output/pg_inhomogeneous
+          python3 -m sdmc.pg_inhomogeneous_adm_source | tee output/pg_inhomogeneous/excited_structural_source.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('output/pg_inhomogeneous/excited_structural_source.json').read_text())
+          assert r['mean_reduced_density']>0
+          assert r['long_density_contrast_amplitude']>0
+          assert r['momentum_rms']>0
+          assert abs(r['structural_curvature_metric_source_mean'])<1e-9
+          assert not r['mean_sources_nonzero_but_scalar_only_background_unmodified']
+          assert 'complete cubic Jordan metric stress' in str(r['missing'])
+          print('SDMC_EXCITED_STRUCTURAL_ADM_SOURCES_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-excited-well-adm-source-diagnostics
+          path: output/pg_inhomogeneous/
+          if-no-files-found: warn
