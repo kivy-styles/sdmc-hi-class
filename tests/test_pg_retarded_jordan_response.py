@@ -10,7 +10,7 @@ from sdmc.pg_jordan_qs_covariant import JordanSubclass, constraint_hessian
 from sdmc.pg_retarded_jordan_response import (
     ResponseEpoch,trace_response,static_adequacy,step_trace_solution,
     analytic_step_trace,solve_rank_one,structural_jordan_rank_one,
-    example,local_trace_stability)
+    example,local_trace_stability,projected_metric_response)
 
 class RetardedStructuralResponse(unittest.TestCase):
     def setUp(self):
@@ -173,6 +173,41 @@ class RetardedStructuralResponse(unittest.TestCase):
         b=np.array([1.,0.,0.])
         with self.assertRaises(ValueError):
             solve_rank_one(H,v,b,-1.)
+
+
+    def test_geometric_source_can_induce_slip_from_zero_slip_base(self):
+        H0=np.eye(3)
+        source=np.array([1.,1.,0.])  # toy baseline Psi=Phi
+        v=np.array([0.,-1.,1.])
+        out=projected_metric_response(H0,v,source,lam=-.2)
+        self.assertAlmostEqual(out["baseline_slip"],0.,places=13)
+        self.assertGreater(abs(out["slip"]),.1)
+        self.assertAlmostEqual(
+            abs(out["induced_slip"]-out["induced_slip_formula"]),0.,places=12)
+        self.assertNotAlmostEqual(out["weyl"].real,
+                                  out["baseline_weyl"].real,places=9)
+
+    def test_geometric_projection_can_preserve_no_slip_by_alignment(self):
+        H0=np.eye(3)
+        source=np.array([1.,1.,0.])
+        v=np.array([1.,1.,-1.])
+        out=projected_metric_response(H0,v,source,lam=.1)
+        self.assertAlmostEqual(out["baseline_slip"],0.,places=13)
+        self.assertAlmostEqual(out["slip"],0.,places=13)
+        self.assertAlmostEqual(out["induced_slip_formula"],0.,places=13)
+
+    def test_dynamic_jerk_splits_metric_potentials_only_conditionally(self):
+        H0=np.array([[2.,.4,0.],[.4,1.8,.3],[0.,.3,1.2]])
+        b=np.array([.8,1.,0.])
+        v=np.array([0.,-1.,1.])
+        ep=self.epoch;k=1.2
+        dyn=trace_response(k,.6,ep)["K_response"]
+        out=projected_metric_response(H0,v,b,lam=-2*dyn)
+        full=np.linalg.solve(H0-2*dyn*np.outer(v,v),b)
+        self.assertAlmostEqual(abs(out["psi"]-full[0]),0.,places=11)
+        self.assertAlmostEqual(abs(out["phi"]-full[1]),0.,places=11)
+        self.assertAlmostEqual(abs(out["induced_slip"]-
+                                   out["induced_slip_formula"]),0.,places=11)
 
     def test_invalid_times_and_frequency(self):
         with self.assertRaises(ValueError):
