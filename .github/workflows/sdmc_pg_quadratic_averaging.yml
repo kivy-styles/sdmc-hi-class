@@ -6,8 +6,10 @@ on:
     paths:
       - 'sdmc/pg_linear_perturbations.py'
       - 'sdmc/pg_quadratic_source.py'
+      - 'sdmc/pg_quadratic_source_3d.py'
       - 'tests/test_pg_linear_perturbations.py'
       - 'tests/test_pg_quadratic_source.py'
+      - 'tests/test_pg_quadratic_source_3d.py'
       - 'docs/pg_averaged_source_derivation.md'
       - '.github/workflows/sdmc_pg_quadratic_averaging.yml'
   workflow_dispatch:
@@ -26,15 +28,16 @@ jobs:
           python3 -m pip install numpy scipy
       - name: Compile action and averaged-source code
         run: |
-          python3 -m py_compile sdmc/pg_linear_perturbations.py sdmc/pg_quadratic_source.py tests/test_pg_linear_perturbations.py tests/test_pg_quadratic_source.py
+          python3 -m py_compile sdmc/pg_linear_perturbations.py sdmc/pg_quadratic_source.py sdmc/pg_quadratic_source_3d.py tests/test_pg_linear_perturbations.py tests/test_pg_quadratic_source.py tests/test_pg_quadratic_source_3d.py
       - name: Verify action variation, long-mode source and conservation controls
         run: |
-          python3 -m unittest discover -s tests -p 'test_pg_*source.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
           python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
       - name: Generate deterministic quadratic geometric-source example
         run: |
           mkdir -p output/pg_quadratic
           python3 -m sdmc.pg_quadratic_source | tee output/pg_quadratic/short_long_mode_coupling.json
+          python3 -m sdmc.pg_quadratic_source_3d | tee output/pg_quadratic/three_dimensional_coupling.json
           python3 -m sdmc.pg_linear_perturbations | tee output/pg_quadratic/conditional_gr_growth.json
           python3 - <<'PY'
           import json
@@ -43,6 +46,9 @@ jobs:
           r=json.loads(p.read_text())
           assert abs(r['long_density_contrast_cosine_amplitude']-r['leading_separation_approximation'])<0.01
           assert 'full ADM lapse/shift constraints' in r['not_tested']
+          r3=json.loads(Path('output/pg_quadratic/three_dimensional_coupling.json').read_text())
+          assert abs(r3['long_density_contrast_cosine_amplitude']-r3['separated_scale_approximation'])<0.01
+          assert r3['unmodulated_gradient_anisotropy_norm']<1e-8
           print('PG_QUADRATIC_AVERAGING_GATE_PASSED')
           PY
       - uses: actions/upload-artifact@v4
