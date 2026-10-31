@@ -169,6 +169,40 @@ constraint Hessian of the rolling action. In the non-braided
 G3=0 subcase, alpha_B=-alpha_M, NOT the accepted No-Slip
 condition, except when alpha_M=0.
 
+
+### Exact on-shell No-Slip covariant kinetic identity
+
+For a rolling background with Z>0, the accepted No-Slip condition gives
+
+  Zg=-F_sigma/2,
+
+and therefore the G3 contribution to alpha_K becomes
+
+  12 sigma_dot Z g/(H_J F)=-6 alpha_M.
+
+Define the explicit microscopic kinetic combination
+
+  K_cov = [2Z/(H_J² F)](k1+6k2 Z-4g_sigma Z).
+
+Then
+
+  alpha_K = K_cov - 6 alpha_M,
+
+  D = alpha_K + 3 alpha_B²/2
+    = K_cov - 6 alpha_M + 6 alpha_M²,
+
+  Q_s=2F D/(2-alpha_B)².
+
+This is an exact *necessary background identity* of the accepted rolling
+G3 Horndeski subclass, not a derived No-CDM source. If D<=0 or Q_s<=0,
+that branch is scalar-ghost unstable even if the No-Slip identity holds.
+The sound-speed numerator and tensor/structural mixing require separate
+gradient/constraint equations.
+
+The function no_slip_kinetic_closure checks the identity and the
+necessary kinetic-positivity condition over arbitrary supplied
+background coefficient sets. It does not import an archived CDM density.
+
 ## 5. Numerical interpretation
 
 The module tests the full signed H via numerical differentiation
