@@ -1,0 +1,49 @@
+name: SDMC geometric pg linear perturbation regression
+
+on:
+  push:
+    branches: [sdmc-pg-perturbations-20261031]
+    paths:
+      - 'sdmc/pg_linear_perturbations.py'
+      - 'tests/test_pg_linear_perturbations.py'
+      - 'docs/pg_perturbations_derivation.md'
+      - '.github/workflows/sdmc_pg_linear_perturbations.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  pg-perturbations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install minimal numerical dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy scipy
+      - name: Compile and run action/perturbation regression suite
+        run: |
+          python3 -m py_compile sdmc/pg_linear_perturbations.py tests/test_pg_linear_perturbations.py
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Run conditional pg clustering benchmark
+        run: |
+          mkdir -p output/pg_linear
+          python3 -m sdmc.pg_linear_perturbations | tee output/pg_linear/conditional_control.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path('output/pg_linear/conditional_control.json').read_text())
+          assert 'NOT action-derived' in v['scope']
+          assert v['delta_b_today_dust_pg']>v['delta_b_today_smooth_pg']
+          assert v['delta_pg_today_dust_pg']>v['delta_pg_today_cs2_pg_1e-4']
+          print('PG_CONDITIONAL_CONTROL_PASSED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-pg-conditional-linear-growth
+          path: output/pg_linear/
+          if-no-files-found: warn
