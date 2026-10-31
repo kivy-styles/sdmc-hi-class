@@ -1,0 +1,49 @@
+name: SDMC causal geometric trace and Jordan retarded response gate
+on:
+  push:
+    branches: [sdmc-pg-retarded-jordan-response-20261101]
+    paths:
+      - 'sdmc/pg_retarded_jordan_response.py'
+      - 'tests/test_pg_retarded_jordan_response.py'
+      - 'docs/pg_retarded_jordan_response_derivation.md'
+      - '.github/workflows/sdmc_pg_retarded_jordan_response.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  retarded-structural-jordan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numeric dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Compile and verify causal trace and all earlier pg tests
+        run: |
+          python3 -m py_compile sdmc/pg_retarded_jordan_response.py tests/test_pg_retarded_jordan_response.py
+          python3 -m unittest discover -s tests -p 'test_pg_retarded_jordan_response.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_jordan_qs_covariant.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Export retarded susceptibility and causal step diagnostic
+        run: |
+          mkdir -p results/pg_retarded
+          python3 -m sdmc.pg_retarded_jordan_response | tee results/pg_retarded/trace_frequency_response.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('results/pg_retarded/trace_frequency_response.json').read_text())
+          assert len(a['frequency_scan'])==7
+          assert a['frequency_scan'][0]['scaled_static_difference']<1e-12
+          assert a['frequency_scan'][4]['scaled_static_difference']>0
+          assert 'full rolling G3' in str(a['missing'])
+          print('SDMC_RETARDED_TRACE_RESPONSE_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-retarded-geometric-jordan-response
+          path: results/pg_retarded/
+          if-no-files-found: warn
