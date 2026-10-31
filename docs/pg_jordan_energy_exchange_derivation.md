@@ -166,6 +166,67 @@ Run:
     python3 -m unittest discover -s tests -p 'test_pg_energy_exchange.py' -v
     python3 -m sdmc.pg_energy_exchange
 
+## 5a. Independent three-dimensional spatial average
+
+The same reduced trace action has a spatially dependent 3D Euler-Lagrange
+equation for ell(x,t_c), externally prescribed
+u(x,t_c)=delta ln M-Phi_J:
+
+    ddot ell+(3H_J+dot K/K) dot ell
+       - (c_L²/a_J²) Delta ell
+       +m_L² ell
+       +(8 Weta/(3K a_s⁴)) Delta²(ell/3+u) =0.
+
+Here Delta is the flat comoving Laplacian, Weta=W eta_K,
+and the structural scale is a_s=S/S0.
+
+Define periodic spatial means and
+
+    A=<ell²>, V=<dot ell²>, G=<|grad ell|²>,
+    q=ell/3+u,
+    Q=<sum_ij(q_,ij)²+(Delta q)²>,
+    Q_u=<sum_ij q_,ij u_dot,ij+(Delta q)(Delta u_dot)>,
+    D=2 Weta/a_s⁴.
+
+The reduced averaged energy and restricted isotropic Jordan pressure are
+
+    Ebar=(K/2)[V+m_L² A+(c_L²/a_J²)G]+D Q,
+
+    Pbar=(K/2)[V-m_L² A-(c_L²/(3a_J²))G]-D Q.
+
+Using the **3D field equation**, periodic integration by parts and
+the exact structural/Jordan scale relation, the averaged energy obeys
+
+    Jbar_red = d(Ebar)/dt_c+3H_J(Ebar+Pbar)
+
+      = dotK/2 [m_L² A+(c_L²/a_J²)G - V]
+        + K/2 [dot(m_L²)A+(dot(c_L²)/a_J²)G]
+        + dotD Q + 2D Q_u,
+
+    dot D=2/a_s⁴ [dot(Weta)-4H_s Weta].
+
+This reproduces the single-Fourier-mode result and is not obtained
+by equating a local curvature power to an FLRW dilution law.
+
+A numerical 3D periodic-field integration tests the identity by
+independently computing the time derivative of the averaged energy
+using a central finite difference along the *actual* reduced trace
+field equation. The test includes evolving K, c_L², m_L², Weta,
+a_J, a_s and the external metric/mapper driver.
+
+If the coefficients and driver are stationary, curvature contributes
+
+    Jbar_red=-4H_s Ebar_curvature
+
+but this is a **reduced** exchange with the structural clock. It
+cannot be interpreted as the physical dark-matter density dilution,
+nor as a measured cosmic energy transfer. The corresponding exchange
+in the active scalar and Jordan metric must be solved simultaneously.
+
+Files:
+  sdmc/pg_energy_exchange_3d.py
+  tests/test_pg_energy_exchange_3d.py
+
 ## 6. Boundary of the present result
 
 The original quadratic structural action does not supply a unique
