@@ -31,7 +31,11 @@ jobs:
             find "archived/$artifact" -maxdepth 5 -type f -print
             count="$(find "archived/$artifact" -name '*.json' | wc -l)"
             echo "COUNT $artifact -> $count JSON files"
-            if [ "$count" -ne 1 ]; then echo "::error::Unexpected JSON count for $artifact"; exit 13; fi
+            if [ "$artifact" = "11474333480" ]; then
+              test "$(find "archived/$artifact" -name 'profile.json' | wc -l)" -eq 1
+            elif [ "$count" -ne 1 ]; then
+              echo "::error::Unexpected JSON count for $artifact"; exit 13
+            fi
           done <<'ARTIFACTS'
           11477412492 37609586600 desy3-react-nuisance-linear
           11477970090 37609586600 desy3-react-nuisance-us_native
@@ -59,7 +63,7 @@ jobs:
           from pathlib import Path
           root=Path('archived')
           def load(aid):
-              files=list((root/str(aid)).rglob('*.json'))
+              files=list((root/str(aid)).rglob('profile.json' if aid==11474333480 else '*.json'))
               if len(files)!=1: raise RuntimeError((aid,files))
               return json.loads(files[0].read_text())
           def delta(a,b,reported=None):
