@@ -1,0 +1,49 @@
+name: SDMC geometric structural energy exchange and Jordan stress gate
+
+on:
+  push:
+    branches: [sdmc-pg-energy-exchange-20261031]
+    paths:
+      - 'sdmc/pg_energy_exchange.py'
+      - 'tests/test_pg_energy_exchange.py'
+      - 'docs/pg_jordan_energy_exchange_derivation.md'
+      - '.github/workflows/sdmc_pg_energy_exchange.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pg-energy-exchange:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install minimal dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Compile and verify reduced trace on-shell energy identity
+        run: |
+          python3 -m py_compile sdmc/pg_energy_exchange.py tests/test_pg_energy_exchange.py
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Compute structural clock exchange diagnostic
+        run: |
+          mkdir -p results/pg_exchange
+          python3 -m sdmc.pg_energy_exchange | tee results/pg_exchange/trace_exchange.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('results/pg_exchange/trace_exchange.json').read_text())
+          assert abs(r['structural_tracker_p_v']-1.5)<1e-12
+          assert abs(r['unforced_exchange_per_H_E']+6)<1e-12
+          assert abs(r['balanced_exchange_residual'])<1e-12
+          assert 'physical geometric stress tensor' in r['not_yet_derived']
+          print('SDMC_PG_REDUCED_EXCHANGE_IDENTITY_PASSED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-pg-jordan-energy-exchange
+          path: results/pg_exchange/
+          if-no-files-found: warn
