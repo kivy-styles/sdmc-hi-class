@@ -134,6 +134,48 @@ def restricted_spatial_pressure(ell,ell_dot,coefficient):
     s=local_reduced_sources(ell,ell_dot,coefficient)
     return s["kinetic"]-s["mass"]-s["gradient"]/3-s["curvature"]
 
+def canonical_gradient_traceless_stress(ell,coefficient):
+    """Gradient-sector traceless mixed spatial stress of reduced ADM trace.
+
+    pi^i_j,gradient = K c²/a_J² (ell_,i ell_,j-
+                     delta^i_j |grad ell|²/3).
+    The Riemann² curvature tensor contribution, quadratic higher
+    metric vertices, and the full Jordan scalar–tensor stress are
+    NOT included. This is not physical total pi_g.
+    """
+    v=_cube(ell)
+    grad,_,_=geometry_derivatives(v,coefficient.length)
+    grad2=sum(g*g for g in grad)
+    pref=coefficient.K*coefficient.c_l2/coefficient.a_j**2
+    tensor=np.empty((3,3)+v.shape,dtype=float)
+    for i in range(3):
+        for j in range(3):
+            tensor[i,j]=pref*(grad[i]*grad[j]-
+                         (grad2/3 if i==j else 0.))
+    return tensor
+
+def Friedmann_source_bookkeeping(F,H_j,rho_b,rho_r,rho_X,reduced_rho_g):
+    """Algebraic flat-FLRW Hamiltonian residual for a nonzero well.
+
+    Assumes all rolling F terms are already included in the supplied
+    rho_X and the supporting geometry could be treated as an
+    additional effective source. This is NOT the on-shell Friedmann
+    solution: a nonzero well requires updating the full ADM tadpole
+    equations, including rho_X, H_j and homogeneous backreaction.
+
+    No CDM source is accepted or inserted.
+    """
+    values=np.asarray([F,H_j,rho_b,rho_r,rho_X,reduced_rho_g])
+    if not np.isfinite(values).all() or F<=0:
+        raise ValueError("finite terms and positive F required")
+    rhs=rho_b+rho_r+rho_X+reduced_rho_g
+    return dict(geometric_source=float(reduced_rho_g),
+         existing_source=float(rho_b+rho_r+rho_X),
+         left=float(3*F*H_j**2),right=float(rhs),
+         residual=float(3*F*H_j**2-rhs),
+         physical_solution_verified=False,
+         warning="full F/G2/G3 plus supporting-space lapse, shift and background must be re-solved")
+
 def spectral_cosine_amplitude(field,length,k_long=1,width=0.):
     """Cosine amplitude of a periodic 3D field along x, optionally coarse grained."""
     f=_cube(field)
