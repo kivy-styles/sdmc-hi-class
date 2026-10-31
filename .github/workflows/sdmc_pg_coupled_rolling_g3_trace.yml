@@ -1,0 +1,55 @@
+name: SDMC rolling G3 and structural trace quadratic mode coupling
+
+on:
+  push:
+    branches: [sdmc-pg-coupled-rolling-g3-trace-20261101]
+    paths:
+      - 'sdmc/pg_coupled_rolling_g3_trace.py'
+      - 'tests/test_pg_coupled_rolling_g3_trace.py'
+      - 'docs/pg_coupled_rolling_g3_trace_derivation.md'
+      - '.github/workflows/sdmc_pg_coupled_rolling_g3_trace.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  structural-coupled-twofield:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python scientific packages
+        run: python3 -m pip install numpy scipy
+      - name: Verify coupled G3/structural action and prior pg gates
+        run: |
+          python3 -m py_compile sdmc/pg_coupled_rolling_g3_trace.py tests/test_pg_coupled_rolling_g3_trace.py
+          python3 -m unittest discover -s tests -p 'test_pg_coupled_rolling_g3_trace.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_rolling_g3_adm.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_retarded_jordan_response.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_jordan_qs_covariant.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Export coupled scalar normal mode and energy checks
+        run: |
+          mkdir -p output/pg_coupled
+          python3 -m sdmc.pg_coupled_rolling_g3_trace | tee output/pg_coupled/twofield_action_dispersion.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('output/pg_coupled/twofield_action_dispersion.json').read_text())
+          assert len(r['dispersion'])==6
+          assert all(x['stable'] for x in r['dispersion'])
+          assert max(abs(x['Schur_residual']) for x in r['dispersion'])<1e-8
+          assert r['energy_fractional_range']<1e-8
+          assert "nontrivial inhomogeneous structural background" in r['missing']
+          print('SDMC_COUPLED_G3_STRUCTURAL_TRACE_ACTION_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-coupled-rolling-g3-structural-dispersion
+          path: output/pg_coupled/
+          if-no-files-found: warn
