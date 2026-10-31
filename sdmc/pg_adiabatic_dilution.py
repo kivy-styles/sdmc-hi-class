@@ -198,7 +198,7 @@ def evolve_two_phase_ensemble(e,x_end=1.1,num=201):
         out["omega_over_H"].append(float(t1["omega_over_H"]))
         out["ward_max_error"].append(
            float(max(abs(res1["residual"]),abs(res2["residual"]))/
-                 max(E,.000000000000000001))
+                 max(E,.000000000000000001)))
     return out
 
 def demo():
