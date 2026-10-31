@@ -141,7 +141,7 @@ def wkb_equation_of_state(e,x):
 def wkb_exchange_over_H_E(e,x):
     c=coefficients(e,x)
     return ((e.w_run-4*e.p_v-e.k_run)*c["Lambda"]
-             +e.k_run*(e.m2+c["G"]))/(2*c["Omega2"])
+            /(2*c["Omega2"]))
 
 def wkb_log_dilution_slope(e,x):
     c=coefficients(e,x)
