@@ -1,0 +1,53 @@
+name: SDMC exact rolling G3 unitary ADM kinetic constraints
+
+on:
+  push:
+    branches: [sdmc-pg-rolling-g3-adm-20261101]
+    paths:
+      - 'sdmc/pg_rolling_g3_adm.py'
+      - 'tests/test_pg_rolling_g3_adm.py'
+      - 'docs/pg_rolling_g3_adm_derivation.md'
+      - '.github/workflows/sdmc_pg_rolling_g3_adm.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rolling-adm-constraint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numeric dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Verify exact rolling G3 ADM and all earlier structural tests
+        run: |
+          python3 -m py_compile sdmc/pg_rolling_g3_adm.py tests/test_pg_rolling_g3_adm.py
+          python3 -m unittest discover -s tests -p 'test_pg_rolling_g3_adm.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_retarded_jordan_response.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_jordan_qs_covariant.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Generate rolling G3 action-to-EFT verification results
+        run: |
+          mkdir -p results/pg_rolling_g3_adm
+          python3 -m sdmc.pg_rolling_g3_adm | tee results/pg_rolling_g3_adm/full_rolling_g3_ADM_kinetic.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('results/pg_rolling_g3_adm/full_rolling_g3_ADM_kinetic.json').read_text())
+          assert abs(a['kinetic']['identity_residual'])<1e-10
+          assert a['max_Hessian_difference']<2e-5
+          assert abs(a['isolated_NoSlip_gradient']['residual'])<1e-10
+          assert "full supporting-space ADM Hessian" in str(a['missing'])
+          print('SDMC_ROLLING_G3_ADM_AND_EFT_KINETIC_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-rolling-g3-adm-kinetic-results
+          path: results/pg_rolling_g3_adm/
+          if-no-files-found: warn
