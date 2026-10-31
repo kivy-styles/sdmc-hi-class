@@ -74,6 +74,16 @@ For scalar L^i_j=(ell/3)delta^i_j, m=delta ln M, define
   Lambda=2 C/(9 K_ell)
         =8 W eta_K k^4/(3 B f_L^2 a_s^4).
 
+For a Jordan-time Fourier mode with externally specified metric/mapper driver,
+the reduced scalar-trace Euler-Lagrange equation is
+
+  ddot(ell) + [3 H_J + dot(K_ell)/K_ell] dot(ell)
+   + [omega0^2+Lambda] ell = 3 Lambda (Phi_J-m).
+
+trace_dynamic_derivatives implements this dynamical equation, and a test
+verifies that its stationary limit matches trace_static_response. The
+driver Phi_J-m is NOT determined within this reduced sector.
+
 At fixed coefficients, the reduced quadratic trace energy is
 
   E = K_ell/2 * [dot(ell)^2 + omega0^2 ell^2] + C q^2
