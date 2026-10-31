@@ -49,6 +49,18 @@ Primes here use conformal distance c*eta (set c=1 in the field equations).
 The potentials must follow from the full Jordan Einstein/scalar constraints;
 this separate conservation pair does not solve those constraints.
 
+For later CLASS/hi_class gauge-interface checks the same **conditional**
+pressureless source obeys in synchronous gauge
+
+  delta_g' = -theta_g - h_sync'/2,
+  theta_g' = -mathcalH theta_g.
+
+Here h_sync is the trace scalar metric perturbation in the synchronous
+description, not H_J. A pg-comoving gauge with theta_g=0 is legitimate
+only after the physical geometric flow has been specified; it must not
+be identified automatically with conventional CDM coordinates.
+dust_synchronous_derivatives implements this conservation check.
+
 A source with the same background density, initial conditions, vanishing
 pressure and shear, and metric coupling as a conventional cold fluid is
 **mathematically indistinguishable from CDM at linear order**. That alone
