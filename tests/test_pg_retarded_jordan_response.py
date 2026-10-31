@@ -10,7 +10,7 @@ from sdmc.pg_jordan_qs_covariant import JordanSubclass, constraint_hessian
 from sdmc.pg_retarded_jordan_response import (
     ResponseEpoch,trace_response,static_adequacy,step_trace_solution,
     analytic_step_trace,solve_rank_one,structural_jordan_rank_one,
-    example)
+    example,local_trace_stability)
 
 class RetardedStructuralResponse(unittest.TestCase):
     def setUp(self):
@@ -96,6 +96,28 @@ class RetardedStructuralResponse(unittest.TestCase):
         self.assertGreater(w/ep.H_j,30.)
         self.assertGreater(static_adequacy(1.3,w,ep)[
             "scaled_kernel_difference"],.5)
+
+
+    def test_positive_damping_gives_stable_trace_roots(self):
+        gate=local_trace_stability(1.3,self.epoch)
+        self.assertTrue(gate["no_exponential_trace_growth"])
+        self.assertLess(gate["max_local_growth_rate"],0.)
+        self.assertEqual(len(gate["roots"]),2)
+
+    def test_negative_running_could_destabilize_trace_despite_positive_energy(self):
+        H=.05
+        ep=ResponseEpoch(self.act,H_j=H,Kdot_over_K=-4*H)
+        gate=local_trace_stability(1.3,ep)
+        self.assertFalse(gate["no_exponential_trace_growth"])
+        self.assertAlmostEqual(gate["max_local_growth_rate"],H/2,places=12)
+        self.assertAlmostEqual(gate["Jordan_kinetic_running"],-4.)
+
+    def test_marginal_damping_boundary(self):
+        H=.05
+        ep=ResponseEpoch(self.act,H_j=H,Kdot_over_K=-3*H)
+        gate=local_trace_stability(1.3,ep)
+        self.assertTrue(gate["no_exponential_trace_growth"])
+        self.assertAlmostEqual(gate["max_local_growth_rate"],0.,places=12)
 
     def test_k_zero_curvature_decouples(self):
         q=trace_response(0.,.1,self.epoch)
