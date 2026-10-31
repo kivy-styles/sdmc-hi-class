@@ -1,0 +1,50 @@
+name: SDMC geometric trace and Jordan constraint Schur complement
+
+on:
+  push:
+    branches: [sdmc-pg-constraint-schur-20261031]
+    paths:
+      - 'sdmc/pg_constraint_schur.py'
+      - 'tests/test_pg_constraint_schur.py'
+      - 'docs/pg_jordan_constraint_schur.md'
+      - '.github/workflows/sdmc_pg_constraint_schur.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pg-constraint-block:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numerical dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Verify exact trace elimination and Jordan toy constraints
+        run: |
+          python3 -m py_compile sdmc/pg_constraint_schur.py tests/test_pg_constraint_schur.py
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Produce no-CDM structural trace Schur diagnostic
+        run: |
+          mkdir -p output/pg_constraints
+          python3 -m sdmc.pg_constraint_schur | tee output/pg_constraints/structural_trace_schur.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('output/pg_constraints/structural_trace_schur.json').read_text())
+          v=r["k_sweep"]
+          assert len(v)==5
+          assert all(0<x["toy_screening_ratio"]<=1 for x in v)
+          assert "complete F/G2/G3 Hessian" in r["missing"]
+          print("SDMC_REDUCED_TRACE_SCHUR_PASSED")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-pg-trace-jordan-schur-results
+          path: output/pg_constraints/
+          if-no-files-found: warn
