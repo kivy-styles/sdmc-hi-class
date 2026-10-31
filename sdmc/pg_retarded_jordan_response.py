@@ -95,6 +95,33 @@ def static_adequacy(k,frequency,epoch):
         dynamic_kernel_complex=r["K_response"],
         static_kernel=r["static_kernel"])
 
+
+def local_trace_stability(k,epoch):
+    """Frozen-coefficient homogeneous trace stability diagnostic.
+
+    ell_ddot+Gamma ell_dot+omegaeff² ell=0 has roots
+      lambda±=(-Gamma±sqrt(Gamma²-4omegaeff²))/2.
+    This is a necessary local trace-sector gate. It cannot establish
+    stability of the full G3+ADM metric/structural coupled system.
+    """
+    v=epoch.coefficients(k)
+    Gamma=v["Gamma"];om2=v["omegaeff_squared"]
+    roots=np.array([
+       (-Gamma+np.lib.scimath.sqrt(Gamma*Gamma-4*om2))/2,
+       (-Gamma-np.lib.scimath.sqrt(Gamma*Gamma-4*om2))/2],dtype=complex)
+    max_growth=float(np.max(roots.real))
+    p_K=epoch.Kdot_over_K/epoch.H_j if epoch.H_j!=0 else None
+    return dict(
+       Gamma=Gamma,
+       omegaeff_squared=om2,
+       roots=roots,
+       max_local_growth_rate=max_growth,
+       no_exponential_trace_growth=max_growth<=1e-12,
+       Jordan_kinetic_running=p_K,
+       expanding_epoch_bound_on_running=(
+           "d ln K/d ln a_J >= -3" if epoch.H_j>0 else "not expanding"),
+       necessary_only=True)
+
 def step_trace_solution(times,k,epoch,u0):
     """Evolve causal trace with u(t>=0)=u0 and initial ell=ell_dot=0.
 
