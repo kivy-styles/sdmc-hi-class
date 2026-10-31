@@ -4,7 +4,7 @@ import numpy as np
 from sdmc.pg_linear_perturbations import (
     Background, archived_reference, dust_conformal_derivatives,
     gamma_for_dust, uniform_nested_sphere_mass_ratio,
-    quadratic_energy_variation, trace_static_response,
+    quadratic_energy_variation, trace_static_response, trace_dynamic_derivatives,
     solve_subhorizon_growth, psi_subhorizon
 )
 
@@ -28,6 +28,21 @@ class PGLinearEquations(unittest.TestCase):
         self.assertGreater(weak['q_over_original'],stiff['q_over_original'])
         for a in [weak,stiff]:
             self.assertAlmostEqual(a['q'],-.2*a['q_over_original'],places=13)
+
+
+    def test_action_trace_equation_matches_static_limit(self):
+        eq=trace_static_response(.5,1.,1.,2.,1.,.3,.7,.2)
+        dell,ddell=trace_dynamic_derivatives(
+            ell=eq['ell'],ell_dot=0.,h_j=.1,dln_kell_dt=0.,
+            phi_minus_m=.2,k=.5,a_j=1.,a_s=1.,bf2=2.,
+            c_l2=1.,m_l2=.3,w_eta=.7)
+        self.assertEqual(dell,0.)
+        self.assertAlmostEqual(ddell,0.,places=13)
+        _,restoring=trace_dynamic_derivatives(
+            ell=1.,ell_dot=0.,h_j=.1,dln_kell_dt=0.,
+            phi_minus_m=0.,k=.5,a_j=1.,a_s=1.,bf2=2.,
+            c_l2=1.,m_l2=.3,w_eta=.7)
+        self.assertLess(restoring,0.)
 
     def test_exact_dust_conformal_conservation(self):
         dd,dt=dust_conformal_derivatives(.2,.4,.5,-.1,.03,-.2)
