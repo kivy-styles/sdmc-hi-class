@@ -89,6 +89,21 @@ def trace_static_response(k,a_j,a_s,bf2,c_l2,m_l2,w_eta,phi_minus_m):
     return dict(ell=ell,q=q,q_over_original=omega2/total,
                 omega2=omega2,lambda_k=lam)
 
+
+def trace_dynamic_derivatives(ell,ell_dot,h_j,dln_kell_dt,
+                              phi_minus_m,k,a_j,a_s,bf2,c_l2,m_l2,w_eta):
+    """Reduced action-derived TRACE equation in Jordan proper time.
+
+    ddot(ell) + [3 H_J + dot(K_ell)/K_ell] dot(ell)
+       + [omega0^2 + Lambda_k] ell = 3 Lambda_k (Phi_J - m).
+
+    NOT full delta-rho_g or Jordan Einstein constraints; the metric/mapper
+    are prescribed external drivers in this restricted scalar-trace sector.
+    """
+    omega2,lam,total=trace_stiffness(k,a_j,a_s,bf2,c_l2,m_l2,w_eta)
+    if h_j<0: raise ValueError("this control assumes an expanding Jordan epoch")
+    return (ell_dot, -(3*h_j+dln_kell_dt)*ell_dot-total*ell+3*lam*phi_minus_m)
+
 def quadratic_energy_variation(k,a_j,a_s,bf2,c_l2,m_l2,w_eta,
                                ell0,ell0_dot,q0,dell,dell_dot,dq):
     """First variation at fixed coefficients of quadratic trace energy.
