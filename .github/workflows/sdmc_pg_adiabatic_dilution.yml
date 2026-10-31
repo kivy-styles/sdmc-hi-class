@@ -1,0 +1,55 @@
+name: SDMC structural well adiabatic dilution and Jordan Ward identity
+on:
+  push:
+    branches: [sdmc-pg-adiabatic-dilution-20261101]
+    paths:
+      - 'sdmc/pg_adiabatic_dilution.py'
+      - 'tests/test_pg_adiabatic_dilution.py'
+      - 'docs/pg_adiabatic_dilution_derivation.md'
+      - '.github/workflows/sdmc_pg_adiabatic_dilution.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  trace-adiabatic-dilution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numeric dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Verify local pressureless/transfer conditions and earlier structural gates
+        run: |
+          python3 -m py_compile sdmc/pg_adiabatic_dilution.py tests/test_pg_adiabatic_dilution.py
+          python3 -m unittest discover -s tests -p 'test_pg_adiabatic_dilution.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_coupled_rolling_g3_trace.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_rolling_g3_adm.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_retarded_jordan_response.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_jordan_qs_covariant.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Export curvature/gradient/mass WKB dilution comparison
+        run: |
+          mkdir -p results/pg_adiabatic
+          python3 -m sdmc.pg_adiabatic_dilution | tee results/pg_adiabatic/geometric_trace_dilution.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('results/pg_adiabatic/geometric_trace_dilution.json').read_text())
+          assert len(a['results'])==5
+          assert all(v['exact_ward_max_error']<1e-10 for v in a['results'])
+          by={r['case']:r for r in a['results']}
+          assert by['structural_curvature_matter']['WKB_J_over_H_E']==-3
+          assert by['structural_curvature_radiation']['WKB_J_over_H_E']==-4
+          assert by['structural_curvature_compensated']['WKB_J_over_H_E']==0
+          assert 'global FLRW pressureless geometric fluid' in str(a['not_derived'])
+          print('SDMC_GEOMETRIC_TRACE_ADIABATIC_DILUTION_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-pg-adiabatic-dilution-results
+          path: results/pg_adiabatic/
+          if-no-files-found: warn
