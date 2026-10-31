@@ -181,6 +181,44 @@ scaled discrepancy from the static kernel. No physical wave number
 in h/Mpc can be assigned without deriving the action coefficient
 units and a consistent structural-to-Jordan mapping.
 
+## 438a. Independent trace-sector anti-damping condition
+
+The reduced homogeneous trace has
+
+    ell_ddot + Gamma ell_dot + omega_eff² ell = 0
+
+for fixed or locally frozen coefficients. Its local characteristic
+growth rates are
+
+    lambda± = [-Gamma ± sqrt(Gamma²-4 omega_eff²)]/2.
+
+For a positive restoring frequency omega_eff²>0:
+- Gamma>0 yields damped local homogeneous trace dynamics;
+- Gamma=0 yields marginal undamped oscillations;
+- Gamma<0 yields an anti-damped local trace mode, even though
+  K>0 and omega_eff²>0.
+
+In an expanding Jordan epoch H_J>0,
+
+    Gamma=3H_J+dot K/K,
+
+therefore a **necessary local no-growth bound** is
+
+    d ln K/d ln a_J >= -3,
+    K=B f_L²/3.
+
+Equivalently, the combined coefficient B f_L² must not fall
+faster than a_J^-3 over the frozen local interval. For example,
+dot K/K=-4H_J gives Gamma=-H_J and a homogeneous local growth
+rate +H_J/2 when underdamped.
+
+This does not replace the ghost, scalar sound-speed, full
+Horndeski-ADM eigenmode and background checks. It is a new
+independent structural trace damping check.
+
+The function local_trace_stability tests these roots, with
+separate numerical checks of damping, marginality and anti-damping.
+
 ## 439. Interpretation and remaining test
 
 The current result establishes from the reduced structural action:
