@@ -247,6 +247,68 @@ or a complete cosmological anisotropic stress tensor.
 Regression tests independently vary the static energy in ell and the
 integrated energy in Phi_J and compare the results.
 
+## 5c. Three-dimensional curvature tensor and isotropy
+
+The one-dimensional trace calculations are supplemented by an explicit
+3D periodic conformal-geometry implementation. In the linearized
+structural 3-geometry gamma_ij=a_s^2(1+2q)delta_ij, the physical
+linearized Ricci tensor and curvature scalar are
+
+    R_ij = -partial_i partial_j q -delta_ij Lap(q),
+    R_s  = -4 a_s^-2 Lap(q).
+
+The algebraic three-dimensional identity is
+
+    R_ijkl R^ijkl = 4 R_ij R^ij - R_s^2.
+
+Substitution gives the **local** quadratic curvature invariant
+
+    R_ijkl R^ijkl = 4 a_s^-4 [
+       sum_(i,j) (partial_i partial_j q)^2 + (Lap q)^2 ].
+
+Hence the curvature part of the reduced action energy is
+
+    rho_K^(2)=2 W eta_K a_s^-4 [
+       sum_ij(q_,ij)^2 + (Lap q)^2 ].
+
+For a 1D x-dependent field q this becomes exactly
+4 W eta_K a_s^-4 (q_,xx)^2, reproducing the earlier code.
+For a periodic 3D domain, Parseval's identity yields
+
+    <sum_ij(q_,ij)^2> = <(Lap q)^2>,
+
+but the two expressions need not agree pointwise. The code implements
+the full local 3D Hessian rather than applying the averaged identity
+to the local energy.
+
+The three-dimensional reduced energy adds
+
+    rho_g^(2)=K/2 [
+         dot(ell)^2 + m_L^2 ell^2
+       + (c_L^2/a_J^2) |grad ell|^2 ] +rho_K^(2).
+
+In the 3D regression, a short-wavelength field contains equal-amplitude
+waves along the x, y and z axes. Its mean trace vanishes; its positive
+quadratic energy does not. A long envelope in x generates a predicted
+coarse-grained k_L density modulation.
+
+To check one basic isotropy requirement, calculate the **gradient
+correlation proxy**
+
+    I_ij = <ell_,i ell_,j>-
+           delta_ij <|grad ell|^2>/3.
+
+The equal-axis example has I_ij=0 within numerical precision, whereas
+a single-axis plane wave has nonzero I_ij. This is not yet the
+physical Jordan anisotropic stress pi_g, which requires complete
+metric variation and the tensor sector Q_ij. An equal-axis toy field
+also does not constitute a statistically isotropic primordial ensemble
+or an observationally validated 3D power spectrum.
+
+Files:
+  sdmc/pg_quadratic_source_3d.py
+  tests/test_pg_quadratic_source_3d.py
+
 ## 6. What is actually needed for pressureless geometric gravity
 
 The desired Jordan global relation remains
