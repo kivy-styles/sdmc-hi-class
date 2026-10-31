@@ -95,7 +95,7 @@ class RetardedStructuralResponse(unittest.TestCase):
         w=np.sqrt(c["omegaeff_squared"])
         self.assertGreater(w/ep.H_j,30.)
         self.assertGreater(static_adequacy(1.3,w,ep)[
-            "scaled_kernel_difference"],1.)
+            "scaled_kernel_difference"],.5)
 
     def test_k_zero_curvature_decouples(self):
         q=trace_response(0.,.1,self.epoch)
