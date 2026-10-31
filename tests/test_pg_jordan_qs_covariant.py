@@ -4,7 +4,8 @@ import numpy as np
 from sdmc.pg_jordan_qs_covariant import (
     JordanSubclass,TraceAction,static_quadratic_action,
     constraint_hessian,static_perturbation_solution,
-    brans_dicke_mu_analytic,horndeski_alpha_coefficients,sweep)
+    brans_dicke_mu_analytic,horndeski_alpha_coefficients,sweep,
+    no_slip_kinetic_closure)
 
 class SignedJordanConstraints(unittest.TestCase):
     def setUp(self):
@@ -132,6 +133,28 @@ class SignedJordanConstraints(unittest.TestCase):
             F=1.2,F_sigma=.1,H=.8,sigma_dot=.3,Z=.045,
             k1=1.,k2=.2,g=0.,g_sigma=0.)
         self.assertAlmostEqual(x["alpha_B"],-x["alpha_M"],places=13)
+
+
+    def test_accepted_rolling_no_slip_kinetic_identity(self):
+        for H,dot,Z,k1,k2,g_sigma in [
+            (.8,.4,.08,1.7,.3,.15),
+            (1.2,.2,.02,2.,.01,-.05),
+            (.6,.7,.245,1.,.5,.02)]:
+            F=1.05;Fp=.12
+            d=no_slip_kinetic_closure(
+                F,Fp,H,dot,Z,k1,k2,g_sigma)
+            self.assertAlmostEqual(d["identity_residual"],0.,places=12)
+            self.assertAlmostEqual(d["alpha_B"],-2*d["alpha_M"],places=12)
+            self.assertAlmostEqual(d["D"],d["required_D_identity"],places=12)
+            self.assertTrue(np.isfinite(d["D"]))
+            self.assertIsNotNone(d["Q_s"])
+
+    def test_no_slip_ghost_condition_is_independent(self):
+        d=no_slip_kinetic_closure(1.,.2,.8,.4,.08,-10.,0.,0.)
+        self.assertAlmostEqual(d["identity_residual"],0.,places=12)
+        self.assertFalse(d["positive_kinetic"])
+        with self.assertRaises(ValueError):
+            no_slip_kinetic_closure(1.,.2,.8,.4,0.,1.,0.,0.)
 
     def test_sweep_models_separated_from_late300(self):
         result=sweep()
