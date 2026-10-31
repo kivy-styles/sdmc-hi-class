@@ -204,8 +204,8 @@ def isolated_scalar_gradient(action,Hdot,alpha_B_dot=0.):
     if abs(p)<1e-12:raise ValueError("Theta=0")
     Fdot=action.F_sigma*action.sigma_dot
     theta=action.F*action.H*p
-    theta_dot=(Fdot*action.H+action.F*Hdot)*p-
-                .5*action.F*action.H*alpha_B_dot
+    theta_dot=((Fdot*action.H+action.F*Hdot)*p
+                 -.5*action.F*action.H*alpha_B_dot)
     Fs=(action.F**2/theta)*(action.H+
                      2*Fdot/action.F-theta_dot/theta)-action.F
     qs=kinetic_from_constraints(action)["Qs_ADM"]
