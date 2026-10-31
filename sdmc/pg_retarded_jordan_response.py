@@ -107,7 +107,7 @@ def local_trace_stability(k,epoch):
     v=epoch.coefficients(k)
     Gamma=v["Gamma"];om2=v["omegaeff_squared"]
     roots=np.array([
-       (-Gamma+np.lib.scimath.sqrt(Gamma*Gamma-4*om2))/2,
+       (-Gamma+np.sqrt(complex(Gamma*Gamma-4*om2)))/2,
        (-Gamma-np.lib.scimath.sqrt(Gamma*Gamma-4*om2))/2],dtype=complex)
     max_growth=float(np.max(roots.real))
     p_K=epoch.Kdot_over_K/epoch.H_j if epoch.H_j!=0 else None
