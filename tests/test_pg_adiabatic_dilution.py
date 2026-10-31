@@ -30,7 +30,7 @@ class StructuralAdiabaticDilution(unittest.TestCase):
 
     def test_direct_finite_difference_of_energy_matches_action_rate(self):
         e=WellEra(m2=.4,G0=.3,Lambda0=.7,
-                   k_run=.2,w_run=.4)
+                   k_run=.2,w_run=.4,H0=.3)
         x=.5;A=.41;Ax=-.33
         Axx=well_x_acceleration(e,x,A,Ax)
         h=1e-5
