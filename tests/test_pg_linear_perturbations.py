@@ -4,6 +4,7 @@ import numpy as np
 from sdmc.pg_linear_perturbations import (
     Background, archived_reference, dust_conformal_derivatives,
     gamma_for_dust, uniform_nested_sphere_mass_ratio,
+    dust_synchronous_derivatives,
     quadratic_energy_variation, trace_static_response, trace_dynamic_derivatives,
     solve_subhorizon_growth, psi_subhorizon
 )
@@ -48,6 +49,16 @@ class PGLinearEquations(unittest.TestCase):
         dd,dt=dust_conformal_derivatives(.2,.4,.5,-.1,.03,-.2)
         self.assertAlmostEqual(dd,.19)
         self.assertAlmostEqual(dt,.02-.032)
+
+
+    def test_synchronous_dust_conservation(self):
+        dd,dt=dust_synchronous_derivatives(.2,-.1,.06)
+        self.assertAlmostEqual(dd,.1-.03)
+        self.assertAlmostEqual(dt,.02)
+        # In an allowed comoving synchronous gauge, theta=0 stays zero.
+        dd2,dt2=dust_synchronous_derivatives(.2,0.,.06)
+        self.assertAlmostEqual(dd2,-.03)
+        self.assertEqual(dt2,0.)
 
     def test_gamma_structural_radiation_and_matter_scaling(self):
         for a in [.001,.01,.2,1.]:
