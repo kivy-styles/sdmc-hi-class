@@ -1,0 +1,129 @@
+name: SDMC archived weak-lensing matched robustness gate
+on:
+  push:
+    branches: [sdmc-lensing-matched-robustness-20261031]
+    paths:
+      - '.github/workflows/sdmc_lensing_matched_robustness_gate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  archived-lensing-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover archived DES, KiDS, and HSC likelihood results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p archived
+          while read -r artifact run_id artifact_name; do
+            test -n "$artifact" || continue
+            mkdir -p "archived/$artifact"
+            gh run download "$run_id" --repo "kivy-styles/sdmc-hi-class" --name "$artifact_name" --dir "archived/$artifact"
+            test "$(find "archived/$artifact" -name '*.json' | wc -l)" -eq 1
+          done <<'ARTIFACTS'
+          11477412492 37609586600 desy3-react-nuisance-linear
+          11477970090 37609586600 desy3-react-nuisance-us_native
+          11477975001 37609586600 desy3-react-nuisance-ss_native
+          11477546346 37609586600 desy3-react-nuisance-us_screen03
+          11477620269 37609586600 desy3-react-nuisance-ss_screen03
+          11477516325 37609586600 desy3-react-nuisance-us_fullscreen
+          11477541329 37609586600 desy3-react-nuisance-ss_fullscreen
+          11474333480 37605291833 late300-kids-react-cosebi
+          11491730236 37631035746 hsc-react-full-late300-us_native-retry
+          11481117681 37615217739 hsc-react-full-local021-us_native
+          11482327479 37615217739 hsc-react-full-late300-ss_native
+          11482378001 37615217739 hsc-react-full-local021-ss_native
+          11481329262 37615217739 hsc-react-full-late300-us_screen03
+          11494533389 37639231423 hsc-react-full-local021-us_screen03-stale-retry
+          11482880971 37615217739 hsc-react-full-late300-ss_screen03
+          11481679757 37615217739 hsc-react-full-local021-ss_screen03
+          ARTIFACTS
+
+      - name: Verify matched cuts, nuisance fits, and survey sensitivity
+        run: |
+          mkdir -p results
+          python3 - <<'PY'
+          import json,math
+          from pathlib import Path
+          root=Path('archived')
+          def load(aid):
+              files=list((root/str(aid)).rglob('*.json'))
+              if len(files)!=1: raise RuntimeError((aid,files))
+              return json.loads(files[0].read_text())
+          def delta(a,b,reported=None):
+              out=float(a)-float(b)
+              assert math.isfinite(out)
+              if reported is not None:
+                  assert math.isclose(out,float(reported),abs_tol=1e-7,rel_tol=1e-9),(out,reported)
+              return out
+          des_art={'linear':11477412492,'us_native':11477970090,
+                   'ss_native':11477975001,'us_screen03':11477546346,
+                   'ss_screen03':11477620269,'us_fullscreen':11477516325,
+                   'ss_fullscreen':11477541329}
+          hsc_art={'us_native':(11491730236,11481117681),
+                   'ss_native':(11482327479,11482378001),
+                   'us_screen03':(11481329262,11494533389),
+                   'ss_screen03':(11482880971,11481679757)}
+          des={}; flags=[]
+          for v,aid in des_art.items():
+              obj=load(aid)
+              assert obj['variant']==v
+              des[v]={}
+              for cut,r in obj['results'].items():
+                  if cut not in ('official','c40_150','c100_250'): continue
+                  a,b=r['late300'],r['local021']
+                  assert a['success'] and b['success']
+                  d=delta(a['chi2_total'],b['chi2_total'],r['delta_chi2_late300_minus_local021'])
+                  des[v][cut]={'delta_chi2':d,'ndata':int(r['ndata'])}
+                  for model,fit in [('late300',a),('local021',b)]:
+                      if abs(abs(float(fit['alpha1']))-5)<1e-3:
+                          flags.append((v,cut,model))
+              assert set(des[v])=={'official','c40_150','c100_250'}
+          kids=load(11474333480)
+          rows=[]
+          for v,(aid,bid) in hsc_art.items():
+              a,b=load(aid),load(bid)
+              assert a['model']=='late300' and b['model']=='local021'
+              assert a['variant']==b['variant']==v and a['ndata']==b['ndata']==60
+              assert a['fit']['success'] and b['fit']['success']
+              dh=delta(a['fit']['chi2_total'],b['fit']['chi2_total'])
+              k=kids[v]
+              dk=delta(k['late300']['chi2_profile'],k['local021']['chi2_profile'],k['delta_chi2_profile'])
+              dd=des[v]['official']['delta_chi2']
+              rows.append({'variant':v,'DES_Y3':dd,'KiDS':dk,'HSC_Y3':dh,
+                           'conditional_total':dd+dk+dh,
+                           'without_HSC':dd+dk,'without_KiDS':dd+dh,'without_DES':dk+dh})
+          assert len(rows)==4
+          assert all(x['conditional_total']<0 for x in rows)
+          assert all(x['without_HSC']>0 for x in rows)
+          report={'scope':'archived likelihood postprocessing only, not new cosmology',
+                  'model_scope':'late300/local021 fitted cold-like sources, NOT no-CDM',
+                  'rows':rows,'des_cutscan':des,'des_prior_boundary_flags':flags,
+                  'caveats':['No TATT, baryonic-feedback nuisance or joint cross-covariance',
+                             'Different survey nuisance families and correlated nonlinear variants',
+                             'HSC photometric-redshift bins 3/4 have broad top-hat bounds']}
+          Path('results/cross_survey.json').write_text(json.dumps(report,indent=2)+'\n')
+          md=['# SDMC archived lensing matched-variant robustness','',
+              'Archived likelihood post-processing, not a new cosmological fit.','',
+              '| Variant | DES-Y3 | KiDS | HSC | Illustrative total | Without HSC |',
+              '|---|---:|---:|---:|---:|---:|']
+          for r in rows:
+              md.append('| {variant} | {DES_Y3:+.3f} | {KiDS:+.3f} | {HSC_Y3:+.3f} | {conditional_total:+.3f} | {without_HSC:+.3f} |'.format(**r))
+          md += ['','Conditional totals favor late300 slightly, but DES-Y3+KiDS alone favor local021 slightly.',
+                 'These are not significance estimates or a valid joint likelihood.',
+                 '',f'DES nuisance prior boundary flags: {len(flags)}.',
+                 'Full TATT, baryonic feedback, and an independently evolved no-CDM geometric source remain untested.']
+          Path('results/cross_survey.md').write_text('\n'.join(md)+'\n')
+          print(json.dumps(report,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-archived-lensing-matched-robustness
+          path: results/
+          if-no-files-found: warn
