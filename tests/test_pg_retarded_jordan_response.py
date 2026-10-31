@@ -52,8 +52,9 @@ class RetardedStructuralResponse(unittest.TestCase):
 
     def test_near_resonance_static_kernel_unreliable(self):
         k=1.2
-        omega=np.sqrt(self.epoch.coefficients(k)["omegaeff_squared"])
-        q=static_adequacy(k,omega,self.epoch)
+        epoch=ResponseEpoch(self.act,H_j=.003,Kdot_over_K=0.)
+        omega=np.sqrt(epoch.coefficients(k)["omegaeff_squared"])
+        q=static_adequacy(k,omega,epoch)
         self.assertGreater(q["scaled_kernel_difference"],.5)
         self.assertAlmostEqual(q["frequency_ratio"],1.)
 
