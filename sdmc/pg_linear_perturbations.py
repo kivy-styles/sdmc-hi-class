@@ -67,6 +67,18 @@ def dust_conformal_derivatives(hconf,k_per_mpc,delta,theta,phi_prime,psi):
     if hconf<=0 or k_per_mpc<0: raise ValueError("invalid hconf or k")
     return (-theta+3*phi_prime, -hconf*theta+k_per_mpc**2*psi)
 
+
+def dust_synchronous_derivatives(hconf,theta,htrace_prime):
+    """Exact separately conserved dust in scalar synchronous gauge.
+
+    delta_g' = -theta_g - h_sync'/2; theta_g' = -Hconf theta_g.
+    htrace_prime is the synchronous spatial-metric trace derivative,
+    NOT the Jordan Hubble rate; do NOT impose theta_g=0 without a
+    justified pg-comoving gauge choice for the completed geometric action.
+    """
+    if hconf<=0: raise ValueError("hconf>0")
+    return (-theta-0.5*htrace_prime, -hconf*theta)
+
 def trace_stiffness(k,a_j,a_s,bf2,c_l2,m_l2,w_eta):
     """Quadratic structural trace, fixed coefficients and dimensionless k.
 
