@@ -138,6 +138,38 @@ def horndeski_alpha_coefficients(F,F_sigma,H,sigma_dot,Z,
                 no_slip_residual=ab+2*am,
                 no_slip_covariant_residual=Z*g+F_sigma/2)
 
+
+def no_slip_kinetic_closure(F,F_sigma,H,sigma_dot,Z,
+                             k1,k2,g_sigma):
+    """Necessary *on-shell* covariant kinetic identity for rolling no-slip.
+
+    For G3=gZ and the background No-Slip relation Zg=-F_sigma/2:
+      D = Kcov - 6 alpha_M + 6 alpha_M^2
+      Kcov = 2Z/(H^2 F)[k1+6 k2 Z-4 g_sigma Z].
+    This checks the accepted scalar-tensor operator coefficients and
+    DOES NOT set the structural pg density or its gravitational coupling.
+    """
+    if Z<=0:raise ValueError("rolling no-slip closure needs Z>0")
+    g=-F_sigma/(2*Z)
+    eft=horndeski_alpha_coefficients(
+       F,F_sigma,H,sigma_dot,Z,k1,k2,g,g_sigma)
+    am=eft["alpha_M"]
+    Kcov=2*Z/(H*H*F)*(k1+6*k2*Z-4*g_sigma*Z)
+    Drequired=Kcov-6*am+6*am*am
+    if abs(2-eft["alpha_B"])<=1e-14:
+        qs=None
+    else:
+        qs=2*F*eft["D"]/(2-eft["alpha_B"])**2
+    return dict(
+       g_from_no_slip=g,alpha_M=am,alpha_B=eft["alpha_B"],
+       alpha_K=eft["alpha_K"],D=eft["D"],
+       covariant_kinetic_coefficient=Kcov,
+       required_D_identity=Drequired,
+       identity_residual=eft["D"]-Drequired,
+       Q_s=qs,
+       positive_kinetic=eft["D"]>0 and qs is not None and qs>0,
+       uncomputed="sound-speed numerator, full G3 plus structural constraints")
+
 def sweep():
     """Finite coefficient test, not a late300 parameter reconstruction."""
     bg=JordanSubclass()
