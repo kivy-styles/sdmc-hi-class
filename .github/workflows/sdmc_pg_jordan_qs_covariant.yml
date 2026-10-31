@@ -1,0 +1,47 @@
+name: SDMC Jordan covariant static constraint and geometric source gate
+on:
+  push:
+    branches: [sdmc-pg-jordan-qs-covariant-20261031]
+    paths:
+      - 'sdmc/pg_jordan_qs_covariant.py'
+      - 'tests/test_pg_jordan_qs_covariant.py'
+      - 'docs/pg_jordan_covariant_qs_derivation.md'
+      - '.github/workflows/sdmc_pg_jordan_qs_covariant.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  signed-jordan-hessian:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install scientific Python
+        run: python3 -m pip install numpy scipy
+      - name: Compile and run action-derived constraint and prior gates
+        run: |
+          python3 -m py_compile sdmc/pg_jordan_qs_covariant.py tests/test_pg_jordan_qs_covariant.py
+          python3 -m unittest discover -s tests -p 'test_pg_jordan_qs_covariant.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Generate restricted Jordan force test sheet
+        run: |
+          mkdir -p output/pg_covariant
+          python3 -m sdmc.pg_jordan_qs_covariant | tee output/pg_covariant/signed_jordan_subclass.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('output/pg_covariant/signed_jordan_subclass.json').read_text())
+          assert len(d['model_rows'])==6
+          assert all(x['mu_F_only']>=x['Sigma_F_only'] for x in d['model_rows'])
+          assert 'G3 kinetic braiding' in str(d['missing'])
+          print('SDMC_JORDAN_ACTION_CONSTRAINT_GATE_PASSED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-pg-jordan-static-covariant-results
+          path: output/pg_covariant/
+          if-no-files-found: warn
