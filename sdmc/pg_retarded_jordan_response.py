@@ -187,6 +187,39 @@ def solve_rank_one(H0,v,b,lam):
                 trace_feedback=lam*np.dot(v,y),
                 updated_operator=H+lam*np.outer(v,v))
 
+
+def projected_metric_response(H0,v,b,lam,psi_index=0,phi_index=1):
+    """Exact conditional Newtonian/Weyl/slip response to rank-one geometry.
+
+    Uses an independently supplied H0, not a guessed late300 G3 matrix.
+    The scalar-sector baseline can be no-slip, but adding a structural
+    kernel generally induces slip unless its projection vanishes.
+    """
+    r=solve_rank_one(H0,v,b,lam)
+    n=len(r["response"])
+    if (psi_index==phi_index or min(psi_index,phi_index)<0 or
+        max(psi_index,phi_index)>=n):
+        raise ValueError("distinct metric indices must exist")
+    psi=r["response"][psi_index]
+    phi=r["response"][phi_index]
+    psi0=r["baseline"][psi_index]
+    phi0=r["baseline"][phi_index]
+    slip=phi-psi
+    slip0=phi0-psi0
+    l=np.zeros(n,dtype=complex)
+    l[phi_index]=1
+    l[psi_index]=-1
+    Hu=np.linalg.solve(np.asarray(H0,dtype=complex),
+                       np.asarray(v,dtype=complex))
+    exact_slip_shift=-lam*np.dot(l,Hu)*np.dot(
+        np.asarray(v,dtype=complex),r["baseline"])/r["pole_denominator"]
+    return dict(psi=psi,phi=phi,weyl=(phi+psi)/2,slip=slip,
+         baseline_psi=psi0,baseline_phi=phi0,
+         baseline_weyl=(phi0+psi0)/2,
+         baseline_slip=slip0,induced_slip=slip-slip0,
+         induced_slip_formula=exact_slip_shift,
+         pole_denominator=r["pole_denominator"])
+
 def structural_jordan_rank_one(k,frequency,epoch,background_hessian,
                                source,relative_direction):
     """Couple action-derived retarded kernel to user-supplied H0.
