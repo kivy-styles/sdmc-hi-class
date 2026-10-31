@@ -179,6 +179,74 @@ In the matter tracker a_s~a_J^(3/2), curvature ~a_J^-6.
 These are local quadratic-energy proxy scalings, not the asserted
 global FLRW gravitational source.
 
+## 5a. Restricted Jordan isotropic pressure is a separate calculation
+
+An energy density is not sufficient to claim pressureless gravitational
+behavior. In the same reduced action, consider an **infinitesimal,
+homogeneous Jordan scale variation** at fixed structural scale S (thus
+fixed a_s=S/S0), fixed coefficients, and fixed fields ell, dot ell,
+q and their comoving spatial profiles. Let
+
+    Ekin=K/2 <dot ell^2>,
+    Emass=K m_L^2/2 <ell^2>,
+    Egrad=K c_L^2/(2 a_J^2) <(partial_x ell)^2>,
+    Ecurv=C <(partial_x^2 q)^2>.
+
+The reduced Lagrangian per Jordan physical volume is
+
+    L_red = Ekin - Emass - Egrad - Ecurv,
+
+and the corresponding restricted isotropic scale stress follows from
+
+    P_red = (1/(3 a_J^2)) partial_aJ[a_J^3 L_red]|_(S,fields fixed)
+          = Ekin - Emass - Egrad/3 - Ecurv.
+
+It is an **isotropic scale-response diagnostic**. The full physical
+pressure must still account for the off-shell coupling of the
+structural fields, the full ADM constraints, local metric perturbations
+and their averaging. For this explicit diagnostic, a nontrivial
+STRICTLY STATIC structural field has Ekin=0 and hence P_red<0 on
+the positive quadratic branch. It is not pressureless merely because
+its local deformation persists.
+
+A zero instantaneous P_red would require
+
+    Ekin = Emass + Egrad/3 + Ecurv.
+
+This is a necessary instantaneous balance in this restricted stress
+calculation, not a sustained attractor or proof of dust dynamics.
+The regression suite differentiates the reduced spatial action
+numerically with respect to a_J, holding S fixed, and verifies the
+pressure formula independently.
+
+## 5b. Integrating out the static trace gives a spatial metric kernel
+
+At a single epoch, for each Fourier mode, write u=m-Phi_J,
+omega0^2=m_L^2+c_L^2 k^2/a_J^2,
+K=Bf_L^2/3 and Ck=4W eta_K k^4/a_s^4.
+The positive static energy is
+
+    E_static=K omega0^2 ell^2/2+Ck (u+ell/3)^2.
+
+The stationary trace ell_star= -3 Lambda/(omega0^2+Lambda) u
+with Lambda=2Ck/(9K) gives the exact reduced functional
+
+    E_eff(u)=Keff(k) u^2,
+    Keff(k)=Ck omega0^2/(omega0^2+Lambda).
+
+Consequently the fixed-driver response is
+
+    d E_eff/d Phi_J = -2 Keff(k) u,
+
+which has a scale-dependent k^4-derived kernel. This is a spatial
+constraint-response term only; its variation must be added to those
+of the **full** Jordan metric, structural scalar and matter action.
+It is NOT a Poisson equation, a calibrated mu(k,a), a new CDM density,
+or a complete cosmological anisotropic stress tensor.
+
+Regression tests independently vary the static energy in ell and the
+integrated energy in Phi_J and compare the results.
+
 ## 6. What is actually needed for pressureless geometric gravity
 
 The desired Jordan global relation remains
