@@ -276,3 +276,178 @@ Files:
   sdmc/pg_inhomogeneous_adm_source.py
   tests/test_pg_inhomogeneous_adm_source.py
   .github/workflows/sdmc_pg_inhomogeneous_adm_source.yml
+
+
+## 467. Complete nonlinear conformal structural curvature
+
+The preceding quadratic operator uses the lowest-order
+supporting metric q=ell/3+zeta. The full 3D conformally flat
+structural metric is
+
+  gamma_ij=a_s² exp(2q) delta_ij.
+
+Its exact Ricci tensor is
+
+  R_ij[gamma]= -q_,ij-delta_ij Delta q
+     +q_,i q_,j-delta_ij |grad q|².
+
+In three dimensions, the complete Riemann tensor is determined
+algebraically by the Ricci tensor,
+
+  R_ijkl R^ijkl=4 R_ij R^ij - (R^(3))².
+
+Define
+
+  H_ij=q_,ij, L=Delta q,
+  v_i=q_,i, w=sum_i v_i²,
+
+  T=sum_ij H_ij²+L²,
+  U=2[L w-sum_ij H_ij v_i v_j].
+
+Then the EXACT nonlinear conformal invariant is
+
+  R_ijkl R^ijkl =
+    4 a_s^-4 exp(-4q)[T+U+w²].
+
+Unlike a truncated local curvature proxy, this expression
+includes all nonlinear conformal powers and derivative terms.
+The structural scalar-trace reduction still excludes traceless
+Q_ij and other ADM operators.
+
+The curvature-squared contribution to the Jordan ADM
+spatial Lagrangian, with N=1, is
+
+  L_K=-a_J³ D exp(3zeta-4q)[T+U+w²],
+  D=2W eta_K/a_s⁴.
+
+Because q=e+zeta with e=ell/3,
+
+  3zeta-4q=-4e-zeta.
+
+This exact formula allows metric variation around a NONZERO
+inhomogeneous trace, rather than only the ell=0 branch.
+
+## 468. Derive the first cubic spatial-metric vertex
+
+Expanding the exact conformal curvature action to cubic order
+in e and zeta, per background Jordan volume a_J³,
+
+  L_K^(2+3)=
+    -D[T(e+zeta)+U(e+zeta)
+           -(4e+zeta)T(e+zeta)].
+
+The quadratic action contributes a first-order metric operator
+
+  S_zeta^(1)=-4D Delta²e,
+
+whose mean vanishes on a periodic spatial domain.
+
+The CUBIC action has a source quadratic in the pre-existing
+structural well. Let
+
+  H_ij=e_,ij, L=Delta e, v_i=e_,i,
+  w=sum_i v_i², T=sum_ij H_ij²+L².
+
+After integration by parts, its local coefficient of
+delta zeta is
+
+  S_zeta^(2) = D [
+      T
+      +8 partial_i partial_j(e H_ij)
+      +8 Delta(e L)
+      -2 Delta w
+      +2 partial_i partial_j(v_i v_j)
+      +4 partial_i(L v_i-H_ij v_j)
+    ].
+
+The exact periodic mean satisfies
+
+  <S_zeta^(2)>=D<T>.
+
+Every other term is a spatial divergence. Since D<T>
+is precisely the leading mean structural curvature energy,
+
+  <S_zeta^(2)> = <rho_K^(2)>.
+
+This equality is an action-derived metric-vertex identity
+for the conformally flat supporting curvature operator
+in the chosen unitary-gauge/flat-Jordan-slice expansion.
+It is NOT a complete physical spatial pressure equation
+or a gauge-independent homogeneous backreaction theorem.
+
+The implementation numerically verifies:
+  1. the exact conformal Riemann² expression against a
+     separately assembled Ricci tensor identity;
+  2. the quadratic curvature limit;
+  3. fourth-order residual after cubic action truncation;
+  4. direct finite-difference variation of the quadratic
+     and cubic actions with respect to zeta;
+  5. the nonzero mean O(ell²) metric source and its
+     equality with mean quadratic curvature energy;
+  6. recovery of the complete nonlinear metric
+     variation at small structural field amplitude.
+
+## 469. Spatial metric variation differs from a restricted
+       background scale derivative
+
+There are TWO different variations in the reduced history.
+
+(1) An earlier fixed-S background Jordan-scale derivative
+holds the structural spatial metric and relative curvature
+profile fixed while varying the Jordan volume, producing
+the diagnostic pressure
+
+  P_red,curvature=-rho_K
+
+for its specific choice of fixed variables.
+
+(2) The present local Jordan spatial metric variation at
+fixed scalar mapper and ell changes
+
+  gamma_ij=a_s² exp[2(zeta+ell/3)]delta_ij.
+
+A homogeneous zeta in this variation also changes the
+structural curvature invariant. From the exact action,
+
+  L_K(zeta=constant)
+       =exp(-zeta) L_K(zeta=0)
+
+and consequently
+
+  dL_K/dzeta at zeta=0 = -L_K(0) >0
+
+for nonzero positive curvature energy.
+
+There is no legitimate step that equates these two
+different restricted variations to the same physical
+pressure without including the scalar mapper response,
+the Jordan lapse/shift constraints, the homogeneous scale
+redefinition and the full nonlinear metric action.
+
+In particular, a homogeneous zeta perturbation has a
+gauge/background redefinition ambiguity unless the total
+system and its clock mapping are fixed. The result confirms
+the importance of taking all field equations into account.
+
+## 470. Implications for the global pg problem
+
+A nonzero excited supporting well has a positive quadratic
+ADM lapse source and a nonzero cubic spatial-curvature
+metric response. Those are independent source projections
+of the action, and both must enter any attempt to derive
+a physical homogeneous rho_g and P_g.
+
+The calculation still does NOT imply that their ratio
+gives a dust equation of state, that the full covariant
+combined action is closed, or that the gravitational
+field of M_u has been reproduced on observable scales.
+
+A complete next step is to derive all cubic ADM metric
+vertices (lapse, shift and spatial metric) of the trace,
+traceless supporting modes and F/G2/G3 sector, then expand
+the constraints around a self-consistent inhomogeneous
+background to obtain gauge-invariant Jordan averaged sources.
+
+New modules:
+  sdmc/pg_nonlinear_conformal_stress.py
+  tests/test_pg_nonlinear_conformal_stress.py
