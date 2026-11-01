@@ -51,6 +51,8 @@ jobs:
           f=Path("output/pg_flatness/flatness_geometric_survival.json")
           d=json.loads(f.read_text())
           assert d["runs"]["mass_only"]["energy_ratio"]>0
+          assert d["runs"]["radiation_handoff"]["energy_ratio"]>0
+          assert d["runs"]["radiation_handoff"]["curvature_energy_fraction_final"]<.002
           assert d["runs"]["transient_selector"]["curvature_energy_fraction_final"]<.002
           assert d["occupancy_inversion"]["flat_selector_off"]
           assert d["occupancy_inversion"]["empirical_abundance_fitted_or_predicted"] is False
