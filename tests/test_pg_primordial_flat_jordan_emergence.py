@@ -90,7 +90,7 @@ class FlatStructuralJordanHandoff(unittest.TestCase):
         e=self.e
         a=static_positive_B(e,1.)
         self.assertEqual(a["ell"],0.)
-        self.assertEqual(a["geometric_energy"],0.)
+        self.assertEqual(a["field_energy"],0.)
         self.assertAlmostEqual(a["q"],e.u)
         self.assertNotEqual(a["gamma_R3"],0.)
         self.assertEqual(coefficient(e,1.)["W"],0.)
