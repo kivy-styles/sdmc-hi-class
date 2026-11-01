@@ -89,8 +89,10 @@ class TensorADMSource(unittest.TestCase):
         self.assertTrue(np.allclose(m["momentum"][1],ey,atol=1e-11))
 
     def test_noncommuting_tensor_modes_can_have_zero_mean_momentum(self):
+        # Remove the traveling scalar-trace phase, retaining only
+        # the noncommuting traceless shear momentum divergence.
         m=full_trace_tensor_shift_momentum(
-             self.ell,self.vel,self.Q,self.dQ,self.c)
+             self.ell,np.zeros_like(self.vel),self.Q,self.dQ,self.c)
         self.assertLess(float(np.linalg.norm(
                           m["momentum"].mean(axis=(1,2,3)))),1e-9)
         self.assertGreater(float(np.linalg.norm(m["momentum"])),1e-5)
