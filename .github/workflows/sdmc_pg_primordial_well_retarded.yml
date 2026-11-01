@@ -1,0 +1,70 @@
+name: SDMC primordial-well source, retarded memory and W shutdown
+
+on:
+  push:
+    branches: [sdmc-primordial-well-retarded-source-20261101]
+    paths:
+      - 'sdmc/pg_primordial_well_retarded.py'
+      - 'tests/test_pg_primordial_well_retarded.py'
+      - 'docs/pg_primordial_source_retarded_shutdown.md'
+      - '.github/workflows/sdmc_pg_primordial_well_retarded.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  primordial-source-response:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numpy and scipy
+        run: python3 -m pip install numpy scipy
+      - name: Verify primordial source and retarded-memory equations
+        run: |
+          python3 -m py_compile sdmc/pg_primordial_well_retarded.py tests/test_pg_primordial_well_retarded.py
+          python3 -m unittest discover -s tests -p 'test_pg_primordial_well_retarded.py' -v
+      - name: Run prior SDMC geometric/flatness action regressions
+        run: |
+          python3 -m unittest discover -s tests -p 'test_pg_flatness_handoff.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_full_spatial_stress.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_mapper_pressure_accounting.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_tensor_adm_constraints.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_nonlinear_conformal_stress.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_inhomogeneous_adm_source.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_adiabatic_dilution.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_coupled_rolling_g3_trace.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_rolling_g3_adm.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_retarded_jordan_response.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_jordan_qs_covariant.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Export action-based source, material conservation and free-tail diagnostics
+        run: |
+          mkdir -p output/pg_primordial_source
+          python3 -m sdmc.pg_primordial_well_retarded | tee output/pg_primordial_source/primordial_well_source_memory.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('output/pg_primordial_source/primordial_well_source_memory.json').read_text())
+          assert abs(d["peak"]["static_energy_residual"])<1e-12
+          assert d["peak"]["W"]>0
+          assert d["final"]["W"]==0
+          assert d["final"]["Lambda"]==0
+          assert d["final"]["forcing"]==0
+          assert d["final"]["static_ell"]==0
+          assert d["post_handoff"]["all_source_exactly_zero"]
+          assert d["post_handoff"]["geometric_energy_still_positive"]
+          assert all(abs(row["M_total"]-1)<1e-12 for row in d["material_ledger"])
+          assert "no direct material-to-L source" in d["origin"]
+          print('SDMC_PRIMORDIAL_SOURCE_RETARDED_SHUTDOWN_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-primordial-well-source-response-diagnostics
+          path: output/pg_primordial_source/
+          if-no-files-found: warn
