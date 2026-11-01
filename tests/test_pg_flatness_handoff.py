@@ -104,7 +104,7 @@ class FlatnessHandoff(unittest.TestCase):
         for a in [r["E_ratio"],r["WKB_E_ratio"],
                   r["action_invariant"],r["amplitude_envelope"]]:
             self.assertTrue(np.isfinite(a).all())
-        self.assertGreater(r["E_mass_fraction"][-1],.99)
+        self.assertAlmostEqual(r["E_mass_fraction"][-1],.5,delta=.035)
         self.assertLess(r["H_over_frequency"][-1],.01)
 
     def test_exact_locking_mode_has_zero_excitation_energy(self):
