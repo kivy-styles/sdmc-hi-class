@@ -13,6 +13,8 @@ class FlatnessHandoff(unittest.TestCase):
         cls.pulse=Handoff(k=.30,W_peak=.20)
         cls.r_mass=two_phase(cls.mass)
         cls.r_pulse=two_phase(cls.pulse)
+        cls.rad=Handoff(k=.30,W_peak=.20,p_v=2.,H_power=2.)
+        cls.r_rad=two_phase(cls.rad)
 
     def test_B_activation_positive_and_monotonic(self):
         e=self.pulse
@@ -98,6 +100,16 @@ class FlatnessHandoff(unittest.TestCase):
              r["E_ratio"][-1],r["WKB_E_ratio"][-1],
              delta=.15*r["WKB_E_ratio"][-1])
 
+    def test_radiation_handoff_retains_mode_energy_during_flat_selection(self):
+        r=self.r_rad
+        self.assertGreater(r["B"][-1],.95)
+        self.assertGreater(r["E_ratio"][-1],0.)
+        self.assertLess(r["E_curv_fraction"][-1],.002)
+        self.assertAlmostEqual(
+            r["E_ratio"][-1],r["WKB_E_ratio"][-1],
+            delta=.18*r["WKB_E_ratio"][-1])
+        self.assertAlmostEqual(r["action_invariant"][-1],1.,delta=.12)
+
     def test_same_scalar_only_WKB_no_Friedmann_claim(self):
         e=self.mass
         r=self.r_mass
@@ -153,6 +165,7 @@ class FlatnessHandoff(unittest.TestCase):
         r=results()
         self.assertIn("mass_only",r["runs"])
         self.assertIn("transient_selector",r["runs"])
+        self.assertIn("radiation_handoff",r["runs"])
         self.assertEqual(len(r["homogeneous_curvature_selector"]),4)
         self.assertIn("actual dynamical selection",str(r["missing"]))
         self.assertIn("no-CDM",str(r["missing"]))
