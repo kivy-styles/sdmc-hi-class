@@ -1,0 +1,71 @@
+name: SDMC flat primordial to material-curved Jordan emergence
+
+on:
+  push:
+    branches: [sdmc-flat-primordial-to-jordan-source-20261101]
+    paths:
+      - 'sdmc/pg_primordial_flat_jordan_emergence.py'
+      - 'tests/test_pg_primordial_flat_jordan_emergence.py'
+      - 'docs/pg_flat_primordial_jordan_emergence.md'
+      - '.github/workflows/sdmc_pg_flat_primordial_jordan.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  singular-jordan-emergence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install scientific dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Validate exact B=0 constraint rank and flat structural/Jordan matching
+        run: |
+          python3 -m py_compile sdmc/pg_primordial_flat_jordan_emergence.py tests/test_pg_primordial_flat_jordan_emergence.py
+          python3 -m unittest discover -s tests -p 'test_pg_primordial_flat_jordan_emergence.py' -v
+      - name: Recheck source coupling, flatness and all previous geometric action tests
+        run: |
+          python3 -m unittest discover -s tests -p 'test_pg_primordial_source_action_audit.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_primordial_well_retarded.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_flatness_handoff.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_full_spatial_stress.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_mapper_pressure_accounting.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_tensor_adm_constraints.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_nonlinear_conformal_stress.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_inhomogeneous_adm_source.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_adiabatic_dilution.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_coupled_rolling_g3_trace.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_rolling_g3_adm.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_retarded_jordan_response.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_jordan_qs_covariant.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Export B=0 matching and activation diagnostics
+        run: |
+          mkdir -p output/pg_flat_primordial_jordan
+          python3 -m sdmc.pg_primordial_flat_jordan_emergence | tee output/pg_flat_primordial_jordan/matching_singular_B0.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('output/pg_flat_primordial_jordan/matching_singular_B0.json').read_text())
+          assert r['structural_flat_initial']['structural_ricci']==0
+          assert not r['formal_Bzero']['kinetic_hessian_ell']
+          assert r['formal_Bzero']['W']==0
+          assert r['formal_right_limit']['Lambda_limit']>0
+          assert not r['formal_right_limit']['initial_strain_determined_at_B_zero']
+          assert r['activation_rows'][0]['ell_equilibrium'] is None
+          assert r['activation_rows'][-1]['ell_equilibrium']==0
+          assert r['activation_rows'][-1]['structural_R3']!=0
+          assert r['independent_extra_CDM_density_not_predicted']
+          print('SDMC_PRIMORDIAL_FLAT_JORDAN_EMERGENCE_SINGULAR_RANK_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-primordial-flat-jordan-emergence
+          path: output/pg_flat_primordial_jordan/
+          if-no-files-found: warn
