@@ -5,7 +5,9 @@ on:
     branches: [sdmc-occupied-well-scalar-loading-20261101]
     paths:
       - 'sdmc/pg_occupied_scalar_curvature_transfer.py'
+      - 'sdmc/pg_canonical_handoff_occupation.py'
       - 'tests/test_pg_occupied_scalar_curvature_transfer.py'
+      - 'tests/test_pg_canonical_handoff_occupation.py'
       - 'docs/pg_occupied_scalar_curvature_transfer.md'
       - '.github/workflows/sdmc_pg_occupied_well_scalar_transfer.yml'
   workflow_dispatch:
@@ -23,8 +25,9 @@ jobs:
         run: python3 -m pip install numpy scipy
       - name: Check occupied structural-scalar coupling and finite-difference controls
         run: |
-          python3 -m py_compile sdmc/pg_occupied_scalar_curvature_transfer.py tests/test_pg_occupied_scalar_curvature_transfer.py
+          python3 -m py_compile sdmc/pg_occupied_scalar_curvature_transfer.py sdmc/pg_canonical_handoff_occupation.py tests/test_pg_occupied_scalar_curvature_transfer.py tests/test_pg_canonical_handoff_occupation.py
           python3 -m unittest discover -s tests -p 'test_pg_occupied_scalar_curvature_transfer.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_canonical_handoff_occupation.py' -v
       - name: Run prior source, geometric gravity and flatness regressions
         run: |
           python3 -m unittest discover -s tests -p 'test_pg_primordial_source_action_audit.py' -v
@@ -48,6 +51,7 @@ jobs:
         run: |
           mkdir -p output/pg_occupied_scalar_curvature
           python3 -m sdmc.pg_occupied_scalar_curvature_transfer | tee output/pg_occupied_scalar_curvature/occupied_well_scalar_loading.json
+          python3 -m sdmc.pg_canonical_handoff_occupation | tee output/pg_occupied_scalar_curvature/canonical_kinetic_handoff_occupation.json
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -61,7 +65,13 @@ jobs:
           assert d['finite_difference_crosscheck']['max_abs_energy_linearization_error']<4e-5
           assert abs(d['continuity_check']['balance_residual'])<5e-13
           assert d['finite_difference_crosscheck']['source_is_prescribed_not_physical_constraint']
-          print('SDMC_OCCUPIED_WELL_SCALAR_LOADING_AND_CONTINUITY_VERIFIED')
+          q=json.loads(Path('output/pg_occupied_scalar_curvature/canonical_kinetic_handoff_occupation.json').read_text())
+          assert q['cases']['fast']['n_k']>.10
+          assert q['cases']['slow']['n_k']<5e-5
+          assert q['cases']['unchanged']['n_k']<1e-12
+          assert all(abs(x['norm_check']-1)<2e-8 for x in q['cases'].values())
+          assert not q['physically_fixed_spectrum']
+          print('SDMC_OCCUPIED_WELL_SCALAR_LOADING_AND_CANONICAL_VACUUM_MIXING_VERIFIED')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
