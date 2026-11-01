@@ -196,6 +196,29 @@ def followup_free_tail(e,sol):
       geometric_energy_still_positive=bool((sol["energy_kin"]+
                    sol["energy_strain"])[-1]>0))
 
+
+def locked_jordan_well_curvature(e,x,ell_override=None):
+    """Physical local 3-curvature of gamma on a SCALAR Fourier slice.
+
+    In Newtonian gauge, q_k=m_k+ell_k/3-Phi_J(k)=u_k+ell_k/3,
+    delta R_s(k)=4k² q_k/a_s², Manuscript B Eq(102.5).
+    Thus at W=0 and ell=0, a nonzero Jordan potential can still
+    create local structural curvature through gamma=M²h.
+
+    The curvature-selector ENERGY is different:
+      E_K=(C/2)*q_k², and vanishes with W.
+    A nonzero R_s is not by itself a new dark gravitating mass.
+    """
+    c=coefficients(e,x)
+    ell=c["static_ell"] if ell_override is None else float(ell_override)
+    q=c["u"]+ell/3
+    return dict(q=q,structural_ricci_mode=4*e.k**2*q/c["a_s"]**2,
+          selector_energy=.5*c["C"]*q*q,
+          relative_strain=ell,
+          locked_strain_zero=ell==0,
+          W=c["W"],
+          has_local_structural_curvature=abs(4*e.k**2*q/c["a_s"]**2)>0)
+
 def amplitude_curvature_source(e,x):
     """The effective curvature mismatch kernel exactly vanishes with W."""
     c=coefficients(e,x)
@@ -226,6 +249,7 @@ def response_memory_demo():
           ell=float(r["ell"][-1]),energy=float(energy[-1]),
           B=float(r["B"][-1])),
       material_ledger=ledgers,
+      locked_jordan_well_after_W_off=locked_jordan_well_curvature(e,.75),
       post_handoff=out,
       max_ell=float(np.max(abs(r["ell"]))),
       late_ell_residual=float(abs(r["ell"][-1])),
