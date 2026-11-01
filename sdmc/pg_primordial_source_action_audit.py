@@ -172,6 +172,36 @@ def independent_well_energy_at_W_zero(K,mass2,ell,ell_dot):
         raise ValueError("healthy quadratic branch")
     return K*(ell_dot**2+mass2*ell**2)/4
 
+def source_free_static_lump_identity(field,K,mass2,c2,a_j,length):
+    """Positive integrated elliptic identity forbids a regular static lump.
+
+    For W=0 and no L-linear source, the scalar-trace static field eq is
+      K [m² ell -(c²/a_J²)Delta ell]=0,
+    so on a periodic domain or a decaying, no-flux boundary,
+      <ell * EL> =
+         K[m² <ell²>+(c²/a_J²)<|grad ell|²>] >=0.
+    The on-shell condition EL=0 forces ell=0 for m²>0 and K>0.
+    A constant massless zero-mode is a separate degenerate branch.
+
+    This is a positive-energy field equation on a fixed spatial metric;
+    it does not prevent ordinary Jordan gravitational curvature.
+    """
+    from sdmc.pg_full_spatial_stress import _cube,_diff
+    field=_cube(field)
+    if K<=0 or mass2<=0 or c2<0 or a_j<=0 or length<=0:
+        raise ValueError("positive massive healthy branch required")
+    grad=[_diff(field,i,length) for i in range(3)]
+    lap=sum(_diff(grad[i],i,length) for i in range(3))
+    EL=K*(mass2*field-(c2/a_j**2)*lap)
+    positive=K*(mass2*float(np.mean(field*field))
+       +(c2/a_j**2)*sum(float(np.mean(g*g)) for g in grad))
+    integrated=float(np.mean(field*EL))
+    return dict(integrated_field_times_EL=integrated,
+      positive_mass_gradient_norm=positive,
+      identity_residual=integrated-positive,
+      supports_nonzero_sourcefree_static_lump=False,
+      Jordan_gravitational_well_forbidden=False)
+
 def candidate_explicit_direct_source(e,u,ell,g_new):
     """ONLY illustrates an extra operator -g_new*j_metric*ell.
 
