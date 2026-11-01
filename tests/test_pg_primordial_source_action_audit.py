@@ -9,6 +9,7 @@ from sdmc.pg_primordial_source_action_audit import (
   metric_source_grad_ell,curvature_loads_scalar,
   scalar_kinetic_coefficient_mixing,
   independent_well_energy_at_W_zero,
+  source_free_static_lump_identity,
   candidate_explicit_direct_source,candidate_source_solution_at_W_zero,
   on_shell_charged_source_audit,report)
 from sdmc.pg_jordan_qs_covariant import (
@@ -143,6 +144,32 @@ class PrimordialSourceActionAudit(unittest.TestCase):
         self.assertGreater(a,
              independent_well_energy_at_W_zero(K,mass,.1,0))
 
+    def test_nonzero_static_ell_fails_positive_unforced_spatial_equation(self):
+        n=24;L=2*np.pi
+        a=np.arange(n)*L/n
+        x,y,z=np.meshgrid(a,a,a,indexing="ij")
+        ell=.04*np.cos(3*x)+.06*np.sin(2*y)+.02*np.cos(4*z)
+        r=source_free_static_lump_identity(
+              ell,K=1.,mass2=.7,c2=.5,a_j=1.2,length=L)
+        self.assertGreater(r["integrated_field_times_EL"],0.)
+        self.assertAlmostEqual(r["identity_residual"],0.,delta=1e-13)
+        self.assertFalse(r["supports_nonzero_sourcefree_static_lump"])
+        self.assertFalse(r["Jordan_gravitational_well_forbidden"])
+
+    def test_static_lump_identity_zero_only_for_zero_deformation(self):
+        n=20;f=np.zeros((n,n,n))
+        r=source_free_static_lump_identity(
+             f,K=1.,mass2=.7,c2=.5,a_j=1.,length=2*np.pi)
+        self.assertEqual(r["integrated_field_times_EL"],0.)
+        self.assertEqual(r["positive_mass_gradient_norm"],0.)
+
+    def test_mass_only_nonzero_constant_field_has_positive_EL(self):
+        n=20;f=np.ones((n,n,n))*.12
+        r=source_free_static_lump_identity(
+            f,K=1.,mass2=1.,c2=0.,a_j=1.,length=2*np.pi)
+        self.assertAlmostEqual(r["integrated_field_times_EL"],.12**2)
+        self.assertAlmostEqual(r["identity_residual"],0.,delta=1e-12)
+
     def test_new_direct_source_operator_NOT_in_accepted_action(self):
         e=self.off
         gnew=.5
@@ -197,8 +224,9 @@ class PrimordialSourceActionAudit(unittest.TestCase):
         self.assertEqual(d["cases"]["W_exactly_zero"]["minimal_material_direct_ell_source"],0.)
         self.assertGreater(
             d["cases"]["W_exactly_zero"]["L_energy_at_nonzero_initial_state"],0.)
-        self.assertIn("NOT in the accepted",d["conditional_new_operator_example"]["extra_operator_not_in_accepted_action"].replace("not in","NOT in") if False else
-               "operator NOT in the accepted action")
+        self.assertEqual(
+            d["conditional_new_operator_example"]["extra_operator_not_in_accepted_action"],
+            "-g_new*j_metric*ell")
         self.assertIn("physical complete 4D mapper",str(d["remaining"]))
 
     def test_input_validation(self):
