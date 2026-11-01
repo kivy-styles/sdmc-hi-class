@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from sdmc.pg_primordial_flat_jordan_emergence import (
  FlatHandoff,coefficient,energy,source_and_hessian,
- gamma_curvature_mode,matched_flat_initial_shape,
+ gamma_curvature_mode,split_strain_forces,matched_flat_initial_shape,
  static_positive_B,right_limit_B_zero,
  activation_energy_derivative,constraint_rank_check,diagnostic)
 
@@ -25,6 +25,30 @@ class FlatStructuralJordanHandoff(unittest.TestCase):
         for u in [-.12,-.02,.05,.11]:
             ell=matched_flat_initial_shape(e,u=u)
             self.assertAlmostEqual(gamma_curvature_mode(e,ell,u=u)["q"],0.,places=14)
+
+    def test_exact_flat_initial_metric_has_zero_selector_force_but_active_restoring(self):
+        e=self.e
+        ell=matched_flat_initial_shape(e)
+        for B in [.01,.1,.5,.9,1.]:
+            f=split_strain_forces(e,B,ell)
+            self.assertTrue(f["no_force_from_selector_when_q_zero"])
+            self.assertEqual(f["curvature_selector_gradient"],0.)
+            self.assertNotEqual(f["restoring_gradient"],0.)
+            self.assertAlmostEqual(f["total_gradient"],
+                                   f["restoring_gradient"])
+        dead=split_strain_forces(e,0,ell)
+        self.assertEqual(dead["total_gradient"],0.)
+
+    def test_locking_restoring_drive_makes_gamma_inherit_Jordan_curvature(self):
+        e=self.e
+        flat=matched_flat_initial_shape(e)
+        self.assertEqual(gamma_curvature_mode(e,flat)["q"],0.)
+        for B in [.01,.2,.5,.9,1.]:
+            eq=static_positive_B(e,B)
+            self.assertGreater(eq["q"],0.)
+            self.assertLessEqual(eq["q"],e.u)
+            self.assertLess(abs(eq["ell"]),abs(flat))
+        self.assertAlmostEqual(static_positive_B(e,1)["q"],e.u)
 
     def test_B_zero_switches_off_both_kinetic_and_selector(self):
         e=self.e;c=coefficient(e,0)
