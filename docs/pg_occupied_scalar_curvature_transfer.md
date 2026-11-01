@@ -291,3 +291,201 @@ Core code:
 Source references: SDMC Manuscript B, Part III
 Sections 101–106, 111–115; supporting-space
 ADM and rolling G3 follow-up calculations.
+
+
+## 508. Can an initially empty classical mode become quantum-occupied during activation?
+
+Section 115 of Manuscript B identifies the missing physical
+canonical initial data and points out that B=0 makes the isolated
+supporting-space kinetic rank degenerate. The existing technical
+appendix considers a canonical Bogoliubov mode occupation.
+
+A strictly CLASSICAL zero initial condition A=dot A=0 remains zero
+under the homogeneous quadratic W=0 equation no matter how
+K(t) varies. This is a uniqueness result for the ordinary
+classical initial-value problem.
+
+If the structural mode admits an independent quantum
+description on a valid positive-rank post-Planck branch,
+a different mechanism is possible: a time-dependent
+canonical normalization can mix positive and negative
+frequency vacuum modes, leading to a nonzero expected
+particle/mode occupation in the final basis.
+
+This is not a classical spontaneous source and does not
+remove the requirement for an initial quantum state.
+
+## 509. Exact canonically normalized oscillator
+
+For one real mode,
+ S_A = integral dt_c (a_J³ K_ell/4)
+                 [dot A²-omega_L² A²].
+
+Define the positive normalization
+  b(t_c)=a_J³ K_ell/2,
+  v=sqrt(b) A,
+  Gamma=dot b/b=3H_J+dot K_ell/K_ell.
+
+After an integration by parts the quadratic action becomes
+
+  S_v = integral dt_c 1/2 [
+          dot v² - Omega_v² v²],
+
+  Omega_v² =
+    omega_L² - (1/2) dot Gamma - (1/4)Gamma².
+
+This is an exact result of the reduced action.
+It is NOT evidence for a particular quantum state.
+
+When B→0 the variable v becomes degenerate and
+the quadratic canonical description loses validity.
+Therefore a positive initial B_floor is required
+for the concrete numerical diagnostic.
+No pre-Planck FLRW equation is assumed.
+
+## 510. Controlled local kinetic-ramp occupation experiment
+
+To separate kinetic-ramp production from uncomputed
+cosmological expansion, the experimental benchmark
+takes locally frozen Jordan a_J=1 and H_J=0,
+W=0, positive m_L and c_L², with
+
+  omega_k²=m_L²+c_L² k²,
+
+  K_ell(t) =
+   K_i exp[ln(K_f/K_i)u(t)],
+
+  u(t)=[1+exp(-t/tau)]^-1.
+
+The normalized canonical initial positive-frequency
+mode is
+
+  v_i=1/sqrt(2 omega_k),
+  dot v_i=-i sqrt(omega_k/2).
+
+The canonical equation is integrated through a
+finite smooth transition,
+
+  ddot v + Omega_v²(t)v=0.
+
+When dot K/K vanishes at the late endpoint,
+the mode can be decomposed into final
+positive/negative frequencies:
+
+  alpha_k=sqrt(omega_k/2)v_f
+             +i dot v_f/sqrt(2omega_k),
+
+  beta_k=sqrt(omega_k/2)v_f
+             -i dot v_f/sqrt(2omega_k).
+
+The mode occupation is
+
+  n_k=|beta_k|².
+
+The code verifies the canonical identity
+
+  |alpha_k|²-|beta_k|²=1
+
+and the independent late energy identity
+
+  E_final - omega_k/2 = omega_k n_k.
+
+For an unchanging K_i=K_f, n_k≈0, as required.
+
+For the same finite ratio K_f/K_i=5,
+a rapid but positive-frequency transition
+produces a nonzero mode occupation while a
+slow transition remains nearly adiabatic.
+
+These numbers measure the response of the
+chosen quantum oscillator to an input
+coefficient profile. They are not predicted
+relic abundances or proof of SDMC dark matter.
+
+## 511. Consequence for the primordial gravitational well
+
+The classical empty-branch source audit and
+quantum-occupation diagnostic are compatible:
+
+  Classical zero initial strain + homogeneous
+    positive-rank quadratic action -> zero.
+
+  Assumed initial positive-frequency vacuum
+    + nonadiabatic post-Planck K(t) -> possible
+    final nonzero canonical occupation.
+
+Thus the absence of a direct late material-to-L
+force does not logically exclude production of
+geometric quanta while the kinetic sector
+activates. But this conditional route is
+only meaningful if the canonical field remains
+physical after all ADM gauge and secondary
+constraints and if a valid initial vacuum
+can be specified near S_A≈1.
+
+The bare structural density rho_v,P=rho_P at S=1
+does not fix that vacuum, the transition rate,
+the physical UV cutoff or the spectrum n_k.
+
+A phenomenological CDM fraction may not be
+substituted for any missing normalization.
+
+## 512. Cold-like dilution and abundance remain separate
+
+A nonrelativistic structural excitation with
+physical mode energy approximately m_L could
+contribute a mean energy density of the form
+
+ rho_g(a_J) ~ a_J^-3
+      integral d³k/(2pi)³ omega_k n_k,
+
+only after the physical gauge-invariant modes,
+measure and renormalized stress have been
+established.
+
+The numerical single-mode occupation test does
+not evaluate this integral and does not determine
+the observed additional gravitational abundance.
+
+Even if an initial population exists, the
+effective perturbative sound speed and the
+Jordan Poisson/Weyl potentials must be calculated
+from the same full tensor/scalar action.
+The action-level oscillation condition is not
+a gravitational lensing result.
+
+## 513. The revised physical bottleneck
+
+The source investigation has isolated two
+routes with distinct unresolved requirements:
+
+Route A: occupied classical supporting geometry.
+Curvature and sigma can modulate preexisting
+geometric modes, but the primordial occupation
+and its normalization remain uncomputed.
+
+Route B: quantum creation during a finite
+post-Planck kinetic handoff.
+A positive-rank canonical EFT permits a
+nonzero Bogoliubov mode occupation from a
+nonadiabatic coefficient evolution, but its
+physical initial state, coefficient history,
+gauge constraints and UV cutoff remain to
+be derived from SDMC.
+
+Neither route establishes a permanent static
+relative-strain well sourced by M_u after W=0.
+Neither route establishes that the scalar or
+geometric fields reproduce CDM gravitational
+observables.
+
+The decisive next calculation requires a
+complete 4D supporting-space parent action
+and valid quantum/classical matching on the
+post-Planck S_A≈1 branch, followed by a
+self-consistent matter+radiation+scalar
+Einstein–Boltzmann evolution.
+
+Additional code:
+  sdmc/pg_canonical_handoff_occupation.py
+  tests/test_pg_canonical_handoff_occupation.py
