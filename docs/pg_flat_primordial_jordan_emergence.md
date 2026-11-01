@@ -133,6 +133,57 @@ Its structural local Ricci curvature may then inherit
 a nonzero local Jordan gravitational curvature.
 This is NOT an additional independent dark-matter mass.
 
+## 503.1. A flat initial supporting metric is not a force-free
+          configuration once the locking term activates
+
+The exact static trace gradient separates as
+
+  dE/dell = (K_ell omega0²/2) ell
+         + (C/3)(u+ell/3).
+
+The second term is the curvature-selector gradient.
+If the prethermal parent imposed structural flatness
+at the Jordan matching hypersurface, then q=u+ell/3=0
+and ell=-3u. Consequently
+
+  (dE/dell)_selector = 0,
+
+but for B>0 and u !=0,
+
+  (dE/dell)_restoring
+      =-(3/2)K_ell omega0²u !=0.
+
+This is the crucial additional link in the clue:
+*an exactly flat supporting spatial metric can
+carry a nonzero relative mismatch to a matter-curved
+Jordan spatial metric.* When the B-dependent
+restoring term turns on, this initially matched
+configuration is NOT generally at its new static
+equilibrium. The positive restoring term favors
+the locked relation ell=0; as it changes the
+relative strain, gamma develops the corresponding
+local curvature and approaches the Jordan curvature.
+
+The W selector RESISTS that developing curvature
+once q becomes nonzero; it is not itself the
+initial force at exactly q=0.
+
+At exact B=0, both gradients vanish in this
+specific reduced action. Thus the transition
+cannot be evolved from B=0 by dividing by B.
+The parent prethermal Hamiltonian must provide
+the physical initial matching and canonical
+data. A finite initial ell as a metric relation
+is not a separate propagating geometric particle
+or a derived positive geometric density.
+
+This is an admissible geometric way to understand
+the origin of L during emergence WITHOUT invoking
+primordial oscillations. A physical extra-force
+source independent of Jordan matter still has to
+be demonstrated by the total gravitational
+lapse, shift, metric and scalar constraints.
+
 ## 504. What activation work means
 
 At fixed mode variables u and ell, the quadratic
