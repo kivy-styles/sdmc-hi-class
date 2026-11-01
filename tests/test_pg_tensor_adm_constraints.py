@@ -84,7 +84,7 @@ class TensorADMSource(unittest.TestCase):
                   np.abs(m["commutator_divergence"]))),0.,places=12)
         # independent spectral derivative of analytic cos/sin initial field
         ex=self.c.bf2/3*self.vel*(-.12*np.sin(2*self.x))
-        ey=self.c.bf2/3*self.vel*(.18*np.cos(3*self.y))
+        ey=self.c.bf2/3*self.vel*(.108*np.cos(3*self.y))
         self.assertTrue(np.allclose(m["momentum"][0],ex,atol=1e-11))
         self.assertTrue(np.allclose(m["momentum"][1],ey,atol=1e-11))
 
