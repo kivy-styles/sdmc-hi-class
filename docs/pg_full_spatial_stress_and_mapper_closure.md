@@ -395,3 +395,124 @@ derive all Euler-Lagrange/ADM constraints on a nonzero
 inhomogeneous background, and then compute physical
 mu(k,a), Sigma(k,a) and cosmological likelihoods
 without imported CDM normalization.
+
+
+## 475. Full restricted ADM lapse and shift sources for traceless strain
+
+The earlier ADM energy/momentum calculation retained only the
+scalar trace ell. To include the existing traceless relative strain
+Q^i_j consistently with the spatial diffeomorphism generator,
+take the mixed tensor
+
+  L^i_j=ell delta^i_j/3+Q^i_j
+
+and its ADM normal derivative
+
+  D_n L = [dot L - Lie_{Nshift} L]/N_ADM.
+
+For any (1,1) spatial tensor,
+
+  (Lie_N L)^i_j =
+     N^k partial_k L^i_j
+     -L^k_j partial_k N^i
+     +L^i_k partial_j N^k.
+
+The derivative terms of the shift are essential when the
+relative strain does not commute with its time derivative.
+The quadratic kinetic operator is
+
+  (B f_L²/2)Tr(D_n L D_n L).
+
+At N=1, N^i=0 and flat homogeneous Jordan h,
+ADM lapse variation gives
+
+  rho_g,red =
+   (B f_L²/2)Tr(dot L²)
+   +(B f_L²m_L²/2)Tr(L²)
+   +(B f_L²c_L²/(2a_J²))sum_i Tr[(partial_i L)²]
+   +(W eta_K/2)Riem[gamma]².
+
+This contains both ell and traceless Q, with no CDM
+fluid or phenomenological omega_c normalization.
+
+The shift variation, after integration by parts in a
+periodic comoving Jordan volume, gives
+
+  j_i,red =
+    B f_L² { Tr(dot L partial_i L)
+          -partial_j([dot L,L]^j_i) },
+
+  [dot L,L]=dot L L-L dot L.
+
+The commutator contribution is a geometric momentum
+term of the rotating/noncommuting traceless relative
+strain. It is absent for pure scalar trace L∝I and
+for simultaneously diagonalizable L and dot L.
+
+This is the correct Lie-transport contribution of the
+specified mixed-tensor supporting kinetic operator
+on the flat spatial reference slice. The complete
+spacetime action may generate additional ADM momentum
+terms involving the structural mapper, moving
+orthonormal frame and rolling F/G2/G3 sector.
+
+The code evaluates the exact lapse and shift dependence
+of the restricted supporting tensor kinetic action
+under arbitrary periodic test profiles and verifies
+the analytical sources against direct finite
+differences of the off-shell ADM action.
+
+The covariance test includes a configuration where
+Tr(dot L partial_iL) is insufficient: rotating
+traceless modes give a nonzero local
+partial_j[dot L,L]^j_i contribution. Ignoring this
+term would fail the ADM shift constraint.
+
+## 476. What the complete calculation establishes
+
+The action-derived supporting-space contributions
+on the defined nonlinear spatial completion now comprise:
+ - positive local lapse source rho_g,red for excited
+   trace and traceless metric configurations;
+ - nonzero local canonical AND commutator momentum
+   from the ADM shift constraint;
+ - six independent spatial-metric stress projections
+   including inhomogeneous shear;
+ - nonlinear supporting curvature stress at
+   quadratic order in an excited background;
+ - an exact restricted stress/exchange accounting
+   identity that separates pressure and transfer;
+ - a clear condition that energy proportional to
+   a_J^-3 alone does NOT imply separately conserved dust.
+
+The general linearized Einstein-Boltzmann evolution
+for Planck, BAO and weak lensing is still NOT closed:
+the parent 4D geometric action, physical cosmic
+background with nonzero structural excitation,
+observable Jordan lapse/shift and the full matter
+perturbation hierarchy must be solved together.
+
+## 477. The remaining physical normalization question
+
+The action coefficients and geometric shell relations
+do not fix the stochastic primordial structural
+excitation amplitudes uniquely. If the physical
+supporting source exists as an independent gravitational
+sector, the cosmological mode-energy spectrum must be
+derived from boundary conditions or an initial state,
+not from inserted CDM gravitational abundance.
+
+The exact Planck boundary S=1 has bare
+rho_v,P=rho_P, while the classical active rho_X=0
+on that boundary. It does not by itself provide
+the full set of normalized initial L^i_j mode
+correlators for post-Planck classical evolution.
+
+The material inventory M_u, its internal spatial
+redistribution M_inferred and the geometric
+supporting-space stress therefore remain distinct
+until a complete field configuration links them.
+
+Additional core implementation:
+  sdmc/pg_tensor_adm_constraints.py
+  tests/test_pg_tensor_adm_constraints.py
