@@ -1,0 +1,66 @@
+name: SDMC flatness selector and surviving structural-gravity modes
+
+on:
+  push:
+    branches: [sdmc-flatness-pg-handoff-20261101]
+    paths:
+      - 'sdmc/pg_flatness_handoff.py'
+      - 'tests/test_pg_flatness_handoff.py'
+      - 'docs/pg_flatness_structural_gravity_bridge.md'
+      - '.github/workflows/sdmc_pg_flatness_handoff.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flatness-surviving-geometry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numeric dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Verify flatness selection and geometric-survival conditions
+        run: |
+          python3 -m py_compile sdmc/pg_flatness_handoff.py tests/test_pg_flatness_handoff.py
+          python3 -m unittest discover -s tests -p 'test_pg_flatness_handoff.py' -v
+      - name: Run earlier supporting-space action regression suite
+        run: |
+          python3 -m unittest discover -s tests -p 'test_pg_full_spatial_stress.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_mapper_pressure_accounting.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_tensor_adm_constraints.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_nonlinear_conformal_stress.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_inhomogeneous_adm_source.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_adiabatic_dilution.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_coupled_rolling_g3_trace.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_rolling_g3_adm.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_retarded_jordan_response.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_jordan_qs_covariant.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Export illustrative flatness handoff and mode-energy diagnostics
+        run: |
+          mkdir -p output/pg_flatness
+          python3 -m sdmc.pg_flatness_handoff | tee output/pg_flatness/flatness_geometric_survival.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          f=Path("output/pg_flatness/flatness_geometric_survival.json")
+          d=json.loads(f.read_text())
+          assert d["runs"]["mass_only"]["energy_ratio"]>0
+          assert d["runs"]["transient_selector"]["curvature_energy_fraction_final"]<.002
+          assert d["occupancy_inversion"]["flat_selector_off"]
+          assert d["occupancy_inversion"]["empirical_abundance_fitted_or_predicted"] is False
+          assert all(t["flat_energy_minimum"] for t in d["homogeneous_curvature_selector"])
+          assert "actual dynamical selection" in str(d["missing"])
+          print("SDMC_FLATNESS_HANDOFF_GEOMETRIC_SURVIVAL_CONDITIONAL_CHECK_PASSED")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-flatness-pg-handoff-diagnostics
+          path: output/pg_flatness/
+          if-no-files-found: warn
