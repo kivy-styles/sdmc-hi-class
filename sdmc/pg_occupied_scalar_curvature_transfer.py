@@ -214,6 +214,46 @@ def centered_fd_variation(e,epsilon=1e-3,n=501):
       requires_nonzero_background_occupation=True,
       source_is_prescribed_not_physical_constraint=True)
 
+def occupied_mode_continuity(e,x,A,Ax,s=0.,sx=0.):
+    """Exact e-fold energy continuity identity for variable K(sigma).
+
+    The physical *isotropic gradient* pressure in this reduced cosine
+    oscillator is
+      P=K/4[H² Ax²-m² A²-(G/3) A²],
+    whereas the scalar transfer pressure factor is
+      Pstar=K/4[H² Ax²-(m²+G) A²].
+    For gamma=3-h+Kx/K, the exact W=0 oscillator obeys:
+      E_x+3(E+P) = -(K_x/K)*Pstar.
+
+    This algebra holds at every x even if sigma is time-dependent.
+    A WKB mass oscillator with <Pstar>≈0 consequently has negligible
+    averaged exchange from slow running K, despite its instantaneous
+    nonzero scalar coupling.
+
+    Input A,Ax is the exact solution of the corresponding background
+    with specified scalar perturbation s and sx; all fields and metrics
+    use the same Jordan x-coordinate.
+    """
+    H=Hubble(e,x)
+    sigma=e.sigma_bar_x*x+s
+    kappa=e.beta*(e.sigma_bar_x+sx)
+    K=e.K0*np.exp(e.beta*sigma)
+    G=e.c_L2*e.k_L**2*np.exp(-2*x)
+    omg2=e.m_L2+G
+    Axx=-(3-e.h+kappa)*Ax-omg2/H**2*A
+    E=K/4*(H**2*Ax**2+omg2*A**2)
+    P=K/4*(H**2*Ax**2-e.m_L2*A**2-G*A**2/3)
+    Pstar=K/4*(H**2*Ax**2-omg2*A**2)
+    # Independent differentiation of E, not using continuity formula.
+    Hprime=-e.h*H
+    E_x=kappa*E+K/4*(2*H*Hprime*Ax**2+
+                     2*H**2*Ax*Axx-2*G*A**2+2*omg2*A*Ax)
+    J_k=-kappa*Pstar
+    return dict(E=float(E),P=float(P),Pstar=float(Pstar),
+      E_x=float(E_x),J_over_H=float(J_k),
+      balance_residual=float(E_x+3*(E+P)-J_k),
+      K_log_derivative=float(kappa))
+
 def response_comparison():
     occupied=OccupiedWell()
     empty=OccupiedWell(initial_strain=0.,initial_strain_x=0.)
@@ -235,6 +275,7 @@ def response_comparison():
       Ricci_zero=stats(no_curvature),
       Fsigma_zero=stats(no_scalar_coupling),
       finite_difference_crosscheck=centered_fd_variation(occupied,n=301),
+      continuity_check=occupied_mode_continuity(occupied,x=.1,A=.08,Ax=-.2),
       key_result="F_sigma deltaR can modulate existing L through K_sigma; it cannot excite a zero-amplitude L through the homogeneous quadratic action",
       physical_constraints_not_yet_solved=[
         "derive deltaR_J and sigma from full rolling F/G2/G3 matter ADM constraints",
