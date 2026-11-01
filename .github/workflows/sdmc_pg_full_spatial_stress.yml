@@ -1,0 +1,69 @@
+name: SDMC full spatial stress and mapper dust closure
+
+on:
+  push:
+    branches: [sdmc-pg-full-spatial-stress-20261101]
+    paths:
+      - 'sdmc/pg_full_spatial_stress.py'
+      - 'sdmc/pg_mapper_pressure_accounting.py'
+      - 'tests/test_pg_full_spatial_stress.py'
+      - 'tests/test_pg_mapper_pressure_accounting.py'
+      - 'docs/pg_full_spatial_stress_and_mapper_closure.md'
+      - '.github/workflows/sdmc_pg_full_spatial_stress.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-spatial-metric:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install scientific Python dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Compile and validate nonlinear 3D spatial stress
+        run: |
+          python3 -m py_compile sdmc/pg_full_spatial_stress.py sdmc/pg_mapper_pressure_accounting.py tests/test_pg_full_spatial_stress.py tests/test_pg_mapper_pressure_accounting.py
+          python3 -m unittest discover -s tests -p 'test_pg_full_spatial_stress.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_mapper_pressure_accounting.py' -v
+      - name: Run complete earlier SDMC geometric perturbation regression
+        run: |
+          python3 -m unittest discover -s tests -p 'test_pg_nonlinear_conformal_stress.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_inhomogeneous_adm_source.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_adiabatic_dilution.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_coupled_rolling_g3_trace.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_rolling_g3_adm.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_retarded_jordan_response.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_jordan_qs_covariant.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_constraint_schur.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_energy_exchange*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_quadratic_source*.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_linear_perturbations.py' -v
+      - name: Write nonlinear stress and two-restricted-pressure diagnostics
+        run: |
+          mkdir -p output/pg_full_spatial_stress
+          python3 -m sdmc.pg_full_spatial_stress | tee output/pg_full_spatial_stress/traceless_nonlinear_spatial_stress.json
+          python3 -m sdmc.pg_mapper_pressure_accounting | tee output/pg_full_spatial_stress/mapper_vs_ruler_ward.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          folder=Path("output/pg_full_spatial_stress")
+          s=json.loads((folder/"traceless_nonlinear_spatial_stress.json").read_text())
+          d=json.loads((folder/"mapper_vs_ruler_ward.json").read_text())
+          assert abs(s["pressure_check_error"])<1e-6
+          assert s["anisotropic_diagonal_spread"]>0
+          assert s["energy"]>0
+          assert abs(d["wkb_cases"]["curvature_matter"]["P_over_E"]-2/3)<1e-12
+          assert abs(d["wkb_cases"]["curvature_matter"]["J_over_H_E"]+1)<1e-12
+          assert abs(d["wkb_cases"]["curvature_frequency_compensated"]["P_over_E"]-2/3)<1e-12
+          assert abs(d["wkb_cases"]["curvature_frequency_compensated"]["J_over_H_E"]-2)<1e-12
+          print("SDMC_NONLINEAR_SPATIAL_STRESS_AND_MAPPER_WARD_VERIFIED")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-full-spatial-stress-and-ward
+          path: output/pg_full_spatial_stress/
+          if-no-files-found: warn
