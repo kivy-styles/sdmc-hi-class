@@ -178,8 +178,13 @@ a heavy field carrying a coherently oscillating population.
 The module numerically integrates two orthogonal phases
 of the same existing structural trace mode and compares
 their average energy, envelope and adiabatic invariant.
-Both the W=0 mass-restoring baseline and an illustrative
-transient W pulse are checked.
+The W=0 mass-restoring baseline, an illustrative transient
+W pulse in a matter-like scaling, and a second pulse on the
+radiation tracker p_v=2, H_J proportional to a_J^-2,
+are checked. The radiation tracker better matches the
+manuscript's placement of thermal/Jordan branch formation.
+None of these coefficient profiles is an accepted background
+history; the simulations test mathematical compatibility only.
 
 None of this predicts the actual primordial
 L_ij occupation population.
