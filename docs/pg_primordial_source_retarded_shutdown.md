@@ -83,6 +83,30 @@ A preexisting excited trace can have nonzero dynamic energy
 during subsequent expansion, but its equilibrium is L=0.
 This is not yet persistence of a stationary *primordial well*.
 
+A critical geometric distinction: W->0 removes the
+curvature-SELECTOR ENERGY and the source of the RELATIVE
+strain ell; it does NOT erase the ordinary curved Jordan metric.
+
+Even with exactly L=0, the two metrics are locked as
+  gamma_ij=M² h_ij.
+In Newtonian gauge a spatial Jordan potential Phi_J and
+local mapper fluctuation m_k give
+  q_k=m_k-Phi_J+ell_k/3.
+For a Fourier mode, Manuscript B Eq (102.5) gives
+  delta R_s(k)=4 k² q_k/a_s².
+
+Hence when W=0, ell_eq=0, but u=m-Phi_J !=0,
+  delta R_s(k)=4 k² u/a_s² !=0,
+  E_selector=0.
+
+A primordial gravitational well carried by the ordinary
+Jordan matter/metric sector can therefore persist under
+exact relative locking. The above source-shutdown result
+rules out a *separate static relative-strain well*
+driven by THIS curvature operator after W=0;
+it does not rule out ordinary Jordan gravitational
+wells or source effects from the complete action.
+
 The k=0 mode cannot be driven by this curvature operator
 even when W>0, because C_k proportional to k^4.
 This restricts claims about homogeneous "primordial wells"
@@ -100,7 +124,9 @@ primordial well:
      quadratic trace operator.
 
 The present accepted reduced source supports none of these
-as a proven late cosmological completion.
+as a proven independent late geometric mass component.
+In particular, the locked Jordan gravitational well can
+exist without a nonzero independent L source.
 
 ## 487. Retarded memory and the adiabatic/nonadiabatic split
 
