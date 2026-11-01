@@ -4,7 +4,8 @@ import numpy as np
 from sdmc.pg_primordial_well_retarded import (
   PrimordialWell,material_fraction,material_ledger,
   coefficients,static_minimum,driven_acceleration,evolve,
-  followup_free_tail,amplitude_curvature_source,response_memory_demo)
+  followup_free_tail,amplitude_curvature_source,
+  locked_jordan_well_curvature,response_memory_demo)
 
 class PrimordialWellRetarded(unittest.TestCase):
     @classmethod
@@ -146,6 +147,24 @@ class PrimordialWellRetarded(unittest.TestCase):
         self.assertGreater(abs(b["static_ell"]),abs(a["static_ell"]))
         self.assertLess(b["static_q"],a["static_q"])
 
+    def test_locked_structural_metric_inherits_nonzero_jordan_well_after_W_off(self):
+        # L=0 and W=0 do not imply gamma has no spatial curvature.
+        # For Newtonian-gauge u=m-Phi, q=u+ell/3 remains nonzero.
+        r=locked_jordan_well_curvature(self.e,.7)
+        self.assertTrue(r["locked_strain_zero"])
+        self.assertTrue(r["has_local_structural_curvature"])
+        self.assertNotEqual(r["structural_ricci_mode"],0.)
+        self.assertEqual(r["selector_energy"],0.)
+        self.assertEqual(r["W"],0.)
+
+    def test_relative_mode_still_changes_curvature_but_not_selector_energy_when_W_off(self):
+        locked=locked_jordan_well_curvature(self.e,.7,ell_override=0.)
+        excited=locked_jordan_well_curvature(self.e,.7,ell_override=.03)
+        self.assertNotEqual(locked["structural_ricci_mode"],
+                            excited["structural_ricci_mode"])
+        self.assertEqual(locked["selector_energy"],0.)
+        self.assertEqual(excited["selector_energy"],0.)
+
     def test_initial_free_excitation_is_separate_from_forcing(self):
         excited=evolve(self.e,excited=True,n=200)
         plain=evolve(self.e,excited=False,n=200)
@@ -190,6 +209,7 @@ class PrimordialWellRetarded(unittest.TestCase):
         self.assertEqual(res["final"]["W"],0.)
         self.assertGreater(res["max_ell"],0.)
         self.assertGreater(res["final"]["energy"],0.)
+        self.assertTrue(res["locked_jordan_well_after_W_off"]["has_local_structural_curvature"])
 
     def test_invalid_conditions(self):
         with self.assertRaises(ValueError):
