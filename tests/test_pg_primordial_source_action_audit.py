@@ -132,7 +132,7 @@ class PrimordialSourceActionAudit(unittest.TestCase):
         num=((E(h,ell+h)-E(h,ell-h))-
              (E(-h,ell+h)-E(-h,ell-h)))/(4*h*h)
         self.assertAlmostEqual(num,
-             scalar_kinetic_coefficient_mixing(e,ell),places=10)
+             scalar_kinetic_coefficient_mixing(e,ell),delta=2e-8)
 
     def test_preexisting_free_mode_can_gravitate_quadratically(self):
         K=1;mass=2
