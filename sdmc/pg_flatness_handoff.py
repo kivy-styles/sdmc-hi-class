@@ -164,6 +164,26 @@ def formal_flatness(e,x,kappa_values=(-1,0,1)):
       flat_energy_minimum=all(v>=gaps["0"] for v in gaps.values()),
       homogeneous_κ_time_evolution_not_derived=True)
 
+
+def mature_FLRW_curvature(kappa,e,x):
+    """Fixed-index FLRW curvature diagnostic, no κ branch transition.
+
+    Omega_K=-κ/(a_J² H_J²); q_J=h-1 for H_J~a_J^-h.
+    Hence dln|Omega_K|/dln a_J = 2q_J for κ != 0.
+    """
+    v=e.values(x)
+    return dict(kappa=kappa,x=x,
+        Omega_K=float(-kappa/(v["a"]**2*v["H"]**2)),
+        q_J=e.H_power-1,
+        exponent=2*(e.H_power-1),
+        flat_exact_if_kappa_zero=kappa==0)
+
+def occupied_trace_energy(K,m,A_peak):
+    """Space+time averaged canonical trace cosine energy."""
+    if not np.isfinite([K,m,A_peak]).all() or K<=0 or m<=0:
+        raise ValueError("K,m>0 and finite amplitude")
+    return K*m*m*A_peak*A_peak/4
+
 def amplitude_for_fraction(f,F,H,K,m):
     """Required *occupied mode* peak amplitude, not abundance prediction.
 
