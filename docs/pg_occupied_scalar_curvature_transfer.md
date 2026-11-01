@@ -536,3 +536,29 @@ potential evolution and photon-baryon forcing.
 
 No full Planck or lensing likelihood is claimed
 for the illustrative source and quench calculations.
+
+
+## 515. Fourier/gauge restriction on the reduced modulation experiment
+
+The source pulse is a TIME-ONLY envelope in the local
+mode experiment. The mode wavenumber k_sigma appears
+in the illustrative scalar oscillator frequency, but
+the numerical system does not solve a spatial
+convolution of an inhomogeneous delta sigma_k(x)
+with an independent ell_q(x). In a full cosmological
+perturbation theory, their product generally couples
+different spatial Fourier modes and the gradients of
+K(sigma) also contribute to the spatial field equation.
+
+Consequently the correct status is a local
+parametric-response demonstration, not a
+gauge-invariant k-by-k Poisson or lensing kernel.
+The scalar response also omits feedback of
+the excited strain stress into sigma, lapse,
+shift and the Jordan metric. This feedback is
+essential for a physical energy-transfer claim.
+
+The numerical exact Ward identity checks the
+specified reduced mode action, not the completed
+rolling Horndeski fluid or spatially varying
+tensor-metric stress.
