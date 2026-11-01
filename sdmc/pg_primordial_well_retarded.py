@@ -215,9 +215,9 @@ def locked_jordan_well_curvature(e,x,ell_override=None):
     return dict(q=q,structural_ricci_mode=4*e.k**2*q/c["a_s"]**2,
           selector_energy=.5*c["C"]*q*q,
           relative_strain=ell,
-          locked_strain_zero=ell==0,
+          locked_strain_zero=bool(ell==0),
           W=c["W"],
-          has_local_structural_curvature=abs(4*e.k**2*q/c["a_s"]**2)>0)
+          has_local_structural_curvature=bool(abs(4*e.k**2*q/c["a_s"]**2)>0))
 
 def amplitude_curvature_source(e,x):
     """The effective curvature mismatch kernel exactly vanishes with W."""
