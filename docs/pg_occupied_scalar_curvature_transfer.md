@@ -489,3 +489,50 @@ Einstein–Boltzmann evolution.
 Additional code:
   sdmc/pg_canonical_handoff_occupation.py
   tests/test_pg_canonical_handoff_occupation.py
+
+
+## 514. Structural energy bookkeeping and the bare/active split
+
+A time-dependent K_ell is a background source of canonical
+oscillator work, not a spontaneous creation of physical
+energy from nothing. The full scalar-structural action
+must include the backreaction of the produced mode
+population on the field that controls B f_L², including
+the scalar equation and the Jordan Hamiltonian constraint.
+
+If the occupied geometry ultimately forms a separately
+conserved cold-like source in a physical FLRW solution,
+
+  rho_g=Gamma_g rho_v,
+  rho_v=rho_P S^-2,
+  p_v=d ln S/d ln a_J,
+
+then exact dustlike dilution imposes
+
+  rho_g'=-3rho_g,
+  Gamma_g'=(2p_v-3)Gamma_g,
+
+where prime means d/dln a_J.
+During ideal radiation structural tracking p_v=2,
+Gamma_g proportional to a_J; during matter tracking
+p_v=3/2, Gamma_g is constant; during mature coasting
+p_v=1, Gamma_g proportional to a_J^-1.
+
+This is an IDENTITY, not a primordial abundance
+prediction. A kinetic quench can establish a
+nonzero single-mode n_k under assumed quantum initial
+conditions, but cannot by itself supply the
+normalization of Gamma_g, the full renormalized
+three-dimensional spectrum or its physical pressure
+and metric response.
+
+To achieve ordinary matter/radiation equality near
+the comparison z~3466 instead of a baryon-only
+z~527 under the same reference radiation history,
+the geometric population must be present and
+effectively cold sufficiently early. The physical
+acoustic peaks additionally require the correct
+potential evolution and photon-baryon forcing.
+
+No full Planck or lensing likelihood is claimed
+for the illustrative source and quench calculations.
