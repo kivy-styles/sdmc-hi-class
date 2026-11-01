@@ -76,6 +76,30 @@ def source_and_hessian(e,B,ell,u=None):
        H_u_ell=c["C"]/3,
        selector_source=-c["C"]*v/3,
        physical_matter_ell_source_direct=0.)
+def split_strain_forces(e,B,ell,u=None):
+    """Exact gradient of static E divided into B-restoring and W-selector.
+
+    If an independent initial structural-flat condition gives
+      ell=-3u,  q=u+ell/3=0,
+    then curvature-selector gradient is zero, BUT
+      dE/dell = B fL² omega0² ell/6
+    is generally nonzero for B>0. The restoring operator drives
+    relative strain toward L=0; this makes gamma inherit local
+    Jordan curvature as the handoff proceeds.
+
+    This is a static force balance, NOT a regular B=0 dynamics or
+    proof of a globally flatness-selecting parent theory.
+    """
+    c=coefficient(e,B)
+    v=e.u if u is None else u
+    q=v+ell/3
+    mr=c["K"]*e.omega0_sq*ell/2
+    cr=c["C"]*q/3
+    return dict(q=q,restoring_gradient=mr,
+        curvature_selector_gradient=cr,
+        total_gradient=mr+cr,
+        no_force_from_selector_when_q_zero=bool(abs(q)<1e-13))
+
 def gamma_curvature_mode(e,ell,u=None):
     v=e.u if u is None else u
     q=v+ell/3
@@ -157,7 +181,8 @@ def diagnostic():
        scope="candidate SDMC B=0 Jordan emergence: analytic singular rank and geometrical flat-state matching",
        material_gravitates_through_Jordan_u_not_inserted_direct_L_source=True,
        structural_flat_initial=dict(u=e.u,ell=flat,
-                  structural_ricci=gamma_curvature_mode(e,flat)["delta_R3"]),
+                  structural_ricci=gamma_curvature_mode(e,flat)["delta_R3"],
+                  restoring_vs_selector_at_B0p1=split_strain_forces(e,.1,flat)),
        formal_Bzero=constraint_rank_check(e,0),
        formal_right_limit=right_limit_B_zero(e),
        activation_work_at_flat_initial=[
