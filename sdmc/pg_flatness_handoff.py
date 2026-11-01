@@ -214,8 +214,10 @@ def results():
     # These are illustrative post-Planck handoff profiles, NOT a prediction.
     m=Handoff(k=.05,W_peak=0.)
     with_selector=Handoff(k=.30,W_peak=.20)
+    radiation_handoff=Handoff(k=.30,W_peak=.20,p_v=2.,H_power=2.)
     runs={}
-    for name,e in [("mass_only",m),("transient_selector",with_selector)]:
+    for name,e in [("mass_only",m),("transient_selector",with_selector),
+                   ("radiation_handoff",radiation_handoff)]:
         d=two_phase(e)
         j=-1
         runs[name]=dict(x_start=float(d["x"][0]),x_end=float(d["x"][-1]),
