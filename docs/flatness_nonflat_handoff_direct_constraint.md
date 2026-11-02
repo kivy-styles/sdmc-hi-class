@@ -219,7 +219,85 @@ minimum alone. Need full UV lapse+spatial variation,
 unambiguous B,W and matter-bath functions, and independent
 initial data or boundary selection.
 
-## 6. Test and reproducibility
+## 6. Direct SDMC curvature residual from thermal handoff variables
+
+The existing early SDMC variable set yields a more direct
+observable-curvature identity without inventing a new Ck factor.
+
+Use the same effective density convention as the manuscript's
+homogeneous Jordan constraint (Manuscript B Section 109):
+
+  3F[H_J²+K_J/(a_J²)] =
+       rho_X+rho_r+rho_b+rho_g
+
+  rho_v=rho_P/S², rho_X=chi rho_v,
+  f=rho_X/(rho_X+rho_r),
+  beta_b=rho_b/rho_v,
+  Gamma_g=rho_g/rho_v.
+
+The source sum is
+   rho_X+rho_r+rho_b+rho_g
+     =rho_v[chi/f+beta_b+Gamma_g].
+
+The structural clock is
+  H_J=N/(p t_P S),
+  rho_P t_P²=1/G.
+
+Defining the *physical* Jordan curvature fraction, independently
+of any assumed primordial K value,
+
+  Omega_k,J= -K_J/(a_J² H_J²),
+
+we obtain the exact algebraic constraint identity
+
+  Omega_k,J =
+      1 - p²[chi/f+beta_b+Gamma_g]/(3G F N²).
+
+This answers part of the question: IF the FULL microphysical
+nonflat handoff independently predicts (N,p,chi,f,F,Gamma_g,beta_b),
+then the actual observable fractional curvature is calculable
+at the Jordan emergence epoch without adopting an arbitrary
+Omega_k,R,P or Ck. It is a constraint observable.
+
+But the archived handoff functions chi/f and N were previously
+constructed on an exactly FLAT reference background, where
+  chi/f+beta_b+Gamma_g=3GF N²/p².
+Inserting those archived fitted values is therefore NOT an
+independent derivation of nonzero spatial curvature.
+
+For the archived radiation endpoint:
+  N=3.41350846, p=2, f=.01,
+  chi=0.003477 (rounded), GF=1/(8pi),
+  beta_b=Gamma_g=0 (illustrative).
+
+Then
+  3GF N²/p²=0.34771495577581013,
+  chi/f=0.3477000000000000,
+  Omega_k,J=0.00004301159775177.
+
+The exact flat-reference chi to this precision is
+  chi_flat=f*(3GF N²/p²)
+          =0.0034771495577581015,
+and inserting chi_flat gives Omega_k,J≈0.
+
+The 4.30e-5 residual is therefore mostly finite-digit
+rounding of an earlier flat solution. It MUST NOT be reported
+as a predicted physical residual curvature or a new CMB fit.
+
+One additional observation: the constraint measures only the
+sum chi/f+beta_b+Gamma_g. It cannot uniquely establish which
+source sector generated a small nonzero curvature. Independent
+microphysical equations are required, and the UV curvature
+contribution can itself depend nonlinearly on K.
+
+A complete dynamical closure requires nonflat evolution of
+F(sigma), sigma, its kinetic and braiding functions, the
+radiation source J and the structural spatial action, *without*
+refitting the solution to a flat endpoint. Only then can the
+resulting Omega_k be propagated to present and compared with
+CMB+BAO or another near-flatness likelihood.
+
+## 7. Test and reproducibility
 
 Module: sdmc/flatness_nonflat_handoff.py
 Suite:  tests/test_flatness_nonflat_handoff.py
