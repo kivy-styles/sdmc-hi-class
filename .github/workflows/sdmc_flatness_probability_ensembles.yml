@@ -6,6 +6,7 @@ on:
     paths:
       - 'sdmc/flatness_probability_ensembles.py'
       - 'tests/test_flatness_probability_ensembles.py'
+      - 'tests/test_flatness_nonflat_structural_slice.py'
       - 'docs/flatness_probability_ensembles_and_observable_limits.md'
       - '.github/workflows/sdmc_flatness_probability_ensembles.yml'
   workflow_dispatch:
