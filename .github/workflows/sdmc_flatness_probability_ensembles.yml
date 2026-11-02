@@ -1,0 +1,65 @@
+name: SDMC flatness probability conditional ensembles
+
+on:
+  push:
+    branches: [sdmc-flatness-probability-ensembles-20261102]
+    paths:
+      - 'sdmc/flatness_probability_ensembles.py'
+      - 'tests/test_flatness_probability_ensembles.py'
+      - 'docs/flatness_probability_ensembles_and_observable_limits.md'
+      - '.github/workflows/sdmc_flatness_probability_ensembles.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  primordial-priors-vs-nearflatness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numerical requirements
+        run: python3 -m pip install numpy scipy
+      - name: Test explicitly conditional probabilities and conserved-material ensembles
+        run: |
+          python3 -m py_compile sdmc/flatness_probability_ensembles.py tests/test_flatness_probability_ensembles.py
+          python3 -m unittest discover -s tests -p 'test_flatness_probability_ensembles.py' -v
+      - name: Preserve earlier curved geometry, redistribution and handoff tests
+        run: |
+          python3 -m unittest discover -s tests -p 'test_flatness_mass_poisson_curvature.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_nonflat_structural_slice.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_posthandoff_curvature.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_nonflat_handoff.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_suppression_audit.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_redistribution_spectrum.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_handoff_survivor.py' -v
+      - name: Save numerical conditional probability table with nonphysical-prior warning
+        run: |
+          mkdir -p results/flatness_probability
+          python3 -m sdmc.flatness_probability_ensembles | tee results/flatness_probability/conditional_nearflatness_and_material_smoothing.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('results/flatness_probability/conditional_nearflatness_and_material_smoothing.json').read_text())
+          assert not d['user_requested_probability_physically_determined']
+          a=d['conditional_Jordan_curvature'][0]
+          assert a['initial_uniform_half_range']==1.
+          assert a['threshold']==.004
+          assert abs(a['probability']-.04357521572455235)<1e-13
+          p=d['geometric_mass_ensembles']
+          u=p['independent_uniform']['estimates']['90pct_reduction']['probability']
+          c=p['clustered']['estimates']['90pct_reduction']['probability']
+          e=p['evenly_spaced']['estimates']['90pct_reduction']['probability']
+          assert .30<u<.40
+          assert c<.001
+          assert e>.995
+          assert 'not physical SDMC' in d['scope']
+          print('SDMC_PRIOR_DEPENDENT_CONDITIONAL_NEARFLATNESS_NOT_PHYSICAL_PROBABILITY_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-flatness-conditional-ensemble-statistics
+          path: results/flatness_probability/
+          if-no-files-found: warn
