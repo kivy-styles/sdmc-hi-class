@@ -1,0 +1,66 @@
+name: SDMC joint flatness and cold-like geometry prerequisite audit
+
+on:
+  push:
+    branches: [sdmc-flatness-joint-cold-necessary-20261102]
+    paths:
+      - 'sdmc/flatness_joint_cold_necessary.py'
+      - 'tests/test_flatness_joint_cold_necessary.py'
+      - 'docs/flatness_joint_gravity_prerequisites_and_limits.md'
+      - '.github/workflows/sdmc_flatness_joint_cold_necessary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  joint-prerequisite-probabilities:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numerical libraries
+        run: python3 -m pip install numpy scipy
+      - name: Validate same-configuration joint geometric criteria
+        run: |
+          python3 -m py_compile sdmc/flatness_joint_cold_necessary.py tests/test_flatness_joint_cold_necessary.py
+          python3 -m unittest discover -s tests -p 'test_flatness_joint_cold_necessary.py' -v
+      - name: Preserve probability, geometric and handoff regressions
+        run: |
+          python3 -m unittest discover -s tests -p 'test_flatness_probability_ensembles.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_mass_poisson_curvature.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_nonflat_structural_slice.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_posthandoff_curvature.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_nonflat_handoff.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_suppression_audit.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_redistribution_spectrum.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_handoff_survivor.py' -v
+      - name: Save joint proxy probabilities without physical completion claims
+        run: |
+          mkdir -p results/flatness_joint_cold
+          python3 -m sdmc.flatness_joint_cold_necessary | tee results/flatness_joint_cold/joint_geometric_prerequisites.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("results/flatness_joint_cold/joint_geometric_prerequisites.json").read_text())
+          p=d["joint_geometric_proxies"]
+          assert d["one_common_sample_measure_per_prior"]
+          assert not d["actual_physically_allowed_primordial_probability_known"]
+          a=p["independent_uniform"]["fractions"]
+          e=p["evenly_spaced"]["fractions"]
+          c=p["clustered"]["fractions"]
+          assert abs(a["flat"]["probability"]-.3437)<1e-12
+          assert abs(a["both"]["probability"]-.016)<1e-12
+          assert abs(e["flat"]["probability"]-1)<1e-12
+          assert abs(e["both"]["probability"]-.0216)<1e-12
+          assert c["both"]["count"]==0
+          assert not d["special_locked_conformal_Buchert_dust_sign"]["positive_geometric_dust_compatible"]
+          assert all(not r["physical_CDM_like_growth_and_lensing_computed"] for r in p.values())
+          print("SDMC_CONDITIONAL_FLAT_AND_WELLS_JOINT_CHECK_NOT_CDM_LIKELIHOOD_VERIFIED")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-conditional-flatness-local-wells-joint
+          path: results/flatness_joint_cold/
+          if-no-files-found: warn
