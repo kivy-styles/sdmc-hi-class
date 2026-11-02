@@ -5,7 +5,9 @@ on:
     branches: [sdmc-pg-redistribution-spectrum-20261102]
     paths:
       - 'sdmc/pg_redistribution_spectrum.py'
+      - 'sdmc/pg_handoff_survivor.py'
       - 'tests/test_pg_redistribution_spectrum.py'
+      - 'tests/test_pg_handoff_survivor.py'
       - 'docs/pg_redistribution_spectrum_and_selector_response.md'
       - '.github/workflows/sdmc_pg_redistribution_spectrum.yml'
   workflow_dispatch:
@@ -23,7 +25,8 @@ jobs:
         run: python3 -m pip install numpy scipy
       - name: Verify conserved mass stochastic spectrum and selector equilibrium
         run: |
-          python3 -m py_compile sdmc/pg_redistribution_spectrum.py tests/test_pg_redistribution_spectrum.py
+          python3 -m py_compile sdmc/pg_redistribution_spectrum.py tests/test_pg_redistribution_spectrum.py sdmc/pg_handoff_survivor.py tests/test_pg_handoff_survivor.py
+          python3 -m unittest discover -s tests -p 'test_pg_handoff_survivor.py' -v
           python3 -m unittest discover -s tests -p 'test_pg_redistribution_spectrum.py' -v
       - name: Keep all prior structural and scalar-tensor regressions
         run: |
@@ -45,6 +48,7 @@ jobs:
         run: |
           mkdir -p results/pg_redistribution
           python3 -m sdmc.pg_redistribution_spectrum | tee results/pg_redistribution/material_spectrum_and_selector.json
+          python3 -m sdmc.pg_handoff_survivor | tee results/pg_redistribution/decelerating_radiation_handoff_trace.json
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -54,7 +58,13 @@ jobs:
           assert 15.8 < r['clustered_two_point']['enhancement_over_iid'] < 16
           assert not r['spectrum']['observational_gravity_proven']
           assert r['required_activation']['radiation']['required_power_slope_if_W_T_constant']==7
-          print('SDMC_REDISTRIBUTION_SPECTRUM_STATIC_SELECTOR_VERIFIED')
+          q=json.loads(Path('results/pg_redistribution/decelerating_radiation_handoff_trace.json').read_text())
+          assert q['main']['free_tail_nonzero']
+          assert q['main']['late_comoving_action_spread_fraction']<.09
+          assert q['no_selector_max_abs_ell']==0
+          assert q['no_perturbation_max_abs_ell']==0
+          assert abs(q['double_source_free_energy_ratio']-4)<1e-9
+          print('SDMC_REDISTRIBUTION_AND_HANDOFF_SURVIVOR_VERIFIED')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
