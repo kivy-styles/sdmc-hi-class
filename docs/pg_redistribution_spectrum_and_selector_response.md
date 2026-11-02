@@ -282,3 +282,136 @@ The most decisive next derivation is a full matter–metric–
 structural scalar source about a nonzero excited state,
 with W allowed to switch off, without imposing the
 empirical cold-matter normalization.
+
+
+## 485. A temporary selector can leave a surviving free structural mode
+
+The quasi-static energy-minimization result E_min->0 as W->0
+concerns the instantaneous *forced stationary branch*. It
+DOES NOT state that every dynamically excited structural mode
+must disappear when the external source is switched off.
+
+For B>0, the full reduced scalar equation of Manuscript B
+Section 106 is
+
+  ddot ell + (3H_J+dot B/B)dot ell
+    +(omega0²+Lambda)ell=-3Lambda u(t),
+
+for constant f_L; more generally add 2dot f_L/f_L.
+
+Write its solution as
+
+  ell(t)=ell_h(t)
+          -3∫[ti,t] G_ret(t,t')Lambda(t')u(t')dt',
+
+where G_ret is the retarded Green function of the full
+time-dependent linear operator, with the prescribed
+initial homogeneous conditions. The source creates an
+excitation during the transition. When W and Lambda
+vanish afterward, this leaves free oscillatory data
+ell(t_end), dot ell(t_end), unless they accidentally cancel.
+
+An initial state ell=dot ell=0 can therefore develop a
+nonzero free trace even though the final forced static
+response is zero. The kinetic and mass restoring terms
+still store energy. This is a possible *transition imprint*,
+not a conserved separate material inventory or a claim
+about dark-matter abundance.
+
+## 486. Decelerating radiation-tracking numerical experiment
+
+To avoid imposing inflation or a de Sitter background,
+the test uses an explicitly decelerating Jordan radiation
+tracker with dimensionless time:
+
+  a_J(t)=(1+t/t0)^1/2,
+  H_J=1/[2(t+t0)],  q_J=1;
+  a_s=a_J^p, p=2,
+  a_s=(1+t/t0) (structural coasting).
+
+The assumed smooth activation is
+
+  B(t)=[1+exp(-(t-t_center)/width)]^-1,
+  W(t)=4B(1-B),
+
+with t0=5, t_center=5, width=.8,
+eta_K=.025, f_L=1, m_L²=1, c_L²=.1,
+comoving k=2, and a weak *externally specified* Jordan
+metric perturbation u(t)=.01/a_J(t).
+
+The final source is deliberately a weak-field subhorizon
+matter-motivated ansatz; a complete radiation-era Jordan
+metric, photon-baryon pressure and mapper perturbation
+are NOT solved here. The model begins at a finite time
+with B>0 and does not extrapolate the classical action
+to t<t_P or impose its equation at the singular B=0 limit.
+
+The initial mode ell(0)=dot ell(0)=0 is numerically
+integrated using the exact reduced time-dependent ODE.
+
+Results from the normalized example:
+ time t=2: ell ≃-0.02087;
+ time t=5: ell ≃-0.002665, W=1;
+ time t=10: ell ≃-0.0003188, W≃.00769;
+ time t=20: ell ≃+0.0005831, W≃2.88e-8;
+ time t=60: ell ≃-0.0002900, W≈0.
+
+The amplitude becomes small but is not immediately
+identically zero after selector deactivation. The free
+mode remains oscillatory and is damped by expansion.
+
+For the stable mass-dominated tail, the free energy is
+
+  E_free=K_l/2 [dot ell²+omega0² ell²],
+
+and the late-time comoving quantity E_free a_J³ is
+approximately constant in the adiabatic regime:
+
+  t=20: E_free a_J³ ≃6.89e-7;
+  t=30: E_free a_J³ ≃7.00e-7;
+  t=40: E_free a_J³ ≃6.81e-7;
+  t=50: E_free a_J³ ≃6.70e-7;
+  t=60: E_free a_J³ ≃6.77e-7.
+
+This demonstrates the expected conditional reduced
+oscillator behavior E_free~a_J^-3 while retaining
+radiation-like Jordan deceleration and structural coasting.
+
+Control tests:
+  - if the external perturbation u is zero, ell stays zero;
+  - if W=0 throughout, ell stays zero from zero initial data;
+  - doubling u doubles ell and quadruples free mode energy;
+  - after W->0, the forced static mode vanishes while the
+    dynamically excited free mode can remain.
+
+The example does NOT establish that physical cosmic
+Planck-to-radiation thermalization generates this u(t),
+that the surviving mode has the correct initial spectrum,
+or that this geometry changes the measurable Jordan
+gravitational potentials in the correct way.
+
+## 487. Implication for the primordial-well hypothesis
+
+The gravitational-well analogy now separates three elements:
+  1) material redistribution builds inhomogeneous Jordan sources;
+  2) structural–Jordan activation can excite trace modes during
+     handoff; and
+  3) a free stable mass-restoring mode can outlast that activation.
+
+Thus the absence of a *persistent forced curvature-selector source*
+does not rule out a *surviving primordial structural excitation*.
+This is compatible with the earlier Part III adiabatic result
+that mass-restoring geometric oscillations may dilute as a_J^-3.
+It does not prove that their averaged complete Jordan pressure
+vanishes, or that their gravitational potential growth and
+lensing reproduce the no-CDM observational requirements.
+
+The unresolved physical task is to derive the primordial mode
+spectrum and amplitudes from the genuine thermal/structural action,
+then re-solve the F/G2/G3 plus supporting-space and material
+perturbation constraints on the same background without any
+reintroduced CDM-normalized source.
+
+Additional implementation and numerical controls:
+  sdmc/pg_handoff_survivor.py
+  tests/test_pg_handoff_survivor.py
