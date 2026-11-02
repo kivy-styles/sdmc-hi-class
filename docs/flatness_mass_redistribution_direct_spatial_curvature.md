@@ -217,3 +217,95 @@ nonlinear proper-volume gradient identity,
 a strong-local/weak-average configuration,
 and a more compact distribution that
 INCREASES rather than decreases the mean.
+
+
+## 8. Remove the flat-reference assumption: exact non-flat S³ slice
+
+The periodic Poisson calculation assumed a flat reference
+Euclidean three-torus. This is appropriate for computing
+post-handoff *local inhomogeneous curvature* but cannot
+by itself establish how an originally non-flat universe
+became nearly flat.
+
+We therefore performed a second, independent, exact
+geometric calculation with an explicitly positively
+curved three-dimensional reference metric:
+
+  dbar s² = dchi²+sin²chi dOmega_2²,
+  Rbar3=+6,
+  0<=chi<=pi.
+
+Define the structural metric
+
+  gamma_ij=a_s² exp(2q(chi)) bar h_ij,
+  q(chi)=eps coschi.
+
+This is not a primordial SDMC initial-condition prediction;
+it is a non-flat metric family with explicit finite
+spatial deformation. The resulting exact curvature is
+
+  R3_s(chi)=exp(-2eps coschi)/a_s² *
+   [6+12eps coschi-2eps² sin²chi].
+
+Correct physical averaging using
+  dV_s=a_s³ exp(3q) sin²chi dchi dOmega_2
+gives
+
+  <R3_s>_V =
+      (1/a_s²)
+      [6 int exp(q) dVbar
+          + 2 int exp(q)|grad_bar q|² dVbar]
+       / [int exp(3q) dVbar] > 0.
+
+The gradient identity is obtained from integration
+by parts on the closed S³ manifold. Local R3 can
+change sign even while its physical mean stays
+strictly positive.
+
+For a_s=1, calculate:
+
+  eps=0: mean=6.000000, 0% reduction;
+  eps=.1: mean=5.955267, 0.75% reduction;
+  eps=.5: mean=5.021311, 16.31% reduction;
+  eps=1: mean=3.191283, 46.81% reduction;
+  eps=2: mean=.871078, 85.48% reduction;
+  eps=3: mean=.186632, 96.89% reduction;
+  eps=4: mean=.035172, 99.41% reduction;
+  eps=5: mean=.006137, 99.8977% reduction.
+
+This proves a **geometric existence** statement:
+a non-flat spatial manifold can have an extremely
+small physical *average intrinsic scalar curvature*
+compared with its original homogeneous reference
+while retaining a non-flat topology and high local
+curvature. It does not mean the effective homogeneous
+FLRW curvature label K has changed or that observable
+Omega_k has been made acceptably small.
+
+The substantial suppression at eps~3–5 requires
+large spatial metric variations e^(2q), beyond the
+small-perturbation regime. No action-derived dynamics,
+physical matter distribution, radiation transport,
+stability or global averaging constraints have been
+provided that generate these profiles.
+
+This is nevertheless an important control:
+we are no longer relying entirely on an initially flat
+coordinate background to check the mathematical
+possibility of small averaged curvature.
+
+The two tests must not be combined as one actual
+transition:
+ (i) conserved M_u redistributed through a periodic
+     Newtonian matter source on a flat reference;
+ (ii) non-flat positively curved S³ geometry with
+     prescribed structural deformation.
+
+The missing step is to solve the *same* physical
+Planck-to-radiation equations to derive both the
+material redistribution and the spatial deformation
+from common initial conditions, then evaluate its
+Jordan FLRW distance/expansion observables.
+
+Module: sdmc/flatness_nonflat_structural_slice.py
+Tests: tests/test_flatness_nonflat_structural_slice.py
