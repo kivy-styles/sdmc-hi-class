@@ -5,7 +5,8 @@ from scipy.integrate import simpson
 from sdmc.flatness_nonflat_handoff import (
  ClassicalTransfer,wx,gamma,transfer_rhs,classical_transfer,
  curved_classical_history,nonflat_restricted_constraint,
- constraint_at_x,archive_clock_check,diagnostic)
+ constraint_at_x,archive_clock_check,transition_curvature_residual,
+ endpoint_rounding_test,diagnostic)
 
 class NonflatJordanEmergence(unittest.TestCase):
     def setUp(self):
@@ -126,6 +127,46 @@ class NonflatJordanEmergence(unittest.TestCase):
         with self.assertRaises(ValueError):
             nonflat_restricted_constraint(F=0,H=1,E0=1,
                   W=1,eta=1,aJ=1,M=1)
+
+    def test_endpoint_constraint_from_N_p_chi_f_is_not_a_fitted_Ck(self):
+        d=endpoint_rounding_test()
+        self.assertAlmostEqual(
+             d["rounded"]["omega_k_J"],4.301159775177421e-5,
+             delta=5e-14)
+        self.assertAlmostEqual(d["exact_flat"]["omega_k_J"],0.,
+                               delta=1e-14)
+        self.assertFalse(d["rounded"]["independently_derived_curvature"])
+        self.assertAlmostEqual(d["flat_chi_required"],
+            .0034771495577581015,delta=1e-14)
+
+    def test_curvature_sign_follows_independent_source_residual(self):
+        GF=1/(8*np.pi)
+        N=3.41350846; p=2.; f=.01
+        flat=(3*GF*N*N/(p*p))*f
+        for relative_perturbation in (-.002,0,.002):
+            r=transition_curvature_residual(
+                 N,p,chi=flat*(1+relative_perturbation),
+                 f=f,GF=GF)
+            self.assertAlmostEqual(r["omega_k_J"],
+                        -relative_perturbation,delta=2e-14)
+
+    def test_same_omega_curvature_from_gamma_not_unique_microphysics(self):
+        GF=1/(8*np.pi);N=3.41350846;p=2;f=.01
+        flat=3*GF*N*N/p**2
+        chi=.003
+        gamma=flat-chi/f
+        a=transition_curvature_residual(N,p,chi,f,GF,gamma_g=gamma)
+        b=transition_curvature_residual(N,p,flat*f,f,GF)
+        self.assertAlmostEqual(a["omega_k_J"],b["omega_k_J"],delta=1e-14)
+        self.assertGreater(gamma,0)
+        # Thus metric curvature cannot by itself tell apart
+        # active scalar and supporting-source partitions.
+
+    def test_invalid_zero_radiation_fraction_rejected(self):
+        with self.assertRaises(ValueError):
+            transition_curvature_residual(3,2,.01,0,1)
+        with self.assertRaises(ValueError):
+            transition_curvature_residual(3,2,.01,1.01,1)
 
     def test_qualified_no_claim_of_genuine_primordial_selection(self):
         r=diagnostic()
