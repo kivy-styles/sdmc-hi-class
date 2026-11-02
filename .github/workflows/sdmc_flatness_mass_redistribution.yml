@@ -1,0 +1,58 @@
+name: SDMC post-handoff mass redistribution and actual structural curvature
+
+on:
+  push:
+    branches: [sdmc-flatness-mass-poisson-curvature-20261102]
+    paths:
+      - 'sdmc/flatness_mass_poisson_curvature.py'
+      - 'tests/test_flatness_mass_poisson_curvature.py'
+      - 'docs/flatness_mass_redistribution_direct_spatial_curvature.md'
+      - '.github/workflows/sdmc_flatness_mass_redistribution.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conserved-mass-curvature:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install scientific dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Test post-handoff periodic density and exact 3D structural curvature
+        run: |
+          python3 -m py_compile sdmc/flatness_mass_poisson_curvature.py tests/test_flatness_mass_poisson_curvature.py
+          python3 -m unittest discover -s tests -p 'test_flatness_mass_poisson_curvature.py' -v
+      - name: Preserve nonflat handoff and full post-handoff curvature baselines
+        run: |
+          python3 -m unittest discover -s tests -p 'test_flatness_posthandoff_curvature.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_nonflat_handoff.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_suppression_audit.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_redistribution_spectrum.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_handoff_survivor.py' -v
+      - name: Export mass-conserving curvature distribution
+        run: |
+          mkdir -p results/flatness_mass_distribution
+          python3 -m sdmc.flatness_mass_poisson_curvature | tee results/flatness_mass_distribution/posthandoff_mass_redistribution_curvature.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("results/flatness_mass_distribution/posthandoff_mass_redistribution_curvature.json").read_text())
+          a=d["moderate_redistribution"]
+          b=d["overly_compact_redistribution"]
+          assert abs(a["M_u_before"]-a["M_u_after"])<1e-13
+          assert abs(a["average_curvature_reduction_percent"]-75.2543194111)<.02
+          assert a["maximum_local_curvature_ratio"]>1
+          assert b["average_curvature_reduction_percent"]<0
+          assert a["after"]["poisson_linear_max_error"]<1e-12
+          assert not a["actual_planck_to_radiation_physics_solved"]
+          print("SDMC_MASS_CONSERVED_STRUCTURAL_CURVATURE_SUPPRESSION_AND_COUNTEREXAMPLE_VERIFIED")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-structural-curvature-from-conserved-mass
+          path: results/flatness_mass_distribution/
+          if-no-files-found: warn
