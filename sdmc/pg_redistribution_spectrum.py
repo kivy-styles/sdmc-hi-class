@@ -167,6 +167,35 @@ def correlated_positions(count,epsilon,rng):
         x-=(x+epsilon*np.sin(x)-z)/(1+epsilon*np.cos(x))
     return x
 
+def clustered_positions(num_groups,members,sigma,rng,length=2*np.pi):
+    """A genuine pair-correlated particle distribution.
+
+    Cluster centers are uniform in periodic 1D. Each group has
+    'members' equal-mass points with independent Gaussian offsets.
+    Marginal single-particle positions remain uniform: mean delta_k=0.
+    Within-group two-point Fourier correlations enhance mode power,
+    in contrast to the independent samples from modulated p(x).
+    """
+    if num_groups<1 or members<1 or sigma<0 or length<=0:
+        raise ValueError("positive group/members/length; sigma nonnegative")
+    centers=rng.uniform(0.,length,size=num_groups)
+    offsets=rng.normal(0.,sigma,size=(num_groups,members))
+    return ((centers[:,None]+offsets)%length).reshape(-1)
+
+def clustered_mode_power(num_groups,members,sigma,k=1,length=2*np.pi):
+    """Exact E|delta_k|² for equal-weight Gaussian-offset clusters.
+
+    For N=n_groups*members and kphys=2pi*k/L:
+      E|delta_k|²=[1+(members-1)exp(-(kphys*sigma)²)]/N.
+    This does not determine the actual primordial structure spectrum.
+    """
+    if num_groups<1 or members<1 or sigma<0 or k<=0 or length<=0:
+        raise ValueError("valid cluster configuration required")
+    N=num_groups*members
+    kphys=2*np.pi*k/length
+    pair=np.exp(-(kphys*sigma)**2)
+    return float((1+(members-1)*pair)/N)
+
 def poisson_source(k,delta,A_m):
     """Subhorizon Jordan Poisson approximation, neglecting mapper m_k.
 
@@ -215,7 +244,7 @@ def diagnostic(seed=20261102):
     rng=np.random.default_rng(seed)
     count=4096
     power={}
-    for name,epsilon in [("uniform",0.),("density_correlated",.12)]:
+    for name,epsilon in [("uniform",0.),("one_point_modulated",.12)]:
         amp=[]
         for _ in range(128):
             positions=correlated_positions(count,epsilon,rng)
@@ -228,12 +257,23 @@ def diagnostic(seed=20261102):
             predicted_mean=epsilon/2,
             empirical_power=float(np.mean(abs(amp)**2)),
             predicted_power=expected["power"])
+    clusters=[]
+    for _ in range(128):
+        x=clustered_positions(256,16,.1,rng)
+        clusters.append(density_mode(x,k=1))
+    cluster_power=float(np.mean(abs(np.asarray(clusters))**2))
+    expected_cluster_power=clustered_mode_power(256,16,.1,k=1)
     pars=SelectorParameters()
     shape=spectrum_response([.05,.015,.004],[1,2,4],pars,A_m=.01)
     zero=spectrum_response([.05,.015,.004],[1,2,4],
           SelectorParameters(W=0.),A_m=.01)
     return dict(scope="conditional matter spectrum -> quasi-static structural energy; not actual FLRW rho_g",
          random_modes=power,
+         clustered_two_point=dict(N=4096,members=16,
+            mean_abs_mode=float(abs(np.mean(clusters))),
+            empirical_power=cluster_power,
+            predicted_power=expected_cluster_power,
+            enhancement_over_iid=expected_cluster_power*4096),
          spectrum=shape,
          selector_off=zero,
          required_activation={
