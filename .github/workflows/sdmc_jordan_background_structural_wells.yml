@@ -1,0 +1,62 @@
+name: SDMC homogeneous Jordan background and local structural wells
+
+on:
+  push:
+    branches: [sdmc-flatness-jordan-background-structural-wells-20261102]
+    paths:
+      - 'sdmc/flatness_jordan_background_vs_structural_wells.py'
+      - 'tests/test_flatness_jordan_background_vs_structural_wells.py'
+      - 'docs/flatness_jordan_background_and_local_structural_wells.md'
+      - '.github/workflows/sdmc_jordan_background_structural_wells.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frame-averaging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install scientific dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Test frame locking, structural inhomogeneity and averaging
+        run: |
+          python3 -m py_compile sdmc/flatness_jordan_background_vs_structural_wells.py tests/test_flatness_jordan_background_vs_structural_wells.py
+          python3 -m unittest discover -s tests -p 'test_flatness_jordan_background_vs_structural_wells.py' -v
+      - name: Preserve the earlier curvature and nonflat transition tests
+        run: |
+          python3 -m unittest discover -s tests -p 'test_flatness_posthandoff_curvature.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_nonflat_handoff.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_suppression_audit.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_redistribution_spectrum.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_handoff_survivor.py' -v
+      - name: Save geometric examples without claiming full cosmological constraints
+        run: |
+          mkdir -p results/flatness_frame_average
+          python3 -m sdmc.flatness_jordan_background_vs_structural_wells | tee results/flatness_frame_average/structural_local_vs_jordan_global.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('results/flatness_frame_average/structural_local_vs_jordan_global.json').read_text())
+          a=d['exactly_homogeneous_jordan_independent_structural_well']
+          assert a['jordan_full_exactly_homogeneous']
+          assert not a['lock_L_is_zero']
+          assert abs(a['local_structural_3R_mean']-.0097909661985093)<1e-10
+          assert a['averaged_metric_scalar_curvature']==0
+          assert a['physical_average_curvature_not_equal_to_metric_average']
+          locked=d['exact_lock_uniform_mapper_exact_jordan']
+          assert not locked['structural_local_geometry_nontrivial']
+          b=d['locked_with_jordan_local_perturbation']
+          assert b['background_jordan_K']==0
+          assert not b['jordan_full_exactly_homogeneous']
+          assert not b['physical_Jordan_constraint_solved']
+          print('SDMC_JORDAN_FLRW_BACKGROUND_LOCAL_STRUCTURAL_GEOMETRY_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-homogeneous-Jordan-local-structural-wells
+          path: results/flatness_frame_average/
+          if-no-files-found: warn
