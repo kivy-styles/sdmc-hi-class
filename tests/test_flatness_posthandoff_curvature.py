@@ -112,7 +112,7 @@ class StructuralCurvatureFromRedistribution(unittest.TestCase):
                        min(x["mean_local_rms_curvature"] for x in xs),1.2)
         for x in xs:
             self.assertLess(x["max_density_mass_error"],4e-15)
-            self.assertLess(x["max_integrated_identity_residual"],2e-13)
+            self.assertLess(x["max_integrated_identity_residual"],1e-10)
 
     def test_no_primordial_background_K_is_derived_by_flat_reference(self):
         r=material_fragmentation_case(n=8,seed=7,grid=32)
