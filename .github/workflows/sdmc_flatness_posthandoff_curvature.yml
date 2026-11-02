@@ -1,0 +1,57 @@
+name: SDMC post-handoff structural curvature from conserved mass redistribution
+
+on:
+  push:
+    branches: [sdmc-flatness-posthandoff-spatial-curvature-20261102]
+    paths:
+      - 'sdmc/flatness_posthandoff_curvature.py'
+      - 'tests/test_flatness_posthandoff_curvature.py'
+      - 'docs/flatness_posthandoff_curvature_from_mass_redistribution.md'
+      - '.github/workflows/sdmc_flatness_posthandoff_curvature.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nonlinear-structural-curvature:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numerical dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Validate 3D nonlinear curvature and mass-conservation model
+        run: |
+          python3 -m py_compile sdmc/flatness_posthandoff_curvature.py tests/test_flatness_posthandoff_curvature.py
+          python3 -m unittest discover -s tests -p 'test_flatness_posthandoff_curvature.py' -v
+      - name: Keep earlier nonflat and material-redistribution regressions
+        run: |
+          python3 -m unittest discover -s tests -p 'test_flatness_nonflat_handoff.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_suppression_audit.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_redistribution_spectrum.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_handoff_survivor.py' -v
+      - name: Export physical-volume curvature statistics and validate core claims
+        run: |
+          mkdir -p results/posthandoff_curvature
+          python3 -m sdmc.flatness_posthandoff_curvature | tee results/posthandoff_curvature/posthandoff_structural_curvature.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('results/posthandoff_curvature/posthandoff_structural_curvature.json').read_text())
+          h=data["one_mode"]
+          assert h[0]["mean"]>h[-1]["mean"]*250
+          assert all(abs(r["mean"]-r["positive_identity"])<1e-12 for r in h)
+          g=data["gaussian_ensemble"]["groups"]
+          assert g[0]["mean_structural_curvature"]>g[1]["mean_structural_curvature"]>g[2]["mean_structural_curvature"]
+          assert g[0]["mean_structural_curvature"]/g[2]["mean_structural_curvature"]>4
+          assert all(x["max_density_mass_error"]<1e-12 for x in g)
+          assert "was imposed" in data["no_flatness_claim"]
+          print("SDMC_CONSERVED_MASS_POSTHANDOFF_STRUCTURAL_CURVATURE_GEOMETRIC_TEST_VERIFIED")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-posthandoff-structural-curvature
+          path: results/posthandoff_curvature/
+          if-no-files-found: warn
