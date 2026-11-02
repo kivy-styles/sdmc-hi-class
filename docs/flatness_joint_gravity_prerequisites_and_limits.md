@@ -221,3 +221,134 @@ Code: sdmc/flatness_joint_cold_necessary.py
 Tests: tests/test_flatness_joint_cold_necessary.py
 Comparison: sdmc/flatness_probability_ensembles.py
 Physics reference: Manuscript B Part III Sections 102, 106–111, 116.
+
+
+## 5. A further restriction: the same toy initial data must satisfy GR constraints
+
+The earlier 1.60% / 2.16% geometric intersection is still only a
+necessary proxy. A genuine allowed classical initial state must
+satisfy a Hamiltonian and momentum constraint *and* energy positivity.
+
+As a controlled comparison (not an SDMC UV solution), equip the
+SAME 60,000 mass-position-and-width seed configurations with
+plane-symmetric conformal spatial metric
+
+  h_ij=e^{2q(x)}delta_ij,
+
+where q=-Phi is calculated from the seed periodic Poisson density
+and is treated as an initial geometric template. Use unit a_J=a_s
+in an arbitrary length convention.
+
+Impose irrotational GR dust constant-mean-curvature initial data
+
+  K_ij=-H h_ij, H constant in each realization,
+  sigma_ij=0, J_i=0.
+
+Then the momentum constraint D_j(K^ij-h^ij K)=8piG J^i
+is exactly satisfied. The GR Hamiltonian is
+
+  R3+6H²=16piG rho_phys.
+
+The density rho_phys is reconstructed from the nonlinear geometry.
+It need not equal the Gaussian seed density; the seed fixed q only.
+
+The average physical volume is V_phys=Vcoord<e^{3q}>, and for
+prescribed identical conserved material mass M_u=1, solve
+
+  H² = [16piG M_u/V_phys - <R3>_phys]/6.
+
+Then
+
+  rho_phys(x)=[R3(x)+6H²]/(16piG),
+
+and check H²>0, rho_phys(x)>=0, total integral rho_phys
+sqrt(det h) d³x=M_u with numerical residual near machine precision.
+
+This builds genuine GR dust initial slices satisfying both initial
+constraints, given the additional freely selected conformal
+metric and CMC assumptions. It is not the action of SDMC,
+not a Planck-boundary initial state, not an early radiation
+fluid and not a dynamical transition/evolution.
+
+The same Fourier ensembles, seed 4102, widths Uniform(.1,.6)
+and original geometric prerequisites were retained. Across
+20,000 samples of each:
+
+                           P(F and W)   P(CMC positive)
+  independent uniform        1.60%        60.545%
+  one common cluster         0.00%         0.000%
+  almost evenly spaced       2.16%        96.860%
+
+Adding the GR CMC constraints to F and W:
+
+  independent uniform: 2 / 20,000 =0.0100%;
+  one common cluster:  0 / 20,000 =0%;
+  almost evenly spaced:80 / 20,000 =0.4000%.
+
+Among the GR-CMC-admissible subsets these become
+  independent uniform: 2/12,109 ≈0.0165%;
+  clustered: no allowed samples in this restricted construction,
+             so conditional probability is undefined;
+  almost evenly spaced:80/19,372≈0.4130%.
+
+These are again strictly **toy prior fractions**, NOT physical
+Planck SDMC near-flatness+CDM-like success rates. Requiring
+a CMC dust slice itself is an unmotivated extra restriction
+for the radiation-era early universe. It is informative
+precisely because a constraint filter drastically changes
+the joint proxy fraction and because the Gaussian seed
+density is not the same as the reconstructed exact GR
+density.
+
+The special Buchert geometric source on these CMC slices has
+  Q_D=0 (uniform expansion, zero shear);
+  rho_g,av=-R_D/(16piG)<=0;
+  P_g,av=R_D/(48piG).
+
+Indeed, beyond CMC, on ANY exactly locked periodic conformal
+scalar spatial slice with R_D>=0, requiring a positive
+Buchert geometric density demands Q_D<-R_D. Then
+
+  w_g,av=P_g,av/rho_g,av
+       =1+4R_D/[3(-R_D-Q_D)] >= 1,
+
+strictly >1 for R_D>0. Thus under these locked-metric,
+periodic boundary, dust Buchert effective-source assumptions,
+positive effective geometric energy is incompatible with
+pressureless behavior. One cannot rescue positive
+pressureless Buchert dust by merely adding enough shear
+while retaining the same nonnegative average intrinsic R_D.
+
+This is a strong restriction on the PARTICULAR Buchert
+effective-dust route. It does NOT exclude a distinct
+positive action-derived SDMC supporting-space rho_g,
+an independent traceless metric Q_i^j or nonconformal map,
+a negative reference spatial curvature, nonperiodic
+boundary effects, or an evolving non-dust/radiation
+structural–Jordan geometry.
+
+In particular "CDM-like success" is still NOT demonstrated
+for any of these GR-CMC profiles: physical scalar/structural
+stress, growth, sound speed and lensing remain absent.
+
+Code: sdmc/flatness_joint_cmc_constraints.py
+Tests: tests/test_flatness_joint_cmc_constraints.py
+
+## 6. Final status of the requested fully simultaneous calculation
+
+We now have a layered same-sample test:
+  1. fixed total material inventory M_u;
+  2. specified weak-reference averaged structural curvature proxy;
+  3. nonzero small-scale material power;
+  4. exact GR comparator initial Hamiltonian/momentum constraints;
+  5. exact restriction on the special positive dust Buchert branch.
+
+The full physically requested joint event
+ |Omega_k,J,0|<eps_obs AND physical SDMC cold-like gravity
+remains UNCOMPUTED, since neither indicator follows from
+the reduced configuration ensemble and no normalized
+physical primordial measure or complete coupled 4D
+SDMC nonflat primordial trajectory has been supplied.
+
+This establishes a quantitative **constraint-based limitation**,
+rather than any measured primordial probability.
