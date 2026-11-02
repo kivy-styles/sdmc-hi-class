@@ -183,6 +183,51 @@ def archive_clock_check():
         jordan_present_ratio_if_C1=.0917953,
         caveat="These are archived flat-reference kinematics, not calculated UV-sourced nonflat K")
 
+def transition_curvature_residual(N,p,chi,f,GF,beta_b=0.,gamma_g=0.):
+    """Dimensionless nonflat Jordan Omega_k from the SDMC master constraint.
+
+    Uses post-thermal classical quantities, never exact S=1 boundary:
+      rho_v=rho_P/S², rho_X=chi*rho_v,
+      f=rho_X/(rho_X+rho_r),
+      H_J=N/(p*t_P*S),
+      rho_P*t_P²=1/G.
+
+    Omega_k,J=1-p²/(3 G F N²)*[chi/f+beta_b+Gamma_g].
+    Here GF=G*F; F=1/(8piG) -> GF=1/(8pi).
+    beta_b=rho_b/rho_v, Gamma_g=rho_g/rho_v, with rho_g
+    from action-derived nonflat spatial stress (not inserted CDM).
+    Flat-reference endpoint chi was *fit to this same closure*;
+    using it is algebraic consistency, not independent prediction.
+    """
+    vals=np.asarray([N,p,chi,f,GF,beta_b,gamma_g],dtype=float)
+    if not np.isfinite(vals).all() or min(N,p,f,GF)<=0 or f>1 or \
+          min(chi,beta_b,gamma_g)<0:
+        raise ValueError("positive, regular postthermal branch required")
+    balance=chi/f+beta_b+gamma_g
+    expected=3*GF*N*N/(p*p)
+    Omega=1-balance/expected
+    return dict(omega_k_J=float(Omega),
+           balance=float(balance),
+           required_flat_balance=float(expected),
+           absolute_source_residual=float(expected-balance),
+           flat_closure_exact=bool(abs(Omega)<2e-14),
+           independently_derived_curvature=False)
+
+def endpoint_rounding_test():
+    import math
+    N=3.41350846
+    p=2.
+    f=.01
+    GF=1/(8*math.pi)
+    flat_chi=(3*GF*N*N/p**2)*f
+    return dict(rounded=transition_curvature_residual(
+            N,p,chi=.003477,f=f,GF=GF),
+       exact_flat=transition_curvature_residual(
+            N,p,chi=flat_chi,f=f,GF=GF),
+       flat_chi_required=float(flat_chi),
+       rounded_chi=.003477,
+       note="rounded endpoint values of flat-reference branch do not independently predict curvature")
+
 def diagnostic():
     p=ClassicalTransfer()
     histories={}
@@ -200,6 +245,7 @@ def diagnostic():
             histories[name]=dict(K=K,exception=str(e))
     return dict(scope="restricted exact constraint algebra + fully conservative decelerating fixed-F two-fluid toy; not full nonflat SDMC",
        clock=archive_clock_check(),
+       radiation_endpoint=endpoint_rounding_test(),
        flat_residual_selector_on=nonflat_restricted_constraint(
               F=1/3,H=1,E0=1,W=1,eta=.01,aJ=1,M=1),
        mismatched_constraint=nonflat_restricted_constraint(
