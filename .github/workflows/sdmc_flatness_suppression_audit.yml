@@ -1,0 +1,52 @@
+name: SDMC nonzero flatness suppression audit
+
+on:
+  push:
+    branches: [sdmc-flatness-suppression-audit-20261102]
+    paths:
+      - 'sdmc/flatness_suppression_audit.py'
+      - 'tests/test_flatness_suppression_audit.py'
+      - 'docs/flatness_suppression_route_audit.md'
+      - '.github/workflows/sdmc_flatness_suppression_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flatness-suppression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numerical requirements
+        run: python3 -m pip install numpy scipy
+      - name: Validate near-flatness kinematics and fixed-curvature spatial map
+        run: |
+          python3 -m py_compile sdmc/flatness_suppression_audit.py tests/test_flatness_suppression_audit.py
+          python3 -m unittest discover -s tests -p 'test_flatness_suppression_audit.py' -v
+      - name: Keep previous redistribution and handoff regressions
+        run: |
+          python3 -m unittest discover -s tests -p 'test_pg_redistribution_spectrum.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_handoff_survivor.py' -v
+      - name: Record conditional initial curvature, Ck constraint and ordinary growth
+        run: |
+          mkdir -p results/flatness
+          python3 -m sdmc.flatness_suppression_audit | tee results/flatness/nonzero_curvature_kinematic_audit.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('results/flatness/nonzero_curvature_kinematic_audit.json').read_text())
+          assert abs(d['history']['total']-.0858219)<2e-7
+          assert abs(d['conditions'][0]['maximum_C0']-.010893803931138087)<1e-12
+          assert d['conformal_mapping']['effective_Ck']==1
+          assert not d['no_C_rise_under_two_fixed_curvatures']['C_changed']
+          assert 'NOT a solved nonflat SDMC' in d['scope']
+          print('SDMC_NONZERO_FLATNESS_SUPPRESSION_KINEMATIC_AUDIT_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-nonzero-flatness-suppression-audit
+          path: results/flatness/
+          if-no-files-found: warn
