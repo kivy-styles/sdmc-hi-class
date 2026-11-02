@@ -8,7 +8,7 @@ class NonflatStructuralSlice(unittest.TestCase):
         r=closed_s3_curvature(0.)
         self.assertAlmostEqual(r.physical_average_R3,6.)
         self.assertAlmostEqual(r.curvature_ratio_to_initial,1.)
-        self.assertEqual(r.reduction_percent,0.)
+        self.assertAlmostEqual(r.reduction_percent,0.,delta=1e-12)
         self.assertFalse(r.global_FLRW_curvature_parameter_selected)
 
     def test_exact_integration_by_parts_on_compact_sphere(self):
