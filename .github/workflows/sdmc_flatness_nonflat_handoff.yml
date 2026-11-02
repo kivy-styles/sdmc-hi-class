@@ -1,0 +1,56 @@
+name: SDMC actual-nonflat-handoff constraint and classical transfer audit
+
+on:
+  push:
+    branches: [sdmc-flatness-nonflat-handoff-20261102]
+    paths:
+      - 'sdmc/flatness_nonflat_handoff.py'
+      - 'tests/test_flatness_nonflat_handoff.py'
+      - 'docs/flatness_nonflat_handoff_direct_constraint.md'
+      - '.github/workflows/sdmc_flatness_nonflat_handoff.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  primordial-curvature-constraint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numerical dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Validate nonflat ADM roots and actual curved classical evolution
+        run: |
+          python3 -m py_compile sdmc/flatness_nonflat_handoff.py tests/test_flatness_nonflat_handoff.py
+          python3 -m unittest discover -s tests -p 'test_flatness_nonflat_handoff.py' -v
+      - name: Preserve nearby flatness and structural-transition tests
+        run: |
+          python3 -m unittest discover -s tests -p 'test_flatness_suppression_audit.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_redistribution_spectrum.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_handoff_survivor.py' -v
+      - name: Export nonflat curvature selection and transfer diagnostics
+        run: |
+          mkdir -p results/flatness_nonflat
+          python3 -m sdmc.flatness_nonflat_handoff | tee results/flatness_nonflat/direct_nonflat_constraint_and_stiff_radiation.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('results/flatness_nonflat/direct_nonflat_constraint_and_stiff_radiation.json').read_text())
+          assert len(d["flat_residual_selector_on"]["roots_x"])==2
+          assert abs(d["flat_residual_selector_on"]["roots_x"][0])<1e-14
+          assert d["flat_residual_selector_on"]["roots_x"][1]>10
+          assert d["histories"]["open"]["growth"]>7000
+          assert d["histories"]["closed"]["growth"]>7000
+          assert d["histories"]["flat"]["final_omega"]==0
+          assert "prethermal" in " ".join(d["missing"])
+          assert "not full nonflat SDMC" in d["scope"]
+          print("SDMC_NONFLAT_CLASSICAL_HANDOFF_CONSTRAINT_AUDITED_NOT_PRETHERMAL_FLATNESS_SOLVED")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-nonflat-handoff-constraint-audit
+          path: results/flatness_nonflat/
+          if-no-files-found: warn
