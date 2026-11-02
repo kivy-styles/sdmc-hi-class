@@ -1,0 +1,56 @@
+name: SDMC post-handoff local versus averaged structural curvature
+
+on:
+  push:
+    branches: [sdmc-flatness-posthandoff-curvature-20261102]
+    paths:
+      - 'sdmc/flatness_posthandoff_curvature.py'
+      - 'tests/test_flatness_posthandoff_curvature.py'
+      - 'docs/flatness_posthandoff_local_wells_vs_average.md'
+      - '.github/workflows/sdmc_flatness_posthandoff_curvature.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  posthandoff-curvature:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install numerical dependencies
+        run: python3 -m pip install numpy scipy
+      - name: Test exact scalar 3-curvature and physically weighted mean
+        run: |
+          python3 -m py_compile sdmc/flatness_posthandoff_curvature.py tests/test_flatness_posthandoff_curvature.py
+          python3 -m unittest discover -s tests -p 'test_flatness_posthandoff_curvature.py' -v
+      - name: Preserve direct nonflat and earlier structural tests
+        run: |
+          python3 -m unittest discover -s tests -p 'test_flatness_nonflat_handoff.py' -v
+          python3 -m unittest discover -s tests -p 'test_flatness_suppression_audit.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_redistribution_spectrum.py' -v
+          python3 -m unittest discover -s tests -p 'test_pg_handoff_survivor.py' -v
+      - name: Export exact and numerical post-handoff curvature
+        run: |
+          mkdir -p results/flatness_posthandoff
+          python3 -m sdmc.flatness_posthandoff_curvature | tee results/flatness_posthandoff/structural_curvature_geometric_average.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('results/flatness_posthandoff/structural_curvature_geometric_average.json').read_text())
+          e=d['examples'][3]
+          assert abs(e['physical_mean_exact']-.0097909661985093)<1e-9
+          assert abs(e['coordinate_mean_linear'])<1e-12
+          assert abs(e['physical_mean_exact']-e['physical_mean_integral_identity'])<1e-11
+          assert e['physical_mean_exact']>0
+          assert e['linear_rms']>.28
+          assert d['multimode']['homogeneous_FLRW_K_not_inferred']
+          print('SDMC_EXACT_POSTHANDOFF_STRUCTURAL_CURVATURE_NOT_GLOBAL_K_VERIFIED')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdmc-posthandoff-intrinsic-curvature-averaging
+          path: results/flatness_posthandoff/
+          if-no-files-found: warn
