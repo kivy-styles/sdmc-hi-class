@@ -9,7 +9,8 @@ from dataclasses import replace
 from sdmc.pg_redistribution_spectrum import (
     SelectorParameters,response,source_energy,off_shell_energy,
     density_mode,effective_count,iid_mode_moments,
-    correlated_positions,poisson_source,spectrum_response,
+    correlated_positions,clustered_positions,clustered_mode_power,
+    poisson_source,spectrum_response,
     activation_exponents,diagnostic)
 
 class RedistributedStructuralSpectrum(unittest.TestCase):
@@ -64,6 +65,29 @@ class RedistributedStructuralSpectrum(unittest.TestCase):
                 theory["mean_real"],delta=.003)
         self.assertAlmostEqual(float(np.mean(abs(amps)**2)),
                 theory["power"],delta=.0004)
+
+    def test_true_two_point_clusters_amplify_power_at_constant_mass(self):
+        ngrp=256;members=16;sigma=.1
+        samples=np.array([density_mode(
+            clustered_positions(ngrp,members,sigma,self.rng),k=1)
+                         for _ in range(128)])
+        measured=float(np.mean(abs(samples)**2))
+        theory=clustered_mode_power(ngrp,members,sigma,k=1)
+        self.assertAlmostEqual(measured,theory,delta=.35*theory)
+        self.assertGreater(theory,(ngrp*members)**-1*15)
+        self.assertLess(abs(samples.mean()),.03)
+
+    def test_cluster_power_limits_recover_independent_and_group_shot_noise(self):
+        groups=256;m=16
+        self.assertAlmostEqual(
+           clustered_mode_power(groups,m,0.,k=1),1/groups)
+        self.assertAlmostEqual(
+           clustered_mode_power(groups,m,10.,k=1),1/(groups*m),
+           places=12)
+        self.assertAlmostEqual(
+           clustered_mode_power(groups,1,.1,k=1),1/groups)
+        with self.assertRaises(ValueError):
+            clustered_mode_power(0,16,.1)
 
     def test_core_partition_changes_density_mode_not_total_mass(self):
         loc=[.1,1.,2.,3.]
@@ -176,6 +200,7 @@ class RedistributedStructuralSpectrum(unittest.TestCase):
     def test_demo_does_not_claim_physical_cdm_replacement(self):
         d=diagnostic()
         self.assertGreater(d["spectrum"]["E_sum"],0.)
+        self.assertGreater(d["clustered_two_point"]["enhancement_over_iid"],15.)
         self.assertEqual(d["selector_off"]["E_sum"],0.)
         self.assertAlmostEqual(d["required_activation"]["radiation"]
                  ["required_power_slope_if_W_T_constant"],7)
