@@ -5,7 +5,9 @@ on:
     branches: [sdmc-flatness-mass-poisson-curvature-20261102]
     paths:
       - 'sdmc/flatness_mass_poisson_curvature.py'
+      - 'sdmc/flatness_nonflat_structural_slice.py'
       - 'tests/test_flatness_mass_poisson_curvature.py'
+      - 'tests/test_flatness_nonflat_structural_slice.py'
       - 'docs/flatness_mass_redistribution_direct_spatial_curvature.md'
       - '.github/workflows/sdmc_flatness_mass_redistribution.yml'
   workflow_dispatch:
@@ -23,7 +25,8 @@ jobs:
         run: python3 -m pip install numpy scipy
       - name: Test post-handoff periodic density and exact 3D structural curvature
         run: |
-          python3 -m py_compile sdmc/flatness_mass_poisson_curvature.py tests/test_flatness_mass_poisson_curvature.py
+          python3 -m py_compile sdmc/flatness_mass_poisson_curvature.py tests/test_flatness_mass_poisson_curvature.py sdmc/flatness_nonflat_structural_slice.py tests/test_flatness_nonflat_structural_slice.py
+          python3 -m unittest discover -s tests -p 'test_flatness_nonflat_structural_slice.py' -v
           python3 -m unittest discover -s tests -p 'test_flatness_mass_poisson_curvature.py' -v
       - name: Preserve nonflat handoff and full post-handoff curvature baselines
         run: |
@@ -36,6 +39,7 @@ jobs:
         run: |
           mkdir -p results/flatness_mass_distribution
           python3 -m sdmc.flatness_mass_poisson_curvature | tee results/flatness_mass_distribution/posthandoff_mass_redistribution_curvature.json
+          python3 -m sdmc.flatness_nonflat_structural_slice | tee results/flatness_mass_distribution/nonflat_positive_curvature_S3_exact_average.json
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -48,7 +52,11 @@ jobs:
           assert b["average_curvature_reduction_percent"]<0
           assert a["after"]["poisson_linear_max_error"]<1e-12
           assert not a["actual_planck_to_radiation_physics_solved"]
-          print("SDMC_MASS_CONSERVED_STRUCTURAL_CURVATURE_SUPPRESSION_AND_COUNTEREXAMPLE_VERIFIED")
+          s=json.loads(Path("results/flatness_mass_distribution/nonflat_positive_curvature_S3_exact_average.json").read_text())
+          assert abs(s["records"][5]["physical_average_R3"]-.18663244545942548)<1e-10
+          assert s["records"][5]["reduction_percent"]>96
+          assert all(not x["global_FLRW_curvature_parameter_selected"] for x in s["records"])
+          print("SDMC_MASS_CONSERVING_3D_CURVATURE_AND_NONFLAT_REFERENCE_GEOMETRY_VERIFIED")
           PY
       - uses: actions/upload-artifact@v4
         if: always()
